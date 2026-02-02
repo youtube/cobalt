@@ -70,7 +70,7 @@ struct CobaltMetricsServiceClient::State
       return;
     }
 
-    base::TimeDelta delay;
+    base::TimeDelta delay = memory_instrumentation::GetDelayForNextMemoryLog();
     const base::CommandLine* command_line =
         base::CommandLine::ForCurrentProcess();
     if (command_line->HasSwitch(switches::kMemoryMetricsInterval)) {
@@ -81,10 +81,7 @@ struct CobaltMetricsServiceClient::State
         delay = base::Seconds(interval_int);
       } else {
         LOG(ERROR) << "Invalid memory metrics interval: " << interval_str;
-        delay = memory_instrumentation::GetDelayForNextMemoryLog();
       }
-    } else {
-      delay = memory_instrumentation::GetDelayForNextMemoryLog();
     }
 
     task_runner->PostDelayedTask(

@@ -262,6 +262,7 @@ test("cobalt_browsertests") {
     "//cc/slim",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
+    "//cobalt/browser:switches",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",

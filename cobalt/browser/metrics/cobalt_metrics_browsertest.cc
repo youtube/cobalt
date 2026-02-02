@@ -17,6 +17,7 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -29,6 +30,12 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
  public:
   CobaltMetricsBrowserTest() = default;
   ~CobaltMetricsBrowserTest() override = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    content::ContentBrowserTest::SetUpCommandLine(command_line);
+    // Set a short interval for memory metrics to verify periodic recording.
+    command_line->AppendSwitchASCII(switches::kMemoryMetricsInterval, "1");
+  }
 };
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
@@ -57,7 +64,35 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   // be processed by the service, but RunUntilIdle should cover it.
   base::RunLoop().RunUntilIdle();
 
-  histogram_tester.ExpectTotalCount("Memory.Total.PrivateMemoryFootprint", 1);
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
+          .size(),
+      1u);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       PeriodicRecordsPrivateMemoryFootprint) {
+  base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  // Ensure metrics recording is started.
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  // Wait for the periodic dump (interval is 1s).
+  // We wait 3 seconds to be safe and account for any scheduling delays.
+  base::RunLoop run_loop;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, run_loop.QuitClosure(), base::Seconds(3));
+  run_loop.Run();
+
+  // We expect at least one sample from the periodic collection.
+  base::RunLoop().RunUntilIdle();
+  // We don't care about the exact value, just that it's been recorded.
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
+          .size(),
+      1u);
 }
 
 }  // namespace cobalt
