@@ -31,7 +31,6 @@ import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import org.chromium.content_public.browser.WebContents;
-import org.jni_zero.NativeMethods;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
