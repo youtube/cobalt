@@ -449,7 +449,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
-    if (!isReleaseBuild()) {
+    if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
@@ -623,6 +623,9 @@ public abstract class CobaltActivity extends Activity {
 
   protected boolean isReleaseBuild() {
     return StarboardBridge.isReleaseBuild();
+  }
+  protected boolean isDevelopmentBuild() {
+    return StarboardBridge.isDevelopmentBuild();
   }
 
   @Override
