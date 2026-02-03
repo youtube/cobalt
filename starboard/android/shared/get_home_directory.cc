@@ -23,7 +23,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 using ::base::android::ScopedJavaGlobalRef;
 
@@ -32,4 +32,4 @@ bool GetHomeDirectory(char* out_path, int path_size) {
   return len < path_size;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
