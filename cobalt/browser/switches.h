@@ -35,6 +35,20 @@ constexpr char kEnforceHTTPS[] = "https-enforcement";
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";
 
+<<<<<<< HEAD
+=======
+// Whether to request, download, and install uncompressed (rather than
+// compressed) Evergreen binaries.
+constexpr char kUseUncompressedUpdates[] = "use_uncompressed_updates";
+
+// Uses the QA update server to test the changes to the configuration of the
+// PROD update server.
+constexpr char kUseQAUpdateServer[] = "use_qa_update_server";
+
+// Sets the interval for memory metrics collection in seconds.
+constexpr char kMemoryMetricsInterval[] = "memory-metrics-interval";
+
+>>>>>>> 52f2617f34 (cobalt/metrics: Implement Memory.Total.PrivateMemoryFootprint metric (#8845))
 }  // namespace switches
 }  // namespace cobalt
 
