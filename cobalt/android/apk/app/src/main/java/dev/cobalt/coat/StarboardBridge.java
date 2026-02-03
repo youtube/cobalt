@@ -69,7 +69,6 @@ public class StarboardBridge {
   private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
-<<<<<<< HEAD
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
   private AudioPermissionRequester audioPermissionRequester;
@@ -83,21 +82,6 @@ public class StarboardBridge {
   private final String[] args;
   private final long nativeApp;
   private final Runnable stopRequester =
-=======
-  private AudioOutputManager mAudioOutputManager;
-  private CobaltMediaSession mCobaltMediaSession;
-  private AudioPermissionRequester mAudioPermissionRequester;
-  private ResourceOverlay mResourceOverlay;
-  private AdvertisingId mAdvertisingId;
-  private VolumeStateReceiver mVolumeStateReceiver;
-  private PlatformError mPlatformError;
-  private final Context mAppContext;
-  private final Holder<Activity> mActivityHolder;
-  private final Holder<Service> mServiceHolder;
-  private final String[] mArgs;
-  private final long mNativeApp;
-  private final Runnable mStopRequester =
->>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
       new Runnable() {
         @Override
         public void run() {
@@ -323,10 +307,6 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-<<<<<<< HEAD
-    PlatformError error = new PlatformError(activityHolder, errorType, data);
-    error.raise();
-=======
     mPlatformError = new PlatformError(mActivityHolder, errorType, data);
     mPlatformError.raise();
   }
@@ -337,7 +317,6 @@ public class StarboardBridge {
       return mPlatformError.isShowing();
     }
     return false;
->>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */

@@ -394,13 +394,9 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-<<<<<<< HEAD
 
     StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
 
-    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
-=======
->>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();

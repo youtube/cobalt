@@ -157,28 +157,11 @@ public class PlatformError
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
-<<<<<<< HEAD
-          if (cobaltActivity != null) {
-            WebContents webContents = cobaltActivity.getActiveWebContents();
-            if (webContents != null) {
-              webContents.getNavigationController().reload(true);
-            }
-            else {
-              Log.e(TAG, "WebContents is null and not available to reload the application.");
-            }
-            cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
-          }
-=======
           mDialog.dismiss();
           reloadWebContents(cobaltActivity);
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
->>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
-          mDialog.dismiss();
-          break;
-        case DISMISS_BUTTON:
-          mResponse = POSITIVE;
           mDialog.dismiss();
           break;
         default: // fall out
@@ -196,13 +179,7 @@ public class PlatformError
     nativeSendResponse(response, data);
   }
 
-<<<<<<< HEAD
   private native void nativeSendResponse(@PlatformError.Response int response, long data);
-=======
-  @NativeMethods
-  interface Natives {
-    void sendResponse(@PlatformError.Response int response, long data);
-  }
 
   /** Reloads the web contents if available */
   private void reloadWebContents(CobaltActivity cobaltActivity) {
@@ -216,5 +193,4 @@ public class PlatformError
     }
   }
 
->>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
 }
