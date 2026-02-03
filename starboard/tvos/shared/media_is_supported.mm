@@ -19,7 +19,7 @@
 #include "starboard/media.h"
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
@@ -52,4 +52,4 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
           audio_codec == kSbMediaAudioCodecAac);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

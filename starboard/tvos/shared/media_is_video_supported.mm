@@ -23,7 +23,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -140,4 +140,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   return false;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
