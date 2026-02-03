@@ -22,9 +22,9 @@
 // Same macros as in base/threading/thread_checker.h (e.g. THREAD_CHECKER(name),
 // DCHECK_CALLED_ON_VALID_THREAD, etc) but for our always-enabled purposes.
 #define COBALT_THREAD_CHECKER(name) cobalt::common::CobaltThreadChecker name
-#define CHECK_CALLED_ON_VALID_THREAD(name, ...) \
-  cobalt::common::ScopedValidateCobaltThreadChecker \
-      BASE_UNIQUIFY(scoped_validate_thread_checker_)(name, ##__VA_ARGS__);
+#define CHECK_CALLED_ON_VALID_THREAD(name, ...)                    \
+  cobalt::common::ScopedValidateCobaltThreadChecker BASE_UNIQUIFY( \
+      scoped_validate_thread_checker_)(name, ##__VA_ARGS__);
 #define COBALT_DETACH_FROM_THREAD(name) (name).DetachFromThread()
 
 namespace cobalt {

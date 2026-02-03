@@ -24,8 +24,8 @@
 #include "base/memory/weak_ptr.h"
 >>>>>>> 6e5f23c8d77 (Introduce CobaltThreadChecker)
 #include "base/time/time.h"
-#include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "components/metrics/metrics_service_client.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
