@@ -93,9 +93,6 @@ std::string CodecToMimeType(SbMediaAudioCodec codec) {
 }  // namspace
 
 namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
 
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
@@ -111,7 +108,4 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
 #endif
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard

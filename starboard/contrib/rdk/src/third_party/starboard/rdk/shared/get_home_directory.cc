@@ -40,8 +40,6 @@
 #include "starboard/shared/starboard/get_home_directory.h"
 
 namespace starboard {
-namespace shared {
-namespace starboard {
 
 bool GetHomeDirectory(char* out_path, int path_size) {
 
@@ -70,6 +68,4 @@ bool GetHomeDirectory(char* out_path, int path_size) {
   return true;
 }
 
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard
