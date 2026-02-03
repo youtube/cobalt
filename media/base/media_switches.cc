@@ -502,11 +502,12 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
 BASE_FEATURE(kCobaltAudioWrite,
              "CobaltAudioWrite",
              base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<int> kCobaltAudioWriteLocalDurationMs{
-    &kCobaltAudioWrite, "local_duration_ms",
-    static_cast<int>(
-        base::Microseconds(kSbPlayerWriteDurationLocal).InMilliseconds())};
-const base::FeatureParam<int> kCobaltAudioWriteRemoteDurationMs{
+// TODO: b/433993748 - Make kCobaltAudioWriteDurationLocalMs use kSbPlayerWriteDurationLocal.
+// The current value of 1 sec is to maintain parity with C25:
+// https://source.corp.google.com/h/github/youtube/cobalt/+/25.lts.stable:cobalt/media/base/sbplayer_pipeline.h;l=345;drc=b357a652c90411d042650d36a6638d402e2d2754
+const base::FeatureParam<int> kCobaltAudioWriteDurationLocalMs{
+    &kCobaltAudioWrite, "local_duration_ms", 1'000};
+const base::FeatureParam<int> kCobaltAudioWriteDurationRemoteMs{
     &kCobaltAudioWrite, "remote_duration_ms",
     static_cast<int>(
         base::Microseconds(kSbPlayerWriteDurationRemote).InMilliseconds())};

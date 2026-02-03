@@ -227,9 +227,9 @@ MEDIA_EXPORT extern const base::FeatureParam<bool>
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWrite);
 MEDIA_EXPORT extern const base::FeatureParam<int>
-    kCobaltAudioWriteLocalDurationMs;
+    kCobaltAudioWriteDurationLocalMs;
 MEDIA_EXPORT extern const base::FeatureParam<int>
-    kCobaltAudioWriteRemoteDurationMs;
+    kCobaltAudioWriteDurationRemoteMs;
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
     kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);

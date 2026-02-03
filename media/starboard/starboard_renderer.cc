@@ -132,9 +132,9 @@ StarboardRenderer::StarboardRenderer(
       cdm_context_(nullptr),
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(
-          base::Milliseconds(kCobaltAudioWriteLocalDurationMs.Get())),
+          base::Milliseconds(kCobaltAudioWriteDurationLocalMs.Get())),
       audio_write_duration_remote_(
-          base::Milliseconds(kCobaltAudioWriteRemoteDurationMs.Get())),
+          base::Milliseconds(kCobaltAudioWriteDurationRemoteMs.Get())),
       max_video_capabilities_(max_video_capabilities),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
