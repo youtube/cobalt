@@ -178,7 +178,17 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
+<<<<<<< HEAD
       commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
+=======
+
+      List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
+
+      if (commandLineArgs != null) {
+        // Add all array elements to index 0 of the list
+        extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
+      }
+>>>>>>> 63cfc53fb7 (android: Make V8 settings configurable (#8930))
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
