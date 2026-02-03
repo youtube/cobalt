@@ -66,6 +66,10 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+<<<<<<< HEAD
+=======
+import org.chromium.content_public.browser.Visibility;
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
@@ -107,8 +111,12 @@ public abstract class CobaltActivity extends Activity {
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
+<<<<<<< HEAD
   private Boolean isKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector cobaltConnectivityDetector;
+=======
+  private Boolean mIsKeepScreenOnEnabled = false;
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
 
   private boolean mIsCobaltUsingAndroidOverlay;
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
@@ -386,10 +394,13 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
+<<<<<<< HEAD
 
     StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
 
     cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
+=======
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
@@ -453,10 +464,13 @@ public abstract class CobaltActivity extends Activity {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
 
+<<<<<<< HEAD
   public CobaltConnectivityDetector getCobaltConnectivityDetector() {
     return cobaltConnectivityDetector;
   }
 
+=======
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
   @Override
   protected void onStart() {
     if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
@@ -536,9 +550,12 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+<<<<<<< HEAD
     if (cobaltConnectivityDetector != null) {
       cobaltConnectivityDetector.destroy();
     }
+=======
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
     if (mShellManager != null) {
       mShellManager.destroy();
     }

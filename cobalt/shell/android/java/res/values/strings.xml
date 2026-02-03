@@ -25,7 +25,11 @@
     <string name="starboard_platform_retry">Try again</string>
     <!-- Button label on network connection error to open system network settings. -->
     <string name="starboard_platform_network_settings">Open network settings</string>
+<<<<<<< HEAD
    <!-- Button label to dismiss an error message dialog. -->
+=======
+    <!-- Button label to dismiss an error message dialog. -->
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
     <string name="starboard_platform_dismiss">Dismiss</string>
     <!-- Toast message when we can't get the device account to sign in. -->
     <string name="starboard_account_picker_error">Account not available.</string>

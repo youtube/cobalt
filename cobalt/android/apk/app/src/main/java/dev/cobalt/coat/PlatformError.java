@@ -24,12 +24,14 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import org.chromium.content_public.browser.WebContents;
+import org.jni_zero.NativeMethods;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
@@ -106,6 +108,22 @@ public class PlatformError
         return;
     }
     mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
+
+    // When the user presses the back button, suspend the app without dismissing the dialog
+    mDialog.setOnKeyListener(
+        (dialog, keyCode, event) -> {
+          if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
+              && event.getAction() == KeyEvent.ACTION_UP) {
+            CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+            if (cobaltActivity != null) {
+              cobaltActivity.getStarboardBridge().requestSuspend();
+            }
+            // Consume the event and do not dismiss the dialog.
+            return true;
+          }
+          return false;
+        });
+
     mDialog.show();
   }
 
@@ -139,6 +157,7 @@ public class PlatformError
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
+<<<<<<< HEAD
           if (cobaltActivity != null) {
             WebContents webContents = cobaltActivity.getActiveWebContents();
             if (webContents != null) {
@@ -149,6 +168,13 @@ public class PlatformError
             }
             cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
+=======
+          mDialog.dismiss();
+          reloadWebContents(cobaltActivity);
+          break;
+        case DISMISS_BUTTON:
+          mResponse = NEGATIVE;
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
           mDialog.dismiss();
           break;
         case DISMISS_BUTTON:
@@ -163,10 +189,6 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     mDialog = null;
-      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
-      if (cobaltActivity != null && mResponse == CANCELLED) {
-        cobaltActivity.getStarboardBridge().requestSuspend();
-      }
   }
 
   /** Informs Starboard when the error is dismissed. */
@@ -174,5 +196,25 @@ public class PlatformError
     nativeSendResponse(response, data);
   }
 
+<<<<<<< HEAD
   private native void nativeSendResponse(@PlatformError.Response int response, long data);
+=======
+  @NativeMethods
+  interface Natives {
+    void sendResponse(@PlatformError.Response int response, long data);
+  }
+
+  /** Reloads the web contents if available */
+  private void reloadWebContents(CobaltActivity cobaltActivity) {
+    if (cobaltActivity != null) {
+      WebContents webContents = cobaltActivity.getActiveWebContents();
+      if (webContents != null) {
+        webContents.getNavigationController().reload(true);
+      } else {
+        Log.e(TAG, "WebContents is null and not available to reload the application.");
+      }
+    }
+  }
+
+>>>>>>> 02e11c6213e (android: refactoring network dialog check to use WebContentsObserver (#8861))
 }
