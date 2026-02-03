@@ -55,6 +55,16 @@ constexpr char kBuildFingerprintHeader[] =
 constexpr char kYoutubeCertScopeHeader[] =
     "Sec-CH-UA-Co-Youtube-Certification-Scope";
 
+// Client Hint Header name constants
+constexpr char kAndroidOSExperienceHeader[] =
+    "Sec-CH-UA-Co-Android-OS-Experience";
+constexpr char kPlayServicesVersionHeader[] =
+    "Sec-CH-UA-Co-Android-Play-Services-Version";
+constexpr char kBuildFingerprintHeader[] =
+    "Sec-CH-UA-Co-Android-Build-Fingerprint";
+constexpr char kYoutubeCertScopeHeader[] =
+    "Sec-CH-UA-Co-Youtube-Certification-Scope";
+
 // Global pointer to hold the single instance of ApplicationAndroid.
 ApplicationAndroid* g_native_app_instance = nullptr;
 static pthread_mutex_t g_native_app_init_mutex PTHREAD_MUTEX_INITIALIZER;
