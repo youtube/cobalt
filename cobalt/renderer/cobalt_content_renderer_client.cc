@@ -194,8 +194,8 @@ std::optional<int> ProcessRangedIntH5vccSetting(
     return std::nullopt;
   }
   if (*val == default_sentinel) {
-    LOG(WARNING) << "Value for " << key << " matches sentinel (" << *val
-                 << "); falling back to system default.";
+    LOG(INFO) << "Value for " << key << " matches sentinel (" << *val
+              << "); falling back to system default.";
     return std::nullopt;
   }
   if (*val < min_val || max_val < *val) {
