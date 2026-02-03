@@ -187,9 +187,15 @@ std::optional<int> ProcessRangedIntH5vccSetting(
     const std::map<std::string, H5vccSettingValue>& settings,
     const char* key,
     int min_val,
-    int max_val) {
+    int max_val,
+    int default_sentinel) {
   auto* val = GetSettingValue<int64_t>(settings, key);
   if (!val) {
+    return std::nullopt;
+  }
+  if (*val == default_sentinel) {
+    LOG(WARNING) << "Value for " << key << " matches sentinel (" << *val
+                 << "); falling back to system default.";
     return std::nullopt;
   }
   if (*val < min_val || max_val < *val) {
@@ -218,14 +224,14 @@ ParsedH5vccSettings ProcessH5vccSettings(
   }
 
   parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder, 1,
-      kMaxFramesInDecoderLimit);
+      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder,
+      /*min_val=*/1, kMaxFramesInDecoderLimit, /*default_sentinel=*/0);
   parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, 1,
-      kMaxFramesInDecoderLimit);
+      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, /*min_val=*/1,
+      kMaxFramesInDecoderLimit, /*default_sentinel=*/0);
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, 1,
-      kMaxVideoDecoderPollIntervalMs);
+      settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
+      kMaxVideoDecoderPollIntervalMs, /*default_sentinel=*/0);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
