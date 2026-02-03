@@ -507,6 +507,8 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetString(kExperimentConfigMinVersion, future_version);
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
+  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.RollbackDetected", true,
+                                       1);
 }
 
 TEST_F(ExperimentConfigManagerTest,
@@ -550,36 +552,54 @@ TEST_F(ExperimentConfigManagerTest,
             ExperimentConfigType::kRegularConfig);
 }
 
-TEST_F(ExperimentConfigManagerTest, IsVersionGreaterThan) {
+TEST_F(ExperimentConfigManagerTest, CompareVersions) {
+  using VersionComparisonResult =
+      ExperimentConfigManager::VersionComparisonResult;
+
   // Test major version
-  EXPECT_TRUE(
-      ExperimentConfigManager::IsVersionGreaterThan("10.lts.0", "9.lts.0"));
-  EXPECT_FALSE(
-      ExperimentConfigManager::IsVersionGreaterThan("9.lts.0", "10.lts.0"));
+  EXPECT_EQ(VersionComparisonResult::kGreaterThan,
+            ExperimentConfigManager::CompareVersions("10.lts.0", "9.lts.0"));
+  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.VersionComparisonIsValid",
+                                       true, 1);
+  EXPECT_EQ(VersionComparisonResult::kLessThanOrEqual,
+            ExperimentConfigManager::CompareVersions("9.lts.0", "10.lts.0"));
+  histogram_tester_.ExpectUniqueSample("Cobalt.Finch.VersionComparisonIsValid",
+                                       true, 2);
 
   // Test minor version
-  EXPECT_TRUE(
-      ExperimentConfigManager::IsVersionGreaterThan("9.lts.1", "9.lts.0"));
-  EXPECT_FALSE(
-      ExperimentConfigManager::IsVersionGreaterThan("9.lts.0", "9.lts.1"));
+  EXPECT_EQ(VersionComparisonResult::kGreaterThan,
+            ExperimentConfigManager::CompareVersions("9.lts.1", "9.lts.0"));
+  EXPECT_EQ(VersionComparisonResult::kLessThanOrEqual,
+            ExperimentConfigManager::CompareVersions("9.lts.0", "9.lts.1"));
 
   // Test equal versions
-  EXPECT_FALSE(
-      ExperimentConfigManager::IsVersionGreaterThan("9.lts.0", "9.lts.0"));
+  EXPECT_EQ(VersionComparisonResult::kLessThanOrEqual,
+            ExperimentConfigManager::CompareVersions("9.lts.0", "9.lts.0"));
 
   // Test different purpose strings
-  EXPECT_TRUE(
-      ExperimentConfigManager::IsVersionGreaterThan("10.android.0", "9.lts.0"));
-  EXPECT_FALSE(
-      ExperimentConfigManager::IsVersionGreaterThan("9.android.0", "9.lts.1"));
+  EXPECT_EQ(
+      VersionComparisonResult::kGreaterThan,
+      ExperimentConfigManager::CompareVersions("10.android.0", "9.lts.0"));
+  EXPECT_EQ(VersionComparisonResult::kLessThanOrEqual,
+            ExperimentConfigManager::CompareVersions("9.android.0", "9.lts.1"));
 
   // Test invalid formats
-  EXPECT_FALSE(
-      ExperimentConfigManager::IsVersionGreaterThan("invalid", "9.lts.0"));
-  EXPECT_FALSE(
-      ExperimentConfigManager::IsVersionGreaterThan("9.lts.0", "invalid"));
-  EXPECT_FALSE(ExperimentConfigManager::IsVersionGreaterThan("9.0", "9.lts.0"));
-  EXPECT_FALSE(ExperimentConfigManager::IsVersionGreaterThan("9.lts.0", "9.0"));
+  EXPECT_EQ(VersionComparisonResult::kInvalidFormat,
+            ExperimentConfigManager::CompareVersions("invalid", "9.lts.0"));
+  histogram_tester_.ExpectBucketCount("Cobalt.Finch.VersionComparisonIsValid",
+                                      false, 1);
+  EXPECT_EQ(VersionComparisonResult::kInvalidFormat,
+            ExperimentConfigManager::CompareVersions("9.lts.0", "invalid"));
+  histogram_tester_.ExpectBucketCount("Cobalt.Finch.VersionComparisonIsValid",
+                                      false, 2);
+  EXPECT_EQ(VersionComparisonResult::kInvalidFormat,
+            ExperimentConfigManager::CompareVersions("9.0", "9.lts.0"));
+  histogram_tester_.ExpectBucketCount("Cobalt.Finch.VersionComparisonIsValid",
+                                      false, 3);
+  EXPECT_EQ(VersionComparisonResult::kInvalidFormat,
+            ExperimentConfigManager::CompareVersions("9.lts.0", "9.0"));
+  histogram_tester_.ExpectBucketCount("Cobalt.Finch.VersionComparisonIsValid",
+                                      false, 4);
 }
 
 }  // namespace cobalt

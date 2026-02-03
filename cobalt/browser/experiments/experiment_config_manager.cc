@@ -83,12 +83,11 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
   return false;
 }
 
-// Custom version comparison for Cobalt. Returns true if version1 > version2.
-// Compares major and minor version numbers, ignoring the purpose string.
-// Format is assumed to be <major>.<purpose>.<minor>.
-bool ExperimentConfigManager::IsVersionGreaterThan(
-    const std::string& version1,
-    const std::string& version2) {
+}  // namespace
+
+ExperimentConfigManager::VersionComparisonResult
+ExperimentConfigManager::CompareVersions(const std::string& version1,
+                                         const std::string& version2) {
   auto parse_version = [](const std::string& v_str, int* major,
                           int* minor) -> bool {
     std::vector<std::string> parts = base::SplitString(
@@ -103,20 +102,20 @@ bool ExperimentConfigManager::IsVersionGreaterThan(
   int v1_major, v1_minor, v2_major, v2_minor;
   if (!parse_version(version1, &v1_major, &v1_minor) ||
       !parse_version(version2, &v2_major, &v2_minor)) {
-    LOG(WARNING) << "Cannot compare versions with non-standard format: '"
-                 << version1 << "' and '" << version2 << "'";
-    return false;
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.VersionComparisonIsValid", false);
+    return VersionComparisonResult::kInvalidFormat;
   }
+  UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.VersionComparisonIsValid", true);
 
   if (v1_major != v2_major) {
-    return v1_major > v2_major;
+    return v1_major > v2_major ? VersionComparisonResult::kGreaterThan
+                               : VersionComparisonResult::kLessThanOrEqual;
   }
 
   // Major versions are equal, compare minor versions.
-  return v1_minor > v2_minor;
+  return v1_minor > v2_minor ? VersionComparisonResult::kGreaterThan
+                             : VersionComparisonResult::kLessThanOrEqual;
 }
-
-}  // namespace
 
 ExperimentConfigManager::ExperimentConfigManager(
     PrefService* experiment_config,
@@ -174,8 +173,9 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // Min version prefs are added later than other prefs, so it might be missing
   // for some users.
   if (!recorded_cobalt_version.empty() &&
-      ExperimentConfigManager::IsVersionGreaterThan(recorded_cobalt_version,
-                                                    COBALT_VERSION)) {
+      CompareVersions(recorded_cobalt_version, COBALT_VERSION) ==
+          VersionComparisonResult::kGreaterThan) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.RollbackDetected", true);
     return ExperimentConfigType::kEmptyConfig;
   }
 
