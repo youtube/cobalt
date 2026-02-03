@@ -1,0 +1,12 @@
+# b/427294038
+-AnimationHostPerfTest.*
+-BrowserCompositorInvalidateLayerTreePerfTest.*
+-CalcDrawPropsTest.*
+-LayerPerfTest.*
+-LayerTreeHostPerfTestJsonReader.*
+-LayerTreeHostPerfTestLeafInvalidates.*
+-PaintOpPerfTest.*
+-PictureLayerImplPerfTest.*
+-RasterBufferProviderCommonPerfTest.*
+-RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.*
+-ScrollingLayerTreePerfTest.*

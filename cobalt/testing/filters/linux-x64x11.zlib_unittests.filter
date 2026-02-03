@@ -1,0 +1,13 @@
+# TODO: Add script that generates list of test targets (#4464)
+-FileWriterDelegateTest.WriteToEnd
+-ZipReaderTest.EncryptedFile_WrongPassword
+-ZipReaderTest.OpenFromString
+-ZipTest.Compressed
+-ZipTest.UnzipEvil2
+-ZipTest.UnzipMixedPaths
+-ZipTest.UnzipSjis
+-ZipTest.UnzipSjisAsUtf8
+-ZipTest.UnzipWithFilter
+-ZipTest.ZipNonASCIIDir
+-ZlibTest.CRCHashBitsCollision
+-ZlibTest.ZlibWrapper

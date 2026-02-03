@@ -1,0 +1,33 @@
+# TODO: Cleanup nplb hack (#7327)
+-SbPlayerWriteSampleTests*
+
+# b/428987532
+-MaximumPlayerConfigurationExplorerTests*
+-MultiplePlayerTest.*
+-PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16
+-SbAudioSinkTest.*
+-SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes
+-SbPlayerGetAudioConfigurationTests*
+-SbPlayerGetMediaTimeTests*
+
+# b/452357142
+-PosixTimeClockTests.ClockIncreasesOverTime
+
+# b/461598808
+-SbLogFlushTest.DontCrashMeBro
+-SbMediaCanPlayMimeAndKeySystem.MinimumSupport
+-SbMediaSetAudioWriteDurationTests*
+-SbPlayerTest.*
+
+# b/461906423
+-VerticalVideoTests/VerticalVideoTest*
+
+# b/466160361
+-Posix/NlLanginfoLTest.AllItems/as_IN
+-Posix/NlLanginfoLTest.AllItems/be_BY
+-Posix/NlLanginfoLTest.AllItems/bs_BA
+-Posix/NlLanginfoLTest.AllItems/or_IN
+-Posix/NlLanginfoTest.AllItems/as_IN
+-Posix/NlLanginfoTest.AllItems/be_BY
+-Posix/NlLanginfoTest.AllItems/bs_BA
+-Posix/NlLanginfoTest.AllItems/or_IN

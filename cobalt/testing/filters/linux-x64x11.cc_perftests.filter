@@ -1,0 +1,24 @@
+# TODO: Rework test targets and artifacts (#4720)
+-AnimationHostPerfTest.Push1000AnimationsPropertiesTo
+-AnimationHostPerfTest.Push1000TimelinesPropertiesTo
+-AnimationHostPerfTest.Push10TimelinesPropertiesTo
+-BrowserCompositorInvalidateLayerTreePerfTest.DenseBrowserUIThreaded
+-LayerPerfTest.PushPropertiesTo
+-LayerTreeHostPerfTestJsonReader.HeavyPageThreaded
+-LayerTreeHostPerfTestJsonReader.TenTenThreaded
+-LayerTreeHostPerfTestJsonReader.TenTenThreaded_FullDamageEachFrame
+-LayerTreeHostPerfTestLeafInvalidates.TenTenThreaded
+-PaintOpPerfTest.ManyFlagsOps
+-PictureLayerImplPerfTest.TilingSetEvictionQueueConstruct
+-PictureLayerImplPerfTest.TilingSetEvictionQueueConstructAndIterate
+-PictureLayerImplPerfTest.TilingSetRasterQueueConstructAndIterate
+-RasterBufferProviderCommonPerfTest.BuildTileTaskGraph
+-RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleAlternateTasks/3
+-RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleAndExecuteTasks/3
+-RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleTasks/3
+-ScrollingLayerTreePerfTest.LongScrollablePageSingleThread
+
+# TODO: [Rebase m138] Filter failing tests (#7539)
+-LayerTreeHostPerfTestLeafInvalidates.*
+-ScrollingLayerTreePerfTest.LongScrollablePageThreaded
+-TileManagerPerfTest.*

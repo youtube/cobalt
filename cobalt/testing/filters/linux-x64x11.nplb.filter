@@ -1,0 +1,11 @@
+# TODO: Use environmental variables for on-host sharding (#6857)
+-PosixSocketSendtoTest.RainyDaySendToClosedSocket
+
+# b/403007005
+-FileTempTest.*
+-PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*
+-PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*
+-PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*
+
+# b/418842688
+-PosixSocketSendTest.RainyDaySendToClosedSocket
