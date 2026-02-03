@@ -1,0 +1,6 @@
+# b/454142578
+-CobaltMetricsLogUploaderTest.UploadLogUmaServiceTypeSuccessfulUpload
+-CobaltMetricsServiceClientTest.*
+-CobaltMetricsServicesManagerClientTest.*
+-GlobalFeaturesTest.*
+-GlobalFeaturesTest.ActiveExperimentIdsUnchangedAfterInitialization

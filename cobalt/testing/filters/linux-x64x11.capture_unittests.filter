@@ -1,0 +1,3 @@
+# b/418842688
+-V4l2GpuMemoryBufferTrackerTest.InitFailedAsEmptyTestSharedImageInterface
+-VideoCaptureDeviceTests/VideoCaptureDeviceTest.*

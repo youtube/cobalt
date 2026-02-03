@@ -36,4 +36,4 @@
 
 /third_party/blink/ @youtube/cobalt-web-api
 
-*.nplb_filter.json @youtube/nplb-filters
+*.nplb.filter @youtube/nplb-filters

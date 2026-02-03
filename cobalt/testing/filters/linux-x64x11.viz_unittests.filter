@@ -1,0 +1,26 @@
+# TODO: [Ozone] Disable all non-starboard backends (#4987)
+-GPURendererPixelTest.AntiAliasing/SkiaGL
+-GPURendererPixelTest.AntiAliasingPerspective/SkiaGL
+-IntersectingVideoQuadPixelTest.Y16VideoQuads/SkiaGL
+-IntersectingVideoQuadPixelTest.YUVVideoQuads/SkiaGL
+-RendererPixelTestWithBackdropFilter.InvertFilterWithMask/SkiaGL
+
+# TODO: [Ozone] Remove angle_use_x11 flag (#5238)
+-FromColorSpace/ColorTransformPixelTest.Basic/38
+-GPURendererPixelTest.LinearGradientOnRenderPass/SkiaGL
+-GPURendererPixelTest.MultiLinearGradientOnRenderPass/SkiaGL
+-VideoRendererPixelHiLoTest*
+-VideoRendererPixelTest.OffsetYUVRect/SkiaGL
+
+# TODO: [Rebase m138] fix viz tests (#7582)
+-FromColorSpace/ColorTransformPixelTest.Basic/39
+-IntersectingMultiplanarVideoQuadPixelTest.Y16VideoQuads/SkiaGL
+-IntersectingMultiplanarVideoQuadPixelTest.YUVVideoQuads/SkiaGL
+-RendererPixelTest.BypassableRenderPassQuad_BackdropFilter_Extents/SkiaGL
+-VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/1
+-VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/2
+-VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/3
+
+# b/418842688
+-VideoRendererPixelTest.SimpleYUVARect/SkiaGL
+-VisualDebuggerTest.*

@@ -1,0 +1,15 @@
+# TODO: Rework test targets and artifacts (#4720)
+-SharedImageGLBackingProduceDawnTest.Basic
+-TranslatorVariants/EXTBlendFuncExtendedES3DrawTest.*
+-WebGPUMailboxTest.*
+
+# TODO: [Ozone] Remove angle_use_x11 flag (#5238)
+-*EGLImageBackingFactoryThreadSafeTest*
+-WebGPUTest.*
+
+# b/418842688
+-TranslatorVariants/EXTBlendFuncExtendedDrawTest.*
+
+# b/454142578
+-GLReadbackTest.ReadPixelsFloat
+-OzoneImageBackingFactoryTest.*

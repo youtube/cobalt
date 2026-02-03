@@ -1,0 +1,8 @@
+# b/427294038
+-CompressionUtilsTest.*
+-ZipReaderTest.*
+
+# b/454142578
+-ZipTest.*
+-ZlibTest.ZipExtraFieldSize
+-ZlibTest.ZipFilenameCommentSize

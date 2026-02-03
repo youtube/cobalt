@@ -1,0 +1,7 @@
+# TODO: Route _exit() to exit() (#6492)
+-ForkDetect.Test
+
+# b/461598808
+-RandTest.Fork
+-X509Test.DirHashThreads
+-X509Test.DuplicateName

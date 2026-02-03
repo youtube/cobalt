@@ -1,0 +1,46 @@
+# TODO: Install missing libs and unfilter net_unittests (#5370)
+-*/CertVerifyProcInternalTest.*
+-*/EmbeddedTestServerTest.*
+-*/EmbeddedTestServerTest.*
+-*/EmbeddedTestServerTest.*
+-All/TCPServerSocketTestWithIPv6Only.AcceptIPv6Only/0
+-All/TCPServerSocketTestWithIPv6Only.AcceptIPv6Only/1
+-CacheUtilTest.CleanupDirectoryFailsWhenParentDirectoryIsInaccessible
+-FilenameUtilTest.FileURLConversion
+-FilenameUtilTest.GenerateFileName
+-HTTPSEVTest.EVCheckNoOCSP
+-HTTPSLocalCRLSetTest.KnownInterceptionBlocked
+-HTTPSRequestTest.*
+-HTTPSRequestTest.*
+-HttpNetworkTransactionTest.UploadUnreadableFile
+-PartitionConnectionsByNetworkAnonymizationKey.*
+-PartitionedCookiesURLRequestHttpJobTest.*
+-QuicSocketAddress.FromSocket
+-ReportingUploaderTest.*
+-SpdyNetworkTransactionTest.UnreadableFilePost
+-TestRootCertsTest.Moveable
+-TestRootCertsTest.OverrideTrust
+-UDPSocketTest.ClientGetLocalPeerAddresses
+-UDPSocketTest.ClientSetDoNotFragment
+-URLRequestHttpJobTest.GetFirstPartySetsCacheFilterMatchInfo
+-URLRequestHttpJobTest.HSTSInternalRedirectCallback
+-URLRequestSameSiteCookiesTest.*
+-URLRequestTest.*
+-URLRequestTest.DnsNameHttpsOnlyErrorCausesSchemeUpgrade
+-URLRequestTest.DnsNameHttpsOnlyErrorCausesSchemeUpgradeDeferred
+-URLRequestTestHTTP.*
+
+# TODO: Use environmental variables for on-host sharding (#6857)
+-All/HttpCacheLookupManagerTest_NetworkIsolationKey.ServerPushCacheStatus/1
+
+# TODO: net_unittests fixes (#7583)
+-HTTPSOCSPTest.IntermediateResponseTooOldKnownRoot
+-URLRequestTestReferrerPolicy.*
+-VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2
+
+# b/418842688
+-*TCPClientSocketTest.*
+-All/ConnectJobParamsFactoryTest.HttpEndpoint/64
+-All/SocketBIOAdapterTest.ReadEOFAsync/1
+-SQLitePersistentSharedDictionaryStoreTest.*
+-VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1

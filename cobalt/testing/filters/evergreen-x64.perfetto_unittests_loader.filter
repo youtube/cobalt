@@ -1,0 +1,4 @@
+# TODO: Disable perfetto_unittests DEATH_TEST (#7205)
+-ScopedDirTest.CloseOutOfScope
+-SubprocessTest.Entrypoint
+-SubprocessTest.InvalidPath

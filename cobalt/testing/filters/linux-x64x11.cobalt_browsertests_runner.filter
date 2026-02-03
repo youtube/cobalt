@@ -1,0 +1,30 @@
+# TODO: Productionize  cobalt_browsertests and make test suite run in current CI (#8673)
+-NavigationBaseBrowserTest.AddRequestHeaderOnRedirect
+
+# TODO: Run cobalt_browser_tests on Linux in presubmit (#8672)
+-*DeferSpeculativeRFHCreationRenderProcessTest*
+-*NavigationBrowserTestDeprecateUnloadOptOut*
+-*NavigationBrowserTestPaintHoldingSubframe*
+-*NavigationBrowserTestReferrerPolicy*
+-*NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest*
+-CommitNavigationRaceBrowserTest*
+-DeferSpeculativeRFHCreationReuseRFHTest*
+-DeferSpeculativeRFHCreationTest*
+-DocumentPolicyBrowserTest*
+-HstsUpgradeBrowserTest*
+-MediaNavigationBrowserTest*
+-NavigationBrowserTest*
+-NavigationBrowserTestCredentiallessIframe*
+-NavigationBrowserTestWarnSandboxIneffective*
+-NavigationCookiesBrowserTest*
+-NavigationCorsExemptBrowserTest*
+-NavigationGoToEntryAtOffsetBrowserTest*
+-NavigationQueueingBrowserTest*
+-NavigationSuddenTerminationDisablerTypeBrowserTest*
+-NavigationUrlRewriteBrowserTest*
+-NavigationWithPageSwapBrowserTest*
+-NetworkIsolationNavigationBrowserTest*
+-NetworkIsolationSplitCacheAppendIframeOrigin*
+-SubresourceLoadingTest*
+-UndoCommitNavigationBrowserTest*
+-VisualPropertiesSynchronization*

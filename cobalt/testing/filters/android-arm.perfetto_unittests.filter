@@ -1,0 +1,2 @@
+# TODO: Add script that generates list of test targets (#4464)
+-ScopedDirTest.CloseOutOfScope

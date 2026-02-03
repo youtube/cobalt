@@ -1,0 +1,51 @@
+# TODO: Add on-device test support to RDK builder (#7089)
+-SbSystemGetLocaleIdTest.SunnyDay
+
+# TODO: Add to raspi-2-modular nplb filters (#7648)
+-PosixTimeClockTests.ClockIncreasesOverTime
+
+# TODO: Cleanup nplb hack (#7327)
+-SbWindowGetSizeTest.SunnyDay
+-VerticalVideoTests/VerticalVideoTest*
+
+# b/371433332, b/453724467
+-SbSystemGetPathTest.CanWriteAndReadFilesStorage
+
+# b/440527927
+-CrashpadConfigTest.VerifyUploadCert
+-MadviseTest.BadSizeValue
+-MaximumPlayerConfigurationExplorerTests*
+-MultiplePlayerTest.*
+-PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*
+-SbAudioSinkCreateTest.MultiSink
+-SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes
+-SbPlayerGetAudioConfigurationTests*
+-SbPlayerGetMediaTimeTests*
+-SbPlayerWriteSampleTests*
+-SbSystemGetPropertyTest.ReturnsRequired
+-SbSystemSymbolizeTest.SunnyDay
+-SbTimeZoneGetNameTest.IsIANAFormat
+
+# b/461598808
+-PosixSignalTest.PthreadKillSendsSignalToSpecificThread
+-PosixUtimensatTest.OmitBothTimestamps
+-PosixUtimensatTest.SetAccessTimeWithUtimeNow
+-PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp
+-PosixUtimensatTest.SetToSpecificTime
+-PosixUtimensatTest.SymlinkNoFollow
+-SbAudioSinkTest.*
+-SbLogFlushTest.DontCrashMeBro
+-SbMediaCanPlayMimeAndKeySystem.MinimumSupport
+-SbMediaSetAudioWriteDurationTests*
+-SbPlayerTest.*
+-SbSystemGetStackTest.*
+
+# b/466160361
+-Posix/NlLanginfoLTest.AllItems/as_IN
+-Posix/NlLanginfoLTest.AllItems/be_BY
+-Posix/NlLanginfoLTest.AllItems/bs_BA
+-Posix/NlLanginfoLTest.AllItems/or_IN
+-Posix/NlLanginfoTest.AllItems/as_IN
+-Posix/NlLanginfoTest.AllItems/be_BY
+-Posix/NlLanginfoTest.AllItems/bs_BA
+-Posix/NlLanginfoTest.AllItems/or_IN

@@ -1,0 +1,25 @@
+# TODO: Add script that generates list of test targets (#4464)
+-*RTCVideoDecoder*
+-HarfBuzzShaperTest.*
+-KeySystemConfigSelectorTest.*
+
+# TODO: Use environmental variables for on-host sharding (#6857)
+-SchemeRegistryTest.CodeCacheWithHashing
+-SecurityPolicyTest.ReferrerForCustomScheme
+
+# TODO: [Rebase m138] fixes for blink_unittests (#7466)
+-AV1/ResolutionMonitorTestWithValidFrame.ReturnExpectedResolution/*
+-AV1/ResolutionMonitorTestWithValidVideo.*
+-BMPSuite/BMPImageDecoderTest.VerifyBMPSuiteImage/*
+-BackgroundResourceFecherTest.BackgroundResponseProcessorExceedMaxBufferedBytesPerProcess
+-BackgroundResourceFecherTest.BufferIncomingFreezeExceedMaxBufferedBytesPerProcess
+-FilePathConversionTest.convert
+-H264/ResolutionMonitorTestWithValidFrame.*
+-ResolutionMonitorTestWithInvalidFrame.*
+-ResolutionMonitorTestWithTruncatedH264.*
+-TextBreakIteratorTest.Phrase
+-VP8/ResolutionMonitorTestWithValidFrame.*
+-VP8/ResolutionMonitorTestWithValidVideo.*
+-VP9/ResolutionMonitorTestWithValidFrame.ReturnExpectedResolution/*
+-VP9/ResolutionMonitorTestWithValidVideo.*
+-VideoFrameImageUtilTest.WillCreateAcceleratedImagesFromVideoFrame

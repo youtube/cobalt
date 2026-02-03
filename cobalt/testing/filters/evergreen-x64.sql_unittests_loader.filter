@@ -1,0 +1,16 @@
+# b/428987532
+-JournalMode/SQLDatabaseTest.*
+
+# b/454142578
+-All/GLHelperPixelReadbackTest.ScaleTest*
+-All/SqlRecoveryTest.*
+-DatabaseOptionsTest.*
+-JournalMode/SQLDatabaseTestExclusiveMode.LockingModeExclusive*
+-LockingMode/ReadOnlySQLDatabaseTest.*
+-SQLInvalidDatabaseFlagsDeathTest.ExclusiveDatabaseLock
+-SQLMemoryDumpProviderTest.*
+-SQLMetaTableTest.*
+-SQLRecoveryTest.Bug387868
+-SQLTransactionTest.*
+-SQLiteFeaturesTest.*
+-StatementTest.*
