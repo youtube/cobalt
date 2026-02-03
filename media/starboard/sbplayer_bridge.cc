@@ -705,6 +705,8 @@ void SbPlayerBridge::CreatePlayer() {
     creation_param.video_stream_info.codec = kSbMediaVideoCodecNone;
   }
   creation_param.output_mode = output_mode_;
+
+  // Miguelao -- we're hitting this path.
   DCHECK_EQ(sbplayer_interface_->GetPreferredOutputMode(&creation_param),
             output_mode_);
 #if COBALT_MEDIA_ENABLE_CVAL

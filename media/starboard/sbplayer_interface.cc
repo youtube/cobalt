@@ -69,6 +69,22 @@ SbPlayerOutputMode DefaultSbPlayerInterface::GetPreferredOutputMode(
   auto output_mode = SbPlayerGetPreferredOutputMode(creation_param);
   media_metrics_provider_.EndTrackingAction(
       MediaAction::SBPLAYER_GET_PREFERRED_OUTPUT_MODE);
+
+  switch (output_mode) {
+    case kSbPlayerOutputModeDecodeToTexture:
+      LOG(ERROR) << "Miguelaaaoooooo " << "decode-to-texture";
+      break;
+    case kSbPlayerOutputModePunchOut:
+      LOG(ERROR) << "Miguelaaaoooooo " << "punch-out";
+      break;
+    case kSbPlayerOutputModeInvalid:
+      LOG(ERROR) << "Miguelaaaoooooo " << "invalid";
+      break;
+  }
+  /////////////////////////////////////////////////  Miguelao
+  output_mode = kSbPlayerOutputModeDecodeToTexture;
+
+
   return output_mode;
 }
 
