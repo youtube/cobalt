@@ -87,7 +87,7 @@ void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
     DecodePendingBuffers();
   } else {
     for (const auto& input_buffer : input_buffers) {
-      if (!DecodeInternal(input_buffer)) {
+      if (!DecodeInternal(*input_buffer)) {
         return;
       }
     }
@@ -101,7 +101,7 @@ void OpusAudioDecoder::DecodePendingBuffers() {
   SB_DCHECK(consumed_cb_);
 
   for (int i = 0; i < kMinimumBuffersToDecode; ++i) {
-    if (!DecodeInternal(pending_audio_buffers_.front())) {
+    if (!DecodeInternal(*pending_audio_buffers_.front())) {
       return;
     }
     pending_audio_buffers_.pop_front();
@@ -120,23 +120,21 @@ void OpusAudioDecoder::DecodePendingBuffers() {
   Schedule(std::bind(&OpusAudioDecoder::DecodePendingBuffers, this));
 }
 
-bool OpusAudioDecoder::DecodeInternal(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+bool OpusAudioDecoder::DecodeInternal(const InputBuffer& input_buffer) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       audio_stream_info_.number_of_channels, GetSampleType(),
-      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
+      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer.timestamp(),
       audio_stream_info_.number_of_channels * frames_per_au_ *
           GetBytesPerSample(GetSampleType()));
 
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
-      decoder_, static_cast<const unsigned char*>(input_buffer->data()),
-      input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
+      decoder_, static_cast<const unsigned char*>(input_buffer.data()),
+      input_buffer.size(), reinterpret_cast<float*>(decoded_audio->data()),
       frames_per_au_, 0);
   if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
       frames_per_au_ < kMaxOpusFramesPerAU) {
@@ -162,7 +160,7 @@ bool OpusAudioDecoder::DecodeInternal(
   frames_per_au_ = decoded_frames;
   decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
                           frames_per_au_ * GetBytesPerSample(GetSampleType()));
-  const auto& sample_info = input_buffer->audio_sample_info();
+  const auto& sample_info = input_buffer.audio_sample_info();
   decoded_audio->AdjustForDiscardedDurations(
       audio_stream_info_.samples_per_second,
       sample_info.discarded_duration_from_front,

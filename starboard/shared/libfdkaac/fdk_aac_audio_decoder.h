@@ -57,7 +57,7 @@ class FdkAacAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
   void InitializeCodec();
   void TeardownCodec();
-  bool WriteToFdkDecoder(const scoped_refptr<InputBuffer>& input_buffer);
+  bool WriteToFdkDecoder(const InputBuffer& input_buffer);
   bool ReadFromFdkDecoder(DecodeMode mode);
   void TryToUpdateStreamInfo();
   void TryToOutputDecodedAudio(const uint8_t* audio_data, int size_in_bytes);

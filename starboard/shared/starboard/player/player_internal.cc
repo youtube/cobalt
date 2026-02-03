@@ -116,7 +116,7 @@ void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
     input_buffers.push_back(new InputBuffer(sample_deallocate_func_, this,
                                             context_, sample_infos[i]));
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-    VideoDmpWriter::OnPlayerWriteSample(this, input_buffers.back());
+    VideoDmpWriter::OnPlayerWriteSample(this, *input_buffers.back());
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
   }
 

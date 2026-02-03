@@ -52,7 +52,7 @@ class OpusAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void InitializeCodec();
   void TeardownCodec();
   void DecodePendingBuffers();
-  bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
+  bool DecodeInternal(const InputBuffer& input_buffer);
   static const int kMaxOpusFramesPerAU = 9600;
 
   SbMediaAudioSampleType GetSampleType() const;
