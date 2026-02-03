@@ -311,25 +311,50 @@ void MigrationManager::DoMigrationTasksOnce(
   CHECK(render_frame_host);
   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
 
-  std::vector<Task> tasks;
-  auto cookies = ToCanonicalCookies(*storage);
-  LOG(INFO) << "MigrationManager: Adding CookieTask with " << cookies.size()
-            << " cookies.";
-  tasks.push_back(CookieTask(weak_document_ptr, std::move(cookies)));
+  auto did_reload = std::make_shared<bool>(false);
 
+  // Define the reload logic once.
+  auto perform_reload = base::BindRepeating(
+      [](content::WeakDocumentPtr weak_ptr, const GURL& reload_url, std::shared_ptr<bool> already_done) {
+        if (*already_done) return;
+        *already_done = true;
+
+        auto* rfh = weak_ptr.AsRenderFrameHostIfValid();
+        if (!rfh) return;
+        content::WebContents* wc = content::WebContents::FromRenderFrameHost(rfh);
+        if (wc) {
+          LOG(INFO) << "MigrationManager: Executing reload.";
+          content::NavigationController::LoadURLParams params(reload_url);
+          params.transition_type = ui::PageTransitionFromInt(
+              ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+          wc->GetController().LoadURLWithParams(params);
+        }
+      },
+      weak_document_ptr, url, did_reload);
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, base::BindOnce(perform_reload), base::Seconds(30));
+
+  std::vector<Task> tasks;
+  tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
   const url::Origin& origin = render_frame_host->GetLastCommittedOrigin();
-  auto ls_items = ToLocalStorageItems(origin, *storage);
-  LOG(INFO) << "MigrationManager: Adding LocalStorageTask with "
-            << ls_items.size() << " items.";
-  tasks.push_back(LocalStorageTask(weak_document_ptr, std::move(ls_items)));
+  tasks.push_back(LocalStorageTask(weak_document_ptr, ToLocalStorageItems(origin, *storage)));
 
 #if !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(LogElapsedTimeTask());
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(DeleteOldCacheDirectoryTask());
-  tasks.push_back(ReloadTask(weak_document_ptr, url));
-  LOG(INFO) << "MigrationManager: Executing task chain...";
-  std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
+
+  // // --- TEST HANG ---
+  // tasks.push_back(base::BindOnce([](base::OnceClosure callback) {
+  //   LOG(INFO) << "--- TEST: Starting simulated 35s hang ---";
+  //   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+  //       FROM_HERE, std::move(callback), base::Seconds(35));
+  // }));
+  // // --- END TEST HANG ---
+
+  // Run the chain, and call our reload logic at the very end.
+  std::move(GroupTasks(std::move(tasks))).Run(base::BindOnce(perform_reload));
 }
 
 // static
@@ -425,10 +450,9 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
+        base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false,
-        absl::optional<net::CookiePartitionKey>(),
+        net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
   }
   return cookies;
@@ -461,6 +485,5 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
   }
   return entries;
 }
-
 }  // namespace migrate_storage_record
 }  // namespace cobalt
