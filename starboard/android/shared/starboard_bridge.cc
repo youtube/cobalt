@@ -229,6 +229,11 @@ void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                           data);
 }
 
+bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_isPlatformErrorShowing(env, j_starboard_bridge_);
+}
+
 void StarboardBridge::RequestSuspend(JNIEnv* env) {
   SB_DCHECK(env);
   Java_StarboardBridge_requestSuspend(env, j_starboard_bridge_);
