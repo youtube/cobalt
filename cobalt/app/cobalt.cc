@@ -35,9 +35,9 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
-#include "content/public/browser/web_contents.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/web_contents.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
@@ -119,8 +119,7 @@ void SbEventHandle(const SbEvent* event) {
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       std::vector<const char*> argv(
-          data->argument_values,
-          data->argument_values + data->argument_count);
+          data->argument_values, data->argument_values + data->argument_count);
       argv.push_back("--preload");
 
       g_exit_manager = new base::AtExitManager();

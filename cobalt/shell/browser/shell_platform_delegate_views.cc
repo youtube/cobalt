@@ -21,12 +21,12 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/context_factory.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -337,14 +337,16 @@ ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
-  LOG(INFO) << "ShellPlatformDelegateViews::CreatePlatformWindow: Checking for preload switch...";
+  LOG(INFO) << "ShellPlatformDelegateViews::CreatePlatformWindow: Checking for "
+               "preload switch...";
   DCHECK(!base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.content_size = initial_size;
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kPreload)) {
-    LOG(INFO) << "ShellPlatformDelegateViews::CreatePlatformWindow: Preload switch found. Deferring window creation.";
+    LOG(INFO) << "ShellPlatformDelegateViews::CreatePlatformWindow: Preload "
+                 "switch found. Deferring window creation.";
     shell_data.preloaded_ = true;
     return;
   }
@@ -427,7 +429,8 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   ShellData& shell_data = shell_data_map_[shell];
 
   if (shell_data.preloaded_ && !shell_data.window_widget) {
-    LOG(INFO) << "ShellPlatformDelegateViews::SetContents: Preloaded, skipping window show.";
+    LOG(INFO) << "ShellPlatformDelegateViews::SetContents: Preloaded, skipping "
+                 "window show.";
     return;
   }
 

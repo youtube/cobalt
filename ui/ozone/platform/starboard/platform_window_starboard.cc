@@ -33,7 +33,7 @@ std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
     g_created_callback;
 std::unique_ptr<PlatformWindowStarboard::WindowDestroyedCallback>
     g_destroyed_callback;
-}
+}  // namespace
 
 // static
 void PlatformWindowStarboard::SetWindowCreatedCallback(

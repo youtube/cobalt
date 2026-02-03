@@ -35,8 +35,6 @@ constexpr char kEnforceHTTPS[] = "https-enforcement";
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";
 
-
-
 }  // namespace switches
 }  // namespace cobalt
 
