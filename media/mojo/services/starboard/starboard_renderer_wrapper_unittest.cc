@@ -49,8 +49,6 @@ class MockStarboardRenderer : public StarboardRenderer {
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       std::unique_ptr<MediaLog> media_log,
       const base::UnguessableToken& overlay_plane_id,
-      TimeDelta audio_write_duration_local,
-      TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
       const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
@@ -61,8 +59,6 @@ class MockStarboardRenderer : public StarboardRenderer {
       : StarboardRenderer(task_runner,
                           std::move(media_log),
                           overlay_plane_id,
-                          audio_write_duration_local,
-                          audio_write_duration_remote,
                           max_video_capabilities,
                           viewport_size
 #if BUILDFLAG(IS_ANDROID)
@@ -146,8 +142,6 @@ class StarboardRendererWrapperTest : public testing::Test {
             task_environment_.GetMainThreadTaskRunner(),
             std::make_unique<NullMediaLog>(),
             base::UnguessableToken::Create(),
-            base::Seconds(1),
-            base::Seconds(1),
             std::string(),
             gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
@@ -170,8 +164,7 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), base::UnguessableToken::Create(),
-        base::Seconds(1), base::Seconds(1), std::string(), gfx::Size(),
-        std::move(renderer_extension_receiver),
+        std::string(), gfx::Size(), std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));

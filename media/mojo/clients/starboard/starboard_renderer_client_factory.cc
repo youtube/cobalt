@@ -42,14 +42,6 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
     : media_log_(media_log),
       mojo_renderer_factory_(std::move(mojo_renderer_factory)),
       get_gpu_factories_cb_(get_gpu_factories_cb),
-      audio_write_duration_local_(
-          base::FeatureList::IsEnabled(kCobaltAudioWriteDuration)
-              ? kAudioWriteDurationLocal.Get()
-              : traits->audio_write_duration_local),
-      audio_write_duration_remote_(
-          base::FeatureList::IsEnabled(kCobaltAudioWriteDuration)
-              ? kAudioWriteDurationRemote.Get()
-              : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
       viewport_size_(traits->viewport_size),
       get_sb_window_handle_callback_(traits->get_sb_window_handle_callback),
@@ -105,9 +97,8 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   GpuVideoAcceleratorFactories* gpu_factories = get_gpu_factories_cb_.Run();
 
   // Initialize StarboardRendererWrapper via StarboardRendererConfig.
-  StarboardRendererConfig config(
-      overlay_factory->overlay_plane_id(), audio_write_duration_local_,
-      audio_write_duration_remote_, max_video_capabilities_, viewport_size_);
+  StarboardRendererConfig config(overlay_factory->overlay_plane_id(),
+                                 max_video_capabilities_, viewport_size_);
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
           std::move(media_log_pending_remote), config,

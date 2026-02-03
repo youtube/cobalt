@@ -496,17 +496,22 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as
-// audio write duration during SbPlayer prerolling.
-// For example, '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/1s'.
-// TODO: b/433993748 - Disable CobaltAudioWriteDuration and make kAudioWriteDurationLocal to base::Microseconds(kSbPlayerWriteDurationLocal).
-BASE_FEATURE(kCobaltAudioWriteDuration,
-             "CobaltAudioWriteDuration",
+// Cobalt uses |kCobaltAudioWrite| parameters as audio write duration
+// during SbPlayer prerolling.
+// For example, '--enable-features=CobaltAudioWrite:local_duration_ms/1000:remote_duration_ms/10000'.
+BASE_FEATURE(kCobaltAudioWrite,
+             "CobaltAudioWrite",
              base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
-const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
+// TODO: b/433993748 - Make kCobaltAudioWriteDurationLocalMs use kSbPlayerWriteDurationLocal.
+// The current value of 1 sec is to maintain parity with C25:
+// https://source.corp.google.com/h/github/youtube/cobalt/+/25.lts.stable:cobalt/media/base/sbplayer_pipeline.h;l=345;drc=b357a652c90411d042650d36a6638d402e2d2754
+const base::FeatureParam<int> kCobaltAudioWriteDurationLocalMs{
+    &kCobaltAudioWrite, "local_duration_ms", 1'000};
+const base::FeatureParam<int> kCobaltAudioWriteDurationRemoteMs{
+    &kCobaltAudioWrite, "remote_duration_ms",
+    static_cast<int>(
+        base::Microseconds(kSbPlayerWriteDurationRemote).InMilliseconds())};
+
 // When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
              "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
