@@ -176,10 +176,10 @@ jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
 
 jboolean JNI_StarboardBridge_IsDevelopmentBuild(JNIEnv* env) {
 // OFFICIAL_BUILD is set for Cobalt QA and Gold releases
-#if !defined(OFFICIAL_BUILD)
-  return true;
-#else
+#if defined(OFFICIAL_BUILD)
   return false;
+#else
+  return true;
 #endif
 }
 
