@@ -1,0 +1,14 @@
+# TODO: [Rebase m138] Fix mojo_unittests and mojo_perftests on evergreen (#7660)
+-All/PlatformHandleTest.*
+-DataPipeProducerTest.*
+-DirectReceiverTest.*
+-FileDataSourceCppTest.*
+-FileStreamDataSourceCppTest.*
+-FileTest.*
+-MessagePipeTest.DataPipeConsumerHandlePingPong
+-MessagePipeTest.DataPipeProducerHandlePingPong
+-PlatformChannelServerTest.*
+-ValidationTest.*
+
+# b/427294038
+-ValidationIntegrationTest.*

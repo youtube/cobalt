@@ -1,0 +1,4 @@
+# b/427294038
+-BspTreePerfTest.*
+-RendererPerfTest.*
+-SurfaceAggregatorPerfTest.*

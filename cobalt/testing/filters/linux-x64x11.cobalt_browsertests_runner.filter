@@ -1,0 +1,2 @@
+# b/479261728 - Run only Cobalt browser tests
+CobaltMetricsBrowserTest*

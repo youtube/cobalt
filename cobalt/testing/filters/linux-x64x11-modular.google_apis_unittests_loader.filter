@@ -1,0 +1,9 @@
+# b/427294038
+-BaseRequestsServerTest.*
+-CalendarAPIResponseTypesTest.*
+-CalendarApiRequestsTest.*
+-DriveAPIParserTest.*
+-DriveApiRequestsTest.*
+-GaiaUrlsTest.*
+-GoogleAPIKeysTest.*
+-MultipartUploadRequestBaseTest.*

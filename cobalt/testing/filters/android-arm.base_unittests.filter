@@ -1,0 +1,29 @@
+# TODO: Add script that generates list of test targets (#4464)
+-All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/IO_pump
+-AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/0
+-AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/1
+
+# b/418842688
+-AlternateTestParams.*
+-FilePathWatcherTest.*
+-ThreadGroupProfilerTest.*
+
+# b/461598808
+-All/SequenceManagerTest.*
+-All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/UI_pump
+-All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/default_pump
+-All/StatisticsRecorderStarvationTest.*
+-AlternateBucketDistribution/PartitionAllocThreadCacheTest.ThreadCacheRegistry/0
+-AlternateBucketDistribution/PartitionAllocThreadCacheTest.ThreadCacheRegistry/1
+-AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/0
+-FileTest.TouchGetInfo
+-LapTimer.ThreadTicksUsageExample
+-LibunwindstackUnwinderAndroidTest.*
+-ModuleCacheTest.CheckAgainstProcMaps
+-SampleMetadataTest.SampleMetadata
+-SampleMetadataTest.SampleMetadataWithKey
+-SampleMetadataTest.SampleMetadataWithThreadId
+-SampleMetadataTest.ScopedSampleMetadata
+-SampleMetadataTest.ScopedSampleMetadataWithKey
+-TransliteratorTest.HiraganaKatakanaCorrect
+-TransliteratorTest.KatakanaHiraganaCorrect

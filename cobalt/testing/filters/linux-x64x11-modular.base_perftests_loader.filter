@@ -1,0 +1,6 @@
+# b/427294038
+-PartitionAllocMemoryAllocationPerfTest.*
+
+# b/457849835
+-JobPerfTest.*
+-StackTracePerfTest.*
