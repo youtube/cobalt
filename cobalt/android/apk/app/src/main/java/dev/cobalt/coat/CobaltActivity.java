@@ -122,8 +122,7 @@ public abstract class CobaltActivity extends Activity {
     }
     ActivityInfo ai;
     try {
-      ai = getPackageManager()
-                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
+      ai = getPackageManager().getActivityInfo(componentName, PackageManager.GET_META_DATA);
     } catch (NameNotFoundException e) {
       Log.e(TAG, "Error getting activity info", e);
       return null;
@@ -136,6 +135,11 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.createContent [2/6]");
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
@@ -156,14 +160,26 @@ public abstract class CobaltActivity extends Activity {
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), extraCommandLineArgs.toArray(new String[0])));
     }
-    mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
+    mIsCobaltUsingAndroidOverlay =
+        CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
     Bundle metaData = getActivityMetaData();
-    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
+    mEnableSplashScreen =
+        metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
 
     // This initializes JNI and ends up calling JNI_OnLoad in native code
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.LibraryLoader.ensureInitialized START");
     LibraryLoader.getInstance().ensureInitialized();
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.LibraryLoader.ensureInitialized END");
 
     // StarboardBridge initialization must happen right after library loading,
     // before Browser/Content module is started. It currently tracks its own JNI state
@@ -177,7 +193,17 @@ public abstract class CobaltActivity extends Activity {
     }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
+      Log.i(
+          TAG,
+          "COBALT_STARTUP_LOG: ["
+              + Thread.currentThread().getName()
+              + "] CobaltActivity calling createStarboardBridge");
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
+      Log.i(
+          TAG,
+          "COBALT_STARTUP_LOG: ["
+              + Thread.currentThread().getName()
+              + "] CobaltActivity returned from createStarboardBridge");
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
@@ -217,6 +243,11 @@ public abstract class CobaltActivity extends Activity {
     }
 
     // TODO(b/377025559): Bring back WebTests launch capability
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity calling startBrowserProcessesAsync");
     BrowserStartupController.getInstance()
         .startBrowserProcessesAsync(
             LibraryProcessType.PROCESS_BROWSER,
@@ -247,10 +278,12 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // Load an empty page to let shell create WebContents. Override Shell.java's
+    // onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("",
+    mShellManager.launchShell(
+        "",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -368,6 +401,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.onCreate [1/6]");
     // Record the application start timestamp.
     timeInNanoseconds = System.nanoTime();
 
@@ -392,6 +430,11 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.onCreate END");
   }
 
   /**
@@ -443,14 +486,34 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.onStart START");
     if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
       Log.i(TAG, "StartupGuard is disabled by Java switch.");
       StartupGuard.getInstance().disarm();
     }
 
     if (isDevelopmentBuild()) {
+      Log.i(
+          TAG,
+          "COBALT_STARTUP_LOG: ["
+              + Thread.currentThread().getName()
+              + "] CobaltActivity.onStart calling dumpAllOutputDevices");
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
+      Log.i(
+          TAG,
+          "COBALT_STARTUP_LOG: ["
+              + Thread.currentThread().getName()
+              + "] CobaltActivity.onStart calling dumpAllDecoders");
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
+      Log.i(
+          TAG,
+          "COBALT_STARTUP_LOG: ["
+              + Thread.currentThread().getName()
+              + "] CobaltActivity.onStart returned from dumpAllDecoders");
     }
     if (mIsCobaltUsingAndroidOverlay) {
       Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
@@ -475,6 +538,11 @@ public abstract class CobaltActivity extends Activity {
       webContents.onShow();
     }
     MemoryPressureMonitor.INSTANCE.enablePolling();
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.onStart END");
   }
 
   @Override
@@ -509,6 +577,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onResume() {
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.onResume START");
     super.onResume();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
@@ -516,6 +589,11 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Request focus on the root view on resume.");
     }
     CobaltActivityJni.get().dispatchFocus();
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] CobaltActivity.onResume END");
   }
 
   @Override
@@ -543,9 +621,7 @@ public abstract class CobaltActivity extends Activity {
     return false;
   }
 
-  /**
-   * Overridden by Kimono to provide specific Java switch configurations.
-   */
+  /** Overridden by Kimono to provide specific Java switch configurations. */
   protected Map<String, String> getJavaSwitches() {
     return this.javaSwitches;
   }

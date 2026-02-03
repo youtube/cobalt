@@ -46,6 +46,7 @@ class ContentClientCreator {
 // process. The first method should always be called upon browser start, and
 // the second method can be deferred. See http://crbug.com/854209.
 static jint JNI_ContentMain_Start(JNIEnv* env, jboolean start_minimal_browser) {
+  LOG(INFO) << "COBALT_STARTUP_LOG: JNI_ContentMain_Start";
   TRACE_EVENT0("startup", "content::Start");
   ContentMainParams params(g_content_main_delegate.Get().get());
   params.minimal_browser_mode = start_minimal_browser;
