@@ -111,6 +111,7 @@ public class StarboardBridge {
   private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
+  private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
 
   public StarboardBridge(
       Context appContext,
@@ -150,6 +151,7 @@ public class StarboardBridge {
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
+    StarboardBridgeJni.get().setYoutubeCertificationScope(getSystemProperty(YTS_CERT_SCOPE_SYSTEM_PROPERTY));
   }
 
   @NativeMethods
@@ -173,6 +175,8 @@ public class StarboardBridge {
     void setAndroidBuildFingerprint(String fingerprint);
     void setAndroidOSExperience(boolean isAmatiDevice);
     void setAndroidPlayServicesVersion(long version);
+
+    void setYoutubeCertificationScope(String certScope);
 
     boolean isReleaseBuild();
   }
