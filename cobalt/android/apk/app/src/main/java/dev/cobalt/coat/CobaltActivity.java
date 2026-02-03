@@ -482,14 +482,13 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
-    updateShellActivityVisible(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
       webContents.onResume();
-      // visibility:visible event
-      webContents.onShow();
     }
+    // visibility:visible event
+    updateShellActivityVisible(true);
     MemoryPressureMonitor.INSTANCE.enablePolling();
   }
 
@@ -504,11 +503,10 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
-      // visibility:hidden event
-      webContents.onHide();
       // document.onfreeze event
       webContents.onFreeze();
     }
