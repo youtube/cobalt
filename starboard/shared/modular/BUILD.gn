@@ -67,6 +67,7 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
 
     deps = [
       "//starboard:starboard_headers_only",
+      "//starboard/common",
       "//starboard/common:common_headers_only",
     ]
   }
