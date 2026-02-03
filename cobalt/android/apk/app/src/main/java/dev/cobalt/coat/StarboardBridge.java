@@ -75,6 +75,7 @@ public class StarboardBridge {
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
+  private PlatformError mPlatformError;
 
   private final Context appContext;
   private final Holder<Activity> activityHolder;
@@ -307,8 +308,16 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-    PlatformError error = new PlatformError(activityHolder, errorType, data);
-    error.raise();
+    mPlatformError = new PlatformError(activityHolder, errorType, data);
+    mPlatformError.raise();
+  }
+
+  @CalledByNative
+  public boolean isPlatformErrorShowing() {
+    if (mPlatformError != null) {
+      return mPlatformError.isShowing();
+    }
+    return false;
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
