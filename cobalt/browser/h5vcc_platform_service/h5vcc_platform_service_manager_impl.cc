@@ -50,24 +50,31 @@ H5vccPlatformServiceManagerImpl::H5vccPlatformServiceManagerImpl(
     content::RenderFrameHost* render_frame_host)
     : content::DocumentUserData<H5vccPlatformServiceManagerImpl>(
           render_frame_host) {
-  LOG(INFO) << "H5vccPlatformServiceManagerImpl created for RFH ID: "
-            << this->render_frame_host().GetGlobalId();
+  DLOG(INFO) << "H5vccPlatformServiceManagerImpl created for RFH ID: "
+             << this->render_frame_host().GetGlobalId();
+
+  // A disconnect handler is set in order to provide debug logging but is not
+  // functionally required: resource management is provided by mojo::ReceiverSet
+  // and content::DocumentUserData.
+  //
+  // mojo::ReceiverSet automatically cleans up receivers that have been
+  // disconnected.
+  //
+  // DocumentUserData handles object destruction when the RFH is destroyed.
+  // If receivers_.empty(), this instance remains until the RFH is destroyed.
   receivers_.set_disconnect_handler(base::BindRepeating(
       &H5vccPlatformServiceManagerImpl::OnReceiverDisconnect,
       weak_factory_.GetWeakPtr()));
 }
 
 H5vccPlatformServiceManagerImpl::~H5vccPlatformServiceManagerImpl() {
-  LOG(INFO) << "H5vccPlatformServiceManagerImpl destroyed for RFH ID: "
-            << this->render_frame_host().GetGlobalId();
+  DLOG(INFO) << "H5vccPlatformServiceManagerImpl destroyed for RFH ID: "
+             << this->render_frame_host().GetGlobalId();
 }
 
 void H5vccPlatformServiceManagerImpl::OnReceiverDisconnect() {
-  LOG(INFO) << "A H5vccPlatformServiceManagerImpl receiver disconnected for "
-            << "RFH ID: " << render_frame_host().GetGlobalId();
-  // DocumentUserData handles object destruction when the RFH is destroyed.
-  // No need to delete |this| here.
-  // If receivers_.empty(), this instance remains until RFH is destroyed.
+  DLOG(INFO) << "A H5vccPlatformServiceManagerImpl receiver disconnected for "
+             << "RFH ID: " << render_frame_host().GetGlobalId();
 }
 
 void H5vccPlatformServiceManagerImpl::Has(const std::string& service_name,
