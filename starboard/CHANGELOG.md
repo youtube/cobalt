@@ -138,6 +138,7 @@ persistence.
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
 * `kSbEventTypeOnScreenKeyboardBlurred`
+* `kSbEventTypeVerticalSync`
 
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
@@ -185,6 +186,16 @@ Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
 the global namespace into ::starboard::shared::starboard::media.
 
+<<<<<<< HEAD
+=======
+### Updated `kSbEventTypeAccessibilityTextToSpeechSettingsChanged` SbEvent
+Now the data field of this SbEvent type is a boolean indicating if text-to-speech is enabled.
+
+### Removed unused methods
+* `SbMediaGetMaxBufferCapacity`. This method is no longer used. Use
+  `SbMediaGetAudioBufferBudget` and `SbMediaGetVideoBufferBudget` instead.
+
+>>>>>>> 22869a70485 (Deprecate kSbEventTypeVerticalSync from Chrobalt (#8835))
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
 For a full overview of Starboard POSIX migrations, please refer to
