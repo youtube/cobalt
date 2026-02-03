@@ -81,7 +81,7 @@ if (is_android) {
       default_min_sdk_version = 29
     }
     if (is_cobalt) {
-      default_min_sdk_version = 26
+      default_min_sdk_version = 24
     }
 
     # Static analysis can be either "on" or "off" or "build_server". This
