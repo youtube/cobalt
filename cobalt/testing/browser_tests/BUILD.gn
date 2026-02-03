@@ -194,6 +194,7 @@ test("cobalt_browsertests") {
   }
 
   sources = [
+    "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
     "encrypted_media_browsertest.cc",
@@ -231,7 +232,11 @@ test("cobalt_browsertests") {
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//cc/slim",
+    "//cobalt/browser:global_features",
+    "//cobalt/browser:metrics",
+    "//cobalt/browser:switches",
     "//cobalt/shell:browsertests_mojom",
+    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
@@ -239,6 +244,7 @@ test("cobalt_browsertests") {
     "//components/discardable_memory/common",
     "//components/discardable_memory/service",
     "//components/favicon/content",
+    "//components/metrics_services_manager",
     "//components/network_session_configurator/common",
     "//components/payments/mojom",
     "//components/performance_manager",
