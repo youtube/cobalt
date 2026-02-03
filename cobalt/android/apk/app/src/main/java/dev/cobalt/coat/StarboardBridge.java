@@ -179,6 +179,8 @@ public class StarboardBridge {
     void setYoutubeCertificationScope(String certScope);
 
     boolean isReleaseBuild();
+
+    boolean isDevelopmentBuild();
   }
 
   protected void onActivityStart(Activity activity) {
@@ -314,6 +316,11 @@ public class StarboardBridge {
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
   public static boolean isReleaseBuild() {
     return StarboardBridgeJni.get().isReleaseBuild();
+  }
+
+  /** Returns true if the native code is compiled for development (i.e. 'devel' build). */
+  public static boolean isDevelopmentBuild() {
+    return StarboardBridgeJni.get().isDevelopmentBuild();
   }
 
   protected Holder<Activity> getActivityHolder() {

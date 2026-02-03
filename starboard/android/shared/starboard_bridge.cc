@@ -178,6 +178,15 @@ jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
 #endif
 }
 
+jboolean JNI_StarboardBridge_IsDevelopmentBuild(JNIEnv* env) {
+// OFFICIAL_BUILD is set for Cobalt QA and Gold releases
+#if defined(OFFICIAL_BUILD)
+  return false;
+#else
+  return true;
+#endif
+}
+
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code
