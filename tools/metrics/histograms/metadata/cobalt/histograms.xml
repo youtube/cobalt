@@ -31,16 +31,22 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
-<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
-    enum="BooleanHung" expires_after="never">
-  <owner>antonlunev@google.com</owner>
+<histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
   <summary>
-    Every 10 seconds, a boolean is recorded to this histogram to indicate
-    whether the RendererThread of a Browser process was hung. The thread is hung
-    if the current work unit started running more than 10 seconds ago. This is
-    emitted only in single process mode(when renderer is a thread inside
-    BrowserProcess).
+    Records the age of the Finch configuration in days each time it is checked
+    at startup. This data is used to determine an appropriate expiration
+    threshold.
+  </summary>
+</histogram>
 
+<histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the state of the Finch configuration at startup. This is used to
+    monitor the frequency of expired or invalid configurations.
   </summary>
 </histogram>
 
@@ -55,22 +61,63 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
-    expires_after="never">
-  <owner>yijiazhang@google.com</owner>
+<histogram name="Cobalt.Memory.DOM" units="MB" expires_after="never">
+  <owner>cobalt-team@google.com</owner>
   <summary>
-    Records the age of the Finch configuration in days each time it is
-    checked at startup. This data is used to determine an appropriate
-    expiration threshold.
+    Memory consumed by DOM nodes and related structures. Recorded periodically
+    (every 5 minutes by default).
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
-    expires_after="never">
-  <owner>yijiazhang@google.com</owner>
+<histogram name="Cobalt.Memory.Graphics" units="MB" expires_after="never">
+  <owner>cobalt-team@google.com</owner>
   <summary>
-    Records the state of the Finch configuration at startup. This is used
-    to monitor the frequency of expired or invalid configurations.
+    Memory used by Skia, GPU resources, textures, etc. Recorded periodically
+    (every 5 minutes by default).
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Memory.JavaScript" units="MB" expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Track memory used by the V8 heap. Recorded periodically (every 5 minutes by
+    default).
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Memory.Layout" units="MB" expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Memory for layout trees and rendering data. Recorded periodically (every 5
+    minutes by default).
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Memory.Media" units="MB" expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Buffers and resources used by the media pipeline. Recorded periodically
+    (every 5 minutes by default).
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Memory.Native" units="MB" expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Other general native heap allocations. Recorded periodically (every 5
+    minutes by default).
+  </summary>
+</histogram>
+
+<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
+    enum="BooleanHung" expires_after="never">
+  <owner>antonlunev@google.com</owner>
+  <summary>
+    Every 10 seconds, a boolean is recorded to this histogram to indicate
+    whether the RendererThread of a Browser process was hung. The thread is hung
+    if the current work unit started running more than 10 seconds ago. This is
+    emitted only in single process mode(when renderer is a thread inside
+    BrowserProcess).
   </summary>
 </histogram>
 

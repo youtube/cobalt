@@ -15,6 +15,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "base/command_line.h"
@@ -99,7 +100,9 @@ struct CobaltMetricsServiceClient::State
         memory_instrumentation::MemoryInstrumentation::GetInstance();
     if (instrumentation) {
       instrumentation->RequestGlobalDump(
-          {}, base::BindOnce(&OnMemoryDumpDone, base::OnceClosure()));
+          {"v8", "blink_gc", "malloc", "partition_alloc", "skia", "gpu",
+           "media"},
+          base::BindOnce(&OnMemoryDumpDone, base::OnceClosure()));
     }
     RecordMemoryMetricsAfterDelay();
   }
@@ -364,7 +367,8 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
                 memory_instrumentation::MemoryInstrumentation::GetInstance();
             if (instrumentation) {
               instrumentation->RequestGlobalDump(
-                  {},
+                  {"v8", "blink_gc", "malloc", "partition_alloc", "skia", "gpu",
+                   "media"},
                   base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
             } else {
               std::move(done_callback).Run();
@@ -381,6 +385,12 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
   uint64_t browser_resident_kb = 0;
   uint64_t renderer_resident_kb = 0;
   uint64_t gpu_resident_kb = 0;
+  uint64_t total_js_heap_kb = 0;
+  uint64_t total_dom_kb = 0;
+  uint64_t total_layout_kb = 0;
+  uint64_t total_graphics_kb = 0;
+  uint64_t total_media_kb = 0;
+  uint64_t total_native_kb = 0;
 
   for (const auto& process_dump : global_dump->process_dumps()) {
     total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
@@ -400,6 +410,47 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
         break;
       default:
         break;
+    }
+
+    std::optional<uint64_t> js_heap =
+        process_dump.GetMetric("v8", "effective_size");
+    if (js_heap) {
+      total_js_heap_kb += (*js_heap / 1024);
+    }
+
+    std::optional<uint64_t> dom =
+        process_dump.GetMetric("blink_gc", "effective_size");
+    if (dom) {
+      total_dom_kb += (*dom / 1024);
+    }
+
+    std::optional<uint64_t> layout =
+        process_dump.GetMetric("partition_alloc/partitions/layout", "size");
+    if (layout) {
+      total_layout_kb += (*layout / 1024);
+    }
+
+    std::optional<uint64_t> skia =
+        process_dump.GetMetric("skia", "effective_size");
+    if (skia) {
+      total_graphics_kb += (*skia / 1024);
+    }
+    std::optional<uint64_t> gpu =
+        process_dump.GetMetric("gpu", "effective_size");
+    if (gpu) {
+      total_graphics_kb += (*gpu / 1024);
+    }
+
+    std::optional<uint64_t> media =
+        process_dump.GetMetric("media", "effective_size");
+    if (media) {
+      total_media_kb += (*media / 1024);
+    }
+
+    std::optional<uint64_t> native =
+        process_dump.GetMetric("malloc", "effective_size");
+    if (native) {
+      total_native_kb += (*native / 1024);
     }
   }
 
@@ -423,6 +474,26 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
   }
   if (gpu_resident_kb > 0) {
     MEMORY_METRICS_HISTOGRAM_MB("Memory.Gpu.Resident", gpu_resident_kb / 1024);
+  }
+  if (total_js_heap_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.JavaScript",
+                                total_js_heap_kb / 1024);
+  }
+  if (total_dom_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.DOM", total_dom_kb / 1024);
+  }
+  if (total_layout_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Layout", total_layout_kb / 1024);
+  }
+  if (total_graphics_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Graphics",
+                                total_graphics_kb / 1024);
+  }
+  if (total_media_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Media", total_media_kb / 1024);
+  }
+  if (total_native_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Native", total_native_kb / 1024);
   }
 }
 

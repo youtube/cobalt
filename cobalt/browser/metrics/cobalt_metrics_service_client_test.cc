@@ -346,6 +346,62 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   histogram_tester.ExpectUniqueSample("Memory.Gpu.Resident", 4, 1);
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordComponentMemoryMetrics) {
+  base::HistogramTester histogram_tester;
+
+  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+      memory_instrumentation::mojom::GlobalMemoryDump::New();
+
+  auto process_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  process_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::BROWSER;
+  process_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+
+  // Add metrics for components
+  memory_instrumentation::mojom::AllocatorMemDump v8_dump;
+  v8_dump.numeric_entries["effective_size"] = 1024 * 1024;  // 1 MB
+  process_dump->chrome_allocator_dumps["v8"] = std::move(v8_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump blink_gc_dump;
+  blink_gc_dump.numeric_entries["effective_size"] = 2 * 1024 * 1024;  // 2 MB
+  process_dump->chrome_allocator_dumps["blink_gc"] = std::move(blink_gc_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump layout_dump;
+  layout_dump.numeric_entries["size"] = 3 * 1024 * 1024;  // 3 MB
+  process_dump->chrome_allocator_dumps["partition_alloc/partitions/layout"] =
+      std::move(layout_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump skia_dump;
+  skia_dump.numeric_entries["effective_size"] = 4 * 1024 * 1024;  // 4 MB
+  process_dump->chrome_allocator_dumps["skia"] = std::move(skia_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump gpu_dump;
+  gpu_dump.numeric_entries["effective_size"] = 5 * 1024 * 1024;  // 5 MB
+  process_dump->chrome_allocator_dumps["gpu"] = std::move(gpu_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump media_dump;
+  media_dump.numeric_entries["effective_size"] = 6 * 1024 * 1024;  // 6 MB
+  process_dump->chrome_allocator_dumps["media"] = std::move(media_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump malloc_dump;
+  malloc_dump.numeric_entries["effective_size"] = 7 * 1024 * 1024;  // 7 MB
+  process_dump->chrome_allocator_dumps["malloc"] = std::move(malloc_dump);
+
+  dump_ptr->process_dumps.push_back(std::move(process_dump));
+
+  auto global_dump =
+      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.JavaScript", 1, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.DOM", 2, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Layout", 3, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Graphics", 9, 1);  // 4 + 5
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Media", 6, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Native", 7, 1);
+}
+
 TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;
