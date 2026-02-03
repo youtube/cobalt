@@ -227,7 +227,8 @@ SbPlayerBridge::SbPlayerBridge(
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
     std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames
+    std::optional<int> max_pending_input_frames,
+    std::optional<int> video_decoder_poll_interval_ms
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -257,7 +258,8 @@ SbPlayerBridge::SbPlayerBridge(
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
       initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames)
+      max_pending_input_frames_(max_pending_input_frames),
+      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms)
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -838,6 +840,11 @@ void SbPlayerBridge::CreatePlayer() {
       video_decoder_configuration_extension
           ->SetVideoMaxPendingInputFramesForCurrentThread(
               *max_pending_input_frames_);
+    }
+    if (video_decoder_poll_interval_ms_) {
+      video_decoder_configuration_extension
+          ->SetVideoDecoderPollIntervalMsForCurrentThread(
+              *video_decoder_poll_interval_ms_);
     }
   }
 

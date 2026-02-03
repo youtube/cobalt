@@ -60,12 +60,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--user-level-memory-pressure-signal-params");
         // Disable rescaling Webpage.
         paramOverrides.add("--force-device-scale-factor=1");
-        // Enable low end device mode.
-        paramOverrides.add("--enable-low-end-device-mode");
-        // Disables RGBA_4444 textures which
-        // causes rendering artifacts when
-        // low-end-device-mode is enabled.
-        paramOverrides.add("--disable-rgba-4444-textures");
         // Force CobaltActivity to use AndroidOverlay instead
         // of VideoSurfaceView.
         paramOverrides.add("--CobaltUsingAndroidOverlay");

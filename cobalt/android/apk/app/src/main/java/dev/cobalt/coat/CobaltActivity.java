@@ -151,6 +151,10 @@ public abstract class CobaltActivity extends Activity {
       if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
         extraCommandLineArgs.add("--disable-quic");
       }
+      if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
+        extraCommandLineArgs.add("--enable-low-end-device-mode");
+        extraCommandLineArgs.add("--disable-rgba-4444-textures");
+      }
 
       if (commandLineArgs != null) {
         // Add all array elements to index 0 of the list
@@ -390,7 +394,7 @@ public abstract class CobaltActivity extends Activity {
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
-    
+
     if (!mIsCobaltUsingAndroidOverlay) {
       videoSurfaceView = new VideoSurfaceView(this);
       addContentView(

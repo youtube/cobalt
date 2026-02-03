@@ -27,6 +27,7 @@ namespace {
 pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
 pthread_key_t g_initial_max_frames_key = 0;
 pthread_key_t g_max_pending_frames_key = 0;
+pthread_key_t g_video_decoder_poll_interval_key = 0;
 
 void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
   uintptr_t ptr_val = static_cast<uintptr_t>(value);
@@ -54,6 +55,9 @@ void InitializeKeys() {
       pthread_key_create(&g_initial_max_frames_key, /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_max_pending_frames_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_video_decoder_poll_interval_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
 }
@@ -94,6 +98,23 @@ void SetVideoMaxPendingInputFramesForCurrentThread(
   EnsureThreadLocalKeyInitedForDecoderConfig();
   WriteIntToThreadLocalStorage(g_max_pending_frames_key,
                                max_pending_input_frames);
+}
+
+std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_video_decoder_poll_interval_key);
+}
+
+void SetVideoDecoderPollIntervalMsForCurrentThread(
+    int video_decoder_poll_interval_ms) {
+  if (video_decoder_poll_interval_ms <= 0) {
+    SB_LOG(WARNING) << "Invalid video_decoder_poll_interval_ms: "
+                    << video_decoder_poll_interval_ms;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key,
+                               video_decoder_poll_interval_ms);
 }
 
 }  // namespace starboard::android::shared
