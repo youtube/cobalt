@@ -23,9 +23,6 @@
 #define TZZONEINFOTAIL "/zoneinfo/"
 #define isNonDigit(ch) (ch < '0' || '9' < ch)
 
-static char gTimeZoneBuffer[PATH_MAX];
-static char* gTimeZoneBufferPtr = NULL;
-
 static bool isValidOlsonID(const char* id) {
   int32_t idx = 0;
 
@@ -54,22 +51,22 @@ const char* SbTimeZoneGetName() {
   But this is production-tested solution for most versions of Linux.
   */
 
-  if (gTimeZoneBufferPtr == NULL) {
-    int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer,
-                                    sizeof(gTimeZoneBuffer) - 1);
-    if (0 < ret) {
-      int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
-      gTimeZoneBuffer[ret] = 0;
-      char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
+  static thread_local char s_tz_name[PATH_MAX];
 
-      if (tzZoneInfoTailPtr != NULL &&
-          isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
-        return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
-      }
+  char tz_path[PATH_MAX];
+  int32_t ret = (int32_t)readlink(TZDEFAULT, tz_path, sizeof(tz_path) - 1);
+  if (0 < ret) {
+    int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
+    tz_path[ret] = 0;
+    char* tzZoneInfoTailPtr = strstr(tz_path, TZZONEINFOTAIL);
+
+    if (tzZoneInfoTailPtr != NULL &&
+        isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
+      snprintf(s_tz_name, sizeof(s_tz_name), "%s",
+               tzZoneInfoTailPtr + tzZoneInfoTailLen);
+      return s_tz_name;
     }
-    SB_NOTREACHED();
-    return "";
-  } else {
-    return gTimeZoneBufferPtr;
   }
+  SB_NOTREACHED();
+  return "";
 }
