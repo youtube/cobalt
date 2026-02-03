@@ -60,9 +60,8 @@ class DeepLinkManager {
   DeepLinkManager();
   ~DeepLinkManager();
 
-  std::string deep_link_ GUARDED_BY_CONTEXT(thread_checker_);
-  mojo::RemoteSet<DeepLinkListener> listeners_
-      GUARDED_BY_CONTEXT(thread_checker_);
+  std::string deep_link_;
+  mojo::RemoteSet<DeepLinkListener> listeners_;
 
   COBALT_THREAD_CHECKER(thread_checker_);
 };
