@@ -63,7 +63,6 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
-import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
@@ -449,7 +448,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
-    if (!isReleaseBuild()) {
+    if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
@@ -623,6 +622,9 @@ public abstract class CobaltActivity extends Activity {
 
   protected boolean isReleaseBuild() {
     return StarboardBridge.isReleaseBuild();
+  }
+  protected boolean isDevelopmentBuild() {
+    return StarboardBridge.isDevelopmentBuild();
   }
 
   @Override
