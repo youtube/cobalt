@@ -459,16 +459,12 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
-<<<<<<< HEAD
     if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
       Log.i(TAG, "StartupGuard is disabled by Java switch.");
       StartupGuard.getInstance().disarm();
     }
 
-    if (!isReleaseBuild()) {
-=======
     if (isDevelopmentBuild()) {
->>>>>>> 3eaa186991d (Disable slow debugDumps on main thread (#8934))
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
