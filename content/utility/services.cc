@@ -203,6 +203,7 @@ auto RunAuctionWorkletService(
   return auction_worklet::AuctionWorkletServiceImpl::CreateForService(
       std::move(receiver));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 auto RunAudio(mojo::PendingReceiver<audio::mojom::AudioService> receiver) {
 #if BUILDFLAG(IS_MAC)
@@ -255,7 +256,6 @@ auto RunAudio(mojo::PendingReceiver<audio::mojom::AudioService> receiver) {
 
   return audio::CreateStandaloneService(std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && BUILDFLAG(IS_CHROMEOS)
 auto RunShapeDetectionService(
