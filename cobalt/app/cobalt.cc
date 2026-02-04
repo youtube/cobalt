@@ -35,6 +35,7 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/web_contents.h"
@@ -120,7 +121,8 @@ void SbEventHandle(const SbEvent* event) {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       std::vector<const char*> argv(
           data->argument_values, data->argument_values + data->argument_count);
-      argv.push_back("--preload");
+      std::string preload_switch = std::string("--") + switches::kPreload;
+      argv.push_back(preload_switch.c_str());
 
       g_exit_manager = new base::AtExitManager();
       g_content_main_delegate = new cobalt::CobaltMainDelegate();

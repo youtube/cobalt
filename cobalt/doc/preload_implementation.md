@@ -31,12 +31,7 @@ In the `Shell` constructor:
 *   It checks for the `switches::kPreload` switch.
 *   If present, it calls `web_contents_->WasHidden()` to ensure the renderer knows it is not visible initially.
 
-### 4. Web Contents Observation (`cobalt/shell/browser/preload_web_contents_observer.cc`)
-
-A helper class `PreloadWebContentsObserver` monitors the `WebContents`.
-*   **`PrimaryPageChanged`**: When the primary page changes (i.e., finishes navigation), if the preload switch is active, it calls `web_contents()->SetVisibility(content::Visibility::PRERENDER)`. This specifically signals the "Prerender" state to the web engine, which may trigger optimizations for background loading.
-
-### 5. Platform Delegate (`ShellPlatformDelegate`)
+### 4. Platform Delegate (`ShellPlatformDelegate`)
 
 The `ShellPlatformDelegate` interface in `cobalt/shell/browser/shell_platform_delegate.h` was extended with two new methods:
 
@@ -84,7 +79,7 @@ To prevent crashes when the window is destroyed and recreated (Conceal/Reveal cy
 1.  **Start (Preload)**:
     *   `./cobalt_loader --preload`
     *   Browser initializes. `CreatePlatformWindow` is called but does nothing.
-    *   Page loads in background. `PreloadWebContentsObserver` sets visibility to `PRERENDER`.
+    *   Page loads in background. Renderer visibility is set to hidden.
 2.  **Reveal**:
     *   `SIGCONT` (handled by `suspend_signals.cc` -> `Focus` -> `Application::Focus` -> ... -> `kSbEventTypeReveal`)
     *   `ShellPlatformDelegate::Reveal` creates the window.
