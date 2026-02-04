@@ -252,14 +252,12 @@ void PermissionRequestManager::AddRequest(
   bool is_main_frame =
       url::IsSameOriginWith(main_frame_origin, request->requesting_origin());
 
-  const std::optional<PermissionAction> should_auto_approve_request =
+  std::optional<PermissionAction> should_auto_approve_request =
       PermissionsClient::Get()->GetAutoApprovalStatus(
           web_contents()->GetBrowserContext(), request->requesting_origin());
 
   if (should_auto_approve_request) {
     if (should_auto_approve_request == PermissionAction::GRANTED) {
-      request->PermissionGranted(/*is_one_time=*/false);
-    } else if (should_auto_approve_request == PermissionAction::GRANTED_ONCE) {
       request->PermissionGranted(/*is_one_time=*/true);
     }
     return;
