@@ -110,7 +110,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
 
   // Static method to record memory metrics.
   static void RecordMemoryMetrics(
-      memory_instrumentation::GlobalMemoryDump* global_dump);
+      memory_instrumentation::GlobalMemoryDump* global_dump,
+      uint64_t* last_private_footprint_kb = nullptr,
+      base::TimeTicks* last_dump_time = nullptr);
 
  protected:
   explicit CobaltMetricsServiceClient(
