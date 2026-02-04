@@ -61,37 +61,40 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
   std::string CheckImageDimension() {
     // Mock MediaSource.isTypeSupported for static image fallback
     return R"(
-      MediaSource.isTypeSupported = function(mime) {
-        return false;
-      };
-      playSplashAnimation();
+      MediaSource.isTypeSupported = () => false; 
       (async () => {
-        try {
-          const placeholder = document.getElementById('placeholder');
-          if (!placeholder) {
-            return 'No placeholder element found';
+        return await new Promise((resolve) => {
+          const checkImage = () => {
+            try {
+              const placeholder = document.getElementById('placeholder');
+              if (!placeholder) {
+                return resolve('No placeholder element found');
+              }
+
+              // check if image is displayed
+              const style = window.getComputedStyle(placeholder);
+              const bgImage = style.backgroundImage;
+              if (bgImage === 'none') {
+                return resolve('No image is displayed');
+              }
+              if (parseFloat(style.opacity) < 1) {
+                return resolve('Image does not have 100% opacity');
+              }
+
+              // check image dimension
+              const url = bgImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+              const image = new Image();
+              image.onload = () => resolve('Dimensions: ' + image.naturalWidth + 'x' + image.naturalHeight);
+              image.onerror = () => resolve('Image load error');
+              image.src = url;
+            } catch (e) {
+              return resolve('Exception: ' + e.toString());
+            }
           }
 
-          // check if image is displayed
-          const style = window.getComputedStyle(placeholder);
-          if (style.backgroundImage === 'none') {
-            return 'No image is displayed';
-          }
-          if (parseFloat(style.opacity) < 1) {
-            return 'Image does not have 100% opacity';
-          }
-
-          // check image dimension
-          const url = style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
-          return await new Promise((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => resolve('Dimensions: ' + image.naturalWidth + 'x' + image.naturalHeight);
-            image.onerror = () => reject('Image load error');
-            image.src = url;
-          });
-        } catch (e) {
-          return 'Exception: ' + e.toString();
-        }
+          // use checkImage as callback to avoid setting timeout
+          playSplashAnimation(null, checkImage);
+        });
       })();
     )";
   }
