@@ -61,7 +61,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
   std::string CheckImageDimension() {
     // Mock MediaSource.isTypeSupported for static image fallback
     return R"(
-      MediaSource.isTypeSupported = () => false; 
+      MediaSource.isTypeSupported = () => false;
       (async () => {
         return await new Promise((resolve) => {
           const checkImage = () => {
