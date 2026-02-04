@@ -54,6 +54,11 @@ public class JavaSwitches {
   /** CC flag to set the number of raster threads. Value type: Integer */
   public static final String NUM_RASTER_THREADS = "NumRasterThreads";
 
+  /** flag to disable PartitionAllocBackupRefPtr */
+  public static final String DISABLE_BRP = "DisableBRP";
+  /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
+  public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -106,11 +111,21 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--force-image-splash-screen");
     }
+
     if (javaSwitches.containsKey(JavaSwitches.NUM_RASTER_THREADS)) {
       extraCommandLineArgs.add(
           "--num-raster-threads="
               + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
     }
+    
+    // BRP settings
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
+      extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
+    }
+    if(javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
+      extraCommandLineArgs.add("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+    }
+
     return extraCommandLineArgs;
   }
 }
