@@ -425,8 +425,10 @@ void RegisterIOThreadServices(mojo::ServiceFactory& services) {
 void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 #if !BUILDFLAG(IS_COBALT)
   services.Add(RunAuctionWorkletService);
+#endif
   services.Add(RunAudio);
 
+#if !BUILDFLAG(IS_COBALT)
   services.Add(RunDataDecoder);
   services.Add(RunStorageService);
 #endif
@@ -468,15 +470,9 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 #endif  // BUILDFLAG(IS_CHROMEOS) && \
         // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
-#if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-  services.Add(RunOOPArcVideoAcceleratorFactoryService);
-#endif  // BUILDFLAG(IS_CHROMEOS) && \
-        // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   services.Add(RunVideoEncodeAcceleratorProviderFactory);
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
   if (::features::IsAccessibilityServiceEnabled())
     services.Add(RunAccessibilityService);
