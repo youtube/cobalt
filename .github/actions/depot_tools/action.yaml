@@ -94,15 +94,16 @@ runs:
         USE_CACHE: ${{ inputs.use_cache }}
       run: |
         cd cobalt
-        GCLIENT_CONFIG_ARGS=(
-          "--name=src"
-          "--custom-var=download_remoteexec_cfg=True"
-          "--custom-var=rbe_instance=\"${RBE_INSTANCE}\""
-        )
+        CACHE_ARG=()
         if [[ "${USE_CACHE}" == "true" ]]; then
-          GCLIENT_CONFIG_ARGS+=("--cache-dir=${CACHE_DIR_BASE_PATH}")
+          CACHE_ARG=("--cache-dir=${CACHE_DIR_BASE_PATH}")
         fi
-        gclient config "${GCLIENT_CONFIG_ARGS[@]}" "https://github.com/${{ github.repository }}"
+        gclient config \
+          --name=src \
+          --custom-var=download_remoteexec_cfg=True \
+          --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+          "${CACHE_ARG[@]}" \
+          "https://github.com/${{ github.repository }}"
       shell: bash
 
     - name: Set target OS for Android
