@@ -10,10 +10,6 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include <errno.h>
-#endif // BUILDFLAG(IS_STARBOARD)
-
 static int is_leap(int y)
 {
 	/* Avoid overflow */
@@ -243,7 +239,6 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 #if BUILDFLAG(IS_STARBOARD)
 	char* f_copy = strdup(f);
 	if (!f_copy) { 
-		errno = ENOMEM; 
 		return 0;
 	}
 	f = f_copy;
@@ -302,10 +297,7 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 		s[l] = 0;
 	}
 #if BUILDFLAG(IS_STARBOARD)
-// This block of code here represents the case where the buffer did not
-// have enough space to hold the entire formatted message.
 	free(f_copy);
-	errno = ERANGE;
 #endif // BUILDFLAG(IS_STARBOARD)
 	return 0;
 }

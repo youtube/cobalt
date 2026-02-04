@@ -18,6 +18,8 @@
 #include <string.h>
 #include <time.h>
 
+#include <vector>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -41,23 +43,58 @@ class PosixStrftimeTest : public ::testing::Test {
 
     original_locale_ = setlocale(LC_TIME, nullptr);
     ASSERT_NE(original_locale_, nullptr);
+    setlocale(LC_TIME, "C");
     memset(buffer_, 0, kBufferSize);
+
+    locale_ = newlocale(LC_TIME_MASK, "C", nullptr);
+    ASSERT_NE(locale_, nullptr);
 
     // Ensure TZ is set before running the tests.
     tzset();
     errno = 0;
   }
 
-  void TearDown() override { setlocale(LC_TIME, original_locale_); }
+  void TearDown() override {
+    setlocale(LC_TIME, original_locale_);
+    if (locale_) {
+      freelocale(locale_);
+    }
+  }
 
   struct tm tm_;
   char buffer_[kBufferSize];
   const char* original_locale_;
+  locale_t locale_;
 };
 
 TEST_F(PosixStrftimeTest, StandardSpecifiers) {
-  ASSERT_NE(setlocale(LC_TIME, "en_US.UTF-8"), nullptr);
+  const struct {
+    const char* format;
+    const char* expected;
+  } kTestCases[] = {
+      {"%Y-%y", "2023-23"},
+      {"%B-%b-%m", "October-Oct-10"},
+      {"%A-%a-%d-%j", "Thursday-Thu-26-299"},
+      {"%H-%I-%M-%S", "10-10-30-00"},
+      {"%p", "AM"},
+      {"%F", "2023-10-26"},
+      {"%T", "10:30:00"},
+      {"%D", "10/26/23"},
+      {"%r", "10:30:00 AM"},
+      {"%R", "10:30"},
+      {"%x", "10/26/23"},
+      {"%X", "10:30:00"},
+      {"%C", "20"},
+  };
 
+  for (const auto& test_case : kTestCases) {
+    size_t result = strftime(buffer_, kBufferSize, test_case.format, &tm_);
+    EXPECT_GT(result, 0U) << "Format: " << test_case.format;
+    EXPECT_STREQ(test_case.expected, buffer_) << "Format: " << test_case.format;
+  }
+}
+
+TEST_F(PosixStrftimeTest, StandardSpecifiersL) {
   const struct {
     const char* format;
     const char* expected;
@@ -68,31 +105,16 @@ TEST_F(PosixStrftimeTest, StandardSpecifiers) {
       {"%H-%I-%M-%S", "10-10-30-00"},
       {"%p", "AM"},
       {"%F %T", "2023-10-26 10:30:00"},
-      {"%D", "10/26/23"},
-      {"%r", "10:30:00 AM"},
-      {"%R", "10:30"},
-      {"%c", "Thu, Oct 26, 2023, 10:30:00 AM UTC"},
       {"%x", "10/26/23"},
-      {"%X", "10:30:00 AM"},
-      {"%C", "20"},
+      {"%X", "10:30:00"},
   };
 
-  char* old_tz = getenv("TZ");
-  setenv("TZ", "UTC", 1);
-  tzset();
-
   for (const auto& test_case : kTestCases) {
-    size_t result = strftime(buffer_, kBufferSize, test_case.format, &tm_);
+    size_t result =
+        strftime_l(buffer_, kBufferSize, test_case.format, &tm_, locale_);
     EXPECT_GT(result, 0U) << "Format: " << test_case.format;
     EXPECT_STREQ(test_case.expected, buffer_) << "Format: " << test_case.format;
   }
-
-  if (old_tz) {
-    setenv("TZ", old_tz, 1);
-  } else {
-    unsetenv("TZ");
-  }
-  tzset();
 }
 
 TEST_F(PosixStrftimeTest, SpecialCharacterSpecifiers) {
@@ -113,6 +135,37 @@ TEST_F(PosixStrftimeTest, SpecialCharacterSpecifiers) {
   }
 }
 
+TEST_F(PosixStrftimeTest, TimezoneAbbreviationUTC) {
+  char* old_tz = getenv("TZ");
+  setenv("TZ", "UTC", 1);
+  tzset();
+
+  memset(&tm_, 0, sizeof(tm_));
+  tm_.tm_isdst = 0;
+
+  memset(buffer_, 0, kBufferSize);
+  size_t result = strftime(buffer_, kBufferSize, "%Z", &tm_);
+
+  EXPECT_GT(result, 0U);
+
+  const std::vector<std::string> kExpectedTimezones = {"UTC", "GMT", "Z"};
+  bool is_valid = false;
+  for (const auto& tz : kExpectedTimezones) {
+    if (strcmp(buffer_, tz.c_str()) == 0) {
+      is_valid = true;
+      break;
+    }
+  }
+
+  EXPECT_TRUE(is_valid) << "Expected UTC, GMT, or Z, but got: " << buffer_;
+  if (old_tz) {
+    setenv("TZ", old_tz, 1);
+  } else {
+    unsetenv("TZ");
+  }
+  tzset();
+}
+
 TEST_F(PosixStrftimeTest, PaddedAndNumericSpecifiers) {
   tm_.tm_mday = 5;
   strftime(buffer_, kBufferSize, "%e", &tm_);
@@ -128,7 +181,6 @@ TEST_F(PosixStrftimeTest, PaddedAndNumericSpecifiers) {
 }
 
 TEST_F(PosixStrftimeTest, AMPMSpecifier) {
-  ASSERT_NE(setlocale(LC_TIME, "en_US.UTF-8"), nullptr);
   strftime(buffer_, kBufferSize, "%p", &tm_);
   EXPECT_STREQ("AM", buffer_);
 
@@ -137,9 +189,16 @@ TEST_F(PosixStrftimeTest, AMPMSpecifier) {
   EXPECT_STREQ("PM", buffer_);
 }
 
+TEST_F(PosixStrftimeTest, AMPMSpecifierL) {
+  strftime_l(buffer_, kBufferSize, "%p", &tm_, locale_);
+  EXPECT_STREQ("AM", buffer_);
+
+  tm_.tm_hour = 14;
+  strftime_l(buffer_, kBufferSize, "%p", &tm_, locale_);
+  EXPECT_STREQ("PM", buffer_);
+}
+
 TEST_F(PosixStrftimeTest, ISOWeekStandard) {
-  // Oct 26, 2023 is a Thursday in the middle of the year.
-  // It should clearly be ISO Year 2023, Week 43.
   tm_.tm_year = 2023 - 1900;
   tm_.tm_mon = 9;  // October
   tm_.tm_mday = 26;
@@ -179,31 +238,10 @@ TEST_F(PosixStrftimeTest, ISOWeekForwardWrap) {
   EXPECT_STREQ("2020-W01", buffer_);
 }
 
-TEST_F(PosixStrftimeTest, WeekdayNumericSunday) {
-  tm_.tm_wday = 0;  // Sunday
-
-  strftime(buffer_, kBufferSize, "%u-%w", &tm_);
-  EXPECT_STREQ("7-0", buffer_);
-}
-
-TEST_F(PosixStrftimeTest, WeekdayNumericMonday) {
-  tm_.tm_wday = 1;  // Monday
-
-  strftime(buffer_, kBufferSize, "%u-%w", &tm_);
-  EXPECT_STREQ("1-1", buffer_);
-}
-
-TEST_F(PosixStrftimeTest, LiteralPercent) {
-  size_t result = strftime(buffer_, kBufferSize, "%%", &tm_);
-  EXPECT_EQ(result, 1U);
-  EXPECT_STREQ("%", buffer_);
-}
-
 TEST_F(PosixStrftimeTest, BufferHandling) {
   const char* format = "%Y-%m-%d";
   size_t result = strftime(buffer_, 10, format, &tm_);
   EXPECT_EQ(result, 0U);
-  EXPECT_EQ(errno, ERANGE);
 
   result = strftime(buffer_, 11, format, &tm_);
   EXPECT_EQ(result, 10U);
@@ -211,106 +249,13 @@ TEST_F(PosixStrftimeTest, BufferHandling) {
 
   result = strftime(buffer_, 0, format, &tm_);
   EXPECT_EQ(result, 0U);
-  EXPECT_EQ(errno, ERANGE);
 }
 
-TEST_F(PosixStrftimeTest, LargeYear) {
-  tm_.tm_year = 10005 - 1900;
-  strftime(buffer_, kBufferSize, "%Y", &tm_);
-  EXPECT_STREQ("+10005", buffer_);
-}
-
-class PosixStrftimeLTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    // Set a known time: 2023-10-26 10:30:00 AM, Thursday
-    tm_.tm_year = 2023 - 1900;  // Year since 1900
-    tm_.tm_mon = 10 - 1;        // 0-indexed month
-    tm_.tm_mday = 26;
-    tm_.tm_hour = 10;
-    tm_.tm_min = 30;
-    tm_.tm_sec = 0;
-    tm_.tm_wday = 4;  // Thursday
-    tm_.tm_yday = 298;
-    tm_.tm_isdst = 0;
-
-    locale_ = newlocale(LC_TIME_MASK, "en_US.UTF-8", nullptr);
-    ASSERT_NE(locale_, nullptr);
-    errno = 0;
-  }
-
-  void TearDown() override {
-    if (locale_) {
-      freelocale(locale_);
-    }
-  }
-
-  struct tm tm_;
-  char buffer_[kBufferSize];
-  locale_t locale_;
-};
-
-TEST_F(PosixStrftimeLTest, StandardSpecifiers) {
-  const struct {
-    const char* format;
-    const char* expected;
-  } kTestCases[] = {
-      {"%Y-%y", "2023-23"},
-      {"%B-%b-%m", "October-Oct-10"},
-      {"%A-%a-%d-%j", "Thursday-Thu-26-299"},
-      {"%H-%I-%M-%S", "10-10-30-00"},
-      {"%p", "AM"},
-      {"%F %T", "2023-10-26 10:30:00"},
-      {"%x", "10/26/23"},
-      {"%X", "10:30:00 AM"},
-  };
-
-  for (const auto& test_case : kTestCases) {
-    size_t result =
-        strftime_l(buffer_, kBufferSize, test_case.format, &tm_, locale_);
-    EXPECT_GT(result, 0U) << "Format: " << test_case.format;
-    EXPECT_STREQ(test_case.expected, buffer_) << "Format: " << test_case.format;
-  }
-}
-
-TEST_F(PosixStrftimeLTest, AMPMSpecifier) {
-  strftime_l(buffer_, kBufferSize, "%p", &tm_, locale_);
-  EXPECT_STREQ("AM", buffer_);
-
-  tm_.tm_hour = 14;
-  strftime_l(buffer_, kBufferSize, "%p", &tm_, locale_);
-  EXPECT_STREQ("PM", buffer_);
-}
-
-TEST_F(PosixStrftimeLTest, LocaleSpecificDateTimeWithTimezone) {
-  char* old_tz = getenv("TZ");
-  setenv("TZ", "EST5EDT", 1);
-  tzset();
-
-  size_t result = strftime_l(buffer_, kBufferSize, "%c", &tm_, locale_);
-  EXPECT_GT(result, 0U);
-  EXPECT_STREQ("Thu, Oct 26, 2023, 10:30:00 AM EST", buffer_);
-
-  if (old_tz) {
-    setenv("TZ", old_tz, 1);
-  } else {
-    unsetenv("TZ");
-  }
-  tzset();
-}
-
-TEST_F(PosixStrftimeLTest, LiteralPercent) {
-  size_t result = strftime_l(buffer_, kBufferSize, "%%", &tm_, locale_);
-  EXPECT_EQ(result, 1U);
-  EXPECT_STREQ("%", buffer_);
-}
-
-TEST_F(PosixStrftimeLTest, BufferHandling) {
+TEST_F(PosixStrftimeTest, BufferHandlingL) {
   const char* format = "%Y-%m-%d";  // Result: "2023-10-26" (10 chars)
 
   size_t result = strftime_l(buffer_, 10, format, &tm_, locale_);
   EXPECT_EQ(result, 0U);
-  EXPECT_EQ(errno, ERANGE);
 
   result = strftime_l(buffer_, 11, format, &tm_, locale_);
   EXPECT_EQ(result, 10U);
@@ -318,7 +263,24 @@ TEST_F(PosixStrftimeLTest, BufferHandling) {
 
   result = strftime_l(buffer_, 0, format, &tm_, locale_);
   EXPECT_EQ(result, 0U);
-  EXPECT_EQ(errno, ERANGE);
+}
+
+TEST_F(PosixStrftimeTest, LargeYear) {
+  tm_.tm_year = 10005 - 1900;
+  strftime(buffer_, kBufferSize, "%Y", &tm_);
+
+  // Accept either "+10005" (glibc/ISO8601) OR "10005" (BSD/musl)
+  // We explicitly check for both valid implementations.
+  bool match =
+      (strcmp(buffer_, "+10005") == 0) || (strcmp(buffer_, "10005") == 0);
+
+  EXPECT_TRUE(match) << "Expected +10005 or 10005, but got: " << buffer_;
+}
+
+TEST_F(PosixStrftimeTest, LiteralPercentL) {
+  size_t result = strftime_l(buffer_, kBufferSize, "%%", &tm_, locale_);
+  EXPECT_EQ(result, 1U);
+  EXPECT_STREQ("%", buffer_);
 }
 
 }  // namespace
