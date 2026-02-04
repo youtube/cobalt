@@ -46,19 +46,7 @@ void OnMemoryDumpDone(
     scoped_refptr<CobaltMetricsServiceClient::State> state,
     base::OnceClosure done_callback,
     bool success,
-    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
-  if (success && global_dump) {
-    if (state) {
-      state->RecordMemoryMetrics(global_dump.get());
-    } else {
-      CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-    }
-  }
-
-  if (done_callback) {
-    std::move(done_callback).Run();
-  }
-}
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump);
 
 }  // namespace
 
@@ -127,6 +115,28 @@ struct CobaltMetricsServiceClient::State
   friend class base::RefCountedThreadSafe<State>;
   ~State() = default;
 };
+
+namespace {
+
+void OnMemoryDumpDone(
+    scoped_refptr<CobaltMetricsServiceClient::State> state,
+    base::OnceClosure done_callback,
+    bool success,
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
+  if (success && global_dump) {
+    if (state) {
+      state->RecordMemoryMetrics(global_dump.get());
+    } else {
+      CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+    }
+  }
+
+  if (done_callback) {
+    std::move(done_callback).Run();
+  }
+}
+
+}  // namespace
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
@@ -499,17 +509,25 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
       base::TimeTicks now = base::TimeTicks::Now();
       if (!last_dump_time->is_null()) {
         base::TimeDelta delta_t = now - *last_dump_time;
-        if (delta_t.InSeconds() >= 1) {
+        // Only record growth rate if the samples are within a reasonable window
+        // (e.g., 30 minutes) to avoid misleading averages after sleep/wake.
+        if (delta_t >= base::Seconds(1) && delta_t <= base::Minutes(30)) {
           int64_t delta_mem_kb =
               static_cast<int64_t>(total_private_footprint_kb) -
               static_cast<int64_t>(*last_private_footprint_kb);
           double minutes = delta_t.InSecondsF() / 60.0;
-          int64_t growth_rate_kb_per_min =
-              static_cast<int64_t>(delta_mem_kb / minutes);
-          if (growth_rate_kb_per_min > 0) {
+          double growth_rate_kb_per_min = delta_mem_kb / minutes;
+
+          if (growth_rate_kb_per_min >= 0) {
+            int rate_int = static_cast<int>(growth_rate_kb_per_min);
+            // Slow leak metric: 0 to 10 MB/min (10240 KB/min), high resolution.
+            base::UmaHistogramCounts10000(
+                "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Slow",
+                rate_int);
+            // Fast leak metric: 0 to 1 GB/min.
             base::UmaHistogramCounts1M(
-                "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate",
-                static_cast<int>(growth_rate_kb_per_min));
+                "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Fast",
+                rate_int);
           }
         }
       }

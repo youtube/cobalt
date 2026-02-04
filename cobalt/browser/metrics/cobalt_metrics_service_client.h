@@ -114,6 +114,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
       uint64_t* last_private_footprint_kb = nullptr,
       base::TimeTicks* last_dump_time = nullptr);
 
+  // State struct for background memory metrics collection.
+  struct State;
+
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
@@ -127,8 +130,6 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::RepeatingTimer idle_refresh_timer_;
 
  private:
-  struct State;
-
   // Starts the periodic memory metrics logger.
   void StartMemoryMetricsLogger();
 

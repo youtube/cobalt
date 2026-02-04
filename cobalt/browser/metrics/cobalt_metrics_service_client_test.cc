@@ -358,33 +358,33 @@ TEST_F(CobaltMetricsServiceClientTest, RecordComponentMemoryMetrics) {
   process_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
 
   // Add metrics for components
-  memory_instrumentation::mojom::AllocatorMemDump v8_dump;
-  v8_dump.numeric_entries["effective_size"] = 1024 * 1024;  // 1 MB
+  auto v8_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  v8_dump->numeric_entries["effective_size"] = 1024 * 1024;  // 1 MB
   process_dump->chrome_allocator_dumps["v8"] = std::move(v8_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump blink_gc_dump;
-  blink_gc_dump.numeric_entries["effective_size"] = 2 * 1024 * 1024;  // 2 MB
+  auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  blink_gc_dump->numeric_entries["effective_size"] = 2 * 1024 * 1024;  // 2 MB
   process_dump->chrome_allocator_dumps["blink_gc"] = std::move(blink_gc_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump layout_dump;
-  layout_dump.numeric_entries["size"] = 3 * 1024 * 1024;  // 3 MB
+  auto layout_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  layout_dump->numeric_entries["size"] = 3 * 1024 * 1024;  // 3 MB
   process_dump->chrome_allocator_dumps["partition_alloc/partitions/layout"] =
       std::move(layout_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump skia_dump;
-  skia_dump.numeric_entries["effective_size"] = 4 * 1024 * 1024;  // 4 MB
+  auto skia_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  skia_dump->numeric_entries["effective_size"] = 4 * 1024 * 1024;  // 4 MB
   process_dump->chrome_allocator_dumps["skia"] = std::move(skia_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump gpu_dump;
-  gpu_dump.numeric_entries["effective_size"] = 5 * 1024 * 1024;  // 5 MB
+  auto gpu_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  gpu_dump->numeric_entries["effective_size"] = 5 * 1024 * 1024;  // 5 MB
   process_dump->chrome_allocator_dumps["gpu"] = std::move(gpu_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump media_dump;
-  media_dump.numeric_entries["effective_size"] = 6 * 1024 * 1024;  // 6 MB
+  auto media_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  media_dump->numeric_entries["effective_size"] = 6 * 1024 * 1024;  // 6 MB
   process_dump->chrome_allocator_dumps["media"] = std::move(media_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump malloc_dump;
-  malloc_dump.numeric_entries["effective_size"] = 7 * 1024 * 1024;  // 7 MB
+  auto malloc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  malloc_dump->numeric_entries["effective_size"] = 7 * 1024 * 1024;  // 7 MB
   process_dump->chrome_allocator_dumps["malloc"] = std::move(malloc_dump);
 
   dump_ptr->process_dumps.push_back(std::move(process_dump));
@@ -415,23 +415,24 @@ TEST_F(CobaltMetricsServiceClientTest, RecordObjectCountsAndGrowthRate) {
   process_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
 
   // Add metrics for object counts
-  memory_instrumentation::mojom::AllocatorMemDump document_dump;
-  document_dump.numeric_entries["object_count"] = 5;
+  auto document_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  document_dump->numeric_entries["object_count"] = 5;
   process_dump->chrome_allocator_dumps["blink_objects/Document"] =
       std::move(document_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump node_dump;
-  node_dump.numeric_entries["object_count"] = 1000;
+  auto node_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  node_dump->numeric_entries["object_count"] = 1000;
   process_dump->chrome_allocator_dumps["blink_objects/Node"] =
       std::move(node_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump js_listener_dump;
-  js_listener_dump.numeric_entries["object_count"] = 50;
+  auto js_listener_dump =
+      memory_instrumentation::mojom::AllocatorMemDump::New();
+  js_listener_dump->numeric_entries["object_count"] = 50;
   process_dump->chrome_allocator_dumps["blink_objects/JSEventListener"] =
       std::move(js_listener_dump);
 
-  memory_instrumentation::mojom::AllocatorMemDump layout_dump;
-  layout_dump.numeric_entries["object_count"] = 200;
+  auto layout_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  layout_dump->numeric_entries["object_count"] = 200;
   process_dump->chrome_allocator_dumps["blink_objects/LayoutObject"] =
       std::move(layout_dump);
 
@@ -457,7 +458,9 @@ TEST_F(CobaltMetricsServiceClientTest, RecordObjectCountsAndGrowthRate) {
 
   // Growth rate: (10MB - 5MB) / 5 min = 1MB/min = 1024 KB/min
   histogram_tester.ExpectUniqueSample(
-      "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate", 1024, 1);
+      "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Slow", 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Fast", 1024, 1);
 
   EXPECT_EQ(last_footprint, 10240u);
 }

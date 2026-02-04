@@ -19,7 +19,10 @@ These metrics provide a breakdown of memory usage within the Cobalt process:
 
 ### Growth and Object Counts
 
-*   **`Cobalt.Memory.PrivateMemoryFootprint.GrowthRate`**: The rate at which the private memory footprint is growing (in KB/min).
+*   **`Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.{LeakType}`**: The rate at which the private memory footprint is growing (in KB/min).
+    *   Variants:
+        *   `Slow`: High resolution for growth up to 10 MB/min.
+        *   `Fast`: Captures growth up to 1 GB/min.
 *   **`Cobalt.Memory.ObjectCounts.{Component}`**: The number of live objects for specific components in Blink.
     *   Variants: `Document`, `JSEventListener`, `LayoutObject`, `Node`.
 
