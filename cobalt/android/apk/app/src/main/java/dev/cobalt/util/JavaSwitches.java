@@ -44,6 +44,12 @@ public class JavaSwitches {
   /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
   public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
 
+  /** flag to disable PartitionAllocBackupRefPtr */
+  public static final String DISABLE_BRP = "DisableBRP";
+
+  /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
+  public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -80,6 +86,15 @@ public class JavaSwitches {
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
     }
+
+    // BRP settings
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
+      extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
+    }
+    else if(javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
+      extraCommandLineArgs.add("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+    }
+
     return extraCommandLineArgs;
   }
 }
