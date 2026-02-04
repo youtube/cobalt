@@ -3885,9 +3885,9 @@ test("base_unittests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/abseil-cpp:absl",
+    "//third_party/fuzztest:fuzztest",
     "//third_party/icu",
     "//third_party/modp_b64",
-    "//third_party/fuzztest:fuzztest",
 
     # TODO(crbug.com/40158212): Move partition_alloc tests into its repository.
     "allocator/partition_allocator/src/partition_alloc:test_support",
