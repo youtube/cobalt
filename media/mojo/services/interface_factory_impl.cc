@@ -297,6 +297,7 @@ void InterfaceFactoryImpl::CreateStarboardRenderer(
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote) {
   DVLOG(2) << __func__;
+  LOG(ERROR) << "Cobalt: " << __func__;
   auto renderer = mojo_media_client_->CreateStarboardRenderer(
       frame_interfaces_.get(),
       base::SingleThreadTaskRunner::GetCurrentDefault(),

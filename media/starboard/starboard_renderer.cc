@@ -487,6 +487,7 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
 
 #if BUILDFLAG(IS_ANDROID)
   if (overlay_ && output_rect_) {
+    LOG(ERROR) << "Cobalt: " << __func__ << " " << output_rect.ToString();
     overlay_->ScheduleLayout(*output_rect_);
     return;
   }
