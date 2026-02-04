@@ -231,7 +231,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeTextHtml;
-      mime_type = "text/html";
     } else if (base::EndsWith(key, ".png", base::CompareCase::SENSITIVE)) {
       mime_type = kMimeTypeImagePng; 
       if (browser_context_) {
