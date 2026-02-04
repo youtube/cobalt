@@ -16,8 +16,8 @@
 #define COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_BASE_H_
 
 #include "base/memory/weak_ptr.h"
-#include "base/threading/thread_checker.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -60,7 +60,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
 
   void PerformExitStrategy();
 
-  THREAD_CHECKER(thread_checker_);
+  COBALT_THREAD_CHECKER(thread_checker_);
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.

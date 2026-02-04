@@ -64,22 +64,6 @@ struct _IO_FILE {
 };
 
 #if defined(STARBOARD)
-static inline void __init_file_lock(struct _IO_FILE* f) {
-	if (f->lock < 0) return;
-	__cond_mutex_pair_init(&f->cond_mutex);
-}
-
-static void __destroy_file_lock(struct _IO_FILE* f) {
-	if (f->lock < 0) return;
-	__cond_mutex_pair_destroy(&f->cond_mutex);
-}
-
-// File read and write functions that initialize the mutex and cond variable
-// before their use.
-size_t __stdio_read_init(FILE *f, unsigned char *buf, size_t len);
-size_t __stdio_write_init(FILE *f, const unsigned char *buf, size_t len);
-off_t __stdio_seek_init(FILE *f, off_t off, int whence);
-
 // Stubs for calls to read from stdout/stderr, and write to stdin.
 size_t __stdio_read_stub(FILE *f, unsigned char *buf, size_t len);
 size_t __stdio_write_stub(FILE *f, const unsigned char *buf, size_t len);

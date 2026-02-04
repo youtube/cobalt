@@ -23,7 +23,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -40,26 +40,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            bool decode_to_texture_required) {
   if (video_codec == kSbMediaVideoCodecAv1) {
     return false;
-  }
-
-  bool experimental_allowed = false;
-
-  if (mime_type) {
-    if (!mime_type->is_valid()) {
-      return false;
-    }
-    // The "experimental" attribute can have three conditions:
-    // 1. Not present: only returns true when hardware decoder is present.
-    // 2. "allowed":   returns true if it is supported, either via a hardware
-    //                 or a software decoder.
-    // 3. "invalid":   always returns false.  Note that false is also returned
-    //                 for other unknown values that should never be present.
-    if (!mime_type->ValidateStringParameter("experimental", "allowed")) {
-      return false;
-    }
-    const std::string& experimental_value =
-        mime_type->GetParamStringValue("experimental", "");
-    experimental_allowed = experimental_value == "allowed";
   }
 
   @autoreleasepool {
@@ -106,6 +86,24 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
         return frame_height <= 2160 && frame_width <= 3840;
       }
 #if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
+      bool experimental_allowed = false;
+      if (mime_type) {
+        if (!mime_type->is_valid()) {
+          return false;
+        }
+        // This block checks if the "experimental" attribute is explicitly set
+        // to "allowed". If the attribute is not present or has an invalid
+        // value, `ValidateStringParameter` will cause an early return of
+        // `false` from the function. If present and "allowed",
+        // `experimental_allowed` is set to true.
+        if (!mime_type->ValidateStringParameter("experimental", "allowed")) {
+          return false;
+        }
+        const std::string& experimental_value =
+            mime_type->GetParamStringValue("experimental", "");
+        experimental_allowed = experimental_value == "allowed";
+      }
+
       if (experimental_allowed) {
         if (is_hdr && !kEnableHdrWithSoftwareVp9) {
           return false;
@@ -142,4 +140,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   return false;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

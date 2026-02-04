@@ -22,7 +22,7 @@
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     const SbPlayerCreationParam* creation_param) {
-  using starboard::shared::starboard::player::filter::PlayerComponents;
+  using starboard::PlayerComponents;
 
   if (!creation_param) {
     SB_LOG(ERROR) << "creation_param cannot be NULL";
@@ -80,7 +80,7 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     const char* mime = creation_param->video_stream_info.mime;
     // Sw vp9 doesn't support HDR yet, so we only use decode to texture
     // mode for SDR contents.
-    if (mime && ::starboard::shared::starboard::media::IsSDRVideo(mime)) {
+    if (mime && starboard::IsSDRVideo(mime)) {
       std::swap(output_modes_to_check[0], output_modes_to_check[1]);
     }
   }

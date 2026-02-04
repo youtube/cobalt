@@ -42,9 +42,6 @@
 using third_party::starboard::rdk::shared::DisplayInfo;
 
 namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* content_type,
@@ -94,7 +91,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
              GstRegistryHasElementForMediaType(video_codec);
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard
