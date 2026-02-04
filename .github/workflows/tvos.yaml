@@ -41,7 +41,7 @@ jobs:
       - name: Setup depot_tools
         uses: ./.github/actions/depot_tools
         with:
-          clear_cache: 'true'  #TODO: b/481700655 - Need to rm depot_tools dir.
+          clear_cache: 'false'
           use_cache: 'false'
       - name: Build
         uses: ./.github/actions/build
