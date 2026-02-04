@@ -98,7 +98,7 @@ def run_adb_command(
     command_list_or_str: A list of command arguments or a single string
                          command.
     shell: If True, the command is executed through the shell.
-    timeout: Maximum time in milliseconds to wait for the command to complete.
+    timeout: Maximum time in seconds to wait for the command to complete.
     subprocess_runner: A callable that takes (command, shell, timeout)
                        and returns (stdout, stderr, returncode).
                        Defaults to the real subprocess execution.
