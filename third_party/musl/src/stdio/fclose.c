@@ -13,6 +13,14 @@ int fclose(FILE *f)
 	r |= f->close(f);
 	FUNLOCK(f);
 
+#if defined(STARBOARD)
+	if (f->lock >= 0) {
+		f->lock = -1;
+		pthread_mutex_destroy(&f->cond_mutex.mutex);
+		pthread_cond_destroy(&f->cond_mutex.cond);
+	}
+#endif
+
 	/* Past this point, f is closed and any further explict access
 	 * to it is undefined. However, it still exists as an entry in
 	 * the open file list and possibly in the thread's locked files

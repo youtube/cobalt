@@ -209,6 +209,13 @@ GURL CobaltMetricsServiceClient::GetMetricsServerUrl() {
   return GURL("https://youtube.com/tv/uma");
 }
 
+GURL CobaltMetricsServiceClient::GetInsecureMetricsServerUrl() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
+  // This is made up and not used. See GetMetricsServerUrl() for more details.
+  return GURL("https://youtube.com/tv/uma");
+}
+
 std::unique_ptr<metrics::MetricsLogUploader>
 CobaltMetricsServiceClient::CreateUploader(
     const GURL& server_url,

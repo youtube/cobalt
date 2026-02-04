@@ -67,6 +67,10 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -375,10 +379,19 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 void Shell::PrimaryMainDocumentElementAvailable() {
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
+#if BUILDFLAG(USE_EVERGREEN)
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    LOG(INFO) << "Mark the current installation as successful after the "
+                 "PrimaryMainDocumentElement is available.";
+    updater_module->MarkSuccessful();
+  }
+#endif  // BUILDFLAG(USE_EVERGREEN)
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
-  LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
+  LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
 }
 
 void Shell::DidStopLoading() {
@@ -996,6 +1009,7 @@ void Shell::SwitchToMainWebContents() {
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
+      web_contents_->WasShown();
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }

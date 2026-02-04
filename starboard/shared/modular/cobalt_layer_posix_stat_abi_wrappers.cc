@@ -22,18 +22,6 @@ int fstat(int fildes, struct stat* info) {
   return __abi_wrap_fstat(fildes, info);
 }
 
-int __abi_wrap_lstat(const char* path, struct stat* info);
-
-int lstat(const char* path, struct stat* info) {
-  return __abi_wrap_lstat(path, info);
-}
-
-int __abi_wrap_stat(const char* path, struct stat* info);
-
-int stat(const char* path, struct stat* info) {
-  return __abi_wrap_stat(path, info);
-}
-
 int __abi_wrap_chmod(const char* path, mode_t mode);
 
 int chmod(const char* path, mode_t mode) {
@@ -56,5 +44,14 @@ int utimensat(int fildes,
               const struct timespec times[2],
               int flag) {
   return __abi_wrap_utimensat(fildes, path, times, flag);
+}
+
+int __abi_wrap_fstatat(int fildes,
+                       const char* path,
+                       struct stat* info,
+                       int flag);
+
+int fstatat(int fildes, const char* path, struct stat* info, int flag) {
+  return __abi_wrap_fstatat(fildes, path, info, flag);
 }
 }

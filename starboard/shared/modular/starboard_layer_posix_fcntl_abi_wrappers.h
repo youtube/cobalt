@@ -100,7 +100,18 @@ struct musl_flock {
   musl_pid_t l_pid;
 };
 
+// Musl O_ mode constants
+#define MUSL_O_SEARCH 010000000
+#define MUSL_O_EXEC 010000000
+#define MUSL_O_RDONLY 00
+#define MUSL_O_WRONLY 01
+#define MUSL_O_RDWR 02
+
+#define MUSL_AT_REMOVEDIR 0x200
+
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...);
+
+SB_EXPORT int __abi_wrap_openat(int fildes, const char* path, int oflag, ...);
 
 #ifdef __cplusplus
 }  // extern "C"

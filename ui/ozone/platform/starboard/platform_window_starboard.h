@@ -15,6 +15,7 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 
+#include "base/functional/callback.h"
 #include "starboard/window.h"
 #include "ui/base/cursor/platform_cursor.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
@@ -69,6 +70,9 @@ class PlatformWindowStarboard : public PlatformWindow,
 
   bool ShouldUseNativeFrame() const override;
   void SetUseNativeFrame(bool use_native_frame) override;
+
+  using WindowCreatedCallback = base::RepeatingCallback<void(SbWindow)>;
+  static void SetWindowCreatedCallback(WindowCreatedCallback cb);
 
   // ui::PlatformEventObserverStarboard interface.
   void ProcessWindowSizeChangedEvent(int width, int height) override;

@@ -40,6 +40,7 @@ StarboardRendererClient::StarboardRendererClient(
     VideoRendererSink* video_renderer_sink,
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
+    GetSbWindowHandleCallback get_sb_window_handle_callback,
     BindHostReceiverCallback bind_host_receiver_callback,
     GpuVideoAcceleratorFactories* gpu_factories
 #if BUILDFLAG(IS_ANDROID)
@@ -55,6 +56,7 @@ StarboardRendererClient::StarboardRendererClient(
       pending_renderer_extension_(std::move(pending_renderer_extension)),
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
+      get_sb_window_handle_callback_(get_sb_window_handle_callback),
       bind_host_receiver_callback_(bind_host_receiver_callback),
       gpu_factories_(gpu_factories)
 #if BUILDFLAG(IS_ANDROID)
@@ -268,6 +270,15 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
   if (IsMojoRendererInitialized() && !init_cb_.is_null()) {
     std::move(init_cb_).Run(pipeline_status());
   }
+}
+
+void StarboardRendererClient::GetSbWindowHandle() {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  uint64_t sb_window_handle = 0;
+  if (get_sb_window_handle_callback_) {
+    sb_window_handle = get_sb_window_handle_callback_.Run();
+  }
+  renderer_extension_->OnSbWindowHandleReady(sb_window_handle);
 }
 
 #if BUILDFLAG(IS_ANDROID)

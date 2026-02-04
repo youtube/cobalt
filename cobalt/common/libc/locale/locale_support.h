@@ -15,6 +15,7 @@
 #ifndef COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_
 #define COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_
 
+#include <langinfo.h>
 #include <locale.h>
 
 #include <array>

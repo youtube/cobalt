@@ -19,7 +19,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"

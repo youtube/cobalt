@@ -1,0 +1,43 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rdkcentral/rdkservices/main/Tools/json_generator/schemas/interface.schema.json",
+  "jsonrpc": "2.0",
+  "info": {
+    "title": "StateControl API",
+    "class": "StateControl",
+    "description": "StateControl JSON-RPC interface"
+  },
+  "common": {
+    "$ref": "common.json"
+  },
+  "properties": {
+    "state": {
+      "summary": "Running state of the service",
+      "description": "Use this property to return the running state of the service.\n\n### Events\n| Event | Description |\n| :----------- | :----------- |\n| `statechange`| Triggered if the state of the service changed.|",
+      "params": {
+        "type": "string",
+        "enum": [
+          "resumed",
+          "suspended"
+        ]
+      },
+      "events": [
+        "statechange"
+      ]
+    }
+  },
+  "events": {
+    "statechange": {
+      "summary": "Signals a state change of the service",
+      "params": {
+        "type": "object",
+        "properties": {
+          "suspended": {
+            "description": "Determines if the service has entered suspended state (`true`) or resumed state (`false`)",
+            "type": "boolean",
+            "example": false
+          }
+        }
+      }
+    }
+  }
+}

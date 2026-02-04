@@ -53,8 +53,11 @@ FILE *__fdopen(int fd, const char *mode)
 	f->close = __stdio_close;
 
 #if defined(STARBOARD)
-	f->lock = 0; // Starboard apps are typicall multithreaded, require locking.
-	__init_file_lock(f);
+	f->cond_mutex = (StarboardPthreadCondMutex){
+		.lock = 0,  // Starboard apps are typicall multithreaded, require locking.
+		.mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP,
+		.cond = PTHREAD_COND_INITIALIZER
+	};
 #else
 	if (!libc.threaded) f->lock = -1;
 #endif

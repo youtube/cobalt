@@ -8,16 +8,14 @@ hidden FILE __stdin_FILE = {
 	.buf_size = sizeof buf-UNGET,
 	.fd = 0,
 	.flags = F_PERM | F_NOWR,
-#if defined(STARBOARD)
-	.read = __stdio_read_init,
-	.write = __stdio_write_stub,
-	.seek = __stdio_seek_init,
-	.close = __stdio_close,
-	.lock = 0,  // Starboard apps are typically multithreaded, require locking.
-#else
 	.read = __stdio_read,
 	.seek = __stdio_seek,
 	.close = __stdio_close,
+#if defined(STARBOARD)
+	.write = __stdio_write_stub,
+	.lock = 0,  // Starboard apps are typicall multithreaded, require locking.
+	.cond_mutex = { 0, PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP, PTHREAD_COND_INITIALIZER },
+#else
 	.lock = -1,
 #endif
 };

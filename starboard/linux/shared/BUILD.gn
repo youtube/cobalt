@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/shared/enhanced_audio/enhanced_audio.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
@@ -80,6 +79,7 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/ifa.h",
     "//starboard/linux/shared/media_is_audio_supported.cc",
     "//starboard/linux/shared/media_is_video_supported.cc",
+    "//starboard/linux/shared/microphone/microphone_impl.cc",
     "//starboard/linux/shared/platform_service.cc",
     "//starboard/linux/shared/platform_service.h",
     "//starboard/linux/shared/player_components_factory.cc",
@@ -208,6 +208,13 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
+    "//starboard/shared/starboard/microphone/microphone_close.cc",
+    "//starboard/shared/starboard/microphone/microphone_create.cc",
+    "//starboard/shared/starboard/microphone/microphone_destroy.cc",
+    "//starboard/shared/starboard/microphone/microphone_get_available.cc",
+    "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
+    "//starboard/shared/starboard/microphone/microphone_open.cc",
+    "//starboard/shared/starboard/microphone/microphone_read.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_request_blur.cc",
@@ -216,13 +223,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/window_set_default_options.cc",
-    "//starboard/shared/stub/microphone_close.cc",
-    "//starboard/shared/stub/microphone_create.cc",
-    "//starboard/shared/stub/microphone_destroy.cc",
-    "//starboard/shared/stub/microphone_get_available.cc",
-    "//starboard/shared/stub/microphone_is_sample_rate_supported.cc",
-    "//starboard/shared/stub/microphone_open.cc",
-    "//starboard/shared/stub/microphone_read.cc",
     "//starboard/shared/stub/speech_synthesis_cancel.cc",
     "//starboard/shared/stub/speech_synthesis_is_supported.cc",
     "//starboard/shared/stub/speech_synthesis_speak.cc",
@@ -249,6 +249,13 @@ static_library("starboard_platform_sources") {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
+    ]
+  }
+
+  if (!cobalt_is_release_build) {
+    sources += [
+      "//starboard/linux/shared/echo_service.cc",
+      "//starboard/linux/shared/echo_service.h",
     ]
   }
 

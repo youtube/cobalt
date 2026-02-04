@@ -74,6 +74,9 @@ SbThreadId SbThreadGetId();
 #define SYS_unlink SYS_unlink
 #define SYS_write SYS_write
 #define SYS_writev SYS_writev
+#define SYS_openat SYS_openat
+#define SYS_unlinkat SYS_unlinkat
+#define SYS_fstatat SYS_fstatat
 
 // For Starboard builds, the syscall SYS_foo names are not mapped to numbers,
 // allowing these wrappers to use the SYS_foo syscall name.
@@ -84,15 +87,20 @@ SbThreadId SbThreadGetId();
 #define libc_wrapper_SYS_fcntl(fd, op, ...) fcntl(fd, op, ##__VA_ARGS__)
 #define libc_wrapper_SYS_gettid() SbThreadGetId()
 #define libc_wrapper_SYS_lseek(fildes, offset, whence) lseek(fildes, offset, whence)
-#define libc_wrapper_SYS_lstat(pathname, statbuf) lstat(pathname, statbuf)
-#define libc_wrapper_SYS_open(pathname, flags, mode) open(pathname, flags, mode)
 #define libc_wrapper_SYS_read(fildes, buf, nbyte) read(fildes, buf, nbyte)
 #define libc_wrapper_SYS_readv(fildes, iov, iovcnt) readv(fildes, iov, iovcnt)
-#define libc_wrapper_SYS_rmdir(pathname) rmdir(pathname)
-#define libc_wrapper_SYS_stat(pathname, statbuf) stat(pathname, statbuf)
-#define libc_wrapper_SYS_unlink(pathname) unlink(pathname)
 #define libc_wrapper_SYS_write(fildes, buf, nbyte) write(fildes, buf, nbyte)
 #define libc_wrapper_SYS_writev(fildes, iov, iovcnt) writev(fildes, iov, iovcnt)
+#define libc_wrapper_SYS_fstatat(fildes, pathname, statbuf, flag) fstatat(fildes, pathname, statbuf, flag)
+#define libc_wrapper_SYS_openat(fildes, pathname, flags, mode) openat(fildes, pathname, flags, mode)
+#define libc_wrapper_SYS_unlinkat(fildes, pathname, flag) unlinkat(fildes, pathname, flag)
+
+// Redirection wrappers.
+#define libc_wrapper_SYS_lstat(pathname, statbuf) fstatat(AT_FDCWD, pathname, statbuf, AT_SYMLINK_NOFOLLOW)
+#define libc_wrapper_SYS_open(pathname, flags, mode) openat(AT_FDCWD, pathname, flags, mode)
+#define libc_wrapper_SYS_rmdir(pathname) unlinkat(AT_FDCWD, pathname, AT_REMOVEDIR)
+#define libc_wrapper_SYS_stat(pathname, statbuf) fstatat(AT_FDCWD, pathname, statbuf, 0)
+#define libc_wrapper_SYS_unlink(pathname) unlinkat(AT_FDCWD, pathname, 0)
 
 // Define wrappers for unsupported syscalls that it called by code that can
 // handle unsupported syscall functions.

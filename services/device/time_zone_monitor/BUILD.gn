@@ -12,6 +12,10 @@ if (is_android) {
 source_set("time_zone_monitor") {
   visibility = [ "//services/device:lib" ]
 
+  if (is_cobalt) {
+    visibility += [ "//cobalt" ]
+  }
+
   sources = [
     "time_zone_monitor.cc",
     "time_zone_monitor.h",
@@ -39,9 +43,17 @@ source_set("time_zone_monitor") {
     deps += [ "//ui/gfx" ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_starboard) {
     sources += [ "time_zone_monitor_linux.cc" ]
     deps += [ "//build:chromeos_buildflags" ]
+  }
+
+  if (is_starboard) {
+    sources += [
+      "time_zone_monitor_starboard.cc",
+      "time_zone_monitor_starboard.h",
+    ]
+    deps += [ "//starboard:starboard_headers_only" ]
   }
 
   if (is_chromeos_ash) {

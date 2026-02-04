@@ -23,6 +23,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
@@ -68,7 +69,7 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
       ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
-                         true /* create_splash_screen_web_contents */);
+                         switches::ShouldCreateSplashScreen());
 }
 
 void DestroyShellManager() {

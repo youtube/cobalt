@@ -14,10 +14,6 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
-#if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/updater_module.h"  //nogncheck
-#endif
-
 namespace cobalt {
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
@@ -25,17 +21,5 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
     : content::WebContentsObserver(web_contents) {}
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
-
-#if BUILDFLAG(USE_EVERGREEN)
-void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
-  updater::UpdaterModule* updater_module =
-      updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    LOG(INFO) << "Mark the current installation as successful after the "
-                 "PrimaryMainDocumentElement is available.";
-    updater_module->MarkSuccessful();
-  }
-}
-#endif
 
 }  // namespace cobalt

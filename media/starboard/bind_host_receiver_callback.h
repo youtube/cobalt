@@ -25,6 +25,9 @@ namespace media {
 using BindHostReceiverCallback =
     base::RepeatingCallback<void(mojo::GenericPendingReceiver)>;
 
+// Handy callback type to get sb window handle from CobaltContentRendererClient.
+using GetSbWindowHandleCallback = base::RepeatingCallback<uint64_t()>;
+
 }  // namespace media
 
 #endif  // MEDIA_STARBOARD_BIND_HOST_RECEIVER_CALLBACK_H_

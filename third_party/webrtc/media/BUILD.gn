@@ -393,6 +393,15 @@ rtc_library("rtc_internal_video_codecs") {
     "../test:fake_video_codecs",
   ]
 
+  if (is_starboard) {
+    deps -= [
+      "../api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
+      "../api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
+      "../modules/video_coding:webrtc_vp8",
+      "../modules/video_coding:webrtc_vp9",
+    ]
+  }
+
   if (enable_libaom) {
     defines += [ "RTC_USE_LIBAOM_AV1_ENCODER" ]
     deps += [
@@ -417,6 +426,10 @@ rtc_library("rtc_internal_video_codecs") {
     "engine/multiplex_codec_factory.cc",
     "engine/multiplex_codec_factory.h",
   ]
+  if (is_starboard) {
+    sources -= [ "engine/internal_encoder_factory.cc" ]
+    sources += [ "engine/internal_encoder_factory_starboard_stub.cc" ]
+  }
 }
 
 rtc_library("rtc_audio_video") {

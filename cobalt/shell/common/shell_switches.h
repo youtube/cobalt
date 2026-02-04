@@ -26,6 +26,7 @@ inline constexpr char kSplashScreenURL[] = "h5vcc-embedded://splash.html";
 
 extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];
+extern const char kDisableSplashScreen[];
 extern const char kDisableSystemFontCheck[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
@@ -36,6 +37,10 @@ extern const char kIsolatedContextOrigins[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];
 extern const char kSplashScreenShutdownDelayMs[];
+
+// Checks if the splash screen should be created.
+// Returns false if kDisableSplashScreen is present.
+bool ShouldCreateSplashScreen();
 
 }  // namespace switches
 

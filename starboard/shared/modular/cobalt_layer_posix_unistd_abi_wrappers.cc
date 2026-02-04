@@ -63,4 +63,10 @@ int __abi_wrap_fchown(int fd, uid_t owner, gid_t group);
 int fchown(int fd, uid_t owner, gid_t group) {
   return __abi_wrap_fchown(fd, owner, group);
 }
+
+int __abi_wrap_unlinkat(int fildes, const char* path, int flag);
+
+int unlinkat(int fildes, const char* path, int flag) {
+  return __abi_wrap_unlinkat(fildes, path, flag);
+}
 }  // extern "C"
