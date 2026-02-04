@@ -114,8 +114,8 @@ template("evergreen_final_target") {
     args = [
       "--output",
       rebase_path(outputs[0]),
-      "--library",
-      lib_name,
+      "--library_target",
+      test_lib_name,
     ]
   }
 
