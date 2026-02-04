@@ -351,14 +351,9 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.last_access_time_us()),
         base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-<<<<<<< HEAD
         net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
         net::CookieSourceType::kUnknown));
-=======
-        net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
->>>>>>> 3166d2a569f (cobalt: Set secure flag for migrated cookies (#8951))
   }
   return cookies;
 }
