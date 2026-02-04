@@ -14,7 +14,7 @@
     "base:base_unittests",
     "cc:cc_perftests",
     "cc:cc_unittests",
-    "cobalt/testing/browser_tests:cobalt_browsertests_runner",
+    "cobalt/testing/browser_tests:cobalt_browsertests",
     "components/viz:viz_perftests",
     "components/viz:viz_unittests",
     "crypto:crypto_unittests",
@@ -70,7 +70,6 @@
     "out/linux-x64x11_devel/nplb",
     "out/linux-x64x11_devel/ozone_unittests",
     "out/linux-x64x11_devel/perfetto_unittests",
-    "out/linux-x64x11_devel/cobalt_browsertests_runner",
     "out/linux-x64x11_devel/skia_unittests",
     "out/linux-x64x11_devel/sql_unittests",
     "out/linux-x64x11_devel/starboard_unittests_wrapper",
@@ -81,6 +80,7 @@
     "out/linux-x64x11_devel/viz_unittests",
     "out/linux-x64x11_devel/wm_unittests",
     "out/linux-x64x11_devel/wtf_unittests",
-    "out/linux-x64x11_devel/zlib_unittests"
+    "out/linux-x64x11_devel/zlib_unittests",
+    "out/bin/linux-x64x11_devel/run_cobalt_browsertests"
   ]
 }
