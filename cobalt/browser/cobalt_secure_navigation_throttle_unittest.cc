@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 
+#include "base/command_line.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "net/base/net_errors.h"
@@ -27,41 +28,57 @@ namespace browser {
 
 using content::CobaltSecureNavigationThrottle;
 using ::testing::NiceMock;
+using ::testing::Return;
 using ::testing::ReturnRef;
 
 const GURL kHttpUrl("http://neverssl.com");
 const GURL kHttpsUrl("https://www.youtube.com");
 
+class MockCobaltSecureNavigationThrottle
+    : public content::CobaltSecureNavigationThrottle {
+ public:
+  explicit MockCobaltSecureNavigationThrottle(
+      content::NavigationHandle* navigation_handle)
+      : CobaltSecureNavigationThrottle(navigation_handle) {}
+
+  MOCK_METHOD(bool,
+              ShouldEnforceHTTPS,
+              (const base::CommandLine& command_line),
+              (override));
+  MOCK_METHOD(bool,
+              ShouldEnforceCSP,
+              (const base::CommandLine& command_line),
+              (override));
+};
+
 class CobaltSecureNavigationThrottleTest : public ::testing::Test {
  protected:
-  CobaltSecureNavigationThrottleTest() {}
+  CobaltSecureNavigationThrottleTest() {
+    base::CommandLine::Init(0, nullptr);
+    throttle_ = std::make_unique<NiceMock<MockCobaltSecureNavigationThrottle>>(
+        &mock_navigation_handle_);
+  }
 
   content::NavigationThrottle::ThrottleCheckResult RunWillStartRequest(
       const GURL& url) {
     mock_navigation_handle_.set_url(url);
-    throttle_ = std::make_unique<CobaltSecureNavigationThrottle>(
-        &mock_navigation_handle_);
     return throttle_->WillStartRequest();
   }
 
   content::NavigationThrottle::ThrottleCheckResult RunWillRedirectRequest(
       const GURL& url) {
     mock_navigation_handle_.set_url(url);
-    throttle_ = std::make_unique<CobaltSecureNavigationThrottle>(
-        &mock_navigation_handle_);
     return throttle_->WillRedirectRequest();
   }
 
   content::NavigationThrottle::ThrottleCheckResult RunWillProcessResponse() {
     mock_navigation_handle_.set_response_headers(response_headers_);
-    throttle_ = std::make_unique<CobaltSecureNavigationThrottle>(
-        &mock_navigation_handle_);
     return throttle_->WillProcessResponse();
   }
 
   // Use the pre-existing content::MockNavigationHandle with NiceMock
   NiceMock<content::MockNavigationHandle> mock_navigation_handle_;
-  std::unique_ptr<CobaltSecureNavigationThrottle> throttle_;
+  std::unique_ptr<MockCobaltSecureNavigationThrottle> throttle_;
   scoped_refptr<net::HttpResponseHeaders> response_headers_;
 };
 
@@ -71,13 +88,20 @@ TEST_F(CobaltSecureNavigationThrottleTest, AllowsHttpsRequest) {
   EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
 }
 
-TEST_F(CobaltSecureNavigationThrottleTest, BlocksHttpRequest) {
+TEST_F(CobaltSecureNavigationThrottleTest,
+       BlocksHttpRequestWhenEnforcementEnabled) {
+  EXPECT_CALL(*throttle_, ShouldEnforceHTTPS).WillOnce(Return(true));
   content::NavigationThrottle::ThrottleCheckResult result =
       RunWillStartRequest(kHttpUrl);
-  if (ShouldEnforceHTTPS(*base::CommandLine::ForCurrentProcess())) {
-    EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
-    EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
-  }
+  EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
+  EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
+}
+
+TEST_F(CobaltSecureNavigationThrottleTest,
+       AllowsHttpRequestWhenEnforcementDisabled) {
+  EXPECT_CALL(*throttle_, ShouldEnforceHTTPS).WillOnce(Return(false));
+  content::NavigationThrottle::ThrottleCheckResult result =
+      RunWillStartRequest(kHttpUrl);
   EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
 }
 
@@ -87,51 +111,95 @@ TEST_F(CobaltSecureNavigationThrottleTest, AllowsHttpsRedirect) {
   EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
 }
 
-TEST_F(CobaltSecureNavigationThrottleTest, BlocksHttpRedirect) {
+TEST_F(CobaltSecureNavigationThrottleTest,
+       BlocksHttpRedirectWhenEnforcementEnabled) {
+  EXPECT_CALL(*throttle_, ShouldEnforceHTTPS).WillOnce(Return(true));
   content::NavigationThrottle::ThrottleCheckResult result =
       RunWillRedirectRequest(kHttpUrl);
-  if (ShouldEnforceHTTPS(*base::CommandLine::ForCurrentProcess())) {
-    EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
-    EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
-  }
+  EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
+  EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
+}
+
+TEST_F(CobaltSecureNavigationThrottleTest,
+       AllowsHttpRedirectWhenEnforcementDisabled) {
+  EXPECT_CALL(*throttle_, ShouldEnforceHTTPS).WillOnce(Return(false));
+  content::NavigationThrottle::ThrottleCheckResult result =
+      RunWillRedirectRequest(kHttpUrl);
   EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
 }
 
-TEST_F(CobaltSecureNavigationThrottleTest, AllowsCSPResponse) {
+TEST_F(CobaltSecureNavigationThrottleTest,
+       AllowsResponseWithCSPHeaderWhenEnforcementEnabled) {
   response_headers_ = net::HttpResponseHeaders::TryToCreate(
       "HTTP/1.1 200 OK\n"
       "connection: keep-alive\n"
       "Cache-control: max-age=10000\n");
   ASSERT_TRUE(response_headers_);
 
-  response_headers_->AddHeader("Content-Security-Policy",
-                               "default-src 'self'\n");
+  response_headers_->AddHeader("Content-Security-Policy", "default-src 'self'");
+
+  EXPECT_CALL(*throttle_, ShouldEnforceCSP).WillOnce(Return(true));
   content::NavigationThrottle::ThrottleCheckResult result =
       RunWillProcessResponse();
   EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
 }
 
-TEST_F(CobaltSecureNavigationThrottleTest, BlocksNonCSPResponse) {
+TEST_F(CobaltSecureNavigationThrottleTest,
+       BlocksNonCSPResponseWhenEnforcementEnabled) {
+  response_headers_ = net::HttpResponseHeaders::TryToCreate(
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n");
+  ASSERT_TRUE(response_headers_);
+  EXPECT_CALL(*throttle_, ShouldEnforceCSP).WillOnce(Return(true));
   content::NavigationThrottle::ThrottleCheckResult result =
       RunWillProcessResponse();
-  if (ShouldEnforceCSP(*base::CommandLine::ForCurrentProcess())) {
-    EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
-    EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
-  }
-  EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
-}
-
-TEST_F(CobaltSecureNavigationThrottleTest, MissingResponseHeaders) {
-  response_headers_ = nullptr;
-  content::NavigationThrottle::ThrottleCheckResult result =
-      RunWillProcessResponse();
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
   EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
-#else
-  EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
-#endif  // COBALT_IS_RELEASE_BUILD
 }
+
+TEST_F(CobaltSecureNavigationThrottleTest,
+       AllowsNonCSPResponseWhenEnforcementDisabled) {
+  response_headers_ = net::HttpResponseHeaders::TryToCreate(
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n");
+  ASSERT_TRUE(response_headers_);
+  EXPECT_CALL(*throttle_, ShouldEnforceCSP).WillOnce(Return(false));
+  content::NavigationThrottle::ThrottleCheckResult result =
+      RunWillProcessResponse();
+  EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
+}
+
+TEST_F(CobaltSecureNavigationThrottleTest,
+       BlocksAboutBlankNavigationWhenEnforcementEnabled) {
+  const GURL kAboutBlankUrl("about:blank");
+  EXPECT_CALL(*throttle_, ShouldEnforceHTTPS).WillOnce(Return(true));
+  content::NavigationThrottle::ThrottleCheckResult result =
+      RunWillStartRequest(kAboutBlankUrl);
+  EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
+}
+
+TEST_F(CobaltSecureNavigationThrottleTest,
+       AllowsAboutBlankNavigationWhenEnforcementDisabled) {
+  const GURL kAboutBlankUrl("about:blank");
+  EXPECT_CALL(*throttle_, ShouldEnforceHTTPS).WillOnce(Return(false));
+  content::NavigationThrottle::ThrottleCheckResult result =
+      RunWillStartRequest(kAboutBlankUrl);
+  EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
+}
+
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+TEST_F(CobaltSecureNavigationThrottleTest,
+       MissingResponseHeadersCancelsInReleaseBuilds) {
+  response_headers_ = nullptr;
+  EXPECT_CALL(*throttle_, ShouldEnforceCSP).WillOnce(Return(true));
+  content::NavigationThrottle::ThrottleCheckResult result =
+      RunWillProcessResponse();
+  EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
+  EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
+}
+#endif  // COBALT_IS_RELEASE_BUILD
 
 }  // namespace browser
 }  // namespace cobalt
