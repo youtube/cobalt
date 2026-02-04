@@ -128,6 +128,11 @@ def main():
       choices=['xz', 'gz', 'zstd'],
       default='gz',
       help='The compression algorithm to use.')
+  parser.add_argument(
+      '--adb_platform_tools',
+      type=str,
+      default='cobalt/testing/browser_tests/tools/platform-tools_r33.0.1-linux.zip',
+      help='The zip file to incorporate into the tarball.')
   args = parser.parse_args()
 
   if args.output_dir:
@@ -156,6 +161,11 @@ def main():
         logging.warning('Could not find runtime_deps in %s. Skipping.',
                         build_dir)
         continue
+
+      adb_platform_tools = args.adb_platform_tools
+      if is_android and adb_platform_tools:
+        copy_if_needed(adb_platform_tools,
+            os.path.join(stage_dir, 'tools/platform-tools.zip'), copied_sources)
 
       test_runner_rel = get_test_runner(build_dir, is_android)
       logging.info('Processing build directory: %s', build_dir)
