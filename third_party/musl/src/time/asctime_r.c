@@ -6,25 +6,20 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include <errno.h>
-#endif // BUILDFLAG(IS_STARBOARD)
-
 char *__asctime_r(const struct tm *restrict tm, char *restrict buf)
 {
-
 // MUSL's nl_langinfo_l implementation hardcoded its values and only supported
 // English. Since Cobalt's hermetic implementation fully implements a lot more 
 // locales, we create these char arrays to hold the English values MUSL was using.
 // This implementation is in correspondence to the POSIX specification:
 // https://pubs.opengroup.org/onlinepubs/9799919799/functions/asctime.html
 #if BUILDFLAG(IS_STARBOARD)
-    static char wday_name[7][4] = {
-        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
-    };
-    static char mon_name[12][4] = {
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	static char wday_name[7][4] = {
+		"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+	};
+	static char mon_name[12][4] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     };
 
 	if (tm == NULL || buf == NULL ||

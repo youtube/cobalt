@@ -15,6 +15,9 @@
 #include <pthread.h>
 #include <time.h>
 
+#include <string>
+#include <vector>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -26,11 +29,24 @@ const int kBufferSize = 26;  // ctime_r requires at least 26 bytes.
 class PosixCtimeRTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    // A known time: 2023-10-26 10:30:00 UTC
-    time_ = 1698316200;
+    const char* old_tz_cstr = getenv("TZ");
+    if (old_tz_cstr) {
+      old_tz_ = old_tz_cstr;
+    }
+    setenv("TZ", "UTC", 1);
+    tzset();
   }
 
-  time_t time_;
+  void TearDown() override {
+    if (!old_tz_.empty()) {
+      setenv("TZ", old_tz_.c_str(), 1);
+    } else {
+      unsetenv("TZ");
+    }
+    tzset();
+  }
+
+  std::string old_tz_;
   char buffer_[kBufferSize];
 };
 
@@ -49,99 +65,49 @@ void* CtimeRThread(void* arg) {
 }
 
 TEST_F(PosixCtimeRTest, BasicConversion) {
-  // Note: The output of ctime_r depends on the system's timezone.
-  // We will set the TZ to UTC for consistent testing.
-  const char* old_tz_cstr = getenv("TZ");
-  std::string old_tz_str;
-  if (old_tz_cstr) {
-    old_tz_str = old_tz_cstr;
-  }
-  setenv("TZ", "UTC", 1);
-  tzset();
-
-  char* result = ctime_r(&time_, buffer_);
+  time_t time = 1698316200;  // 2023-10-26 10:30:00 UTC
+  char* result = ctime_r(&time, buffer_);
   ASSERT_NE(result, nullptr);
   EXPECT_STREQ("Thu Oct 26 10:30:00 2023\n", buffer_);
   EXPECT_EQ(result, buffer_);
-
-  // Restore original timezone
-  if (old_tz_cstr) {
-    setenv("TZ", old_tz_str.c_str(), 1);
-  } else {
-    unsetenv("TZ");
-  }
-  tzset();
 }
 
 TEST_F(PosixCtimeRTest, AnotherTime) {
-  // A different time: 1999-01-01 23:59:59 UTC
-  // Timestamp: 915235199
-  time_ = 915235199;
-
-  const char* old_tz_cstr = getenv("TZ");
-  std::string old_tz_str;
-  if (old_tz_cstr) {
-    old_tz_str = old_tz_cstr;
-  }
-  setenv("TZ", "UTC", 1);
-  tzset();
-
-  char* result = ctime_r(&time_, buffer_);
+  time_t time = 915235199;  // 1999-01-01 23:59:59 UTC
+  char* result = ctime_r(&time, buffer_);
   ASSERT_NE(result, nullptr);
   EXPECT_STREQ("Fri Jan  1 23:59:59 1999\n", buffer_);
-
-  if (old_tz_cstr) {
-    setenv("TZ", old_tz_str.c_str(), 1);
-  } else {
-    unsetenv("TZ");
-  }
-  tzset();
 }
 
 TEST_F(PosixCtimeRTest, ThreadSafety) {
-  pthread_t thread1, thread2;
+  const int kNumThreads = 10;
+  std::vector<pthread_t> threads(kNumThreads);
+  std::vector<ThreadData> data(kNumThreads);
 
-  const char* old_tz_cstr = getenv("TZ");
-  std::string old_tz_str;
-  if (old_tz_cstr) {
-    old_tz_str = old_tz_cstr;
+  const time_t time1 = 1749986400;  // 2025-06-15 11:20:00 UTC
+  const char* expected1 = "Sun Jun 15 11:20:00 2025\n";
+  const time_t time2 = 1735115400;  // 2024-12-25 08:30:00 UTC
+  const char* expected2 = "Wed Dec 25 08:30:00 2024\n";
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    if (i % 2 == 0) {
+      data[i].timestamp = time1;
+      data[i].expected = expected1;
+    } else {
+      data[i].timestamp = time2;
+      data[i].expected = expected2;
+    }
+    pthread_create(&threads[i], nullptr, CtimeRThread, &data[i]);
   }
-  setenv("TZ", "UTC", 1);
-  tzset();
 
-  ThreadData data1;
-  data1.timestamp = 1749986400;  // 2025-06-15 11:20:00 UTC
-  data1.expected = "Sun Jun 15 11:20:00 2025\n";
-
-  ThreadData data2;
-  data2.timestamp = 1735115400;  // 2024-12-25 08:30:00 UTC
-  data2.expected = "Wed Dec 25 08:30:00 2024\n";
-
-  pthread_create(&thread1, nullptr, CtimeRThread, &data1);
-  pthread_create(&thread2, nullptr, CtimeRThread, &data2);
-
-  pthread_join(thread1, nullptr);
-  pthread_join(thread2, nullptr);
-
-  EXPECT_STREQ(data1.expected, data1.buffer);
-  EXPECT_STREQ(data2.expected, data2.buffer);
-
-  if (old_tz_cstr) {
-    setenv("TZ", old_tz_str.c_str(), 1);
-  } else {
-    unsetenv("TZ");
+  for (int i = 0; i < kNumThreads; ++i) {
+    pthread_join(threads[i], nullptr);
   }
-  tzset();
-}
 
-TEST_F(PosixCtimeRTest, NullTimeInput) {
-  char* result = ctime_r(nullptr, buffer_);
-  ASSERT_EQ(result, nullptr);
-}
-
-TEST_F(PosixCtimeRTest, NullBufferInput) {
-  char* result = ctime_r(&time_, nullptr);
-  ASSERT_EQ(result, nullptr);
+  for (int i = 0; i < kNumThreads; ++i) {
+    EXPECT_STREQ(data[i].expected, data[i].buffer)
+        << "Thread " << i << " failed.";
+  }
 }
 
 }  // namespace

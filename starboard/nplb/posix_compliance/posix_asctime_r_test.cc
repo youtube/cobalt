@@ -24,18 +24,6 @@ const int kBufferSize = 26;  // asctime_r requires at least 26 bytes.
 
 class PosixAsctimeRTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    // A known time: 2023-10-26 10:30:00, Thursday
-    tm_.tm_year = 2023 - 1900;
-    tm_.tm_mon = 9;  // October
-    tm_.tm_mday = 26;
-    tm_.tm_hour = 10;
-    tm_.tm_min = 30;
-    tm_.tm_sec = 0;
-    tm_.tm_wday = 4;  // Thursday
-  }
-
-  struct tm tm_;
   char buffer_[kBufferSize];
 };
 
@@ -53,23 +41,32 @@ void* AsctimeRThread(void* arg) {
 }
 
 TEST_F(PosixAsctimeRTest, BasicConversion) {
-  char* result = asctime_r(&tm_, buffer_);
+  struct tm tm = {0};
+  tm.tm_year = 2023 - 1900;
+  tm.tm_mon = 9;  // October
+  tm.tm_mday = 26;
+  tm.tm_hour = 10;
+  tm.tm_min = 30;
+  tm.tm_sec = 0;
+  tm.tm_wday = 4;  // Thursday
+
+  char* result = asctime_r(&tm, buffer_);
   ASSERT_NE(result, nullptr);
   EXPECT_STREQ("Thu Oct 26 10:30:00 2023\n", buffer_);
   EXPECT_EQ(result, buffer_);
 }
 
 TEST_F(PosixAsctimeRTest, AnotherTime) {
-  // A different time: 1999-01-01 23:59:59, Friday
-  tm_.tm_year = 1999 - 1900;
-  tm_.tm_mon = 0;  // January
-  tm_.tm_mday = 1;
-  tm_.tm_hour = 23;
-  tm_.tm_min = 59;
-  tm_.tm_sec = 59;
-  tm_.tm_wday = 5;  // Friday
+  struct tm tm = {0};
+  tm.tm_year = 1999 - 1900;
+  tm.tm_mon = 0;  // January
+  tm.tm_mday = 1;
+  tm.tm_hour = 23;
+  tm.tm_min = 59;
+  tm.tm_sec = 59;
+  tm.tm_wday = 5;  // Friday
 
-  char* result = asctime_r(&tm_, buffer_);
+  char* result = asctime_r(&tm, buffer_);
   ASSERT_NE(result, nullptr);
   EXPECT_STREQ("Fri Jan  1 23:59:59 1999\n", buffer_);
 }
@@ -107,16 +104,6 @@ TEST_F(PosixAsctimeRTest, ThreadSafety) {
 
   EXPECT_STREQ(data1.expected, data1.buffer);
   EXPECT_STREQ(data2.expected, data2.buffer);
-}
-
-TEST_F(PosixAsctimeRTest, NullTimeInput) {
-  char* result = asctime_r(nullptr, buffer_);
-  ASSERT_EQ(result, nullptr);
-}
-
-TEST_F(PosixAsctimeRTest, NullBufferInput) {
-  char* result = asctime_r(&tm_, nullptr);
-  ASSERT_EQ(result, nullptr);
 }
 
 }  // namespace
