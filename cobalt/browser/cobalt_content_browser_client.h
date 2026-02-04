@@ -15,8 +15,12 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
-#include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
+<<<<<<< HEAD
+=======
+#include "cobalt/common/cobalt_thread_checker.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -134,7 +138,18 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
 
+<<<<<<< HEAD
   THREAD_CHECKER(thread_checker_);
+=======
+  uint64_t cached_sb_window_ = 0;
+  std::vector<
+      mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
+      pending_window_receivers_;
+
+  COBALT_THREAD_CHECKER(thread_checker_);
+
+  base::WeakPtrFactory<CobaltContentBrowserClient> weak_factory_{this};
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
 };
 
 }  // namespace cobalt
