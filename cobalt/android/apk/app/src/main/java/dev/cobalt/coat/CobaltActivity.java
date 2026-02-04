@@ -35,11 +35,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
-<<<<<<< HEAD
-=======
 import androidx.annotation.VisibleForTesting;
-import dev.cobalt.browser.CobaltContentBrowserClient;
->>>>>>> 06a3718738a (android: Enable Perfetto system tracing by default for CoAT (#8485))
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -81,12 +77,9 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
-<<<<<<< HEAD
+  private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
-=======
-  private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
->>>>>>> 06a3718738a (android: Enable Perfetto system tracing by default for CoAT (#8485))
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -143,26 +136,6 @@ public abstract class CobaltActivity extends Activity {
     return ai.metaData;
   }
 
-  private Bundle getActivityMetaData() {
-    ComponentName componentName = getIntent().getComponent();
-    if (componentName == null) {
-      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
-      return null;
-    }
-    ActivityInfo ai;
-    try {
-      ai = getPackageManager()
-                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
-    } catch (NameNotFoundException e) {
-      Log.e(TAG, "Error getting activity info", e);
-      return null;
-    }
-    if (ai == null) {
-      return null;
-    }
-    return ai.metaData;
-  }
-
   @VisibleForTesting
   static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
     if (metaData == null) {
@@ -195,7 +168,7 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
-<<<<<<< HEAD
+      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
 
       List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
 
@@ -203,9 +176,6 @@ public abstract class CobaltActivity extends Activity {
         // Add all array elements to index 0 of the list
         extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
       }
-=======
-      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
->>>>>>> 06a3718738a (android: Enable Perfetto system tracing by default for CoAT (#8485))
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
