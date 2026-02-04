@@ -37,15 +37,15 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   ~CobaltWebContentsObserver() override;
 
 #if BUILDFLAG(IS_ANDROIDTV)
- protected:
-  void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
-
  public:
   void DidStartNavigation(
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   virtual void RaisePlatformError();
+
+ protected:
+  void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
 
  private:
   std::unique_ptr<base::OneShotTimer> timeout_timer_;

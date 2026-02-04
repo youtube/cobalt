@@ -189,6 +189,8 @@ TEST_F(CobaltSecureNavigationThrottleTest,
   EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
 }
 
+// The following tests gated by release build flag as devel builds
+// will crash if response_headers_ = null due to a DCHECK()
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 TEST_F(CobaltSecureNavigationThrottleTest,
        MissingResponseHeadersCancelsInReleaseBuilds) {
@@ -198,6 +200,15 @@ TEST_F(CobaltSecureNavigationThrottleTest,
       RunWillProcessResponse();
   EXPECT_EQ(content::NavigationThrottle::CANCEL, result.action());
   EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, result.net_error_code());
+}
+
+TEST_F(CobaltSecureNavigationThrottleTest,
+       MissingResponseHeadersProceedsWhenEnforcementDisabledInReleaseBuilds) {
+  response_headers_ = nullptr;
+  EXPECT_CALL(*throttle_, ShouldEnforceCSP).WillOnce(Return(false));
+  content::NavigationThrottle::ThrottleCheckResult result =
+      RunWillProcessResponse();
+  EXPECT_EQ(content::NavigationThrottle::PROCEED, result.action());
 }
 #endif  // COBALT_IS_RELEASE_BUILD
 
