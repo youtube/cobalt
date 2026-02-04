@@ -90,11 +90,12 @@ runs:
     - name: Run gclient config
       env:
         RBE_INSTANCE: ${{ inputs.rbe_instance }}
+        CACHE_DIR_BASE_PATH: ${{ steps.paths.outputs.base_path }}/gclient-cache
       run: |
         cd cobalt
         gclient config \
           --name=src \
-          --cache-dir=/runner-cache/gclient-cache \
+          --cache-dir=${CACHE_DIR_BASE_PATH} \
           --custom-var=download_remoteexec_cfg=True \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           https://github.com/${{ github.repository }}
