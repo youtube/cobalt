@@ -52,6 +52,8 @@ using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+std::optional<int64_t> g_baseline_us_;
+
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -317,6 +319,72 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    frame_count_++;
+    const auto release_us = release_time_in_nanoseconds / 1'000;
+    const int64_t now_us = CurrentMonotonicTime();
+
+    if (!first_render_) {
+      first_render_ = FrameRenderInfo{};
+      first_render_->pts_us = frame->timestamp();
+      first_render_->called_us = now_us;
+      first_render_->release_us = release_us;
+    }
+
+    //  3 sec of media time passed (assuming 60fps)
+    constexpr int kStartupFrameCount = 60 * 3;
+
+    if (last_render_) {
+      const int64_t pts_delta_ms =
+          (frame->timestamp() - last_render_->pts_us) / 1'000;
+      const int64_t wall_delta_ms = (now_us - last_render_->called_us) / 1'000;
+      // Log discontinuity only at the begining.
+      if (frame_count_ < kStartupFrameCount &&
+          (pts_delta_ms > 500 || wall_delta_ms > 500)) {
+        SB_LOG(WARNING) << "TTFF: Discontinuity detected at Frame["
+                        << frame_count_ << "]: "
+                        << "pts gap(msec)="
+                        << FormatWithDigitSeparators(pts_delta_ms)
+                        << ", called gap(msec)="
+                        << FormatWithDigitSeparators(wall_delta_ms);
+      }
+    }
+    last_render_ = FrameRenderInfo{frame->timestamp(), now_us, release_us};
+
+    if (!latency_logged_ && frame_count_ > kStartupFrameCount) {
+      SB_CHECK(g_baseline_us_);
+      const int64_t baseline_us = *g_baseline_us_;
+
+      // Convert to durations for easier math
+      auto elapsed_ms = (first_render_->called_us - baseline_us) / 1'000;
+      auto release_ms = (first_render_->release_us - baseline_us) / 1'000;
+      auto gap_ms = release_ms - elapsed_ms;
+
+      const int64_t pts_gap_ms =
+          (frame->timestamp() - first_render_->pts_us) / 1'000;
+      const int64_t render_gap_ms =
+          (release_us - first_render_->release_us) / 1'000;
+      const int64_t elapsed_gap_ms = render_gap_ms - pts_gap_ms;
+      const int64_t called_gap_ms = (now_us - first_render_->called_us) / 1'000;
+      const int64_t wall_latency_ms =
+          (now_us - first_render_->called_us) / 1'000;
+      const int64_t stutter_ms = wall_latency_ms - pts_gap_ms;
+
+      SB_LOG(INFO)
+          << "TTFF Performance: "
+          << "called(msec)=" << FormatWithDigitSeparators(elapsed_ms)
+          << ", released(msec)=" << FormatWithDigitSeparators(release_ms)
+          << ", schedule margin(msec)=" << FormatWithDigitSeparators(gap_ms)
+          << ", playback drift(msec)="
+          << FormatWithDigitSeparators(elapsed_gap_ms)
+          << ", wall latency(msec)="
+          << FormatWithDigitSeparators(wall_latency_ms)
+          << ", called gap(msec)=" << FormatWithDigitSeparators(called_gap_ms)
+          << ", pts gap(msec)=" << FormatWithDigitSeparators(pts_gap_ms)
+          << ", render gap(msec)=" << FormatWithDigitSeparators(render_gap_ms)
+          << ", stutter(msec)=" << FormatWithDigitSeparators(stutter_ms);
+      latency_logged_ = true;
+    }
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
@@ -326,6 +394,15 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   RenderCB render_cb_;
   bool rendered_;
+  bool latency_logged_ = false;
+  int frame_count_ = 0;
+  struct FrameRenderInfo {
+    int64_t pts_us;
+    int64_t called_us;
+    int64_t release_us;
+  };
+  std::optional<FrameRenderInfo> first_render_;
+  std::optional<FrameRenderInfo> last_render_;
 };
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
@@ -1282,6 +1359,11 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+// Temporary solution for PoC to skip long plumbing.
+void ResetBaselineTime() {
+  g_baseline_us_ = CurrentMonotonicTime();
 }
 
 }  // namespace starboard

@@ -1314,21 +1314,23 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
 }
 
 void SbPlayerBridge::LogStartupLatency() const {
+  auto to_ms = [](TimeDelta delta) {
+    return starboard::FormatWithDigitSeparators(delta.InMilliseconds());
+  };
+
   std::string first_events_str;
   if (set_drm_system_ready_cb_time_.is_null()) {
-    first_events_str = FormatString("%-40s0 us", "SbPlayerCreate() called");
+    first_events_str = FormatString("%-40s0 msec", "SbPlayerCreate() called");
   } else if (set_drm_system_ready_cb_time_ < player_creation_time_) {
     first_events_str = FormatString(
-        "%-40s0 us\n%-40s%" PRId64 " us", "set_drm_system_ready_cb called",
+        "%-40s0 msec\n%-40s%s msec", "set_drm_system_ready_cb called",
         "SbPlayerCreate() called",
-        (player_creation_time_ - set_drm_system_ready_cb_time_)
-            .InMicroseconds());
+        to_ms(player_creation_time_ - set_drm_system_ready_cb_time_).c_str());
   } else {
     first_events_str = FormatString(
-        "%-40s0 us\n%-40s%" PRId64 " us", "SbPlayerCreate() called",
+        "%-40s0 msec\n%-40s%s msec", "SbPlayerCreate() called",
         "set_drm_system_ready_cb called",
-        (set_drm_system_ready_cb_time_ - player_creation_time_)
-            .InMicroseconds());
+        to_ms(set_drm_system_ready_cb_time_ - player_creation_time_).c_str());
   }
 
   Time first_event_time =
@@ -1348,36 +1350,40 @@ void SbPlayerBridge::LogStartupLatency() const {
       sb_player_state_presenting_time_ - first_event_time;
 
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
-  StatisticsWrapper::GetInstance()->startup_latency.AddSample(
-      startup_latency.InMicroseconds(), 1);
+  auto* statistics = StatisticsWrapper::GetInstance();
+  statistics->startup_latency.AddSample(startup_latency.InMicroseconds(), 1);
+
+  auto to_ms_from_us = [](int64_t us) {
+    return starboard::FormatWithDigitSeparators(us / 1000);
+  };
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 
   // clang-format off
   LOG(INFO) << FormatString(
-      "\nSbPlayer startup latencies: %" PRId64 " us\n"
+      "\nSbPlayer startup latencies: %s msec\n"
       "  Event name                              time since last event\n"
       "  %s\n"  // |first_events_str| populated above
-      "  kSbPlayerStateInitialized received      %" PRId64 " us\n"
-      "  kSbPlayerStatePrerolling received       %" PRId64 " us\n"
-      "  First media sample(s) written [a/v]     %" PRId64 "/%" PRId64 " us\n"
-      "  kSbPlayerStatePresenting received       %" PRId64 " us\n"
-      "  Startup latency statistics (us):"
-      "        min: %" PRId64 ", median: %" PRId64 ", average: %" PRId64
-      ", max: %" PRId64,
-      startup_latency.InMicroseconds(),
-      first_events_str.c_str(), player_initialization_time_delta.InMicroseconds(),
-      player_preroll_time_delta.InMicroseconds(), first_audio_sample_time_delta.InMicroseconds(),
-      first_video_sample_time_delta.InMicroseconds(), player_presenting_time_delta.InMicroseconds(),
+      "  kSbPlayerStateInitialized received      %s msec\n"
+      "  kSbPlayerStatePrerolling received       %s msec\n"
+      "  First media sample(s) written [a/v]     %s/%s msec\n"
+      "  kSbPlayerStatePresenting received       %s msec\n"
+      "  Startup latency statistics (msec):"
+      "        min: %s, median: %s, average: %s"
+      ", max: %s",
+      to_ms(startup_latency).c_str(),
+      first_events_str.c_str(),
+      to_ms(player_initialization_time_delta).c_str(),
+      to_ms(player_preroll_time_delta).c_str(),
+      to_ms(first_audio_sample_time_delta).c_str(),
+      to_ms(first_video_sample_time_delta).c_str(),
+      to_ms(player_presenting_time_delta).c_str(),
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
-      StatisticsWrapper::GetInstance()->startup_latency.min(),
-      StatisticsWrapper::GetInstance()->startup_latency.GetMedian(),
-      StatisticsWrapper::GetInstance()->startup_latency.average(),
-      StatisticsWrapper::GetInstance()->startup_latency.max());
+      to_ms_from_us(statistics->startup_latency.min()).c_str(),
+      to_ms_from_us(statistics->startup_latency.GetMedian()).c_str(),
+      to_ms_from_us(statistics->startup_latency.average()).c_str(),
+      to_ms_from_us(statistics->startup_latency.max()).c_str());
 #else // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
-      static_cast<int64_t>(0),
-      static_cast<int64_t>(0),
-      static_cast<int64_t>(0),
-      static_cast<int64_t>(0));
+      "0", "0", "0", "0");
 #endif // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
   // clang-format on
 }
