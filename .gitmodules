@@ -42,6 +42,10 @@
 	path = clank
 	url = https://chrome-internal.googlesource.com/clank/internal/apps
 	gclient-condition = checkout_android and checkout_src_internal
+[submodule "cobalt/internal"]
+	path = cobalt/internal
+	url = https://lbshell-internal.googlesource.com/cobalt/internal
+	gclient-condition = checkout_cobalt_internal
 [submodule "docs/website"]
 	path = docs/website
 	url = https://chromium.googlesource.com/website
