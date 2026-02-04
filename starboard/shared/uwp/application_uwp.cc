@@ -554,6 +554,13 @@ ref class App sealed : public IFrameworkView {
 
   void OnResuming(Platform::Object ^ sender, Platform::Object ^ args) {
     SB_LOG(INFO) << "Resuming application.";
+
+    // Reset nonrecoverable failure state to allow retry of extended resource
+    // acquisition after resume. This handles cases where resources were
+    // temporarily unavailable during the previous suspend/resume cycle.
+    shared::uwp::ExtendedResourcesManager::GetInstance()
+        ->ResetNonrecoverableFailure();
+
     ApplicationUwp::Get()->DispatchAndDelete(
         new ApplicationUwp::Event(kSbEventTypeUnfreeze, NULL, NULL));
     ApplicationUwp::Get()->DispatchAndDelete(
