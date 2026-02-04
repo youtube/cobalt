@@ -34,6 +34,7 @@ class ExperimentConfigManager {
   // Returns the experiment config type based on the number of crashes and
   // whether the config has expired.
   ExperimentConfigType GetExperimentConfigType();
+
   // If regular config is used in the current run, save the active config as
   // safe config.
   // This should only be called before any modification to
