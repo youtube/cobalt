@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import dev.cobalt.util.SystemPropertiesHelper;
 
 /** A wrapper of the android MediaDrm class. */
 @UsedByNative
@@ -510,6 +511,11 @@ public class MediaDrmBridge {
     // TODO: Cannot do this during provisioning pending.
 
     HashMap<String, String> optionalParameters = new HashMap<>();
+    String scope = SystemPropertiesHelper.getString("ro.product.youtube_cert_scope");
+    if (scope != null) {
+      optionalParameters.put("youtube_cert_scope", scope);
+    }
+
     MediaDrm.KeyRequest request = null;
     try {
       request =
