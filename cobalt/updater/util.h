@@ -19,6 +19,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "base/containers/fixed_flat_map.h"
+#include "base/strings/string_piece.h"
 #include "base/version.h"
 #include "starboard/system.h"
 
@@ -30,7 +32,7 @@ namespace cobalt {
 namespace updater {
 
 // Map of Omaha config IDs with channel and starboard version as indices.
-extern const std::unordered_map<std::string, std::string>
+extern const base::fixed_flat_map<base::StringPiece, base::StringPiece, 14>
     kChannelAndSbVersionToOmahaIdMap;
 
 // The default manifest version to assume when the actual manifest cannot be
