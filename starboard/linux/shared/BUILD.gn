@@ -284,7 +284,7 @@ static_library("starboard_platform_sources") {
       "//starboard/shared/starboard/drm/drm_update_session.cc",
       "//starboard/shared/widevine/drm_system_widevine.cc",
       "//starboard/shared/widevine/drm_system_widevine.h",
-      "//starboard/shared/widevine/media_is_supported.cc",
+      "//starboard/shared/widevine/media_is_key_system_supported.cc",
       "//starboard/shared/widevine/widevine_storage.cc",
       "//starboard/shared/widevine/widevine_storage.h",
       "//starboard/shared/widevine/widevine_timer.cc",
@@ -305,7 +305,7 @@ static_library("starboard_platform_sources") {
       "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
       "//starboard/shared/stub/drm_update_server_certificate.cc",
       "//starboard/shared/stub/drm_update_session.cc",
-      "//starboard/shared/stub/media_is_supported.cc",
+      "//starboard/shared/stub/media_is_key_system_supported.cc",
     ]
   }
 

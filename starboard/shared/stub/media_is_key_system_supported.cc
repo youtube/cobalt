@@ -20,9 +20,9 @@
 
 namespace starboard {
 
-bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                      SbMediaAudioCodec audio_codec,
-                      const char* key_system) {
+bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                               SbMediaAudioCodec audio_codec,
+                               const char* key_system) {
   return false;
 }
 
