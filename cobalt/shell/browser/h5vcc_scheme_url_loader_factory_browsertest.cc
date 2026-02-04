@@ -73,13 +73,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
           }
 
           // check if image is displayed
-          let style = window.getComputedStyle(placeholder);
-          let retries = 0;
-          while (style.backgroundImage === 'none' && retries < 15) {
-            await new Promise(r => setTimeout(r, 100));
-            style = window.getComputedStyle(placeholder);
-            retries++;
-          }
+          const style = window.getComputedStyle(placeholder);
           if (style.backgroundImage === 'none') {
             return 'No image is displayed';
           }

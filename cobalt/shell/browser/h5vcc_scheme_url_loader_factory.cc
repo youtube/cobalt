@@ -232,7 +232,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeTextHtml;
     } else if (base::EndsWith(key, ".png", base::CompareCase::SENSITIVE)) {
-      mime_type = kMimeTypeImagePng; 
+      mime_type_ = kMimeTypeImagePng;
       if (browser_context_) {
         ReadSplashCache(key);
         return;
