@@ -18,9 +18,10 @@
 #include <memory>
 #include <string_view>
 
-#include "base/threading/thread_checker.h"
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "components/metrics/metrics_service_client.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
@@ -175,7 +176,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // For DCHECK()s.
   bool IsInitialized() const { return !!metrics_service_; }
 
-  THREAD_CHECKER(thread_checker_);
+  COBALT_THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace cobalt

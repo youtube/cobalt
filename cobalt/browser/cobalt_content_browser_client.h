@@ -15,8 +15,8 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
-#include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/devtools_manager_delegate.h"
@@ -157,7 +157,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
       pending_window_receivers_;
 
-  THREAD_CHECKER(thread_checker_);
+  COBALT_THREAD_CHECKER(thread_checker_);
 
   base::WeakPtrFactory<CobaltContentBrowserClient> weak_factory_{this};
 };
