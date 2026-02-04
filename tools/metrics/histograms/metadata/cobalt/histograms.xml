@@ -109,6 +109,32 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Memory.ObjectCounts.{Component}" units="objects"
+    expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The number of live {Component} objects in Blink. Recorded periodically
+    (every 5 minutes by default).
+  </summary>
+  <token key="Component">
+    <variant name="Document"/>
+    <variant name="JSEventListener"/>
+    <variant name="LayoutObject"/>
+    <variant name="Node"/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Memory.PrivateMemoryFootprint.GrowthRate" units="KB/min"
+    expires_after="never">
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The rate at which the private memory footprint is growing, in KB per minute.
+    Calculated as the difference in private memory footprint between two
+    consecutive samples, divided by the time between samples. Recorded
+    periodically (every 5 minutes by default).
+  </summary>
+</histogram>
+
 <histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
     enum="BooleanHung" expires_after="never">
   <owner>antonlunev@google.com</owner>

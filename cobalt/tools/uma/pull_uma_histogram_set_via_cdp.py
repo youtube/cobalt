@@ -218,6 +218,22 @@ def _get_cobalt_resident_memory_metrics() -> list:
   ]
 
 
+def _get_cobalt_component_memory_metrics() -> list:
+  return [
+      'Cobalt.Memory.JavaScript',
+      'Cobalt.Memory.DOM',
+      'Cobalt.Memory.Layout',
+      'Cobalt.Memory.Graphics',
+      'Cobalt.Memory.Media',
+      'Cobalt.Memory.Native',
+      'Cobalt.Memory.PrivateMemoryFootprint.GrowthRate',
+      'Cobalt.Memory.ObjectCounts.Document',
+      'Cobalt.Memory.ObjectCounts.JSEventListener',
+      'Cobalt.Memory.ObjectCounts.LayoutObject',
+      'Cobalt.Memory.ObjectCounts.Node',
+  ]
+
+
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
                                   output_file, quiet: bool):
   """Prints histogram data to the console and writes it to a file."""
@@ -320,6 +336,7 @@ def _run_main(args, output_file):
   else:
     histograms = _get_chrome_guiding_metrics_for_memory()
     histograms.extend(_get_cobalt_resident_memory_metrics())
+    histograms.extend(_get_cobalt_component_memory_metrics())
 
   _print_q(f'Ensure Cobalt is running with --remote-debugging-port={args.port}',
            args.quiet)

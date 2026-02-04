@@ -402,6 +402,66 @@ TEST_F(CobaltMetricsServiceClientTest, RecordComponentMemoryMetrics) {
   histogram_tester.ExpectUniqueSample("Cobalt.Memory.Native", 7, 1);
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordObjectCountsAndGrowthRate) {
+  base::HistogramTester histogram_tester;
+
+  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+      memory_instrumentation::mojom::GlobalMemoryDump::New();
+
+  auto process_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  process_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::RENDERER;
+  process_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+  process_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
+
+  // Add metrics for object counts
+  memory_instrumentation::mojom::AllocatorMemDump document_dump;
+  document_dump.numeric_entries["object_count"] = 5;
+  process_dump->chrome_allocator_dumps["blink_objects/Document"] =
+      std::move(document_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump node_dump;
+  node_dump.numeric_entries["object_count"] = 1000;
+  process_dump->chrome_allocator_dumps["blink_objects/Node"] =
+      std::move(node_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump js_listener_dump;
+  js_listener_dump.numeric_entries["object_count"] = 50;
+  process_dump->chrome_allocator_dumps["blink_objects/JSEventListener"] =
+      std::move(js_listener_dump);
+
+  memory_instrumentation::mojom::AllocatorMemDump layout_dump;
+  layout_dump.numeric_entries["object_count"] = 200;
+  process_dump->chrome_allocator_dumps["blink_objects/LayoutObject"] =
+      std::move(layout_dump);
+
+  dump_ptr->process_dumps.push_back(std::move(process_dump));
+
+  auto global_dump =
+      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+  uint64_t last_footprint = 5120;  // 5 MB
+  base::TimeTicks last_time = base::TimeTicks::Now() - base::Minutes(5);
+
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get(),
+                                                  &last_footprint, &last_time);
+
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.ObjectCounts.Document", 5,
+                                      1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.ObjectCounts.Node", 1000,
+                                      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Memory.ObjectCounts.JSEventListener", 50, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.ObjectCounts.LayoutObject",
+                                      200, 1);
+
+  // Growth rate: (10MB - 5MB) / 5 min = 1MB/min = 1024 KB/min
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate", 1024, 1);
+
+  EXPECT_EQ(last_footprint, 10240u);
+}
+
 TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;
