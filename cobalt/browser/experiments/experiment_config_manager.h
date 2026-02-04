@@ -71,12 +71,8 @@ class ExperimentConfigManager {
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
                            TestStoreSafeConfigWithSafeConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
-<<<<<<< HEAD
                            TestStoreSafeConfigWithEmptyConfig);
-=======
-                           StoreSafeConfigWithEmptyConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest, CompareVersions);
->>>>>>> eeba5fc1ad3 (cobalt: Fix rollback version logic (#8839))
 };
 
 }  // namespace cobalt
