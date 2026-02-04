@@ -317,6 +317,7 @@ source_set("fuzztest_internal") {
   ]
 
   testonly = true
+  public_configs = [ ":fuzztest_public_config" ]
 
   deps = [
     "//testing/gtest",
