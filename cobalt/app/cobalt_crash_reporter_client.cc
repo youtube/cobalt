@@ -27,6 +27,7 @@
 
 namespace {
 constexpr char kProductName[] = "Cobalt_ATV";
+constexpr char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
 }  // namespace
 
 void CobaltCrashReporterClient::Create() {
@@ -76,4 +77,8 @@ bool CobaltCrashReporterClient::GetCrashDumpLocation(
 
 bool CobaltCrashReporterClient::IsRunningUnattended() {
   return false;
+}
+
+std::string CobaltCrashReporterClient::GetUploadUrl() {
+  return kCrashReportUrl;
 }

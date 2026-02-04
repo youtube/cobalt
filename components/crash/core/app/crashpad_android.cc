@@ -411,7 +411,10 @@ void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
   crash_reporter_client->GetCrashDumpLocation(database_path);
   crash_reporter_client->GetCrashMetricsLocation(metrics_path);
 
-  *url = kCrashReportUrl;
+  *url = crash_reporter_client->GetUploadUrl();
+  if (url->empty()) {
+    *url = kCrashReportUrl;
+  }
 
   std::string product_name;
   std::string product_version;

@@ -40,6 +40,8 @@ class CobaltCrashReporterClient : public crash_reporter::CrashReporterClient {
   bool GetCrashDumpLocation(base::FilePath* crash_dir) override;
   bool IsRunningUnattended() override;
 
+  std::string GetUploadUrl() override;
+
  private:
   friend class base::NoDestructor<CobaltCrashReporterClient>;
 

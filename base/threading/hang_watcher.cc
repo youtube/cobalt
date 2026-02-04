@@ -1057,10 +1057,8 @@ void HangWatcher::UnregisterThread() {
       &std::unique_ptr<internal::HangWatchState>::get);
 
   // Thread should be registered to get unregistered.
-  DCHECK(it != watch_states_.end());
-  if (it != watch_states_.end()) {
-    watch_states_.erase(it);
-  }
+  CHECK(it != watch_states_.end());
+  watch_states_.erase(it);
 }
 
 namespace internal {
