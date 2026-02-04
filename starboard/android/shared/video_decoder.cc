@@ -52,6 +52,8 @@ using VideoRenderAlgorithmBase =
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+std::optional<int64_t> g_baseline_us_;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const std::optional<T>& maybe_value) {
@@ -350,6 +352,38 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    const auto release_us = release_time_in_nanoseconds / 1'000;
+    if (!first_render_) {
+      first_render_ = FrameRenderInfo{};
+      first_render_->pts_us = frame->timestamp();
+      first_render_->called_us = CurrentMonotonicTime();
+      first_render_->release_us = release_us;
+    }
+    if (!latency_logged_ && ++frame_count_ > 30) {
+      SB_CHECK(g_baseline_us_);
+      const int64_t baseline_us = *g_baseline_us_;
+
+      // Convert to durations for easier math
+      auto elapsed_ms = (first_render_->called_us - baseline_us) / 1'000;
+      auto release_ms = (first_render_->release_us - baseline_us) / 1'000;
+      auto gap_ms = release_ms - elapsed_ms;
+
+      const int64_t pts_gap_ms =
+          (frame->timestamp() - first_render_->pts_us) / 1'000;
+      const int64_t render_gap_ms =
+          (release_us - first_render_->release_us) / 1'000;
+      const int64_t elapsed_gap_ms = render_gap_ms - pts_gap_ms;
+
+      SB_LOG(INFO) << "TTFF Performance: "
+                   << "call_ms=" << FormatWithDigitSeparators(elapsed_ms)
+                   << ", release_ms=" << FormatWithDigitSeparators(release_ms)
+                   << ", schedule_margin_ms="
+                   << FormatWithDigitSeparators(gap_ms)
+                   << ", playback_drift_ms="
+                   << FormatWithDigitSeparators(elapsed_gap_ms);
+      latency_logged_ = true;
+    }
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
@@ -359,6 +393,14 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   RenderCB render_cb_;
   bool rendered_;
+  bool latency_logged_ = false;
+  int frame_count_ = 0;
+  struct FrameRenderInfo {
+    int64_t pts_us;
+    int64_t called_us;
+    int64_t release_us;
+  };
+  std::optional<FrameRenderInfo> first_render_;
 };
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
@@ -1312,6 +1354,11 @@ void VideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+// Temporary solution for PoC to skip long plumbing.
+void ResetBaselineTime() {
+  g_baseline_us_ = CurrentMonotonicTime();
 }
 
 }  // namespace starboard::android::shared
