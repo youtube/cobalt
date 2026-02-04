@@ -1,0 +1,100 @@
+name: Cached Checkout
+description: Generic git checkout with bare repository cache support.
+inputs:
+  repository:
+    description: The url of the repo to checkout. Defaults to Cobalt.
+    default: ${{ github.server_url }}/${{ github.repository }}
+  ref:
+    description: Git ref to checkout.
+    required: true
+  path:
+    description: Destination path.
+    required: true
+  fetch_depth:
+    description: Number of commits to fetch.
+    default: '1'
+  use_cache:
+    description: Whether to attempt using /runner-cache.
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set Cache Path
+      id: cache-path
+      shell: bash
+      env:
+        USE_CACHE: ${{ inputs.use_cache }}
+      run: |
+        if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
+          echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
+        else
+          echo "path=" >> ${GITHUB_OUTPUT}
+        fi
+
+    - name: Set Up Runner Cache
+      id: setup-cache
+      if: steps.cache-path.outputs.path != ''
+      env:
+        REPO_URL: ${{ inputs.repository }}
+        RUNNER_CACHE_FOLDER: ${{ steps.cache-path.outputs.path }}
+      shell: bash
+      run: |
+        set -ex
+        # Extract the last path segment and remove any trailing .git, then add back .git.
+        cache_path="${RUNNER_CACHE_FOLDER}/git-cache/$(basename "${REPO_URL}" .git).git"
+        echo "path=${cache_path}" >> ${GITHUB_OUTPUT}
+
+        # Verify existing cache integrity and remove if broken.
+        if [ -d "${cache_path}" ] && ! git -C "${cache_path}" rev-parse --git-dir > /dev/null 2>&1; then
+          rm -rf "${cache_path}"
+        fi
+
+        # Initialize/update the bare cache from the network.
+        if [ ! -d "${cache_path}" ]; then
+          mkdir -p "$(dirname "${cache_path}")"
+          tmp_path="${cache_path}.tmp"
+          rm -rf "${tmp_path}"
+          git clone --mirror --filter=blob:none "${REPO_URL}" "${tmp_path}"
+          mv "${tmp_path}" "${cache_path}"
+        else
+          # Update the bare mirror from the network.
+          git -C "${cache_path}" fetch --prune --filter=blob:none origin
+        fi
+
+        # Allow git to operate on bare repos without specifying --git-dir.
+        git config --global safe.bareRepository all
+
+    - name: Clone Repo
+      env:
+        REPO_URL: ${{ inputs.repository }}
+        REF: ${{ inputs.ref }}
+        DEST_PATH: ${{ inputs.path }}
+        FETCH_DEPTH: ${{ inputs.fetch_depth }}
+        CACHE_PATH: ${{ steps.setup-cache.outputs.path }}
+      shell: bash
+      run: |
+        set -ex
+
+        depth_arg=()
+        if [ "${FETCH_DEPTH}" -ne 0 ]; then
+          depth_arg+=(--depth "${FETCH_DEPTH}")
+        fi
+
+        cache_args=()
+        if [[ -n "${CACHE_PATH}" ]]; then
+          cache_args+=(--reference "${CACHE_PATH}")
+          cache_args+=(--dissociate)
+        fi
+
+        git clone \
+          --filter=blob:none \
+          "${cache_args[@]}" \
+          "${depth_arg[@]}" \
+          "${REPO_URL}" \
+          "${DEST_PATH}"
+
+        git config --global --add safe.directory "${GITHUB_WORKSPACE}/${DEST_PATH}"
+
+        git -C "${DEST_PATH}" fetch "${deptch_arg[@]}" origin "${REF}"
+        git -C "${DEST_PATH}" checkout "${REF}"
