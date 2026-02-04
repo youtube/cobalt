@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/services/mojo_media_log.h"
+#include "ui/gfx/geometry/rect_conversions.h"
 
 namespace media {
 
@@ -31,6 +32,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           std::move(traits.renderer_extension_receiver)),
       client_extension_remote_(std::move(traits.client_extension_remote),
                                traits.task_runner),
+      video_geometry_setter_service_(traits.video_geometry_setter_service),
+      overlay_plane_id_(traits.overlay_plane_id),
       renderer_(
           traits.task_runner,
           std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
@@ -59,6 +62,17 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
                                           PipelineStatusCallback init_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(init_cb);
+
+  DCHECK(video_geometry_setter_service_);
+  video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
+      video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
+  DCHECK(video_geometry_change_subcriber_remote_);
+  video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
+      overlay_plane_id_,
+      video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
+      base::BindOnce(
+          &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
+          base::Unretained(this), media_resource, client));
 
   GetRenderer()->SetStarboardRendererCallbacks(
       base::BindRepeating(
@@ -144,12 +158,6 @@ RendererType StarboardRendererWrapper::GetRendererType() {
   return RendererType::kStarboard;
 }
 
-void StarboardRendererWrapper::OnVideoGeometryChange(
-    const gfx::Rect& output_rect) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  GetRenderer()->OnVideoGeometryChange(output_rect);
-}
-
 void StarboardRendererWrapper::OnGpuChannelTokenReady(
     mojom::CommandBufferIdPtr command_buffer_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -193,6 +201,14 @@ StarboardRendererWrapper::GetGpuFactory() {
   return &gpu_factory_;
 }
 
+void StarboardRendererWrapper::OnVideoGeometryChange(
+    const gfx::RectF& rect_f,
+    gfx::OverlayTransform /* transform */) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  gfx::Rect new_bounds = gfx::ToNearestRect(rect_f);
+  GetRenderer()->OnVideoGeometryChange(new_bounds);
+}
+
 void StarboardRendererWrapper::ContinueInitialization(
     MediaResource* media_resource,
     RendererClient* client,
@@ -219,6 +235,12 @@ void StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard(
 void StarboardRendererWrapper::OnGetSbWindowHandle() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->GetSbWindowHandle();
+}
+
+void StarboardRendererWrapper::OnSubscribeToVideoGeometryChange(
+    MediaResource* media_resource,
+    RendererClient* client) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 #if BUILDFLAG(IS_ANDROID)

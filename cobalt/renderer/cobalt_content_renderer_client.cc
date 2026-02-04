@@ -19,8 +19,6 @@
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
-#include "media/starboard/bind_host_receiver_callback.h"
-#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
@@ -91,16 +89,7 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
-void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
-  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
-}
-
 }  // namespace
-
-static_assert(std::is_same<::media::BindHostReceiverCallback,
-                           base::RepeatingCallback<
-                               decltype(BindHostReceiverWithValuation)>>::value,
-              "These two types must be the same");
 
 CobaltContentRendererClient::CobaltContentRendererClient() {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
@@ -233,12 +222,6 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   communication->RunScriptsAtDocumentStart();
 }
 
-void CobaltContentRendererClient::BindHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  CHECK(content::RenderThread::IsMainThread());
-  BindHostReceiverWithValuation(std::move(receiver));
-}
-
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   CHECK(content::RenderThread::IsMainThread());
@@ -256,11 +239,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
-  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
-  renderer_factory_traits->bind_host_receiver_callback =
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
-                              weak_factory_.GetWeakPtr()));
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
@@ -25,7 +26,12 @@
 
 namespace content {
 
-ShellContentGpuTestClient::ShellContentGpuTestClient() = default;
+ShellContentGpuTestClient::ShellContentGpuTestClient()
+    : video_geometry_setter_service_(
+          std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                          base::OnTaskRunnerDeleter>(
+              nullptr,
+              base::OnTaskRunnerDeleter(nullptr))) {}
 
 ShellContentGpuTestClient::~ShellContentGpuTestClient() = default;
 
@@ -48,6 +54,24 @@ void ShellContentGpuTestClient::PostCompositorThreadCreated(
   task_runner->PostTask(FROM_HERE,
                         base::BindOnce(&viz::ConnectVideoGeometrySetter,
                                        std::move(video_geometry_setter)));
+}
+
+cobalt::media::VideoGeometrySetterService*
+ShellContentGpuTestClient::GetVideoGeometrySetterService() {
+  if (!video_geometry_setter_service_) {
+    CreateVideoGeometrySetterService();
+  }
+  return video_geometry_setter_service_.get();
+}
+
+void ShellContentGpuTestClient::CreateVideoGeometrySetterService() {
+  DCHECK(!video_geometry_setter_service_);
+  video_geometry_setter_service_ =
+      std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                      base::OnTaskRunnerDeleter>(
+          new cobalt::media::VideoGeometrySetterService,
+          base::OnTaskRunnerDeleter(
+              base::SingleThreadTaskRunner::GetCurrentDefault()));
 }
 
 }  // namespace content

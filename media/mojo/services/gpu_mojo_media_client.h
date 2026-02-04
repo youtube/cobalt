@@ -26,6 +26,10 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/gpu/starboard/starboard_gpu_factory.h"
+
+namespace cobalt::media {
+class VideoGeometrySetterService;
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
@@ -71,6 +75,7 @@ struct StarboardRendererTraits {
   scoped_refptr<base::SequencedTaskRunner> task_runner;
   scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner;
   mojo::PendingRemote<mojom::MediaLog> media_log_remote;
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service;
   const base::UnguessableToken& overlay_plane_id;
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
@@ -91,6 +96,7 @@ struct StarboardRendererTraits {
       scoped_refptr<base::SequencedTaskRunner> task_runner,
       scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
       mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service,
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
@@ -121,6 +127,10 @@ struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
   // is expected to be the GPU main thread task runner.
   base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   GpuMojoMediaClientTraits(
       const gpu::GpuPreferences& gpu_preferences,
       const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
@@ -128,7 +138,13 @@ struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
       const gpu::GPUInfo& gpu_info,
       scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
       AndroidOverlayMojoFactoryCB android_overlay_factory_cb,
-      base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager);
+      base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      );
+ 
   ~GpuMojoMediaClientTraits();
 };
 
@@ -250,6 +266,9 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
   virtual std::optional<SupportedAudioDecoderConfigs>
   GetPlatformSupportedAudioDecoderConfigs();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   const gpu::GpuPreferences gpu_preferences_;
   const gpu::GpuDriverBugWorkarounds gpu_workarounds_;
   const gpu::GpuFeatureInfo gpu_feature_info_;
