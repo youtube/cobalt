@@ -448,7 +448,7 @@ public abstract class CobaltActivity extends Activity {
       StartupGuard.getInstance().disarm();
     }
 
-    if (!isReleaseBuild()) {
+    if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
@@ -630,6 +630,9 @@ public abstract class CobaltActivity extends Activity {
 
   protected boolean isReleaseBuild() {
     return StarboardBridge.isReleaseBuild();
+  }
+  protected boolean isDevelopmentBuild() {
+    return StarboardBridge.isDevelopmentBuild();
   }
 
   @Override
