@@ -124,15 +124,20 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
-<histogram name="Cobalt.Memory.PrivateMemoryFootprint.GrowthRate" units="KB/min"
-    expires_after="never">
+<histogram name="Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.{LeakType}"
+    units="KB/min" expires_after="never">
   <owner>cobalt-team@google.com</owner>
   <summary>
     The rate at which the private memory footprint is growing, in KB per minute.
     Calculated as the difference in private memory footprint between two
     consecutive samples, divided by the time between samples. Recorded
     periodically (every 5 minutes by default).
+    The {LeakType} variant is tailored for different growth magnitudes.
   </summary>
+  <token key="LeakType">
+    <variant name="Fast" summary="Covers growth up to 1 GB/min."/>
+    <variant name="Slow" summary="Covers growth up to 10 MB/min."/>
+  </token>
 </histogram>
 
 <histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
