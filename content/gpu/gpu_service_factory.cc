@@ -24,6 +24,11 @@
 #include "media/mojo/services/media_service_factory.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_MOJO_MEDIA_IN_GPU_PROCESS)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "content/public/common/content_client.h"
+#include "content/public/gpu/content_gpu_client.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace content {
 
 GpuServiceFactory::GpuServiceFactory(
@@ -88,10 +93,24 @@ void GpuServiceFactory::RunMediaService(
     }
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  content::ContentGpuClient* client = GetContentClient()->gpu();
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service = nullptr;
+  if (client) {
+    video_geometry_setter_service =
+        client->GetVideoGeometrySetterService();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   media::GpuMojoMediaClientTraits traits(
       gpu_preferences_, gpu_workarounds_, gpu_feature_info_, gpu_info_,
       /*gpu_task_runner=*/task_runner_, android_overlay_factory_cb_,
-      media_gpu_channel_manager_);
+      media_gpu_channel_manager_
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      );
   auto gpu_client = media::GpuMojoMediaClient::Create(traits);
 
   using FactoryCallback =
