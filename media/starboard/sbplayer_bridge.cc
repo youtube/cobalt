@@ -37,6 +37,7 @@
 #include "starboard/common/once.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
@@ -44,6 +45,7 @@
 #include "starboard/extension/player_set_video_surface_view.h"
 
 namespace media {
+extern int64_t g_last_video_need_data_time_us;
 
 namespace {
 
@@ -290,6 +292,34 @@ void SbPlayerBridge::WriteBuffers(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  static int64_t last_audio_write_us = 0;
+  static int64_t last_video_write_us = 0;
+  int64_t now = starboard::CurrentMonotonicTime();
+  int64_t* last_write_us = (type == DemuxerStream::Type::AUDIO)
+                               ? &last_audio_write_us
+                               : &last_video_write_us;
+
+  if (*last_write_us != 0 && (now - *last_write_us) > 500'000) {
+    LOG(WARNING) << "TTFF: Large gap in WriteBuffers("
+                 << (type == DemuxerStream::Type::AUDIO ? "AUDIO" : "VIDEO")
+                 << "): " << (now - *last_write_us) / 1'000 << " msec";
+  }
+  *last_write_us = now;
+
+  if (type == DemuxerStream::Type::VIDEO) {
+    if (g_last_video_need_data_time_us != 0) {
+      int64_t request_time = g_last_video_need_data_time_us;
+      g_last_video_need_data_time_us = 0;
+      int64_t delay_us = now - request_time;
+      if (delay_us > 1'000'000) {
+        LOG(WARNING)
+            << "TTFF: Large browser task delay (OnNeedData -> WriteBuffers): "
+            << delay_us / 1'000 << " msec";
+      }
+    }
+  }
+
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1354,7 +1384,7 @@ void SbPlayerBridge::LogStartupLatency() const {
   statistics->startup_latency.AddSample(startup_latency.InMicroseconds(), 1);
 
   auto to_ms_from_us = [](int64_t us) {
-    return starboard::FormatWithDigitSeparators(us / 1000);
+    return starboard::FormatWithDigitSeparators(us / 1'000);
   };
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 

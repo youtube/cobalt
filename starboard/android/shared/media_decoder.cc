@@ -23,6 +23,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -471,6 +472,17 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   DequeueInputResult dequeue_input_result;
   PendingInput pending_input;
   bool input_buffer_already_written = false;
+
+  static int64_t last_input_time_us = 0;
+  int64_t now_us = CurrentMonotonicTime();
+  if (now_us - last_input_time_us > 500'000 && last_input_time_us != 0) {
+    SB_LOG(WARNING) << "TTFF: Large gap in decoder input intake ("
+                    << GetDecoderName(media_type_)
+                    << "): " << (now_us - last_input_time_us) / 1'000
+                    << " msec";
+  }
+  last_input_time_us = now_us;
+
   if (pending_input_to_retry_) {
     dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
     SB_DCHECK_GE(dequeue_input_result.index, 0);

@@ -1,0 +1,33 @@
+In this log, don't we have to reset g_last... once we write data ?
+
+
+void SbPlayerBridge::WriteBuffers(
+    DemuxerStream::Type type,
+    const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  static int64_t last_audio_write_us = 0;
+  static int64_t last_video_write_us = 0;
+  int64_t now = starboard::CurrentMonotonicTime();
+  int64_t* last_write_us =
+      (type == DemuxerStream::Type::AUDIO) ? &last_audio_write_us : &last_video_write_us;
+
+  if (*last_write_us != 0 && (now - *last_write_us) > 500'000) {
+    LOG(WARNING) << "TTFF: Large gap in WriteBuffers("
+                 << (type == DemuxerStream::Type::AUDIO ? "AUDIO" : "VIDEO")
+                 << "): " << (now - *last_write_us) / 1'000 << " msec";
+  }
+  *last_write_us = now;
+
+  if (type == DemuxerStream::Type::VIDEO) {
+    if (g_last_video_need_data_time_us != 0) {
+
+      // Reset
+      g_last_video..... = 0;
+      int64_t delay_us = now - g_last_video_need_data_time_us;
+      if (delay_us > 100'000) {
+        LOG(WARNING) << "TTFF: Browser task delay (OnNeedData -> WriteBuffers): "
+                     << delay_us / 1'000 << " msec";
+      }
+    }
+  }

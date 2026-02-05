@@ -24,6 +24,7 @@
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/time.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android/android_overlay.h"
@@ -35,6 +36,8 @@ extern void ResetBaselineTime();
 }
 
 namespace media {
+
+int64_t g_last_video_need_data_time_us = 0;
 
 namespace {
 
@@ -456,6 +459,15 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   }
   StoreMediaTime(media_time);
 
+  static int64_t last_clock_log_us = 0;
+  int64_t now_us = starboard::CurrentMonotonicTime();
+  if (now_us - last_clock_log_us > 500'000) {
+    // Commented out since it's too noisy.
+    // LOG(INFO) << "TTFF: GetMediaTime: " << media_time.InMilliseconds() << "
+    // msec";
+    last_clock_log_us = now_us;
+  }
+
   return media_time;
 }
 
@@ -825,6 +837,18 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (type == DemuxerStream::VIDEO) {
+    // extern int64_t g_last_video_need_data_time_us;
+    g_last_video_need_data_time_us = starboard::CurrentMonotonicTime();
+  }
+  static int64_t last_log_time_us = 0;
+  int64_t now = starboard::CurrentMonotonicTime();
+  if (now - last_log_time_us > 100'000) {  // Limit log noise
+    // Commented out since it's too noisy.
+    // LOG(INFO) << "TTFF: OnNeedData(" << (type == DemuxerStream::AUDIO ?
+    // "AUDIO" : "VIDEO") << ")";
+    last_log_time_us = now;
+  }
 
   // In case if the callback is fired when creation of the `player_bridge_`
   // fails.
