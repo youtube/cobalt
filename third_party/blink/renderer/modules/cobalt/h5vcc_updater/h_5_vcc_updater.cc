@@ -22,7 +22,8 @@ namespace blink {
 
 H5vccUpdater::H5vccUpdater(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_updater_(window.GetExecutionContext()) {}
+      remote_h5vcc_updater_(window.GetExecutionContext()),
+      remote_h5vcc_updater_sideloading_(window.GetExecutionContext()) {}
 
 void H5vccUpdater::ContextDestroyed() {}
 
@@ -112,8 +113,8 @@ ScriptPromise H5vccUpdater::getAllowSelfSignedPackages(
 
   EnsureReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->GetAllowSelfSignedPackages(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->GetAllowSelfSignedPackages(
       WTF::BindOnce(&H5vccUpdater::OnGetAllowSelfSignedPackages,
                     WrapPersistent(this), WrapPersistent(resolver)));
 
@@ -127,17 +128,13 @@ ScriptPromise H5vccUpdater::setAllowSelfSignedPackages(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  EnsureReceiverIsBound();
+  EnsureSideloadingReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->SetAllowSelfSignedPackages(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->SetAllowSelfSignedPackages(
       allow_self_signed_packages,
       WTF::BindOnce(&H5vccUpdater::OnSetAllowSelfSignedPackages,
                     WrapPersistent(this), WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
   return resolver->Promise();
 }
 
@@ -149,8 +146,8 @@ ScriptPromise H5vccUpdater::getUpdateServerUrl(
 
   EnsureReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->GetUpdateServerUrl(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->GetUpdateServerUrl(
       WTF::BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
                     WrapPersistent(resolver)));
 
@@ -164,17 +161,13 @@ ScriptPromise H5vccUpdater::setUpdateServerUrl(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  EnsureReceiverIsBound();
+  EnsureSideloadingReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->SetUpdateServerUrl(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->SetUpdateServerUrl(
       update_server_url,
       WTF::BindOnce(&H5vccUpdater::OnSetUpdateServerUrl, WrapPersistent(this),
                     WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
   return resolver->Promise();
 }
 
@@ -186,8 +179,8 @@ ScriptPromise H5vccUpdater::getRequireNetworkEncryption(
 
   EnsureReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->GetRequireNetworkEncryption(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->GetRequireNetworkEncryption(
       WTF::BindOnce(&H5vccUpdater::OnGetRequireNetworkEncryption,
                     WrapPersistent(this), WrapPersistent(resolver)));
 
@@ -201,18 +194,13 @@ ScriptPromise H5vccUpdater::setRequireNetworkEncryption(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  EnsureReceiverIsBound();
+  EnsureSideloadingReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->SetRequireNetworkEncryption(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->SetRequireNetworkEncryption(
       require_network_encryption,
       WTF::BindOnce(&H5vccUpdater::OnSetRequireNetworkEncryption,
                     WrapPersistent(this), WrapPersistent(resolver)));
-  resolver->Resolve();
-#else
-  resolver->Reject();
-#endif
   return resolver->Promise();
 }
 
@@ -274,7 +262,7 @@ void H5vccUpdater::OnGetAllowSelfSignedPackages(ScriptPromiseResolver* resolver,
 
 void H5vccUpdater::OnSetAllowSelfSignedPackages(
     ScriptPromiseResolver* resolver) {
-  ongoing_requests_.erase(resolver);
+  ongoing_sideloading_requests_.erase(resolver);
   resolver->Resolve();
 }
 
@@ -285,7 +273,7 @@ void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
 }
 
 void H5vccUpdater::OnSetUpdateServerUrl(ScriptPromiseResolver* resolver) {
-  ongoing_requests_.erase(resolver);
+  ongoing_sideloading_requests_.erase(resolver);
   resolver->Resolve();
 }
 
@@ -298,7 +286,7 @@ void H5vccUpdater::OnGetRequireNetworkEncryption(
 
 void H5vccUpdater::OnSetRequireNetworkEncryption(
     ScriptPromiseResolver* resolver) {
-  ongoing_requests_.erase(resolver);
+  ongoing_sideloading_requests_.erase(resolver);
   resolver->Resolve();
 }
 
@@ -333,11 +321,50 @@ void H5vccUpdater::OnConnectionError() {
   ongoing_requests_.clear();
 }
 
+void H5vccUpdater::EnsureSideloadingReceiverIsBound() {
+  DCHECK(GetExecutionContext());
+
+  if (remote_h5vcc_updater_sideloading_.is_bound()) {
+    return;
+  }
+
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
+      remote_h5vcc_updater_sideloading_.BindNewPipeAndPassReceiver(
+          task_runner));
+  remote_h5vcc_updater_sideloading_.set_disconnect_handler(WTF::BindOnce(
+      &H5vccUpdater::OnSideloadingConnectionError, WrapWeakPersistent(this)));
+}
+
+void H5vccUpdater::OnSideloadingConnectionError() {
+  remote_h5vcc_updater_sideloading_.reset();
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_updater_promises;
+  // Script may execute during a call to Reject(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_sideloading_requests_.swap(h5vcc_updater_promises);
+  for (auto& resolver : h5vcc_updater_promises) {
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
+#if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && \
+    ALLOW_EVERGREEN_SIDELOADING
+    resolver->Reject("Mojo connection error.");
+#else
+    resolver->Reject(
+        "API not supported for this build configuration. Enabled for "
+        "sideloading only.");
+#endif
+  }
+  ongoing_sideloading_requests_.clear();
+}
+
 void H5vccUpdater::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(ongoing_requests_);
+  visitor->Trace(ongoing_sideloading_requests_);
   visitor->Trace(remote_h5vcc_updater_);
+  visitor->Trace(remote_h5vcc_updater_sideloading_);
 }
 
 }  // namespace blink
