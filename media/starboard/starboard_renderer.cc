@@ -155,7 +155,9 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
   LOG(INFO) << "StarboardRenderer constructed: "
-            << "viewport_size=" << viewport_size_.ToString()
+            << "audio_write_duration_local=" << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", viewport_size=" << viewport_size_.ToString()
             << ", max_video_capabilities=" << max_video_capabilities_
             << ", max_samples_per_write=" << max_samples_per_write_;
 }
