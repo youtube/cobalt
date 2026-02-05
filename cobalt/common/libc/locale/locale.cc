@@ -224,18 +224,25 @@ struct lconv* localeconv(void) {
   std::string monetary_locale = current_loc->categories[LC_MONETARY];
 
   if ((numeric_locale == cobalt::kCLocale ||
-       numeric_locale == cobalt::kPosixLocale) &&
-      (monetary_locale == cobalt::kCLocale ||
-       monetary_locale == cobalt::kPosixLocale)) {
-    current_lconv->ResetToC();
-    return &(current_lconv->result);
+       numeric_locale == cobalt::kPosixLocale)) {
+    current_lconv->ResetNumericToC();
+  } else {
+    if (!cobalt::UpdateNumericLconv(numeric_locale, current_lconv)) {
+      SB_LOG(WARNING)
+          << "Failed to properly retrieve the updated lconv numeric values. "
+             "Returning the C lconv numeric values.";
+    }
   }
 
-  if (!cobalt::UpdateNumericLconv(numeric_locale, current_lconv) ||
-      !cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv)) {
-    SB_LOG(WARNING) << "Failed to properly retrieve the updated lconv struct. "
-                       "Returning the C lconv.";
-    current_lconv->ResetToC();
+  if ((monetary_locale == cobalt::kCLocale ||
+       monetary_locale == cobalt::kPosixLocale)) {
+    current_lconv->ResetMonetaryToC();
+  } else {
+    if (!cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv)) {
+      SB_LOG(WARNING)
+          << "Failed to properly retrieve the updated lconv monetary values. "
+             "Returning the C lconv monetary values.";
+    }
   }
 
   return &(current_lconv->result);

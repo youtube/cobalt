@@ -310,12 +310,14 @@ std::string GetGroupingString(const icu::DecimalFormat* formatter) {
 }
 }  //  namespace
 
-// Helper function to set an LconvImpl to the default C lconv.
-void LconvImpl::ResetToC() {
+void LconvImpl::ResetNumericToC() {
   stored_decimal = ".";
   stored_thousands = "";
   stored_grouping = "";
+  current_numeric_locale = "C";
+}
 
+void LconvImpl::ResetMonetaryToC() {
   stored_mon_decimal = "";
   stored_mon_thousands_sep = "";
   stored_mon_grouping = "";
@@ -351,7 +353,6 @@ void LconvImpl::ResetToC() {
   result.negative_sign = const_cast<char*>(stored_neg_sign.c_str());
   result.currency_symbol = const_cast<char*>(stored_currency_sym.c_str());
   result.int_curr_symbol = const_cast<char*>(stored_int_curr_sym.c_str());
-  current_numeric_locale = "C";
   current_monetary_locale = "C";
 }
 
