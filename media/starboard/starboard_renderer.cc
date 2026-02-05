@@ -25,8 +25,11 @@
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 #include "starboard/common/time.h"
+#include "starboard/player.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include <sys/system_properties.h>
+
 #include "media/base/android/android_overlay.h"
 #include "media/base/android_overlay_config.h"
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -153,13 +156,34 @@ StarboardRenderer::StarboardRenderer(
               : 1) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
+
+  bool disable_write_batch = false;
+#if BUILDFLAG(IS_ANDROID)
+  char value[PROP_VALUE_MAX];
+  if (__system_property_get("debug.cobalt.disable_write_batch", value) > 0) {
+    disable_write_batch = (strcmp(value, "true") == 0);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  if (disable_write_batch) {
+    LOG(INFO)
+        << "Reverting back to original state (non-batch write) via system "
+           "property.";
+    audio_write_duration_local_ = base::Seconds(1);
+    audio_write_duration_remote_ =
+        base::Microseconds(kSbPlayerWriteDurationRemote);
+    max_samples_per_write_ = 1;
+  }
+
   CHECK_GT(max_samples_per_write_, 0);
   LOG(INFO) << "StarboardRenderer constructed: "
             << "audio_write_duration_local=" << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", viewport_size=" << viewport_size_.ToString()
             << ", max_video_capabilities=" << max_video_capabilities_
-            << ", max_samples_per_write=" << max_samples_per_write_;
+            << ", max_samples_per_write=" << max_samples_per_write_
+            << ", batch mode enabled="
+            << (!disable_write_batch ? "true" : "false");
 }
 
 StarboardRenderer::~StarboardRenderer() {

@@ -185,8 +185,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const std::unique_ptr<MediaLog> media_log_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
-  const TimeDelta audio_write_duration_local_;
-  const TimeDelta audio_write_duration_remote_;
+  TimeDelta audio_write_duration_local_;
+  TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
@@ -244,7 +244,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   Time last_time_media_time_retrieved_;
 
   bool audio_read_delayed_ = false;
-  const int max_samples_per_write_;
+  int max_samples_per_write_;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
