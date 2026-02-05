@@ -237,7 +237,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       mime_type_ = kMimeTypeVideoWebM;
     }
 
-    bool is_cacheable_type = (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
+    bool is_cacheable_type =
+        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
     if (is_cacheable_type && browser_context_) {
       ReadSplashCache(key);
       return;
