@@ -25,16 +25,22 @@
   - [x] Cobalt.Memory.Media: Buffers and resources used by the media pipeline.
   - [x] Cobalt.Memory.Native: Other general native heap allocations.
 
-- [ ] Histograms for Growth and Leaks: 
-  - [ ] Cobalt.Memory.PrivateMemoryFootprint.GrowthRate: Track how quickly memory usage increases over a session.
-  - [ ] Cobalt.Memory.ObjectCounts.[Component]: Histograms for the number of specific objects (e.g., DOM Nodes, event listeners).
+- [x] Rebase onto origin/main
+
+- [x] Histograms for Growth and Leaks: 
+  - [x] Cobalt.Memory.PrivateMemoryFootprint.GrowthRate: Track how quickly memory usage increases over a session.
+  - [x] Cobalt.Memory.ObjectCounts.[Component]: Histograms for the number of specific objects (e.g., DOM Nodes, event listeners).
+
+- [ ] rebase onto origin/main
 
  - [ ] Leverage Existing Tools:
   - [ ] Integrate with Cobalt Telemetry: Ensure these memory metrics are regularly reported through go/cobalt-telemetry.
   - [ ] Expose Memory Infra Data: Cobalt already includes Chromium's base/trace_event and Memory Infra. Expose aggregated data from Memory Infra snapshots to the Cobalt Telemetry system. The tooling to capture and analyze these traces locally is described in go/chrobalt/chrobalt_memory_analysis_tools.
 
-Integrate with Cobalt Telemetry: Ensure these memory metrics are regularly reported through go/cobalt-telemetry.
-Expose Memory Infra Data: Cobalt already includes Chromium's base/trace_event and Memory Infra. Expose aggregated data from Memory Infra snapshots to the Cobalt Telemetry system. The tooling to capture and analyze these traces locally is described in go/chrobalt/chrobalt_memory_analysis_tools.
+- [ ] rebase onto origin/main
+
+- [ ] Integrate with Cobalt Telemetry: Ensure these memory metrics are regularly reported through go/cobalt-telemetry.
+- [ ] Expose Memory Infra Data: Cobalt already includes Chromium's base/trace_event and Memory Infra. Expose aggregated data from Memory Infra snapshots to the Cobalt Telemetry system. The tooling to capture and analyze these traces locally is described in go/chrobalt/chrobalt_memory_analysis_tools.
 
 ## Documentation
 
