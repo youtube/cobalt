@@ -846,6 +846,10 @@ static_library("test_support") {
 
   if (disable_bluetooth) {
     sources -= [
+      "../browser/bluetooth/test/mock_bluetooth_delegate.cc",
+      "../browser/bluetooth/test/mock_bluetooth_delegate.h",
+      "../browser/serial/serial_test_utils.cc",
+      "../browser/serial/serial_test_utils.h",
       "../public/test/bluetooth_test_utils.cc",
       "../public/test/bluetooth_test_utils.h",
     ]

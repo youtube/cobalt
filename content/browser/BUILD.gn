@@ -3741,6 +3741,8 @@ source_set("browser") {
       "bluetooth/web_bluetooth_service_impl.h",
       "serial/serial_service.cc",
       "serial/serial_service.h",
+      "webid/digital_credentials/cross_device_transaction_impl.cc",
+      "webid/digital_credentials/cross_device_transaction_impl.h",
     ]
 
     deps -= [
