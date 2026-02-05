@@ -27,6 +27,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.sha }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # All files in the root directory are automatically included.
+  CI_ESSENTIALS: |
+    .github
+    cobalt/build
+    cobalt/docker
+    cobalt/testing/filters
+    cobalt/tools
+
 jobs:
   # Retrieves configuration from json file.
   initialize:
@@ -52,19 +61,9 @@ jobs:
         with:
           fetch-depth: 1
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Cache CI Essentials
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-essentials-${{ inputs.platform }}
-          include-hidden-files: true
-          retention-days: 14
-          path: |
-            .github
-            cobalt/build
-            cobalt/docker
-            cobalt/testing/filters
-            cobalt/tools
-            docker-compose.yaml
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -253,10 +252,13 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
@@ -274,10 +276,13 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
@@ -295,10 +300,13 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
@@ -337,24 +345,16 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
-        with:
-          path: pre-run
-          name: ci-essentials-${{ inputs.platform }}
-
-      - name: Prepare Workspace for Checkout
-        uses: ./pre-run/.github/actions/prepare-runner-cache
-
-      - name: Checkout
+      - name: Sparse Checkout
         uses: actions/checkout@v4
         with:
-          path: cobalt/src
-          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
-          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
-          # to properly calculate build id.
-          fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
-          clean: false
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+
+      - name: Prepare Workspace for Checkout
+        uses: ./.github/actions/prepare-runner-cache
 
       - name: Set Up Depot Tools
         id: setup-depot-tools
@@ -417,10 +417,13 @@ jobs:
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -458,10 +461,13 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run E2E Tests
         uses: ./.github/actions/internal_tests
         with:
@@ -490,10 +496,13 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run YTS Tests
         uses: ./.github/actions/internal_tests
         with:
@@ -519,10 +528,13 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -560,11 +572,13 @@ jobs:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          path: pre-run
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Prepare Workspace for Checkout
         uses: ./pre-run/.github/actions/prepare-runner-cache
       - name: Checkout
@@ -609,10 +623,13 @@ jobs:
         config: [devel]
         test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Extract Test Target Name
         id: extract-target-name
         env:
@@ -684,10 +701,13 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Sparse Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Test Results
         uses: actions/download-artifact@v4
         with:

@@ -68,6 +68,7 @@ jobs:
           ref: ${{ matrix.target_branch }}
           fetch-depth: 0
           persist-credentials: false
+          filter: blob:none
 
       - name: Setup Git
         run: |
