@@ -156,6 +156,8 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
       memory_limit_(GetDemuxerStreamAudioMemoryLimit(&audio_config)) {
+  LOG(INFO) << "SourceBufferStream(AUDIO) constructed: memory_limit_="
+            << (memory_limit_ / 1024 / 1024) << "MB";
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
   DVLOG(2) << __func__ << ": audio_buffer_size= " << memory_limit_;
@@ -172,6 +174,8 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
       memory_limit_(GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer,
                                                      &video_config)) {
+  LOG(INFO) << "SourceBufferStream(VIDEO) constructed: memory_limit_="
+            << (memory_limit_ / 1024 / 1024) << "MB";
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
@@ -795,6 +799,10 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   // Return if we're under or at the memory limit.
   if (ranges_size + newDataSize <= effective_memory_limit)
     return true;
+
+  LOG(INFO) << "SourceBufferStream::GarbageCollectIfNeeded(" << GetStreamTypeName()
+            << "): usage=" << ((ranges_size + newDataSize) / 1024 / 1024)
+            << "MB, limit=" << (effective_memory_limit / 1024 / 1024) << "MB";
 
   size_t bytes_over_hard_memory_limit = 0;
   if (ranges_size + newDataSize > memory_limit_)
