@@ -10,6 +10,12 @@
 
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+void auto_free(char **ptr) {
+    if (*ptr) free(*ptr);
+}
+#endif // BUILDFLAG(IS_STARBOARD)
+
 static int is_leap(int y)
 {
 	/* Avoid overflow */
@@ -237,7 +243,7 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 // our hermetic implementation of nl_langinfo_l does this, we have to copy the |f|
 // string to prevent the function from breaking.
 #if BUILDFLAG(IS_STARBOARD)
-	char* f_copy = strdup(f);
+	__attribute__((cleanup(auto_free))) char* f_copy = strdup(f);
 	if (!f_copy) { 
 		return 0;
 	}
@@ -246,9 +252,6 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 	for (l=0; l<n; f++) {
 		if (!*f) {
 			s[l] = 0;
-#if BUILDFLAG(IS_STARBOARD)
-			free(f_copy);
-#endif // BUILDFLAG(IS_STARBOARD)
 			return l;
 		}
 		if (*f != '%') {
@@ -296,9 +299,6 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 		if (l==n) l=n-1;
 		s[l] = 0;
 	}
-#if BUILDFLAG(IS_STARBOARD)
-	free(f_copy);
-#endif // BUILDFLAG(IS_STARBOARD)
 	return 0;
 }
 
