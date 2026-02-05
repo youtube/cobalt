@@ -191,27 +191,10 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
     return nullptr;
   }
 
-  // Colin add log to debug
-  if (data && data->ByteLength() > 0) {
-    // 1. Access the raw data and length
-    const uint8_t* raw_data = static_cast<const uint8_t*>(data->Data());
-    size_t length = data->ByteLength();
-
-    // 2. Convert to a std::string or base::StringPiece for logging
-    // We use a string constructor that takes a length to avoid null-terminator issues
-    std::string data_as_string(reinterpret_cast<const char*>(raw_data), length);
-
-    // 3. Print to the console/terminal
-    LOG(WARNING) << "ColinL: H5vccPlatformService::send data: " << data_as_string;
-  } else {
-    LOG(WARNING) << "ColinL: H5vccPlatformService::send: data is null or empty";
-  }
-
   WTF::Vector<uint8_t> input_data = ToWTFVector(data);
   std::optional<WTF::Vector<uint8_t>> response_data;
 
   bool mojo_result = platform_service_remote_->Send(input_data, &response_data);
-  LOG(WARNING) << "ColinL: platform_service_remote_->Send mojo_result is " << mojo_result;
 
   if (!mojo_result) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
@@ -224,7 +207,6 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   }
 
   if (!response_data.has_value()) {
-    LOG(WARNING) << "ColinL: platform_service_remote_->Send --> !response_data.has_value()";
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Browser side could not send data to the service.");
@@ -236,7 +218,6 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
 
   std::string resp_str(reinterpret_cast<const char*>(response_data->data()),
                        response_data->size());
-  LOG(WARNING) << "ColinL: platform_service_remote_->Send --> response_data.value(): " << resp_str;
   return ToDOMArrayBuffer(response_data.value());
 }
 

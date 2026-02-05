@@ -375,8 +375,6 @@ base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
     jlong native_service,
     const char* service_name) {
   SB_CHECK(env);
-  SB_LOG(WARNING) << "ColinL: StarboardBridge::OpenCobaltService "
-                  << service_name;
   return Java_StarboardBridge_openCobaltService(
       env, j_starboard_bridge_, native_service,
       ConvertUTF8ToJavaString(env, service_name));
@@ -391,8 +389,6 @@ void StarboardBridge::CloseCobaltService(JNIEnv* env,
 
 bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
   SB_CHECK(env);
-  SB_LOG(WARNING) << "ColinL: StarboardBridge::HasCobaltService "
-                  << service_name;
   return Java_StarboardBridge_hasCobaltService(
       env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
 }

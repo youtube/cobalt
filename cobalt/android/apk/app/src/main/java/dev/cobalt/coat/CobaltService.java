@@ -16,9 +16,7 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.util.Base64;
 import dev.cobalt.util.Log;
-import java.util.Locale;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -28,8 +26,6 @@ public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
   private final Object lock = new Object();
-  // private StarboardBridge bridge;
-  // protected CobaltActivity cobaltActivity;
 
   @JNINamespace("starboard")
   @NativeMethods
@@ -37,14 +33,6 @@ public abstract class CobaltService {
     // Can not set it as nativeService, JNI zero has template code to convert it to a Service object
     void nativeSendToClient(long service, byte[] data);
   }
-
-  // // TODO(b/403638702): - Cobalt: Migrate away from Java Bridge for H5vccPlatformService.
-  // // Workaround: Explicitly target the 'anchor' iframe for H5vccPlatformService callbacks.
-  // // This is necessary because the polyfill is injected broadly, but callbacks
-  // // are registered within the Kabuki app's iframe, which needs to be the
-  // // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
-  // public static String jsCodeTemplate =
-  //       "window.H5vccPlatformService.callbackFromAndroid(%d, '%s');";
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -57,10 +45,6 @@ public abstract class CobaltService {
 
   /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
   public void receiveStarboardBridge(StarboardBridge bridge) {}
-
-  // public void setCobaltActivity(CobaltActivity cobaltActivity) {
-  //   this.cobaltActivity = cobaltActivity;
-  // }
 
   // Lifecycle
   /** Prepare service for start or resume. */

@@ -67,7 +67,6 @@ void PlatformServiceImpl::Create(
 void PlatformServiceImpl::StarboardReceiveMessageCallback(void* context,
                                                           const void* data,
                                                           uint64_t length) {
-  LOG(ERROR) << "ColinL: PlatformServiceImpl::StarboardReceiveMessageCallback";
   if (!context) {
     LOG(WARNING) << "StarboardReceiveMessageCallback has null context.";
     return;
@@ -146,14 +145,10 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
   uint64_t data_length = mutable_data.size();
   bool invalid_state = false;
 
-  LOG(WARNING) << "ColinL: platform_service_impl send with data_length = " << data_length;
   void* response_ptr = api->Send(platform_service_, data_ptr, data_length,
                                  &output_length, &invalid_state);
-  LOG(WARNING) << "ColinL: platform_service_impl send return!";
 
   if (invalid_state) {
-    LOG(WARNING) << "ColinL: Send failed: Starboard service in invalid state for "
-               << service_name_;
     LOG(ERROR) << "Send failed: Starboard service in invalid state for "
                << service_name_;
     free(response_ptr);
@@ -168,13 +163,6 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
         std::vector<uint8_t>(response_bytes, response_bytes + output_length);
   }
   free(response_ptr);
-
-  if (!response_data.empty()) {
-    std::string response_as_str(response_data.begin(), response_data.end());
-    LOG(WARNING) << "ColinL: response_data string: " << response_as_str;
-  } else {
-    LOG(WARNING) << "ColinL: response_data is empty";
-  }
 
   std::move(callback).Run(response_data);
 }

@@ -60,19 +60,9 @@ void H5vccPlatformServiceManagerImpl::OnDisconnect() {
 
 void H5vccPlatformServiceManagerImpl::Has(const std::string& service_name,
                                           HasCallback callback) {
-  LOG(WARNING) << "ColinL: H5vccPlatformServiceManagerImpl has check for:"
-               << service_name;
-
   auto platform_service_extension =
       static_cast<const CobaltExtensionPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
-
-  LOG(WARNING) << "ColinL: platform_service_extension is "
-               << platform_service_extension;
-
-  LOG(WARNING) << "ColinL: return value is "
-               << platform_service_extension->Has(service_name.c_str());
-
   if (!platform_service_extension) {
     LOG(WARNING) << "The platform service extension is not implemented on this "
                  << "platform";
