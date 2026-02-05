@@ -216,8 +216,6 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
     return nullptr;
   }
 
-  std::string resp_str(reinterpret_cast<const char*>(response_data->data()),
-                       response_data->size());
   return ToDOMArrayBuffer(response_data.value());
 }
 
