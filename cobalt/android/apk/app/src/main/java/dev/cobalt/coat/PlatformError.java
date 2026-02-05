@@ -120,7 +120,7 @@ public class PlatformError
     mDialog.setOnKeyListener(
         (dialog, keyCode, event) -> {
           if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
-              && event.getAction() == KeyEvent.ACTION_UP) {
+              && event.getAction() == KeyEvent.ACTION_DOWN) {
             CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
             if (cobaltActivity != null) {
               cobaltActivity.getStarboardBridge().requestSuspend();
