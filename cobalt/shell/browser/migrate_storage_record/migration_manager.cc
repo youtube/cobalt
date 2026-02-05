@@ -349,7 +349,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
+        base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
         net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
