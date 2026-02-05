@@ -234,7 +234,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
     return nullptr;
   }
 
-  std::string resp_str(reinterpret_cast<const char*>(response_data->data()), 
+  std::string resp_str(reinterpret_cast<const char*>(response_data->data()),
                        response_data->size());
   LOG(WARNING) << "ColinL: platform_service_remote_->Send --> response_data.value(): " << resp_str;
   return ToDOMArrayBuffer(response_data.value());

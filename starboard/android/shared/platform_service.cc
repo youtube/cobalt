@@ -87,7 +87,7 @@ void Close(CobaltExtensionPlatformService service) {
   if (!service || !service->cobalt_service) {
     return;
   }
-  
+
   JNIEnv* env = base::android::AttachCurrentThread();
 
   // base::android::ScopedJavaLocalRef<jobject> j_cobalt_service(env, service->cobalt_service);
