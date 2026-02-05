@@ -83,6 +83,13 @@ jobs:
           set -x
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
+      - name: Select build runners
+        id: set-build-runners
+        shell: bash
+        run: |
+          set -x
+          build_runners=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.build_runners // ["self-hosted", "chrobalt-linux-runner"]' )
+          echo "build_runners=${build_runners}" >> $GITHUB_OUTPUT
       - name: Set build targets
         id: set-targets
         shell: bash
@@ -220,6 +227,7 @@ jobs:
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
+      build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
       targets: ${{ steps.set-targets.outputs.targets }}
       build_configs: ${{ steps.set-build-configs.outputs.build_configs }}
       includes: ${{ steps.set-includes.outputs.includes }}
@@ -305,7 +313,7 @@ jobs:
   build:
     needs: [initialize, docker-build-image]
     permissions: {}
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
     strategy:
       fail-fast: false
@@ -357,7 +365,7 @@ jobs:
         if: steps.setup-depot-tools.outcome != 'success'
         uses: ./cobalt/src/.github/actions/depot_tools
         with:
-          use_cache: false
+          clear_cache: true
 
       - name: Build Cobalt
         id: build
@@ -575,7 +583,7 @@ jobs:
         uses: ./cobalt/src/.github/actions/depot_tools
         with:
           run_sync: false
-          use_cache: false
+          clear_cache: true
       - name: Run Web Tests
         uses: ./cobalt/src/.github/actions/web_tests
         with:

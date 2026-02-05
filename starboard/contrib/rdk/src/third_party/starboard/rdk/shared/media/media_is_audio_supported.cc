@@ -36,9 +36,6 @@
 #include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
 
 namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
 
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const MimeType* content_type,
@@ -48,7 +45,4 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
              GstRegistryHasElementForMediaType(audio_codec);
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard

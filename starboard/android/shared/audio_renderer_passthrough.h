@@ -45,7 +45,8 @@ class AudioRendererPassthrough : public AudioRenderer,
                                  public MediaTimeProvider,
                                  private JobQueue::JobOwner {
  public:
-  AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
+  AudioRendererPassthrough(JobQueue* job_queue,
+                           const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,
                            bool enable_flush_during_seek);
   ~AudioRendererPassthrough() override;

@@ -73,10 +73,12 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     ~Host() {}
   };
 
-  MediaCodecDecoder(Host* host,
+  MediaCodecDecoder(JobQueue* job_queue,
+                    Host* host,
                     const AudioStreamInfo& audio_stream_info,
                     SbDrmSystem drm_system);
   MediaCodecDecoder(
+      JobQueue* job_queue,
       Host* host,
       SbMediaVideoCodec video_codec,
       // `frame_size_hint` is used to create the Android video format, which

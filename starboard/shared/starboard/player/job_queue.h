@@ -63,9 +63,8 @@ class JobQueue {
 
   class JobOwner {
    public:
-    explicit JobOwner(JobQueue* job_queue = JobQueue::current())
-        : job_queue_(job_queue) {
-      SB_DCHECK(job_queue);
+    explicit JobOwner(JobQueue* job_queue) : job_queue_(job_queue) {
+      SB_CHECK(job_queue);
     }
     JobOwner(const JobOwner&) = delete;
     ~JobOwner() { CancelPendingJobs(); }
@@ -97,25 +96,17 @@ class JobQueue {
       SB_DCHECK_EQ(detached_state, kDetached);
     }
 
-    // Allow |JobOwner| created on another thread to run on the current thread
-    // if it is created with |kDetached|.
     // Note that this operation is not thread safe.  It is the caller's
     // responsibility to ensure that concurrency hasn't happened yet.
-    void AttachToCurrentThread() {
+    // This is used to associate a JobQueue with a JobOwner that was constructed
+    // in a detached state (e.g. with JobOwner(kDetached)).
+    void Attach(JobQueue* job_queue) {
       SB_DCHECK_EQ(job_queue_, nullptr);
-      job_queue_ = JobQueue::current();
+      SB_CHECK(job_queue);
+      job_queue_ = job_queue;
     }
 
-    // If a class implementing JobOwner also holds the current thread JobQueue,
-    // that JobQueue will get deleted before the JobOwner dtor runs, which
-    // accesses job_queue_. To avoid making calls on a destroyed object
-    // job_queue_ must be detached before the subclass is destroyed.
-    void DetachFromCurrentThread() {
-      SB_DCHECK(job_queue_);
-      SB_DCHECK(BelongsToCurrentThread());
-      CancelPendingJobs();
-      job_queue_ = nullptr;
-    }
+    JobQueue* job_queue() const { return job_queue_; }
 
    private:
     JobQueue* job_queue_;
@@ -139,7 +130,6 @@ class JobQueue {
   void RunUntilIdle();
 
   bool BelongsToCurrentThread() const;
-  static JobQueue* current();
 
  private:
 #if ENABLE_JOB_QUEUE_PROFILING

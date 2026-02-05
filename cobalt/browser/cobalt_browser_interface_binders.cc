@@ -97,8 +97,9 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<media::mojom::PlatformWindowProvider>(
       base::BindRepeating(&BindPlatformWindowProvider));
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
-      base::BindRepeating(
-          &h5vcc_platform_service::H5vccPlatformServiceManagerImpl::Create));
+      base::BindRepeating(&h5vcc_platform_service::
+                              H5vccPlatformServiceManagerImpl::GetOrCreate));
+#endif
 }
 
 }  // namespace cobalt

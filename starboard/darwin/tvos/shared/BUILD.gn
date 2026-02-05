@@ -293,7 +293,6 @@ static_library("starboard_platform") {
               "//starboard/shared/uikit/media_can_play_mime_and_key_system.mm",
               "//starboard/shared/uikit/media_get_audio_configuration.mm",
               "//starboard/shared/uikit/media_is_audio_supported.mm",
-              "//starboard/shared/uikit/media_is_supported.mm",
               "//starboard/shared/uikit/media_is_video_supported.mm",
               "//starboard/shared/uikit/memory_allocate_aligned_unchecked.cc",
               "//starboard/shared/uikit/observer_registry.cc",

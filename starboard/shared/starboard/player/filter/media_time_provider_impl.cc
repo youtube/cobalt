@@ -22,8 +22,10 @@
 namespace starboard {
 
 MediaTimeProviderImpl::MediaTimeProviderImpl(
+    JobQueue* job_queue,
     std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider)
-    : system_time_provider_(std::move(system_time_provider)) {
+    : JobOwner(job_queue),
+      system_time_provider_(std::move(system_time_provider)) {
   SB_CHECK(system_time_provider_);
 }
 

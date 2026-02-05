@@ -69,7 +69,9 @@
 }
 
 - (void)attachPlayerView:(UIView*)subView {
-  SB_CHECK(_playerContainerView);
+  // No SB_CHECK() for `_playerContainerView` because this code might be invoked
+  // from a test like NPLB, in which case no actual container view is set up and
+  // the call below is just a no-op.
   [_playerContainerView addSubview:subView];
 }
 

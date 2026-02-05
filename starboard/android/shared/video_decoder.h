@@ -56,7 +56,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
  public:
   class Sink;
 
-  MediaCodecVideoDecoder(const VideoStreamInfo& video_stream_info,
+  MediaCodecVideoDecoder(JobQueue* job_queue,
+                         const VideoStreamInfo& video_stream_info,
                          SbDrmSystem drm_system,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*

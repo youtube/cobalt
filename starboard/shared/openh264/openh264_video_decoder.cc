@@ -25,11 +25,13 @@
 namespace starboard {
 
 OpenH264VideoDecoder::OpenH264VideoDecoder(
+    JobQueue* job_queue,
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider)
-    : output_mode_(output_mode),
+    : JobOwner(job_queue),
+      output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider) {
   SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH264);

@@ -78,7 +78,7 @@ void StartInstallOnBlockingTaskRunner(
 #else
     const base::FilePath& crx_path,
 #endif
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
     int installation_index,
     PersistedData* metadata,
     const std::string& id,
@@ -435,7 +435,7 @@ void Component::StateChecking::DoHandle() {
   auto& component = State::component();
   CHECK(component.crx_component());
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
   auto& config = component.update_context_->config;
   auto metadata = component.update_context_->update_checker->GetPersistedData();
   if (metadata) {
@@ -707,7 +707,7 @@ void Component::StateUpdating::DoHandle() {
 #else
               component.payload_path_,
 #endif
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
               component.installation_index_,
               update_context.update_checker->GetPersistedData(),
               component.id_, component.next_version_.GetString(),

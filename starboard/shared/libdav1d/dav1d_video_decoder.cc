@@ -49,12 +49,14 @@ void ReleaseInputBuffer(const uint8_t* buf, void* context) {
 }  // namespace
 
 Dav1dVideoDecoder::Dav1dVideoDecoder(
+    JobQueue* job_queue,
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     bool may_reduce_quality_for_speed)
-    : may_reduce_quality_for_speed_(may_reduce_quality_for_speed),
+    : JobOwner(job_queue),
+      may_reduce_quality_for_speed_(may_reduce_quality_for_speed),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
