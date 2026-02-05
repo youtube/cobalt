@@ -198,26 +198,6 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
-<<<<<<< HEAD
-    case kSbEventTypeVerticalSync:
-=======
-    case kSbEventTypeLowMemory: {
-      // Send a one-time critical memory pressure signal to ask
-      // other components to release memory.
-      base::MemoryPressureListener::NotifyMemoryPressure(
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-      LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
-                   "burden.";
-
-      // Chromium internally calls Reclaim/ReclaimNormal at regular interval
-      // to claim free memory. Using ReclaimAll is more aggressive.
-      // TODO: b/454095852 - Remove this when
-      // https://chromium-review.googlesource .com/c/chromium/src/+/7127962
-      // lands on main
-      ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
-      break;
-    }
->>>>>>> 22869a70485 (Deprecate kSbEventTypeVerticalSync from Chrobalt (#8835))
     case kSbEventTypeScheduled:
     case kSbEventTypeWindowSizeChanged:
       CHECK(g_platform_event_source);
