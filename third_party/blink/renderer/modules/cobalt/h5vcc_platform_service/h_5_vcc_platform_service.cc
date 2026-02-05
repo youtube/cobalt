@@ -187,7 +187,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
                                            ExceptionState& exception_state) {
   if (!service_opened_ || !platform_service_remote_.is_bound()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Service is diconnected or not open.");
+                                      "Service is disconnected or not open.");
 
     // Since the API is marked [RaisesException] and this error path throws a
     // DOM exception, no value is actually returned to the JavaScript client.

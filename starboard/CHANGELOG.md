@@ -124,6 +124,12 @@ The following were removed in favor of more modern POSIX APIs added above.
    from the name returned by `SbTimeZoneGetName`, using the zoneinfo
    that is in the included ICU data.
 
+### Introduces new system property kSbSystemPathFilesDirectory.
+
+Path to directory for permanent storage. Both read and write access are
+required. The path is used primarily for DOM localStorage and HTTP cookies
+persistence.
+
 ### Removed the following SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
@@ -1329,9 +1335,3 @@ options have been left in Cobalt, though renamed to `cobalt_configuration.gypi`.
 
 Please see [contrib/README.md](contrib/README.md) for description of
 expectations for contents in this directory.
-
-### Introduces new system property kSbSystemPathFilesDirectory.
-
-Path to directory for permanent storage. Both read and write access are
-required. The path is used primarily for DOM localStorage and HTTP cookies
-persistance.

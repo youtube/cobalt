@@ -53,6 +53,7 @@ const char kUncompressedLibraryPath[] = "lib/libcobalt.so";
 const std::unordered_map<std::string, std::string>
     kChannelAndSbVersionToOmahaIdMap = {
         {"control17", "{40061C09-D926-4B82-8D42-600C06B6134C}"},
+        {"dogfood17", "{E91075F4-353A-4E7D-A339-6563D2B7858D}"},
         {"experiment17", "{42B5CF5A-96A4-4F64-AD0E-7C62705222FF}"},
         {"prod17", "{20F11416-0D9C-4CB1-A82A-0168594E8256}"},
         {"qa17", "{C725A22D-553A-49DC-BD61-F042B07C6B22}"},
