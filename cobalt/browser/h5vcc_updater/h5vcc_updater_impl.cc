@@ -16,6 +16,7 @@
 
 #include "base/functional/callback.h"
 #include "build/build_config.h"
+#include "cobalt/updater/util.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"
@@ -27,6 +28,7 @@
 #include "starboard/system.h"
 #endif
 
+// Note: these APIs are only bound to mojo if evergreen is enabled.
 namespace h5vcc_updater {
 
 H5vccUpdaterImpl::H5vccUpdaterImpl(
@@ -49,85 +51,72 @@ void H5vccUpdaterImpl::Create(
 
 void H5vccUpdaterImpl::GetUpdaterChannel(GetUpdaterChannelCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    std::move(callback).Run(updater_module->GetUpdaterChannel());
+    return;
+  }
+  std::move(callback).Run("");
 }
 
 void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
                                          SetUpdaterChannelCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    // Force an update if SetUpdaterChannel() is called, even if
+    // the |channel| doesn't change, as long as it's not
+    // "prod"/"experiment"/"control"/"rollback" channel
+    if (updater_module->GetUpdaterChannel().compare(channel) != 0) {
+      updater_module->SetUpdaterChannel(channel);
+    } else if (channel == "prod" || channel == "experiment" ||
+               channel == "control" || channel == "rollback") {
+      std::move(callback).Run();
+      return;
+    }
+    updater_module->CompareAndSwapForcedUpdate(0, 1);
+    updater_module->RunUpdateCheck();
+  }
+  std::move(callback).Run();
 }
 
 void H5vccUpdaterImpl::GetUpdateStatus(GetUpdateStatusCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    std::move(callback).Run(updater_module->GetUpdaterStatus());
+    return;
+  }
+  std::move(callback).Run("");
 }
 
 void H5vccUpdaterImpl::ResetInstallations(ResetInstallationsCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    updater_module->ResetInstallations();
+  }
+  std::move(callback).Run();
 }
 
 void H5vccUpdaterImpl::GetInstallationIndex(
     GetInstallationIndexCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
-}
-
-void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
-    GetAllowSelfSignedPackagesCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
-}
-
-void H5vccUpdaterImpl::SetAllowSelfSignedPackages(
-    bool allow_self_signed_packages,
-    SetAllowSelfSignedPackagesCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
-}
-
-void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(USE_EVERGREEN)
-  auto updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  const uint16_t kInvalidInstallationIndex = 1000;
+  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
   if (updater_module) {
-    std::string url = updater_module->GetUpdateServerUrl();
-    std::move(callback).Run(url);
-  } else {
-    LOG(ERROR)
-        << "H5vccUpdaterImpl::GetUpdateServerUrl: UpdaterModule instance "
-           "is not available.";
-    std::move(callback).Run("");
+    int index = updater_module->GetInstallationIndex();
+    std::move(callback).Run(index == -1 ? kInvalidInstallationIndex
+                                        : base::checked_cast<uint16_t>(index));
+    return;
   }
-#else
-  NOTIMPLEMENTED();
-#endif
-}
-
-void H5vccUpdaterImpl::SetUpdateServerUrl(const std::string& update_server_url,
-                                          SetUpdateServerUrlCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
-}
-
-void H5vccUpdaterImpl::GetRequireNetworkEncryption(
-    GetRequireNetworkEncryptionCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
-}
-
-void H5vccUpdaterImpl::SetRequireNetworkEncryption(
-    bool require_network_encryption,
-    SetRequireNetworkEncryptionCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
+  std::move(callback).Run(kInvalidInstallationIndex);
 }
 
 void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,
                                         GetLibrarySha256Callback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
+  std::move(callback).Run(cobalt::updater::GetLibrarySha256(index));
 }
 
 }  // namespace h5vcc_updater

@@ -36,8 +36,13 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+#include "cobalt/browser/h5vcc_updater/h5vcc_updater_sideloading_impl.h"
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
-#endif
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"
@@ -45,6 +50,11 @@
 #else
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
+#include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
+#endif
 
 namespace cobalt {
 
@@ -97,11 +107,24 @@ void PopulateCobaltFrameBinders(
 #if BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
-#endif
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+  binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
+      base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+#endif  // BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(
       base::BindRepeating(&BindPlatformWindowProvider));
+
+// TODO: b/403638702 - add a binding for a Java Mojo impl for 1P ATV.
+#if !BUILDFLAG(IS_ANDROIDTV)
+  binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
+      base::BindRepeating(&h5vcc_platform_service::
+                              H5vccPlatformServiceManagerImpl::GetOrCreate));
+#endif
 }
 
 }  // namespace cobalt

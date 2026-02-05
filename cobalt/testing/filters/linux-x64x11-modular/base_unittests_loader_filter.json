@@ -31,6 +31,7 @@
     "ReadOnlyFileUtilTest.TextContentsEqual",
     "SamplingHeapProfilerTest.HookedAllocatorMuted",
     "SamplingHeapProfilerTest.SampleObserver",
+    "ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows",
     "SysStrings.SysNativeMBAndWide",
     "SysStrings.SysNativeMBToWide",
     "SysStrings.SysWideToNativeMB",

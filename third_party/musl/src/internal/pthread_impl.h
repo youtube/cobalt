@@ -40,20 +40,6 @@ typedef struct {
 	pthread_cond_t cond;
 } StarboardPthreadCondMutex;
 
-static inline void __cond_mutex_pair_init(StarboardPthreadCondMutex* pair) {
-	pthread_mutexattr_t attr;
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&pair->mutex, &attr);
-	pthread_mutexattr_destroy(&attr);
-	pthread_cond_init(&pair->cond, NULL);
-}
-
-static inline void __cond_mutex_pair_destroy(StarboardPthreadCondMutex* pair) {
-	pthread_cond_destroy(&pair->cond);
-	pthread_mutex_destroy(&pair->mutex);
-}
-
 static inline void __wake(volatile void *addr, int cnt, int priv)
 {
 	StarboardPthreadCondMutex* lock = (StarboardPthreadCondMutex*)(addr);

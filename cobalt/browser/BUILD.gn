@@ -82,7 +82,13 @@ source_set("browser") {
   if (is_androidtv) {
     deps += [ "//cobalt/android:jni_headers" ]
   } else {
-    deps += [ "//cobalt/browser/crash_annotator" ]
+    deps += [
+      "//cobalt/browser/crash_annotator",
+      "//cobalt/browser/h5vcc_platform_service",
+
+      # TODO: b/403638702 - androidtv will also need this dep.
+      "//cobalt/browser/h5vcc_platform_service/public/mojom",
+    ]
   }
 
   if (use_evergreen) {

@@ -27,9 +27,16 @@ using starboard::IsInitialized;
 using starboard::SetInitialized;
 
 typedef struct PosixMutexPrivate {
-  // The underlying platform variable handle. Should always be the
-  // first field to avoid alignment issues.
-  pthread_mutex_t mutex;
+  union {
+    // The underlying platform variable handle. Should always be the
+    // first field to avoid alignment issues.
+    pthread_mutex_t mutex;
+    // The recursive_flag overlaps with the beginning of the platform mutex.
+    // This is safe because the flag is only read during the first-use
+    // initialization. Once initialized, the platform mutex handles the
+    // memory at this offset, and the flag is no longer needed.
+    int8_t recursive_flag;
+  };
   InitializedState initialized_state;
 } PosixMutexPrivate;
 
@@ -157,6 +164,23 @@ static_assert(sizeof(musl_pthread_rwlockattr_t) >=
         (musl_rwlock_attr)->rwlock_attr_buffer)              \
         ->rwlock_attr)
 
+namespace {
+void InitializeMutexIfNeeded(musl_pthread_mutex_t* mutex) {
+  if (!EnsureInitialized(&(INTERNAL_MUTEX(mutex)->initialized_state))) {
+    if (INTERNAL_MUTEX(mutex)->recursive_flag) {
+      pthread_mutexattr_t attr;
+      pthread_mutexattr_init(&attr);
+      pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+      pthread_mutex_init(PTHREAD_INTERNAL_MUTEX(mutex), &attr);
+      pthread_mutexattr_destroy(&attr);
+    } else {
+      *PTHREAD_INTERNAL_MUTEX(mutex) = PTHREAD_MUTEX_INITIALIZER;
+    }
+    SetInitialized(&(INTERNAL_MUTEX(mutex)->initialized_state));
+  }
+}
+}  // namespace
+
 int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
     return MUSL_EINVAL;
@@ -193,10 +217,7 @@ int __abi_wrap_pthread_mutex_lock(musl_pthread_mutex_t* mutex) {
     return MUSL_EINVAL;
   }
 
-  if (!EnsureInitialized(&(INTERNAL_MUTEX(mutex)->initialized_state))) {
-    *PTHREAD_INTERNAL_MUTEX(mutex) = PTHREAD_MUTEX_INITIALIZER;
-    SetInitialized(&(INTERNAL_MUTEX(mutex)->initialized_state));
-  }
+  InitializeMutexIfNeeded(mutex);
 
   int ret = pthread_mutex_lock(PTHREAD_INTERNAL_MUTEX(mutex));
   return errno_to_musl_errno(ret);
@@ -220,10 +241,7 @@ int __abi_wrap_pthread_mutex_trylock(musl_pthread_mutex_t* mutex) {
     return MUSL_EINVAL;
   }
 
-  if (!EnsureInitialized(&(INTERNAL_MUTEX(mutex)->initialized_state))) {
-    *PTHREAD_INTERNAL_MUTEX(mutex) = PTHREAD_MUTEX_INITIALIZER;
-    SetInitialized(&(INTERNAL_MUTEX(mutex)->initialized_state));
-  }
+  InitializeMutexIfNeeded(mutex);
 
   int ret = pthread_mutex_trylock(PTHREAD_INTERNAL_MUTEX(mutex));
   return errno_to_musl_errno(ret);

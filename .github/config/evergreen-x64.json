@@ -9,7 +9,10 @@
   "targets": [
     "cobalt:gn_all",
     "dump_syms",
-    "minidump_stackwalk"
+    "minidump_stackwalk",
+    "crash_sandbox",
+    "noop_sandbox",
+    "one_app_only_sandbox"
   ],
   "build_configs": [
     "debug",
