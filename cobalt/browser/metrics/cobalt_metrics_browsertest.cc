@@ -68,6 +68,17 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
           .size(),
       1u);
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
+
+  // Check Cobalt-specific component and object count histograms.
+  // These might have 0 or more samples depending on the test environment
+  // and which allocators are supported, but we should at least check for
+  // the ones that are likely to be present.
+  EXPECT_GE(histogram_tester.GetAllSamples("Cobalt.Memory.JavaScript").size(),
+            0u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Cobalt.Memory.DOM").size(), 0u);
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Cobalt.Memory.ObjectCounts.Node").size(),
+      0u);
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
