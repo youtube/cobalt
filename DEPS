@@ -308,7 +308,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'src_internal_revision': '76c53f0eca1645fdc9dbbbc05679b8b640225267',
+  'src_internal_revision': '567eb6df702898244cf6c9045712f91dca9524d6',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'EEDmjZ5mqU8xvWbxZlAPsoF5ErQ_5wL6XkMoMCQC-DQC',
+              'version': 'Q0-9Z51b1_TLOIool2fgIYg7bH2iXfkc3DKnKg48JAsC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': 'TMidpWZ2me_hwAp0R5El2eZoGC1X6VJ4XA42AkinT4AC',
+              'version': 'fdnD9508e0znRy6APGHdPwQ1DCYfGfYiM40c0WB1hn8C',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'UyHFNQ0RjT5xDTWDaL1KbFAF6N7X_F26iM6XcWiTKRwC',
+              'version': 'wbtcBp2G7lqbtfZk25DW2oV0D6TWuPqpRiV-nJaGfQAC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
