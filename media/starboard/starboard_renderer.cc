@@ -744,14 +744,34 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
 void StarboardRenderer::OnDemuxerStreamRead(
     DemuxerStream* stream,
+    int64_t baseline_us,
+    int64_t receive_callback_us,
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
+    int64_t now_us = starboard::CurrentMonotonicTime();
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                       weak_factory_.GetWeakPtr(), stream, status, buffers));
+                       weak_factory_.GetWeakPtr(), base::Unretained(stream),
+                       baseline_us, now_us, status, std::move(buffers)));
     return;
+  }
+  int64_t now_us = starboard::CurrentMonotonicTime();
+  int64_t elapsed_us = now_us - baseline_us;
+  TRACE_EVENT("media", "StarboardRenderer::OnDemuxerStreamRead",
+              perfetto::TerminatingFlow::ProcessScoped(baseline_us));
+
+  if (elapsed_us > 1'000'000) {
+    int64_t read_duration_us = (receive_callback_us > 0)
+                                   ? (receive_callback_us - baseline_us)
+                                   : elapsed_us;
+    int64_t queuing_duration_us =
+        (receive_callback_us > 0) ? (now_us - receive_callback_us) : 0;
+    LOG(WARNING) << "TTFF: Large data roundtrip interval(msec)="
+                 << (elapsed_us / 1'000)
+                 << " (read=" << (read_duration_us / 1'000)
+                 << ", queuing=" << (queuing_duration_us / 1'000) << ")";
   }
 
   if (pending_flush_cb_) {
@@ -822,8 +842,13 @@ void StarboardRenderer::OnDemuxerStreamRead(
           stream->video_decoder_config().visible_rect().size());
     }
     UpdateDecoderConfig(stream);
+    int64_t next_baseline_us = starboard::CurrentMonotonicTime();
+    TRACE_EVENT("media", "OnDemuxerStreamRead::StreamRead",
+                perfetto::Flow::ProcessScoped(next_baseline_us));
     stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                                   weak_factory_.GetWeakPtr(), stream));
+                                   weak_factory_.GetWeakPtr(),
+                                   base::Unretained(stream), next_baseline_us,
+                                   /*receive_callback_us=*/0));
   } else if (status == DemuxerStream::kError) {
     client_->OnError(PIPELINE_ERROR_READ);
   }
@@ -838,10 +863,13 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   const char* type_string = (type == DemuxerStream::AUDIO ? "AUDIO" : "VIDEO");
-  TRACE_EVENT1("media", "StarboardRenderer::OnNeedData", "type", type_string);
+  int64_t baseline_us = starboard::CurrentMonotonicTime();
+
+  TRACE_EVENT("media", "StarboardRenderer::OnNeedData", "type", type_string,
+              perfetto::Flow::ProcessScoped(baseline_us));
   if (type == DemuxerStream::VIDEO) {
     // extern int64_t g_last_video_need_data_time_us;
-    g_last_video_need_data_time_us = starboard::CurrentMonotonicTime();
+    g_last_video_need_data_time_us = baseline_us;
     TRACE_EVENT_INSTANT(
         "media", "VideoDataFlow",
         perfetto::Flow::ProcessScoped(g_last_video_need_data_time_us));
@@ -962,7 +990,9 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 
   stream->Read(max_buffers,
                base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                              weak_factory_.GetWeakPtr(), stream));
+                              weak_factory_.GetWeakPtr(),
+                              base::Unretained(stream), baseline_us,
+                              /*receive_callback_us=*/0));
 }
 
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {

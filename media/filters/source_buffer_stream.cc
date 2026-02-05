@@ -412,6 +412,9 @@ void SourceBufferStream::Append(const BufferQueue& buffers) {
 
   DVLOG(1) << __func__ << " " << GetStreamTypeName()
            << ": done. ranges_=" << RangesToString(ranges_);
+  if (GetType() == SourceBufferStreamType::kVideo) {
+    LOG(INFO) << "SourceBufferStream::Append(VIDEO) done. ranges_=" << RangesToString(ranges_);
+  }
   DCHECK(IsRangeListSorted(ranges_));
   DCHECK(OnlySelectedRangeIsSeeked());
 }
@@ -1586,6 +1589,12 @@ SourceBufferStreamStatus SourceBufferStream::GetNextBufferInternal(
   if (!selected_range_ || !selected_range_->HasNextBuffer()) {
     if (IsEndOfStreamReached()) {
       return SourceBufferStreamStatus::kEndOfStream;
+    }
+    if (GetType() == SourceBufferStreamType::kVideo) {
+      LOG(INFO) << "SourceBufferStream::GetNextBufferInternal(VIDEO) returning kNeedBuffer "
+                << (selected_range_ ? "(selected range has no next buffer)"
+                                   : "(no selected range)")
+                << " buffered=" << RangesToString(ranges_);
     }
     DVLOG(3) << __func__ << " " << GetStreamTypeName()
              << ": returning kNeedBuffer "

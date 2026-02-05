@@ -142,6 +142,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
+                           int64_t baseline_us,
+                           int64_t receive_callback_us,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
