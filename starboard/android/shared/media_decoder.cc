@@ -19,10 +19,12 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -35,6 +37,8 @@ using base::android::ScopedJavaLocalRef;
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
 const jint kNoBufferFlags = 0;
+
+constexpr int64_t kVideoDecoderPollIntervalMs = 1;
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -319,7 +323,22 @@ void MediaCodecDecoder::DecoderThreadFunc() {
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
+    int64_t last_log_time = CurrentMonotonicTime();
+    int64_t iteration_count = 0;
+
     while (!destroying_.load()) {
+      int64_t now = CurrentMonotonicTime();
+      iteration_count++;
+      if (now - last_log_time >= 5'000'000) {
+        double elapsed_seconds = (now - last_log_time) / 1'000'000.0;
+        double iter_per_sec = iteration_count / elapsed_seconds;
+        double iter_per_33ms = iter_per_sec * 0.033;
+        SB_LOG(INFO) << "Decoder iterations: polling_interval(msec)="
+                     << kVideoDecoderPollIntervalMs
+                     << ", interations per 33ms=" << iter_per_33ms;
+        last_log_time = now;
+        iteration_count = 0;
+      }
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
       bool has_input =
@@ -386,7 +405,8 @@ void MediaCodecDecoder::DecoderThreadFunc() {
           // because the complex conditions are already checked by the
           // surrounding loop, which will re-evaluate the state when this wait
           // returns.
-          condition_variable_.wait_for(lock, std::chrono::milliseconds(1));
+          condition_variable_.wait_for(
+              lock, std::chrono::milliseconds(kVideoDecoderPollIntervalMs));
         }
       }
     }
@@ -438,6 +458,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
   SB_DCHECK(media_codec_bridge_);
+  TRACE_EVENT0("media", "MediaCodecDecoder::Input");
 
   // During secure playback, and only secure playback, it is possible that our
   // attempt to enqueue an input buffer will be rejected by MediaCodec because
@@ -453,6 +474,17 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   DequeueInputResult dequeue_input_result;
   PendingInput pending_input;
   bool input_buffer_already_written = false;
+
+  static int64_t last_input_time_us = 0;
+  int64_t now_us = CurrentMonotonicTime();
+  if (now_us - last_input_time_us > 500'000 && last_input_time_us != 0) {
+    SB_LOG(WARNING) << "TTFF: Large gap in decoder input intake ("
+                    << GetDecoderName(media_type_)
+                    << "): " << (now_us - last_input_time_us) / 1'000
+                    << " msec";
+  }
+  last_input_time_us = now_us;
+
   if (pending_input_to_retry_) {
     dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
     SB_DCHECK_GE(dequeue_input_result.index, 0);

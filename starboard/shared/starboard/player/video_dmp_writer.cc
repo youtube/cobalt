@@ -114,9 +114,8 @@ void VideoDmpWriter::OnPlayerCreate(
 }
 
 // static
-void VideoDmpWriter::OnPlayerWriteSample(
-    SbPlayer player,
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void VideoDmpWriter::OnPlayerWriteSample(SbPlayer player,
+                                         const InputBuffer& input_buffer) {
   PlayerToWriterMap* map = GetOrCreatePlayerToWriterMap();
   if (!map->dump_video_data()) {
     return;
@@ -148,13 +147,12 @@ void VideoDmpWriter::DumpConfigs(
   Write(write_cb_, video_codec);
 }
 
-void VideoDmpWriter::DumpAccessUnit(
-    const scoped_refptr<InputBuffer>& input_buffer) {
-  const SbMediaType& sample_type = input_buffer->sample_type();
-  const void* sample_buffer = static_cast<const void*>(input_buffer->data());
-  const int& sample_buffer_size = input_buffer->size();
-  const int64_t& sample_timestamp = input_buffer->timestamp();
-  const SbDrmSampleInfo* drm_sample_info = input_buffer->drm_info();
+void VideoDmpWriter::DumpAccessUnit(const InputBuffer& input_buffer) {
+  const SbMediaType& sample_type = input_buffer.sample_type();
+  const void* sample_buffer = static_cast<const void*>(input_buffer.data());
+  const int& sample_buffer_size = input_buffer.size();
+  const int64_t& sample_timestamp = input_buffer.timestamp();
+  const SbDrmSampleInfo* drm_sample_info = input_buffer.drm_info();
 
   if (sample_type == kSbMediaTypeAudio) {
     Write(write_cb_, kRecordTypeAudioAccessUnit);
@@ -177,12 +175,12 @@ void VideoDmpWriter::DumpAccessUnit(
   Write(write_cb_, sample_buffer, static_cast<size_t>(sample_buffer_size));
 
   if (sample_type == kSbMediaTypeAudio) {
-    Write(write_cb_, input_buffer->audio_stream_info().codec,
-          input_buffer->audio_stream_info());
+    Write(write_cb_, input_buffer.audio_stream_info().codec,
+          input_buffer.audio_stream_info());
   } else {
     SB_DCHECK_EQ(sample_type, kSbMediaTypeVideo);
-    Write(write_cb_, input_buffer->video_stream_info().codec,
-          input_buffer->video_sample_info());
+    Write(write_cb_, input_buffer.video_stream_info().codec,
+          input_buffer.video_sample_info());
   }
 }
 

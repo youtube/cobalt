@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/not_fatal_until.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_decoder_config.h"
@@ -182,6 +183,12 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   if (buffers.empty())
     return false;
 
+  if (type_ == VIDEO) {
+    LOG(INFO) << "ChunkDemuxerStream::Append(VIDEO) count=" << buffers.size()
+              << " first_pts=" << buffers.front()->timestamp().InSecondsF()
+              << " last_pts=" << buffers.back()->timestamp().InSecondsF();
+  }
+
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, SHUTDOWN);
   stream_->Append(buffers);
@@ -349,6 +356,17 @@ void ChunkDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
 
   read_cb_ = base::BindPostTaskToCurrentDefault(std::move(read_cb));
   requested_buffer_count_ = count;
+
+  if (type_ == VIDEO) {
+    Ranges<base::TimeDelta> range = stream_->GetBufferedTime();
+    std::string range_str;
+    for (size_t i = 0; i < range.size(); ++i) {
+      range_str += base::StringPrintf("[%f, %f] ", range.start(i).InSecondsF(),
+                                      range.end(i).InSecondsF());
+    }
+    LOG(INFO) << "ChunkDemuxerStream::Read(VIDEO) count=" << count
+              << " buffered=" << range_str;
+  }
 
   if (!is_enabled_) {
     DVLOG(1) << "Read from disabled stream, returning EOS";

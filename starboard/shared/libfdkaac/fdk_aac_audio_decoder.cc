@@ -61,7 +61,7 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
     return;
   }
   const auto& input_buffer = input_buffers[0];
-  if (!WriteToFdkDecoder(input_buffer)) {
+  if (!WriteToFdkDecoder(*input_buffer)) {
     return;
   }
 
@@ -141,14 +141,12 @@ void FdkAacAudioDecoder::TeardownCodec() {
   }
 }
 
-bool FdkAacAudioDecoder::WriteToFdkDecoder(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+bool FdkAacAudioDecoder::WriteToFdkDecoder(const InputBuffer& input_buffer) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
 
-  unsigned char* data = const_cast<unsigned char*>(input_buffer->data());
-  const unsigned int data_size_in_bytes = input_buffer->size();
-  unsigned int left_to_decode_in_bytes = input_buffer->size();
+  unsigned char* data = const_cast<unsigned char*>(input_buffer.data());
+  const unsigned int data_size_in_bytes = input_buffer.size();
+  unsigned int left_to_decode_in_bytes = input_buffer.size();
   AAC_DECODER_ERROR error = aacDecoder_Fill(
       decoder_, &data, &data_size_in_bytes, &left_to_decode_in_bytes);
   if (error != AAC_DEC_OK) {

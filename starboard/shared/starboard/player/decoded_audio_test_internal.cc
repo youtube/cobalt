@@ -146,31 +146,29 @@ void Fill(scoped_refptr<DecodedAudio>* decoded_audio) {
 
 // verify `decoded_audio` against sine wave samples, with phase shift of Pi/2 on
 // each channel.
-void Verify(const scoped_refptr<DecodedAudio>& decoded_audio) {
-  SB_DCHECK(decoded_audio);
-
+void Verify(const DecodedAudio& decoded_audio) {
   bool is_int16 =
-      decoded_audio->sample_type() == kSbMediaAudioSampleTypeInt16Deprecated;
+      decoded_audio.sample_type() == kSbMediaAudioSampleTypeInt16Deprecated;
   bool is_interleaved =
-      decoded_audio->storage_type() == kSbMediaAudioFrameStorageTypeInterleaved;
+      decoded_audio.storage_type() == kSbMediaAudioFrameStorageTypeInterleaved;
 
-  for (int i = 0; i < decoded_audio->channels(); ++i) {
+  for (int i = 0; i < decoded_audio.channels(); ++i) {
     if (is_int16 && is_interleaved) {
       ASSERT_NO_FATAL_FAILURE(
-          Verify(decoded_audio->data_as_int16() + i, kPi / 2 * i, kPi / 180,
-                 decoded_audio->frames(), decoded_audio->channels()));
+          Verify(decoded_audio.data_as_int16() + i, kPi / 2 * i, kPi / 180,
+                 decoded_audio.frames(), decoded_audio.channels()));
     } else if (!is_int16 && is_interleaved) {
       ASSERT_NO_FATAL_FAILURE(
-          Verify(decoded_audio->data_as_float32() + i, kPi / 2 * i, kPi / 180,
-                 decoded_audio->frames(), decoded_audio->channels()));
+          Verify(decoded_audio.data_as_float32() + i, kPi / 2 * i, kPi / 180,
+                 decoded_audio.frames(), decoded_audio.channels()));
     } else if (is_int16 && !is_interleaved) {
       ASSERT_NO_FATAL_FAILURE(
-          Verify(decoded_audio->data_as_int16() + decoded_audio->frames() * i,
-                 kPi / 2 * i, kPi / 180, decoded_audio->frames(), 1));
+          Verify(decoded_audio.data_as_int16() + decoded_audio.frames() * i,
+                 kPi / 2 * i, kPi / 180, decoded_audio.frames(), 1));
     } else if (!is_int16 && !is_interleaved) {
       ASSERT_NO_FATAL_FAILURE(
-          Verify(decoded_audio->data_as_float32() + decoded_audio->frames() * i,
-                 kPi / 2 * i, kPi / 180, decoded_audio->frames(), 1));
+          Verify(decoded_audio.data_as_float32() + decoded_audio.frames() * i,
+                 kPi / 2 * i, kPi / 180, decoded_audio.frames(), 1));
     }
   }
 }
@@ -196,7 +194,7 @@ TEST(DecodedAudioTest, CtorWithSize) {
                     kChannels);
 
       Fill(&decoded_audio);
-      Verify(decoded_audio);
+      Verify(*decoded_audio);
     }
   }
 }
@@ -344,7 +342,7 @@ TEST(DecodedAudioTest, SwitchFormatTo) {
             EXPECT_TRUE(
                 new_decoded_audio->IsFormat(new_sample_type, new_storage_type));
 
-            ASSERT_NO_FATAL_FAILURE(Verify(new_decoded_audio));
+            ASSERT_NO_FATAL_FAILURE(Verify(*new_decoded_audio));
           }
         }
       }

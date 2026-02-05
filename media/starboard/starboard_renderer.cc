@@ -24,13 +24,23 @@
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/time.h"
+#include "starboard/player.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include <sys/system_properties.h>
+
 #include "media/base/android/android_overlay.h"
 #include "media/base/android_overlay_config.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+namespace starboard {
+extern void ResetBaselineTime();
+}
+
 namespace media {
+
+int64_t g_last_video_need_data_time_us = 0;
 
 namespace {
 
@@ -136,15 +146,44 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      viewport_size_(viewport_size)
+      viewport_size_(viewport_size),
 #if BUILDFLAG(IS_ANDROID)
-      ,
-      android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb)),
 #endif  // BUILDFLAG(IS_ANDROID)
-{
+      max_samples_per_write_(
+          base::FeatureList::IsEnabled(media::kCobaltEnableBatchedWrite)
+              ? media::kMaxSamplesPerWrite.Get()
+              : 1) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+
+  bool disable_write_batch = false;
+#if BUILDFLAG(IS_ANDROID)
+  char value[PROP_VALUE_MAX];
+  if (__system_property_get("debug.cobalt.disable_write_batch", value) > 0) {
+    disable_write_batch = (strcmp(value, "true") == 0);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  if (disable_write_batch) {
+    LOG(INFO)
+        << "Reverting back to original state (non-batch write) via system "
+           "property.";
+    audio_write_duration_local_ = base::Seconds(1);
+    audio_write_duration_remote_ =
+        base::Microseconds(kSbPlayerWriteDurationRemote);
+    max_samples_per_write_ = 1;
+  }
+
+  CHECK_GT(max_samples_per_write_, 0);
+  LOG(INFO) << "StarboardRenderer constructed: "
+            << "audio_write_duration_local=" << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", viewport_size=" << viewport_size_.ToString()
+            << ", max_video_capabilities=" << max_video_capabilities_
+            << ", max_samples_per_write=" << max_samples_per_write_
+            << ", batch mode enabled="
+            << (!disable_write_batch ? "true" : "false");
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -452,6 +491,15 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   }
   StoreMediaTime(media_time);
 
+  static int64_t last_clock_log_us = 0;
+  int64_t now_us = starboard::CurrentMonotonicTime();
+  if (now_us - last_clock_log_us > 500'000) {
+    // Commented out since it's too noisy.
+    // LOG(INFO) << "TTFF: GetMediaTime: " << media_time.InMilliseconds() << "
+    // msec";
+    last_clock_log_us = now_us;
+  }
+
   return media_time;
 }
 
@@ -596,6 +644,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   player_bridge_.reset();
 
   LOG(INFO) << "Creating SbPlayerBridge.";
+  starboard::ResetBaselineTime();
 
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
@@ -727,14 +776,36 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
 void StarboardRenderer::OnDemuxerStreamRead(
     DemuxerStream* stream,
+    int max_buffers,
+    int64_t baseline_us,
+    int64_t receive_callback_us,
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
+    int64_t now_us = starboard::CurrentMonotonicTime();
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                       weak_factory_.GetWeakPtr(), stream, status, buffers));
+                       weak_factory_.GetWeakPtr(), base::Unretained(stream),
+                       max_buffers, baseline_us, now_us, status,
+                       std::move(buffers)));
     return;
+  }
+  int64_t now_us = starboard::CurrentMonotonicTime();
+  int64_t elapsed_us = now_us - baseline_us;
+  TRACE_EVENT("media", "StarboardRenderer::OnDemuxerStreamRead",
+              perfetto::TerminatingFlow::ProcessScoped(baseline_us));
+
+  if (elapsed_us > 1'000'000) {
+    int64_t read_duration_us = (receive_callback_us > 0)
+                                   ? (receive_callback_us - baseline_us)
+                                   : elapsed_us;
+    int64_t queuing_duration_us =
+        (receive_callback_us > 0) ? (now_us - receive_callback_us) : 0;
+    LOG(WARNING) << "TTFF: Large data roundtrip interval(msec)="
+                 << (elapsed_us / 1'000)
+                 << " (read=" << (read_duration_us / 1'000)
+                 << ", queuing=" << (queuing_duration_us / 1'000) << ")";
   }
 
   if (pending_flush_cb_) {
@@ -805,8 +876,15 @@ void StarboardRenderer::OnDemuxerStreamRead(
           stream->video_decoder_config().visible_rect().size());
     }
     UpdateDecoderConfig(stream);
-    stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                                   weak_factory_.GetWeakPtr(), stream));
+    int64_t next_baseline_us = starboard::CurrentMonotonicTime();
+    TRACE_EVENT("media", "OnDemuxerStreamRead::StreamRead",
+                perfetto::Flow::ProcessScoped(next_baseline_us));
+    stream->Read(
+        max_buffers,
+        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                       weak_factory_.GetWeakPtr(), base::Unretained(stream),
+                       max_buffers, next_baseline_us,
+                       /*receive_callback_us=*/0));
   } else if (status == DemuxerStream::kError) {
     client_->OnError(PIPELINE_ERROR_READ);
   }
@@ -820,6 +898,26 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  const char* type_string = (type == DemuxerStream::AUDIO ? "AUDIO" : "VIDEO");
+  int64_t baseline_us = starboard::CurrentMonotonicTime();
+
+  TRACE_EVENT("media", "StarboardRenderer::OnNeedData", "type", type_string,
+              perfetto::Flow::ProcessScoped(baseline_us));
+  if (type == DemuxerStream::VIDEO) {
+    // extern int64_t g_last_video_need_data_time_us;
+    g_last_video_need_data_time_us = baseline_us;
+    TRACE_EVENT_INSTANT(
+        "media", "VideoDataFlow",
+        perfetto::Flow::ProcessScoped(g_last_video_need_data_time_us));
+  }
+  static int64_t last_log_time_us = 0;
+  int64_t now = starboard::CurrentMonotonicTime();
+  if (now - last_log_time_us > 100'000) {  // Limit log noise
+    // Commented out since it's too noisy.
+    // LOG(INFO) << "TTFF: OnNeedData(" << (type == DemuxerStream::AUDIO ?
+    // "AUDIO" : "VIDEO") << ")";
+    last_log_time_us = now;
+  }
 
   // In case if the callback is fired when creation of the `player_bridge_`
   // fails.
@@ -829,10 +927,8 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  int max_buffers = max_audio_samples_per_write_ > 1
-                        ? std::min(max_number_of_buffers_to_write,
-                                   max_audio_samples_per_write_)
-                        : 1;
+  int max_buffers =
+      std::min(max_number_of_buffers_to_write, max_samples_per_write_);
 
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
@@ -887,13 +983,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
         audio_read_delayed_ = true;
         return;
       }
-      if (max_audio_samples_per_write_ > 1 &&
-          !time_ahead_of_playback.is_negative()) {
+      if (max_samples_per_write_ > 1 && !time_ahead_of_playback.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(adjusted_write_duration,
                                                        time_ahead_of_playback,
                                                        false /* is_preroll */);
       }
-    } else if (max_audio_samples_per_write_ > 1) {
+    } else if (max_samples_per_write_ > 1) {
       if (!time_ahead_of_playback_for_preroll.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(
             adjusted_write_duration_for_preroll,
@@ -926,9 +1021,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
   auto stream = (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
   DCHECK(stream);
 
-  stream->Read(max_buffers,
-               base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                              weak_factory_.GetWeakPtr(), stream));
+  stream->Read(
+      max_buffers,
+      base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                     weak_factory_.GetWeakPtr(), base::Unretained(stream),
+                     max_buffers, baseline_us,
+                     /*receive_callback_us=*/0));
 }
 
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
@@ -1063,8 +1161,7 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
 
   int estimated_max_buffers = 1;
-  if (!(max_audio_samples_per_write_ > 1) ||
-      write_duration <= time_ahead_of_playback) {
+  if (max_samples_per_write_ == 1 || write_duration <= time_ahead_of_playback) {
     return estimated_max_buffers;
   }
 
