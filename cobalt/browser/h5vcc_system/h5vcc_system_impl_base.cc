@@ -35,7 +35,7 @@ H5vccSystemImpl::H5vccSystemImpl(
 }
 
 H5vccSystemImpl::~H5vccSystemImpl() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if BUILDFLAG(IS_ANDROIDTV)
   // (Kabuki reload): This destructor is used as the primary signal to close
@@ -54,7 +54,7 @@ void H5vccSystemImpl::Create(
 }
 
 void H5vccSystemImpl::Exit() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Same logic as CobaltContentBrowserClient::FlushCookiesAndLocalStorage().
   // Consider moving to a utility that both can call.
   //

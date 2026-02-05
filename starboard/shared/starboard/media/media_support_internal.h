@@ -33,9 +33,9 @@ namespace starboard {
 // |audio_codec|: The |SbMediaAudioCodec| being checked for platform
 //                compatibility.
 // |key_system|: The key system being checked for platform compatibility.
-bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                      SbMediaAudioCodec audio_codec,
-                      const char* key_system);
+bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                               SbMediaAudioCodec audio_codec,
+                               const char* key_system);
 
 // Indicates whether a given combination of (|frame_width| x |frame_height|)
 // frames at |bitrate| and |fps| is supported on this platform with
