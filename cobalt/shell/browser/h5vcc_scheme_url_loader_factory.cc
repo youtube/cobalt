@@ -233,16 +233,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       mime_type_ = kMimeTypeTextHtml;
     } else if (base::EndsWith(key, ".png", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeImagePng;
-      if (browser_context_) {
-        ReadSplashCache(key);
-        return;
-      }
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeVideoWebM;
-      if (browser_context_) {
-        ReadSplashCache(key);
-        return;
-      }
+    }
+
+    bool is_cacheable_type = (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
+    if (is_cacheable_type && browser_context_) {
+      ReadSplashCache(key);
+      return;
     }
     if (content_.empty()) {
       SendNotFoundResponse(key);
