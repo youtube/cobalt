@@ -168,3 +168,21 @@ source_set("command_line_logger") {
   ]
   deps = [ "//base" ]
 }
+
+test("cobalt_browser_unittests") {
+  sources = [ "cobalt_secure_navigation_throttle_unittest.cc" ]
+
+  deps = [
+    ":browser",
+    "//base/test:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//testing/gtest:gtest_main",
+  ]
+
+  if (is_androidtv) {
+    sources += [ "cobalt_web_contents_observer_unittest.cc" ]
+    deps += [ "//starboard/android/shared:starboard_platform" ]
+  }
+}
