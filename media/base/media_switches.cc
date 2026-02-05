@@ -514,9 +514,9 @@ BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
 // When enabled, Cobalt supports batched write.
 BASE_FEATURE(kCobaltEnableBatchedWrite,
              "kCobaltEnableBatchedWrite",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kMaxSamplesPerWrite{&kCobaltEnableBatchedWrite,
-                                                  "MaxSamplesPerWrite", 1};
+                                                  "MaxSamplesPerWrite", 100};
 // When disabled, Cobalt rejects progressive video formats.
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",

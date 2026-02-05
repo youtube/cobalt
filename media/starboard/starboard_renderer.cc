@@ -153,7 +153,11 @@ StarboardRenderer::StarboardRenderer(
               : 1) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  CHECK_GT(max_samples_per_write_, 0);
+  LOG(INFO) << "StarboardRenderer constructed: "
+            << "viewport_size=" << viewport_size_.ToString()
+            << ", max_video_capabilities=" << max_video_capabilities_
+            << ", max_samples_per_write=" << max_samples_per_write_;
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -898,9 +902,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
   }
 
   int max_buffers =
-      max_samples_per_write_ > 1
-          ? std::min(max_number_of_buffers_to_write, max_samples_per_write_)
-          : 1;
+      std::min(max_number_of_buffers_to_write, max_samples_per_write_);
 
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
@@ -1133,8 +1135,7 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
 
   int estimated_max_buffers = 1;
-  if (!(max_samples_per_write_ > 1) ||
-      write_duration <= time_ahead_of_playback) {
+  if (max_samples_per_write_ == 1 || write_duration <= time_ahead_of_playback) {
     return estimated_max_buffers;
   }
 
