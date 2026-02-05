@@ -99,7 +99,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     )";
   }
 
-  std::string CheckVideoDimension(bool is_type_supported) {
+  std::string CheckVideoDimension(bool is_4k_supported) {
     // Mock MediaSource.isTypeSupported for high/low spec device.
     return base::StringPrintf(R"(
       MediaSource.isTypeSupported = function(mime) {
@@ -130,7 +130,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
         }
       })();
     )",
-                              is_type_supported ? "true" : "false");
+                              is_4k_supported ? "true" : "false");
   }
 
  private:

@@ -55,9 +55,9 @@ using switches::kMaxSplashContentSize;
 
 namespace {
 const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
+const char kMimeTypeImagePng[] = "image/png";
 const char kMimeTypeTextHtml[] = "text/html";
 const char kMimeTypeTextPlain[] = "text/plain";
-const char kMimeTypeImagePng[] = "image/png";
 const char kMimeTypeVideoWebM[] = "video/webm";
 
 // TODO - b/456482732: remove unsafe-inline.

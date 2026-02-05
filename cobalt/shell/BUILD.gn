@@ -454,6 +454,7 @@ action("embed_loader_resources_as_header_files") {
   sources = [
     "embedded_resources/loader_embedded_resources/splash.html",
 
+    // TODO(481826565): hide code path for internal files
     # Default splash video, 1920x1080. Copied from
     # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash.webm.
     "embedded_resources/loader_embedded_resources/splash.webm",
