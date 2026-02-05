@@ -141,7 +141,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/AmatiDeviceInspector.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptAndroidObject.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
-    "apk/app/src/main/java/dev/cobalt/coat/javabridge/H5vccPlatformService.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
     "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",

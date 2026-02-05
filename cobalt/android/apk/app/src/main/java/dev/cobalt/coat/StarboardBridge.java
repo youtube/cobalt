@@ -587,7 +587,7 @@ public class StarboardBridge {
   // Avoid using mActivityHolder.get(), because onActivityStop() can set it to null.
   @CalledByNative
   public CobaltService openCobaltService(
-      Activity activity, long nativeService, String serviceName) {
+      long nativeService, String serviceName) {
     if (mCobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
@@ -603,10 +603,6 @@ public class StarboardBridge {
       service.receiveStarboardBridge(this);
       mCobaltServices.put(serviceName, service);
       Log.i(TAG, String.format("Opened platform service %s.", serviceName));
-
-      if (activity instanceof CobaltActivity) {
-        service.setCobaltActivity((CobaltActivity) activity);
-      }
     }
     return service;
   }
