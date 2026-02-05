@@ -142,6 +142,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
+                           int max_buffers,
                            int64_t baseline_us,
                            int64_t receive_callback_us,
                            DemuxerStream::Status status,
@@ -243,8 +244,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   Time last_time_media_time_retrieved_;
 
   bool audio_read_delayed_ = false;
-  // TODO(b/375674101): Support batched samples write.
-  const int max_audio_samples_per_write_ = 1;
+  const int max_samples_per_write_;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
