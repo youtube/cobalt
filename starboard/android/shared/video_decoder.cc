@@ -25,6 +25,7 @@
 #include <list>
 
 #include "base/android/jni_android.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
@@ -320,6 +321,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    TRACE_EVENT0("media", "VideoDecoder::DrawFrame");
     frame_count_++;
     const auto release_us = release_time_in_nanoseconds / 1'000;
     const int64_t now_us = CurrentMonotonicTime();

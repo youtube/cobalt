@@ -837,9 +837,14 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  const char* type_string = (type == DemuxerStream::AUDIO ? "AUDIO" : "VIDEO");
+  TRACE_EVENT1("media", "StarboardRenderer::OnNeedData", "type", type_string);
   if (type == DemuxerStream::VIDEO) {
     // extern int64_t g_last_video_need_data_time_us;
     g_last_video_need_data_time_us = starboard::CurrentMonotonicTime();
+    TRACE_EVENT_INSTANT(
+        "media", "VideoDataFlow",
+        perfetto::Flow::ProcessScoped(g_last_video_need_data_time_us));
   }
   static int64_t last_log_time_us = 0;
   int64_t now = starboard::CurrentMonotonicTime();

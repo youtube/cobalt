@@ -19,6 +19,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
@@ -457,6 +458,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
   SB_DCHECK(media_codec_bridge_);
+  TRACE_EVENT0("media", "MediaCodecDecoder::Input");
 
   // During secure playback, and only secure playback, it is possible that our
   // attempt to enqueue an input buffer will be rejected by MediaCodec because

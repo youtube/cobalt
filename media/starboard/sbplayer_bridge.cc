@@ -293,6 +293,10 @@ void SbPlayerBridge::WriteBuffers(
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
+  const char* type_string =
+      (type == DemuxerStream::Type::AUDIO ? "AUDIO" : "VIDEO");
+  TRACE_EVENT1("media", "SbPlayerBridge::WriteBuffers", "type", type_string);
+
   static int64_t last_audio_write_us = 0;
   static int64_t last_video_write_us = 0;
   int64_t now = starboard::CurrentMonotonicTime();
@@ -310,6 +314,9 @@ void SbPlayerBridge::WriteBuffers(
   if (type == DemuxerStream::Type::VIDEO) {
     if (g_last_video_need_data_time_us != 0) {
       int64_t request_time = g_last_video_need_data_time_us;
+      TRACE_EVENT_INSTANT(
+          "media", "VideoDataFlow",
+          perfetto::TerminatingFlow::ProcessScoped(request_time));
       g_last_video_need_data_time_us = 0;
       int64_t delay_us = now - request_time;
       if (delay_us > 1'000'000) {
