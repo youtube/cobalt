@@ -43,7 +43,6 @@ class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
     RaisePlatformErrorProxy();
   }
 
- public:
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer) {
     CobaltWebContentsObserver::SetTimerForTestInternal(std::move(timer));
   }
@@ -67,10 +66,6 @@ class CobaltWebContentsObserverTest : public testing::Test {
   base::MockOneShotTimer* mock_timer() { return mock_timer_; }
   content::MockNavigationHandle& navigation_handle() {
     return navigation_handle_;
-  }
-
-  void FastForwardBy(base::TimeDelta delta) {
-    task_environment_.FastForwardBy(delta);
   }
 
  private:
