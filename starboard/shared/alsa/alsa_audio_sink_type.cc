@@ -185,6 +185,7 @@ AlsaAudioSink::AlsaAudioSink(
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
+  SB_CHECK(audio_out_thread_);
 
   memset(silence_frames_, 0,
          channels * kFramesPerRequest * GetSampleSize(sample_type));

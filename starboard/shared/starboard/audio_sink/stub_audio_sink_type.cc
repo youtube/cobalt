@@ -72,6 +72,8 @@ StubAudioSink::StubAudioSink(
       context_(context),
       audio_out_thread_(
           JobThread::Create("stub_audio_out", kSbThreadPriorityRealTime)) {
+  SB_CHECK(audio_out_thread_);
+
   audio_out_thread_->Schedule([this] { AudioThreadFunc(); });
 }
 
@@ -80,7 +82,6 @@ StubAudioSink::~StubAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  // audio_out_thread_ is created at ctor and is not null.
   audio_out_thread_->Stop();
 }
 

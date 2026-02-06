@@ -137,9 +137,6 @@ class TvosAudioSinkType : public SbAudioSinkPrivate::Type {
 
   bool destroying_ = false;
 
-  // audio_thread_ must be the last declared member so that it is the
-  // first to be destroyed. This ensures the thread joins before
-  // any dependent members above are destroyed.
   const std::unique_ptr<JobThread> audio_thread_;
 };
 
@@ -394,6 +391,8 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
 TvosAudioSinkType::TvosAudioSinkType()
     : audio_thread_(
           JobThread::Create("tvos_audio_out", kSbThreadPriorityRealTime)) {
+  SB_CHECK(audio_thread_);
+
   audio_thread_->Schedule([this] { ProcessAudio(); });
 }
 
@@ -403,7 +402,6 @@ TvosAudioSinkType::~TvosAudioSinkType() {
     destroying_ = true;
     audio_thread_condition_.notify_one();
   }
-  // audio_thread_ is created at ctor and is not null.
   audio_thread_->Stop();
   SB_DCHECK(sinks_to_add_.empty());
 }
