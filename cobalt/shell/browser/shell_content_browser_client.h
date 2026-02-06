@@ -169,7 +169,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
 #if BUILDFLAG(IS_IOS)
   BluetoothDelegate* GetBluetoothDelegate() override;
 #endif
+<<<<<<< HEAD
 
+=======
+>>>>>>> 701c780c680 (Remove test logics and GN flag from Cobalt target (#8982))
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;

@@ -232,6 +232,11 @@ SharedState& GetSharedState() {
   return *g_shared_state;
 }
 
+<<<<<<< HEAD
+=======
+}  // namespace
+
+>>>>>>> 701c780c680 (Remove test logics and GN flag from Cobalt target (#8982))
 std::string GetShellUserAgent() {
   if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent)) {
     return GetShellFullUserAgent();
@@ -661,9 +666,17 @@ bool ShellContentBrowserClient::HasErrorPage(int http_status_code) {
   return http_status_code >= 400 && http_status_code < 600;
 }
 
+<<<<<<< HEAD
 void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {}
 
 void ShellContentBrowserClient::SetUpFieldTrials() {}
+=======
+void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {
+}
+
+void ShellContentBrowserClient::SetUpFieldTrials() {
+}
+>>>>>>> 701c780c680 (Remove test logics and GN flag from Cobalt target (#8982))
 
 absl::optional<blink::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
