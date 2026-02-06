@@ -55,11 +55,11 @@ runs:
           mkdir -p "$(dirname "${cache_path}")"
           tmp_path="${cache_path}.tmp"
           rm -rf "${tmp_path}"
-          git clone --mirror --filter=blob:none "${REPO_URL}" "${tmp_path}"
+          git clone --mirror "${REPO_URL}" "${tmp_path}"
           mv "${tmp_path}" "${cache_path}"
         else
           # Update the bare mirror from the network.
-          git -C "${cache_path}" fetch --prune --filter=blob:none origin
+          git -C "${cache_path}" fetch --prune origin
         fi
 
         # Allow git to operate on bare repos without specifying --git-dir.
@@ -81,15 +81,10 @@ runs:
           depth_arg+=(--depth "${FETCH_DEPTH}")
         fi
 
-        cache_args=()
-        if [[ -n "${CACHE_PATH}" ]]; then
-          cache_args+=(--reference "${CACHE_PATH}")
-          cache_args+=(--dissociate)
-        fi
-
         git clone \
           --filter=blob:none \
-          "${cache_args[@]}" \
+          --reference-if-able "${CACHE_PATH}" \
+          --dissociate \
           "${depth_arg[@]}" \
           "${REPO_URL}" \
           "${DEST_PATH}"
