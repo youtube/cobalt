@@ -192,11 +192,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
-    auto audio_renderer = std::make_unique<AudioRendererPassthrough>(
+    auto audio_renderer = AudioRendererPassthrough::Create(
         creation_parameters.job_queue(),
         creation_parameters.audio_stream_info(),
         creation_parameters.drm_system(), enable_flush_during_seek);
-    if (!audio_renderer->is_valid()) {
+    if (!audio_renderer) {
       return Failure("Failed to create audio renderer.");
     }
 
@@ -218,7 +218,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       if (video_decoder) {
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
-        auto media_time_provider = audio_renderer.get();
+        auto media_time_provider = audio_renderer.value().get();
 
         video_renderer = std::make_unique<VideoRendererImpl>(
             creation_parameters.job_queue(),
@@ -231,7 +231,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(
-        std::move(audio_renderer), std::move(video_renderer));
+        std::move(audio_renderer.value()), std::move(video_renderer));
   }
 
   Result<MediaComponents> CreateSubComponents(
@@ -349,11 +349,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          auto audio_decoder_impl = std::make_unique<MediaCodecAudioDecoder>(
+          auto audio_decoder_impl = MediaCodecAudioDecoder::Create(
               job_queue, audio_stream_info, drm_system,
               enable_flush_during_seek);
-          if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl;
+          if (audio_decoder_impl) {
+            return std::move(audio_decoder_impl.value());
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
@@ -475,8 +475,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    std::string error_message;
-    auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
+    auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -485,17 +484,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
-        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        &error_message);
-    if (!error_message.empty()) {
-      return Failure(error_message);
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec);
+    if (!result) {
+      return Failure(result.error());
     }
-    if (creation_parameters.video_codec() != kSbMediaVideoCodecAv1 &&
-        !video_decoder->is_decoder_created()) {
-      return Failure(
-          "Video decoder was not created, but no error message was provided.");
-    }
-    return video_decoder;
+
+    return result;
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
