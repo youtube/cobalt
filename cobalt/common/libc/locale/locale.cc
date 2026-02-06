@@ -275,8 +275,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case AM_STR:
     case PM_STR:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
-          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAmPm,
-          item - AM_STR);
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAmPm, item);
       break;
 
     // Days
@@ -288,8 +287,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case DAY_6:
     case DAY_7:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
-          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kDay,
-          item - DAY_1);
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kDay, item);
       break;
 
     // Abbreviated days
@@ -302,7 +300,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ABDAY_7:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
           cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevDay,
-          item - ABDAY_1);
+          item);
       break;
 
     // Months
@@ -319,8 +317,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case MON_11:
     case MON_12:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
-          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kMonth,
-          item - MON_1);
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kMonth, item);
       break;
 
     // Abbreviated months
@@ -338,7 +335,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ABMON_12:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
           cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevMonth,
-          item - ABMON_1);
+          item);
       break;
     case RADIXCHAR:
     case THOUSEP:
