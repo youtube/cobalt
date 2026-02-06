@@ -32,7 +32,7 @@ namespace cobalt {
 namespace updater {
 
 // Map of Omaha config IDs with channel and starboard version as indices.
-inline constexpr size_t kOmahaIdMapSize = 14;
+inline constexpr size_t kOmahaIdMapSize = 15;
 extern const base::
     fixed_flat_map<base::StringPiece, base::StringPiece, kOmahaIdMapSize>
         kChannelAndSbVersionToOmahaIdMap;
