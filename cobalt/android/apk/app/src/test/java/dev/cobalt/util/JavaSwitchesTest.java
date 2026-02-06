@@ -50,6 +50,7 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128");
     javaSwitches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "256");
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
+    javaSwitches.put(JavaSwitches.DISABLE_BRP, "true");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
@@ -63,6 +64,7 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--initial-old-space-size=128");
     assertThat(args).contains("--js-flags=--max-old-space-size=256");
     assertThat(args).contains("--js-flags=--max-semi-space-size=16");
+    assertThat(args).contains("--disable-features=PartitionAllocBackupRefPtr");
     assertThat(args).hasSize(6);
   }
 
@@ -71,10 +73,12 @@ public class JavaSwitchesTest {
     Map<String, String> javaSwitches = new HashMap<>();
     javaSwitches.put(JavaSwitches.V8_GC_INTERVAL, "1,000ms");
     javaSwitches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128 MiB");
+    javaSwitches.put(JavaSwitches.ENABLE_BRP_RECLAIMER, "true");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
     assertThat(args).contains("--js-flags=--gc-interval=1000");
     assertThat(args).contains("--js-flags=--initial-old-space-size=128");
+    assertThat(args).contains("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
   }
 }
