@@ -94,9 +94,11 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
 
 #if BUILDFLAG(IS_COBALT)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          cc::switches::kEnableCCLayerTreeOptimization)) {
+          cc::switches::kCCLayerTreeOptimization)) {
     actual.priority_cutoff_when_visible =
         gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
+    LOG(INFO) << "Layer Tree Optimization: priority_cutoff_when_visible set to "
+                 "REQUIRED_ONLY";
   }
 #endif
 
@@ -416,8 +418,16 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // or raster-on-demand.
     settings.max_memory_for_prepaint_percentage = 67;
 #if BUILDFLAG(IS_COBALT)
-    if (cmd.HasSwitch(cc::switches::kEnableCCLayerTreeOptimization)) {
-      settings.max_memory_for_prepaint_percentage = 0;
+    if (cmd.HasSwitch(cc::switches::kCCLayerTreeOptimization)) {
+      int percentage; 
+      if (base::StringToInt(
+              cmd.GetSwitchValueASCII(cc::switches::kCCLayerTreeOptimization),
+              &percentage)) {
+        settings.max_memory_for_prepaint_percentage = percentage;
+        LOG(INFO) << "Layer Tree Optimization: max_memory_for_prepaint_percentage "
+                     "set to "
+                    << percentage;
+      }
     }
 #endif
   } else {
