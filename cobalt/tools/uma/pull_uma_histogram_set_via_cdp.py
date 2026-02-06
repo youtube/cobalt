@@ -200,13 +200,19 @@ def _get_histograms_from_file(file_path: str) -> list:
 
 
 def _get_chrome_guiding_metrics_for_memory() -> list:
-  metrics = []
-  metrics.append('Memory.Browser.PrivateMemoryFootprint')
-  metrics.append('Memory.Gpu.PrivateMemoryFootprint')
-  metrics.append('Memory.Renderer.PrivateMemoryFootprint')
-  metrics.append('Memory.Total.PrivateMemoryFootprint')
-  metrics.append('Memory.Browser.MemoryFootprint')
-  return metrics
+  # TODO(482357006): Re-add process-specific private memory metrics (Browser,
+  # Renderer, GPU) when moving to multi-process architecture.
+  return [
+      'Memory.Total.PrivateMemoryFootprint',
+  ]
+
+
+def _get_cobalt_resident_memory_metrics() -> list:
+  # TODO(482357006): Re-add process-specific resident memory metrics (Browser,
+  # Renderer, GPU) when moving to multi-process architecture.
+  return [
+      'Memory.Total.Resident',
+  ]
 
 
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
@@ -310,6 +316,7 @@ def _run_main(args, output_file):
     histograms = _get_histograms_from_file(args.histogram_file)
   else:
     histograms = _get_chrome_guiding_metrics_for_memory()
+    histograms.extend(_get_cobalt_resident_memory_metrics())
 
   _print_q(f'Ensure Cobalt is running with --remote-debugging-port={args.port}',
            args.quiet)
