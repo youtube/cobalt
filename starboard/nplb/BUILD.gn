@@ -85,7 +85,15 @@ test("nplb") {
   # All platforms use the Starboard Media functionality.
   sources += media_sources
 
-  if (is_starboard) {
+  if (is_androidtv) {
+    # TODO(mcasas): These two are just placeholders for SbWindowCreate/Destroy
+    # methods which are needed to build media_player_files on is_androidtv
+    # platforms. Use the starboard/android ones instead.
+    sources += [
+      "//starboard/shared/stub/window_create.cc",
+      "//starboard/shared/stub/window_destroy.cc",
+    ]
+  } else {
     # TODO(b/432821616): Move |starboard_platform_sources| to a source_set.
     starboard_platform_sources = [
       "align_test.cc",
