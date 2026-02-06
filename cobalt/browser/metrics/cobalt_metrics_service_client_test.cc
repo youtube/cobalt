@@ -306,20 +306,163 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   // Prepare a dummy GlobalMemoryDump.
   memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
       memory_instrumentation::mojom::GlobalMemoryDump::New();
-  dump_ptr->process_dumps.push_back(
-      memory_instrumentation::mojom::ProcessMemoryDump::New());
-  dump_ptr->process_dumps[0]->os_dump =
-      memory_instrumentation::mojom::OSMemDump::New();
-  // 10240 KB = 10 MB.
-  dump_ptr->process_dumps[0]->os_dump->private_footprint_kb = 10240;
+
+  // Browser process dump
+  auto browser_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  browser_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::BROWSER;
+  browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+  browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
+  browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
+  dump_ptr->process_dumps.push_back(std::move(browser_dump));
+
+  // Renderer process dump
+  auto renderer_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  renderer_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::RENDERER;
+  renderer_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+  renderer_dump->os_dump->private_footprint_kb = 5120;  // 5 MB
+  renderer_dump->os_dump->resident_set_kb = 10240;      // 10 MB
+  dump_ptr->process_dumps.push_back(std::move(renderer_dump));
+
+  // GPU process dump
+  auto gpu_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  gpu_dump->process_type = memory_instrumentation::mojom::ProcessType::GPU;
+  gpu_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+  gpu_dump->os_dump->private_footprint_kb = 2048;  // 2 MB
+  gpu_dump->os_dump->resident_set_kb = 4096;       // 4 MB
+  dump_ptr->process_dumps.push_back(std::move(gpu_dump));
 
   auto global_dump =
       memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
 
   CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
 
-  histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
+  histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 17,
                                       1);
+  histogram_tester.ExpectUniqueSample("Memory.Total.Resident", 34, 1);
+  histogram_tester.ExpectUniqueSample("Memory.Browser.Resident", 20, 1);
+  histogram_tester.ExpectUniqueSample("Memory.Renderer.Resident", 10, 1);
+  histogram_tester.ExpectUniqueSample("Memory.Gpu.Resident", 4, 1);
+}
+
+TEST_F(CobaltMetricsServiceClientTest, RecordComponentMemoryMetrics) {
+  base::HistogramTester histogram_tester;
+
+  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+      memory_instrumentation::mojom::GlobalMemoryDump::New();
+
+  auto process_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  process_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::BROWSER;
+  process_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+
+  // Add metrics for components
+  auto v8_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  v8_dump->numeric_entries["effective_size"] = 1024 * 1024;  // 1 MB
+  process_dump->chrome_allocator_dumps["v8"] = std::move(v8_dump);
+
+  auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  blink_gc_dump->numeric_entries["effective_size"] = 2 * 1024 * 1024;  // 2 MB
+  process_dump->chrome_allocator_dumps["blink_gc"] = std::move(blink_gc_dump);
+
+  auto layout_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  layout_dump->numeric_entries["size"] = 3 * 1024 * 1024;  // 3 MB
+  process_dump->chrome_allocator_dumps["partition_alloc/partitions/layout"] =
+      std::move(layout_dump);
+
+  auto skia_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  skia_dump->numeric_entries["effective_size"] = 4 * 1024 * 1024;  // 4 MB
+  process_dump->chrome_allocator_dumps["skia"] = std::move(skia_dump);
+
+  auto gpu_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  gpu_dump->numeric_entries["effective_size"] = 5 * 1024 * 1024;  // 5 MB
+  process_dump->chrome_allocator_dumps["gpu"] = std::move(gpu_dump);
+
+  auto media_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  media_dump->numeric_entries["effective_size"] = 6 * 1024 * 1024;  // 6 MB
+  process_dump->chrome_allocator_dumps["media"] = std::move(media_dump);
+
+  auto malloc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  malloc_dump->numeric_entries["effective_size"] = 7 * 1024 * 1024;  // 7 MB
+  process_dump->chrome_allocator_dumps["malloc"] = std::move(malloc_dump);
+
+  dump_ptr->process_dumps.push_back(std::move(process_dump));
+
+  auto global_dump =
+      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.JavaScript", 1, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.DOM", 2, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Layout", 3, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Graphics", 9, 1);  // 4 + 5
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Media", 6, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.Native", 7, 1);
+}
+
+TEST_F(CobaltMetricsServiceClientTest, RecordObjectCountsAndGrowthRate) {
+  base::HistogramTester histogram_tester;
+
+  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+      memory_instrumentation::mojom::GlobalMemoryDump::New();
+
+  auto process_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  process_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::RENDERER;
+  process_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+  process_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
+
+  // Add metrics for object counts
+  auto document_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  document_dump->numeric_entries["object_count"] = 5;
+  process_dump->chrome_allocator_dumps["blink_objects/Document"] =
+      std::move(document_dump);
+
+  auto node_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  node_dump->numeric_entries["object_count"] = 1000;
+  process_dump->chrome_allocator_dumps["blink_objects/Node"] =
+      std::move(node_dump);
+
+  auto js_listener_dump =
+      memory_instrumentation::mojom::AllocatorMemDump::New();
+  js_listener_dump->numeric_entries["object_count"] = 50;
+  process_dump->chrome_allocator_dumps["blink_objects/JSEventListener"] =
+      std::move(js_listener_dump);
+
+  auto layout_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  layout_dump->numeric_entries["object_count"] = 200;
+  process_dump->chrome_allocator_dumps["blink_objects/LayoutObject"] =
+      std::move(layout_dump);
+
+  dump_ptr->process_dumps.push_back(std::move(process_dump));
+
+  auto global_dump =
+      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+  uint64_t last_footprint = 5120;  // 5 MB
+  base::TimeTicks last_time = base::TimeTicks::Now() - base::Minutes(5);
+
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get(),
+                                                  &last_footprint, &last_time);
+
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.ObjectCounts.Document", 5,
+                                      1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.ObjectCounts.Node", 1000,
+                                      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Memory.ObjectCounts.JSEventListener", 50, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Memory.ObjectCounts.LayoutObject",
+                                      200, 1);
+
+  // Growth rate: (10MB - 5MB) / 5 min = 1MB/min = 1024 KB/min
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Slow", 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Fast", 1024, 1);
+
+  EXPECT_EQ(last_footprint, 10240u);
 }
 
 TEST_F(CobaltMetricsServiceClientTest,

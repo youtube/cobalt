@@ -15,10 +15,12 @@
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/posix/file_descriptor_shuffle.h"
 #include "base/strings/string_number_conversions.h"
@@ -41,17 +43,10 @@ namespace cobalt {
 namespace {
 
 void OnMemoryDumpDone(
+    scoped_refptr<CobaltMetricsServiceClient::State> state,
     base::OnceClosure done_callback,
     bool success,
-    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
-  if (success && global_dump) {
-    CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-  }
-
-  if (done_callback) {
-    std::move(done_callback).Run();
-  }
-}
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump);
 
 }  // namespace
 
@@ -64,6 +59,15 @@ struct CobaltMetricsServiceClient::State
 
   // Flag to stop logging.
   bool stop_logging = false;
+
+  uint64_t last_private_footprint_kb = 0;
+  base::TimeTicks last_dump_time;
+
+  void RecordMemoryMetrics(
+      memory_instrumentation::GlobalMemoryDump* global_dump) {
+    CobaltMetricsServiceClient::RecordMemoryMetrics(
+        global_dump, &last_private_footprint_kb, &last_dump_time);
+  }
 
   void RecordMemoryMetricsAfterDelay() {
     if (stop_logging) {
@@ -99,7 +103,10 @@ struct CobaltMetricsServiceClient::State
         memory_instrumentation::MemoryInstrumentation::GetInstance();
     if (instrumentation) {
       instrumentation->RequestGlobalDump(
-          {}, base::BindOnce(&OnMemoryDumpDone, base::OnceClosure()));
+          {"v8", "blink_gc", "malloc", "partition_alloc", "skia", "gpu",
+           "media", "blink_objects"},
+          base::BindOnce(&OnMemoryDumpDone, base::RetainedRef(this),
+                         base::OnceClosure()));
     }
     RecordMemoryMetricsAfterDelay();
   }
@@ -108,6 +115,28 @@ struct CobaltMetricsServiceClient::State
   friend class base::RefCountedThreadSafe<State>;
   ~State() = default;
 };
+
+namespace {
+
+void OnMemoryDumpDone(
+    scoped_refptr<CobaltMetricsServiceClient::State> state,
+    base::OnceClosure done_callback,
+    bool success,
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
+  if (success && global_dump) {
+    if (state) {
+      state->RecordMemoryMetrics(global_dump.get());
+    } else {
+      CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+    }
+  }
+
+  if (done_callback) {
+    std::move(done_callback).Run();
+  }
+}
+
+}  // namespace
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
@@ -364,8 +393,10 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
                 memory_instrumentation::MemoryInstrumentation::GetInstance();
             if (instrumentation) {
               instrumentation->RequestGlobalDump(
-                  {},
-                  base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
+                  {"v8", "blink_gc", "malloc", "partition_alloc", "skia", "gpu",
+                   "media", "blink_objects"},
+                  base::BindOnce(&OnMemoryDumpDone, state,
+                                 std::move(done_callback)));
             } else {
               std::move(done_callback).Run();
             }
@@ -375,16 +406,186 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
 
 // static
 void CobaltMetricsServiceClient::RecordMemoryMetrics(
-    memory_instrumentation::GlobalMemoryDump* global_dump) {
+    memory_instrumentation::GlobalMemoryDump* global_dump,
+    uint64_t* last_private_footprint_kb,
+    base::TimeTicks* last_dump_time) {
   uint64_t total_private_footprint_kb = 0;
+  uint64_t total_resident_kb = 0;
+  uint64_t browser_resident_kb = 0;
+  uint64_t renderer_resident_kb = 0;
+  uint64_t gpu_resident_kb = 0;
+  uint64_t total_js_heap_kb = 0;
+  uint64_t total_dom_kb = 0;
+  uint64_t total_layout_kb = 0;
+  uint64_t total_graphics_kb = 0;
+  uint64_t total_media_kb = 0;
+  uint64_t total_native_kb = 0;
+
+  uint64_t total_documents = 0;
+  uint64_t total_nodes = 0;
+  uint64_t total_js_event_listeners = 0;
+  uint64_t total_layout_objects = 0;
+
   for (const auto& process_dump : global_dump->process_dumps()) {
     total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+
+    uint32_t resident_kb = process_dump.os_dump().resident_set_kb;
+    total_resident_kb += resident_kb;
+
+    switch (process_dump.process_type()) {
+      case memory_instrumentation::mojom::ProcessType::BROWSER:
+        browser_resident_kb += resident_kb;
+        break;
+      case memory_instrumentation::mojom::ProcessType::RENDERER:
+        renderer_resident_kb += resident_kb;
+        break;
+      case memory_instrumentation::mojom::ProcessType::GPU:
+        gpu_resident_kb += resident_kb;
+        break;
+      default:
+        break;
+    }
+
+    std::optional<uint64_t> js_heap =
+        process_dump.GetMetric("v8", "effective_size");
+    if (js_heap) {
+      total_js_heap_kb += (*js_heap / 1024);
+    }
+
+    std::optional<uint64_t> dom =
+        process_dump.GetMetric("blink_gc", "effective_size");
+    if (dom) {
+      total_dom_kb += (*dom / 1024);
+    }
+
+    std::optional<uint64_t> layout =
+        process_dump.GetMetric("partition_alloc/partitions/layout", "size");
+    if (layout) {
+      total_layout_kb += (*layout / 1024);
+    }
+
+    std::optional<uint64_t> skia =
+        process_dump.GetMetric("skia", "effective_size");
+    if (skia) {
+      total_graphics_kb += (*skia / 1024);
+    }
+    std::optional<uint64_t> gpu =
+        process_dump.GetMetric("gpu", "effective_size");
+    if (gpu) {
+      total_graphics_kb += (*gpu / 1024);
+    }
+
+    std::optional<uint64_t> media =
+        process_dump.GetMetric("media", "effective_size");
+    if (media) {
+      total_media_kb += (*media / 1024);
+    }
+
+    std::optional<uint64_t> native =
+        process_dump.GetMetric("malloc", "effective_size");
+    if (native) {
+      total_native_kb += (*native / 1024);
+    }
+
+    total_documents +=
+        process_dump.GetMetric("blink_objects/Document", "object_count")
+            .value_or(0);
+    total_nodes += process_dump.GetMetric("blink_objects/Node", "object_count")
+                       .value_or(0);
+    total_js_event_listeners +=
+        process_dump.GetMetric("blink_objects/JSEventListener", "object_count")
+            .value_or(0);
+    total_layout_objects +=
+        process_dump.GetMetric("blink_objects/LayoutObject", "object_count")
+            .value_or(0);
   }
 
   if (total_private_footprint_kb > 0) {
     uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
     MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
                                 total_private_footprint_mb);
+
+    if (last_private_footprint_kb && last_dump_time) {
+      base::TimeTicks now = base::TimeTicks::Now();
+      if (!last_dump_time->is_null()) {
+        base::TimeDelta delta_t = now - *last_dump_time;
+        // Only record growth rate if the samples are within a reasonable window
+        // (e.g., 30 minutes) to avoid misleading averages after sleep/wake.
+        if (delta_t >= base::Seconds(1) && delta_t <= base::Minutes(30)) {
+          int64_t delta_mem_kb =
+              static_cast<int64_t>(total_private_footprint_kb) -
+              static_cast<int64_t>(*last_private_footprint_kb);
+          double minutes = delta_t.InSecondsF() / 60.0;
+          double growth_rate_kb_per_min = delta_mem_kb / minutes;
+
+          if (growth_rate_kb_per_min >= 0) {
+            int rate_int = static_cast<int>(growth_rate_kb_per_min);
+            // Slow leak metric: 0 to 10 MB/min (10240 KB/min), high resolution.
+            base::UmaHistogramCounts10000(
+                "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Slow",
+                rate_int);
+            // Fast leak metric: 0 to 1 GB/min.
+            base::UmaHistogramCounts1M(
+                "Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Fast",
+                rate_int);
+          }
+        }
+      }
+      *last_private_footprint_kb = total_private_footprint_kb;
+      *last_dump_time = now;
+    }
+  }
+
+  if (total_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.Resident",
+                                total_resident_kb / 1024);
+  }
+  if (browser_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Browser.Resident",
+                                browser_resident_kb / 1024);
+  }
+  if (renderer_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Renderer.Resident",
+                                renderer_resident_kb / 1024);
+  }
+  if (gpu_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Gpu.Resident", gpu_resident_kb / 1024);
+  }
+  if (total_js_heap_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.JavaScript",
+                                total_js_heap_kb / 1024);
+  }
+  if (total_dom_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.DOM", total_dom_kb / 1024);
+  }
+  if (total_layout_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Layout", total_layout_kb / 1024);
+  }
+  if (total_graphics_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Graphics",
+                                total_graphics_kb / 1024);
+  }
+  if (total_media_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Media", total_media_kb / 1024);
+  }
+  if (total_native_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Cobalt.Memory.Native", total_native_kb / 1024);
+  }
+
+  if (total_documents > 0) {
+    base::UmaHistogramCounts1000("Cobalt.Memory.ObjectCounts.Document",
+                                 total_documents);
+  }
+  if (total_nodes > 0) {
+    base::UmaHistogramCounts1M("Cobalt.Memory.ObjectCounts.Node", total_nodes);
+  }
+  if (total_js_event_listeners > 0) {
+    base::UmaHistogramCounts100000("Cobalt.Memory.ObjectCounts.JSEventListener",
+                                   total_js_event_listeners);
+  }
+  if (total_layout_objects > 0) {
+    base::UmaHistogramCounts100000("Cobalt.Memory.ObjectCounts.LayoutObject",
+                                   total_layout_objects);
   }
 }
 

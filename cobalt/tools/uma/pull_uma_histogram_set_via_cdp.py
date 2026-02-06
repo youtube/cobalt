@@ -200,13 +200,39 @@ def _get_histograms_from_file(file_path: str) -> list:
 
 
 def _get_chrome_guiding_metrics_for_memory() -> list:
-  metrics = []
-  metrics.append('Memory.Browser.PrivateMemoryFootprint')
-  metrics.append('Memory.Gpu.PrivateMemoryFootprint')
-  metrics.append('Memory.Renderer.PrivateMemoryFootprint')
-  metrics.append('Memory.Total.PrivateMemoryFootprint')
-  metrics.append('Memory.Browser.MemoryFootprint')
-  return metrics
+  return [
+      'Memory.Browser.PrivateMemoryFootprint',
+      'Memory.Gpu.PrivateMemoryFootprint',
+      'Memory.Renderer.PrivateMemoryFootprint',
+      'Memory.Total.PrivateMemoryFootprint',
+      'Memory.Browser.MemoryFootprint',
+  ]
+
+
+def _get_cobalt_resident_memory_metrics() -> list:
+  return [
+      'Memory.Total.Resident',
+      'Memory.Browser.Resident',
+      'Memory.Renderer.Resident',
+      'Memory.Gpu.Resident',
+  ]
+
+
+def _get_cobalt_component_memory_metrics() -> list:
+  return [
+      'Cobalt.Memory.JavaScript',
+      'Cobalt.Memory.DOM',
+      'Cobalt.Memory.Layout',
+      'Cobalt.Memory.Graphics',
+      'Cobalt.Memory.Media',
+      'Cobalt.Memory.Native',
+      'Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Fast',
+      'Cobalt.Memory.PrivateMemoryFootprint.GrowthRate.Slow',
+      'Cobalt.Memory.ObjectCounts.Document',
+      'Cobalt.Memory.ObjectCounts.JSEventListener',
+      'Cobalt.Memory.ObjectCounts.LayoutObject',
+      'Cobalt.Memory.ObjectCounts.Node',
+  ]
 
 
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
@@ -310,6 +336,8 @@ def _run_main(args, output_file):
     histograms = _get_histograms_from_file(args.histogram_file)
   else:
     histograms = _get_chrome_guiding_metrics_for_memory()
+    histograms.extend(_get_cobalt_resident_memory_metrics())
+    histograms.extend(_get_cobalt_component_memory_metrics())
 
   _print_q(f'Ensure Cobalt is running with --remote-debugging-port={args.port}',
            args.quiet)
