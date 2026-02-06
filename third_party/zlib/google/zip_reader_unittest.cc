@@ -833,9 +833,6 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryWriteBytesFailure) {
   EXPECT_CALL(mock_writer, PrepareOutput()).WillOnce(Return(true));
   EXPECT_CALL(mock_writer, WriteBytes(_, _)).WillOnce(Return(false));
   EXPECT_CALL(mock_writer, OnError());
-#if BUILDFLAG(IS_STARBOARD)
-  EXPECT_CALL(mock_writer, Flush()).WillOnce(Return(true));
-#endif
 
   base::FilePath target_path(FILE_PATH_LITERAL("foo/bar/quux.txt"));
   ZipReader reader;
