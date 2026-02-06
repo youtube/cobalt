@@ -37,14 +37,18 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   ~CobaltWebContentsObserver() override;
 
 #if BUILDFLAG(IS_ANDROIDTV)
+ public:
   void DidStartNavigation(
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  void RaisePlatformError();
+  virtual void RaisePlatformError();
+
+ protected:
+  void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
 
  private:
-  base::OneShotTimer timeout_timer_;
+  std::unique_ptr<base::OneShotTimer> timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 };
