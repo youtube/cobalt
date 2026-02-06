@@ -1,0 +1,7 @@
+include_rules = [
+  "+content/public/test/test_launcher.h",
+  "+starboard/event.h",
+  "+starboard/system.h",
+  "+ui/linux",
+  "+ui/ozone/platform/starboard/platform_event_source_starboard.h",
+]
