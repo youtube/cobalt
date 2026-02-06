@@ -142,6 +142,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  private:
   void CreateVideoGeometrySetterService();
   void OnSbWindowCreated(SbWindow window);
+  void OnSbWindowDestroyed(SbWindow window);
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>

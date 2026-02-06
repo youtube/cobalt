@@ -31,12 +31,21 @@ namespace ui {
 namespace {
 std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
     g_created_callback;
-}
+std::unique_ptr<PlatformWindowStarboard::WindowDestroyedCallback>
+    g_destroyed_callback;
+}  // namespace
 
 // static
 void PlatformWindowStarboard::SetWindowCreatedCallback(
     WindowCreatedCallback cb) {
   g_created_callback = std::make_unique<WindowCreatedCallback>(std::move(cb));
+}
+
+// static
+void PlatformWindowStarboard::SetWindowDestroyedCallback(
+    WindowDestroyedCallback cb) {
+  g_destroyed_callback =
+      std::make_unique<WindowDestroyedCallback>(std::move(cb));
 }
 
 PlatformWindowStarboard::PlatformWindowStarboard(
@@ -68,6 +77,9 @@ PlatformWindowStarboard::PlatformWindowStarboard(
 
 PlatformWindowStarboard::~PlatformWindowStarboard() {
   if (sb_window_) {
+    if (g_destroyed_callback) {
+      (*g_destroyed_callback).Run(sb_window_);
+    }
     SbWindowDestroy(sb_window_);
   }
 

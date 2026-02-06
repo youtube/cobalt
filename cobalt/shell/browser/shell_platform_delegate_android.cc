@@ -189,6 +189,9 @@ void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {
   Java_Shell_onLoadProgressChanged(env, shell_data.java_object, progress);
 }
 
+void ShellPlatformDelegate::Conceal(Shell* shell) {}
+void ShellPlatformDelegate::Reveal(Shell* shell) {}
+
 // static
 void JNI_Shell_LoadSplashScreenWebContents(JNIEnv* env, jlong shellPtr) {
   Shell* shell = reinterpret_cast<Shell*>(shellPtr);

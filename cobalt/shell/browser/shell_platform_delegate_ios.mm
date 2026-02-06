@@ -680,4 +680,7 @@ bool ShellPlatformDelegate::IsFullscreenForTabOrPending(
   return iter->second.fullscreen;
 }
 
+void ShellPlatformDelegate::Conceal(Shell* shell) {}
+void ShellPlatformDelegate::Reveal(Shell* shell) {}
+
 }  // namespace content

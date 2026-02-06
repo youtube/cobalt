@@ -35,8 +35,10 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/web_contents.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
@@ -65,6 +67,11 @@ static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
 }  // namespace
 
 int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
+  LOG(INFO) << "InitCobalt called with " << argc << " args:";
+  for (int i = 0; i < argc; ++i) {
+    LOG(INFO) << "Arg " << i << ": " << argv[i];
+  }
+
   // content::ContentMainParams params(g_content_main_delegate.Get().get());
   content::ContentMainParams params(g_content_main_delegate);
 
@@ -112,11 +119,15 @@ void SbEventHandle(const SbEvent* event) {
       init_musl();
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+      std::vector<const char*> argv(
+          data->argument_values, data->argument_values + data->argument_count);
+      std::string preload_switch = std::string("--") + switches::kPreload;
+      argv.push_back(preload_switch.c_str());
+
       g_exit_manager = new base::AtExitManager();
       g_content_main_delegate = new cobalt::CobaltMainDelegate();
       g_platform_event_source = new PlatformEventSourceStarboard();
-      InitCobalt(data->argument_count,
-                 const_cast<const char**>(data->argument_values), data->link);
+      InitCobalt(argv.size(), argv.data(), data->link);
 
       break;
     }
@@ -160,7 +171,17 @@ void SbEventHandle(const SbEvent* event) {
       g_platform_event_source->HandleFocusEvent(event);
       break;
     case kSbEventTypeConceal:
+      for (auto* shell : content::Shell::windows()) {
+        shell->web_contents()->WasHidden();
+        content::Shell::GetPlatform()->Conceal(shell);
+      }
+      break;
     case kSbEventTypeReveal:
+      for (auto* shell : content::Shell::windows()) {
+        content::Shell::GetPlatform()->Reveal(shell);
+        shell->web_contents()->WasShown();
+      }
+      break;
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
       break;
