@@ -187,7 +187,6 @@ void SbEventHandle(const SbEvent* event) {
       break;
     }
     case kSbEventTypeLink:
-    case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
