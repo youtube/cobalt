@@ -67,6 +67,11 @@ static const char kDidReceiveFirstSegmentMsgName[] = "did-receive-first-segment"
 static const char kDidReachBufferingTargetMsgName[] = "did-reach-buffering-target";
 static const char kDecryptToHostFieldName[] = "decrypt-to-host";
 
+// Amount of audio/video to buffer in the streaming thread
+// before switching to the presenting state after a seek
+const GstClockTime kAudioBufferDurationNs = 100 * GST_MSECOND;
+const GstClockTime kVideoBufferDurationNs = 160 * GST_MSECOND;
+
 // static
 int Player::MaxNumberOfSamplesPerWrite() {
   return kMaxNumberOfSamplesPerWrite;
@@ -84,7 +89,6 @@ GST_DEBUG_CATEGORY(cobalt_gst_player_debug);
 #define GST_HAS_HDR_SUPPORT 1
 #endif
 
-static void PrintGstCaps(GstCaps* caps);
 static GstElement* CreatePayloader();
 static GstElement* CreateGstElement(const gchar* factory_name, const gchar* name_format, ...) G_GNUC_PRINTF (2, 3);
 
@@ -483,6 +487,7 @@ void gst_cobalt_src_setup_and_add_app_src(SbMediaType media_type,
     src_elem = payloader;
   }
 
+  #if 0
   if (!isRialtoEnabled()) {
     // Set the queue size large enough to avoid filling up and getting blocked
     // before the did-reach-buffering-target event fires.
@@ -503,6 +508,7 @@ void gst_cobalt_src_setup_and_add_app_src(SbMediaType media_type,
     gst_element_link(src_elem, queue);
     src_elem = queue;
   }
+  #endif
 
   GstPad* target_pad = gst_element_get_static_pad(src_elem, "src");
   GstPad* pad = gst_ghost_pad_new(name, target_pad);
@@ -930,14 +936,12 @@ static void PrintPositionPerSink(GstElement* element, GstDebugLevel level)
   gst_iterator_free (iter);
 }
 
-static void PrintGstCaps(GstCaps* caps) {
-#ifndef GST_DISABLE_GST_DEBUG
-  if (gst_debug_category_get_threshold(GST_CAT_DEFAULT) >= GST_LEVEL_INFO) {
-    gchar *caps_str = gst_caps_to_string(caps);
-    GST_INFO("caps: %s", caps_str);
-    g_free(caps_str);
-  }
-#endif
+static GstCaps *ConvertToCencCaps(GstCaps *caps) {
+  caps = gst_caps_make_writable(caps);
+  GstStructure *s = gst_caps_get_structure (caps, 0);
+  gst_structure_set(s, "original-media-type", G_TYPE_STRING, gst_structure_get_name(s), nullptr);
+  gst_structure_set_name(s, "application/x-cenc");
+  return caps;
 }
 
 static GstElement* CreatePayloader() {
@@ -1321,6 +1325,7 @@ class PlayerImpl : public Player {
   GstClockTime GetPosition() const;
   GstClockTime GetPositionLocked() const;
   bool UpdateCachedPositionLocked();
+  bool UpdateSrcCaps(const SbPlayerSampleInfo& sample_info);
   bool WriteSample(SbMediaType sample_type,
                    GstBuffer* buffer,
                    uint64_t serial_id);
@@ -2191,6 +2196,16 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
       g_object_set(G_OBJECT(element), "has-drm", self->drm_system_ != nullptr, nullptr);
     }
   }
+
+  if (g_str_has_prefix(GST_ELEMENT_NAME(element), "vqueue")) {
+    const guint kNumVideoBuffers = kVideoBufferDurationNs / (16 * GST_MSECOND);
+    guint max_size_buffers = 0;
+    g_object_get(element, "max-size-buffers", &max_size_buffers, nullptr);
+    GST_DEBUG_OBJECT(
+      pipeline, "Changing queue %" GST_PTR_FORMAT " max-size-buffers: %u -> %u",
+      element, max_size_buffers, max_size_buffers + kNumVideoBuffers);
+    g_object_set(element, "max-size-buffers", max_size_buffers + kNumVideoBuffers, nullptr);
+  }
 }
 
 void PlayerImpl::MarkEOS(SbMediaType stream_type) {
@@ -2277,6 +2292,67 @@ bool PlayerImpl::WriteSample(SbMediaType sample_type, GstBuffer* buffer, uint64_
   return true;
 }
 
+bool PlayerImpl::UpdateSrcCaps(const SbPlayerSampleInfo& sample_info) {
+  if (sample_info.type == kSbMediaTypeVideo) {
+    SB_DCHECK (video_codec_ != kSbMediaVideoCodecNone);
+
+    const auto& info = sample_info.video_sample_info.stream_info;
+    if (frame_width_ != info.frame_width ||
+        frame_height_ != info.frame_height ||
+        CompareColorMetadata(color_metadata_, info.color_metadata) != 0) {
+
+      frame_width_ = info.frame_width;
+      frame_height_ = info.frame_height;
+      color_metadata_ = info.color_metadata;
+
+      GstCaps* gst_caps = CodecToGstCaps(video_codec_);
+      if (!gst_caps)
+        return false;
+
+      AddVideoInfoToGstCaps(info, gst_caps);
+
+      if (SbDrmSystemIsValid(drm_system_)) {
+        gst_caps = ConvertToCencCaps(gst_caps);
+        if (ShouldDecryptToHost())
+          gst_caps_set_simple(gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
+      }
+
+      GST_INFO_OBJECT(pipeline_, "caps: %" GST_PTR_FORMAT, gst_caps);
+      gst_app_src_set_caps(GST_APP_SRC(video_appsrc_), gst_caps);
+      gst_caps_replace(&video_caps_, gst_caps);
+      gst_caps_unref(gst_caps);
+    }
+  }
+  else if (sample_info.type == kSbMediaTypeAudio) {
+    SB_DCHECK (audio_codec_ != kSbMediaAudioCodecNone);
+
+    if ( audio_caps_ == nullptr ) {
+      const auto& audio_info = sample_info.audio_sample_info.stream_info;
+      GstCaps* gst_caps = CodecToGstCaps(audio_codec_, &audio_info);
+      if (!gst_caps)
+        return false;
+
+      if (SbDrmSystemIsValid(drm_system_)) {
+        gst_caps = ConvertToCencCaps(gst_caps);
+        if (ShouldDecryptToHost())
+          gst_caps_set_simple (gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
+      }
+
+      GST_INFO_OBJECT(pipeline_, "caps: %" GST_PTR_FORMAT, gst_caps);
+      gst_app_src_set_caps(GST_APP_SRC(audio_appsrc_), gst_caps);
+      if (audio_codec_ == kSbMediaAudioCodecVorbis || audio_codec_ == kSbMediaAudioCodecFlac)
+        PushStreamHeaders(GST_APP_SRC(audio_appsrc_), gst_caps);
+      gst_caps_replace(&audio_caps_, gst_caps);
+      gst_caps_unref(gst_caps);
+    }
+  }
+  else {
+    return false;
+  }
+
+  return true;
+}
+
 void PlayerImpl::WriteSample(SbMediaType sample_type,
                              const SbPlayerSampleInfo* sample_infos,
                              int number_of_sample_infos) {
@@ -2301,6 +2377,8 @@ void PlayerImpl::WriteSample(SbMediaType sample_type,
     DecoderNeedsData(MediaType::kVideo);
     return;
   }
+
+  UpdateSrcCaps(sample_infos[0]);
 
   gsize buffer_size = static_cast<gsize>(sample_infos[0].buffer_size);
 #if defined(SB_RDK_ZERO_COPY_SAMPLE_WRITE) && SB_RDK_ZERO_COPY_SAMPLE_WRITE
@@ -2342,46 +2420,12 @@ void PlayerImpl::WriteSample(SbMediaType sample_type,
   GST_BUFFER_TIMESTAMP(buffer) = timestamp;
 
   if (sample_infos[0].type == kSbMediaTypeVideo) {
-    const auto& info = sample_infos[0].video_sample_info.stream_info;
-    if (frame_width_ != info.frame_width ||
-        frame_height_ != info.frame_height ||
-        CompareColorMetadata(color_metadata_, info.color_metadata) != 0) {
-      frame_width_ = info.frame_width;
-      frame_height_ = info.frame_height;
-      color_metadata_ = info.color_metadata;
-      GstCaps* gst_caps = CodecToGstCaps(video_codec_);
-      if (gst_caps) {
-        AddVideoInfoToGstCaps(info, gst_caps);
-        if (ShouldDecryptToHost())
-          gst_caps_set_simple (gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
-        PrintGstCaps(gst_caps);
-        gst_app_src_set_caps(GST_APP_SRC(video_appsrc_), gst_caps);
-        gst_caps_replace(&video_caps_, gst_caps);
-        gst_caps_unref(gst_caps);
-      }
-    }
     if (!sample_infos[0].video_sample_info.is_key_frame) {
       GST_BUFFER_FLAG_SET (buffer, GST_BUFFER_FLAG_DELTA_UNIT);
     }
   }
   else if (sample_infos[0].type == kSbMediaTypeAudio) {
-    SB_DCHECK (sample_infos[0].type == kSbMediaTypeAudio);
     SB_DCHECK (audio_codec_ != kSbMediaAudioCodecNone);
-
-    if ( audio_caps_ == nullptr ) {
-      const auto& audio_info = sample_infos[0].audio_sample_info.stream_info;
-      GstCaps* gst_caps = CodecToGstCaps(audio_codec_, &audio_info);
-      if (gst_caps) {
-        if (ShouldDecryptToHost())
-          gst_caps_set_simple (gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
-        PrintGstCaps(gst_caps);
-        gst_app_src_set_caps(GST_APP_SRC(audio_appsrc_), gst_caps);
-        if (audio_codec_ == kSbMediaAudioCodecVorbis || audio_codec_ == kSbMediaAudioCodecFlac)
-          PushStreamHeaders(GST_APP_SRC(audio_appsrc_), gst_caps);
-        gst_caps_replace(&audio_caps_, gst_caps);
-        gst_caps_unref(gst_caps);
-      }
-    }
 
     const guint64 kMaxGstClockTime = G_MAXUINT64 / G_GUINT64_CONSTANT (2);
     const auto& info = sample_infos[0].audio_sample_info;
@@ -3260,7 +3304,6 @@ void PlayerImpl::ConfigureLimitedVideo() {
     gst_structure_set(context_structure, "res-usage", G_TYPE_UINT, 0x0u, nullptr);
     gst_element_set_context(GST_ELEMENT(pipeline_), context);
     gst_context_unref(context);
-
   }
   // enforce no audio
   audio_codec_ = kSbMediaAudioCodecNone;
@@ -3323,18 +3366,15 @@ void PlayerImpl::AddBufferingProbe(GstClockTime target, int ticket) {
 
   buffering_state_ = 0;
 
-  const GstClockTime kAudioBufferTarget = 100 * GST_MSECOND;
-  const GstClockTime kVideoBufferTarget = 160 * GST_MSECOND;
-
   if (audio_appsrc_ && audio_codec_ != kSbMediaAudioCodecNone) {
-    if (add_probe(audio_appsrc_, target + kAudioBufferTarget, ticket, buffering_probe_callback) != 0u)
+    if (add_probe(audio_appsrc_, target + kAudioBufferDurationNs, ticket, buffering_probe_callback) != 0u)
       buffering_state_ |= static_cast<int>(MediaType::kAudio);
     else
       GST_WARNING_OBJECT(audio_appsrc_, "Could not add buffering probe!");
   }
 
   if (video_appsrc_ && video_codec_ != kSbMediaVideoCodecNone) {
-    if (add_probe(video_appsrc_, target + kVideoBufferTarget, ticket, buffering_probe_callback) != 0u)
+    if (add_probe(video_appsrc_, target + kVideoBufferDurationNs, ticket, buffering_probe_callback) != 0u)
       buffering_state_ |= static_cast<int>(MediaType::kVideo);
     else
       GST_WARNING_OBJECT(video_appsrc_, "Could not add buffering probe!");

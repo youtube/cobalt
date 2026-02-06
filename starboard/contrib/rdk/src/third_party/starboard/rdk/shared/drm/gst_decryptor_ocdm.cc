@@ -420,7 +420,56 @@ static GstCaps* cobalt_ocdm_decryptor_transform_caps(GstBaseTransform* base, Gst
 
   priv->SetCachedCaps( nullptr );
 
-  return GST_BASE_TRANSFORM_CLASS(parent_class)->transform_caps(base, direction, caps, filter);
+  if (gst_caps_is_any(caps))
+    return GST_BASE_TRANSFORM_CLASS(parent_class)->transform_caps(base, direction, caps, filter);
+
+  GstCaps* transformed_caps = gst_caps_new_empty();
+
+  for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
+    GstStructure* structure = gst_caps_get_structure(caps, i);
+    GstStructure *out_structure = gst_structure_copy(structure);
+    if (direction == GST_PAD_SINK) { // create clear caps
+      if (gst_structure_has_field(structure, "original-media-type")) {
+        gst_structure_set_name(out_structure,
+            gst_structure_get_string(structure, "original-media-type"));
+      }
+      // remove DRM related fields
+      gst_structure_remove_fields(out_structure,
+        "protection-system", "original-media-type","encryption-algorithm","cipher-mode",nullptr);
+    } else { // create encrypted caps
+      if (const gchar* media_type = gst_structure_get_name(structure))
+        gst_structure_set(out_structure, "original-media-type", G_TYPE_STRING, media_type, nullptr);
+      gst_structure_set_name(out_structure, "application/x-cenc");
+      // remove video/audio related fields
+      gst_structure_remove_fields(out_structure,
+        "base-profile","codec_data","height","framerate","level",
+        "pixel-aspect-ratio","profile","rate","width",nullptr);
+    }
+
+    bool duplicate = false;
+    unsigned size = gst_caps_get_size(transformed_caps);
+    for (unsigned i = 0; !duplicate && i < size; ++i) {
+      GstStructure* structure = gst_caps_get_structure(transformed_caps, i);
+      if (gst_structure_is_equal(structure, out_structure))
+        duplicate = true;
+    }
+
+    if (!duplicate) {
+      gst_caps_append_structure(transformed_caps, out_structure);
+    } else {
+      gst_object_unref(out_structure);
+    }
+  }
+
+  if (filter) {
+    GstCaps* intersection =
+      gst_caps_intersect_full(transformed_caps, filter, GST_CAPS_INTERSECT_FIRST);
+    gst_caps_unref(transformed_caps);
+    transformed_caps = intersection;
+  }
+
+  GST_DEBUG_OBJECT(self, "Transformed caps: %" GST_PTR_FORMAT, transformed_caps);
+  return transformed_caps;
 }
 
 static GstFlowReturn cobalt_ocdm_decryptor_transform_ip(GstBaseTransform* base, GstBuffer* buffer) {
