@@ -447,7 +447,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
-    if (!isReleaseBuild()) {
+    if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
@@ -465,14 +465,13 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
-    updateShellActivityVisible(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
       webContents.onResume();
-      // visibility:visible event
-      webContents.onShow();
     }
+    // visibility:visible event
+    updateShellActivityVisible(true);
     MemoryPressureMonitor.INSTANCE.enablePolling();
   }
 
@@ -487,11 +486,10 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
-      // visibility:hidden event
-      webContents.onHide();
       // document.onfreeze event
       webContents.onFreeze();
     }
@@ -629,6 +627,9 @@ public abstract class CobaltActivity extends Activity {
 
   protected boolean isReleaseBuild() {
     return StarboardBridge.isReleaseBuild();
+  }
+  protected boolean isDevelopmentBuild() {
+    return StarboardBridge.isDevelopmentBuild();
   }
 
   @Override

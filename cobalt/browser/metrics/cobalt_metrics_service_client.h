@@ -17,7 +17,6 @@
 
 #include <memory>
 
-#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
@@ -30,6 +29,10 @@ namespace mojom {
 class MetricsListener;
 }
 }  // namespace h5vcc_metrics
+
+namespace memory_instrumentation {
+class GlobalMemoryDump;
+}
 
 namespace metrics {
 class MetricsService;
@@ -56,7 +59,7 @@ constexpr base::TimeDelta kMinIdleRefreshInterval = base::Seconds(30);
 // much.
 class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
  public:
-  ~CobaltMetricsServiceClient() override = default;
+  ~CobaltMetricsServiceClient() override;
 
   CobaltMetricsServiceClient(const CobaltMetricsServiceClient&) = delete;
   CobaltMetricsServiceClient& operator=(const CobaltMetricsServiceClient&) =
@@ -94,8 +97,18 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Of note: GetStorageLimits() can also be overridden.
 
   void SetUploadInterval(base::TimeDelta interval);
+  void SetMinIdleRefreshIntervalForTesting(base::TimeDelta interval) {
+    min_idle_refresh_interval_ = interval;
+  }
   void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
+
+  // Forces a memory metrics record for testing.
+  void ScheduleRecordForTesting(base::OnceClosure done_callback);
+
+  // Static method to record memory metrics.
+  static void RecordMemoryMetrics(
+      memory_instrumentation::GlobalMemoryDump* global_dump);
 
  protected:
   explicit CobaltMetricsServiceClient(
@@ -110,6 +123,11 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::RepeatingTimer idle_refresh_timer_;
 
  private:
+  struct State;
+
+  // Starts the periodic memory metrics logger.
+  void StartMemoryMetricsLogger();
+
   // Virtual to be overridden in tests.
   virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
       metrics::MetricsStateManager* state_manager,
@@ -138,6 +156,11 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   std::unique_ptr<metrics::MetricsService> metrics_service_;
 
   base::TimeDelta upload_interval_ = kStandardUploadIntervalMinutes;
+
+  base::TimeDelta min_idle_refresh_interval_ = kMinIdleRefreshInterval;
+
+  // State object for background memory metrics collection.
+  scoped_refptr<State> state_;
 
   // Usually `log_uploader_` would be created lazily in CreateUploader() (during
   // first metrics upload), however there's a race condition of many seconds

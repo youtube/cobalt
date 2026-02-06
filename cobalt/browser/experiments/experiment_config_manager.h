@@ -29,11 +29,19 @@ enum class ExperimentConfigType {
 // This class manages the content of the experiment config stored on disk.
 class ExperimentConfigManager {
  public:
+  // Enum for the result of comparing two version strings.
+  enum class VersionComparisonResult {
+    kGreaterThan,
+    kLessThanOrEqual,
+    kInvalidFormat,
+  };
+
   explicit ExperimentConfigManager(PrefService* experiment_config,
                                    PrefService* metrics_local_state);
   // Returns the experiment config type based on the number of crashes and
   // whether the config has expired.
   ExperimentConfigType GetExperimentConfigType();
+
   // If regular config is used in the current run, save the active config as
   // safe config.
   // This should only be called before any modification to
@@ -46,6 +54,11 @@ class ExperimentConfigManager {
   }
 
  private:
+  // Custom version comparison for Cobalt.
+  // Compares major and minor version numbers, ignoring the purpose string.
+  // Format is assumed to be <major>.<purpose>.<minor>.
+  static VersionComparisonResult CompareVersions(const std::string& version1,
+                                                 const std::string& version2);
   bool called_store_safe_config_ = false;
 
   // PrefService for experiment config.
@@ -59,6 +72,7 @@ class ExperimentConfigManager {
                            TestStoreSafeConfigWithSafeConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
                            TestStoreSafeConfigWithEmptyConfig);
+  FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest, CompareVersions);
 };
 
 }  // namespace cobalt

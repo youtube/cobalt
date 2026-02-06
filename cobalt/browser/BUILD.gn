@@ -146,6 +146,7 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
+    ":switches",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/metrics_services_manager",
@@ -153,6 +154,7 @@ source_set("metrics") {
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
     "//third_party/metrics_proto",
     "//url",
   ]
@@ -164,4 +166,22 @@ source_set("command_line_logger") {
     "command_line_logger.h",
   ]
   deps = [ "//base" ]
+}
+
+test("cobalt_browser_unittests") {
+  sources = [ "cobalt_secure_navigation_throttle_unittest.cc" ]
+
+  deps = [
+    ":browser",
+    "//base/test:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//testing/gtest:gtest_main",
+  ]
+
+  if (is_androidtv) {
+    sources += [ "cobalt_web_contents_observer_unittest.cc" ]
+    deps += [ "//starboard/android/shared:starboard_platform" ]
+  }
 }
