@@ -73,3 +73,9 @@ webnn_use_tflite = false
 
 # Disable dav1d in webrtc to reduce binary size (~533KB)
 rtc_include_dav1d_in_internal_decoder_factory = false
+
+# TODO: //components/pdf/browser:browser requires pdf.
+# Disable pdf and printing.
+# enable_pdf = false
+# enable_printing = false
+# enable_printing_tests = false
