@@ -58,6 +58,7 @@ TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
   ExecutePendingJobs(job_thread.get());
 
   EXPECT_THAT(values, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));
+  job_thread->Stop();
 }
 
 TEST(JobThreadTest, ScheduleAndWaitWaits) {
@@ -71,6 +72,7 @@ TEST(JobThreadTest, ScheduleAndWaitWaits) {
   // Verify that the job ran and that it took at least as long as it slept.
   EXPECT_TRUE(job_1);
   EXPECT_GE(CurrentMonotonicTime() - start, 1 * kPrecisionUsec);
+  job_thread->Stop();
 }
 
 TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
@@ -86,6 +88,7 @@ TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
     // Wait for the job to run at least once and reschedule itself.
     usleep(1 * kPrecisionUsec);
     ExecutePendingJobs(job_thread.get());
+    job_thread->Stop();
   }
   int end_value = counter;
   EXPECT_GE(counter, 1);
@@ -134,6 +137,7 @@ TEST(JobThreadTest, CanceledJobsAreCanceled) {
   // Cancel job 2 to avoid it scheduling itself during destruction.
   job_thread->ScheduleAndWait(
       [&]() { job_thread->RemoveJobByToken(job_token_2); });
+  job_thread->Stop();
 }
 
 TEST(JobThreadTest, QueueBelongsToCorrectThread) {
@@ -163,6 +167,7 @@ TEST(JobThreadTest, QueueBelongsToCorrectThread) {
   job_queue.RunUntilIdle();
   EXPECT_FALSE(belongs_to_job_thread);
   EXPECT_TRUE(belongs_to_main_thread);
+  job_thread->Stop();
 }
 
 TEST(JobThreadTest, Stop) {
