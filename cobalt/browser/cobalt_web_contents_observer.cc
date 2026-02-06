@@ -50,14 +50,11 @@ void CobaltWebContentsObserver::SetTimerForTestInternal(
 
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
-  LOG(INFO) << "DidStartNavigation to: " << handle->GetURL();
   if (!handle->IsInPrimaryMainFrame()) {
     LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
               << " not in primary mainframe, returning";
     return;
   }
-  LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
-            << " in primary mainframe";
 
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
