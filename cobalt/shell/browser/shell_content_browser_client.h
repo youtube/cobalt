@@ -154,9 +154,6 @@ class ShellContentBrowserClient : public ContentBrowserClient {
 #if BUILDFLAG(IS_IOS)
   BluetoothDelegate* GetBluetoothDelegate() override;
 #endif
-#if defined(RUN_BROWSER_TESTS)
-  void BindBrowserControlInterface(mojo::ScopedMessagePipeHandle pipe) override;
-#endif  // defined(RUN_BROWSER_TESTS)
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;

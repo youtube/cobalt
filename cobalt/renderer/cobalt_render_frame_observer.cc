@@ -20,10 +20,6 @@
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
 
-#if defined(RUN_BROWSER_TESTS)
-#include "third_party/blink/public/web/web_testing_support.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 namespace cobalt {
 
 CobaltRenderFrameObserver::CobaltRenderFrameObserver(
@@ -35,20 +31,6 @@ CobaltRenderFrameObserver::~CobaltRenderFrameObserver() = default;
 void CobaltRenderFrameObserver::OnDestruct() {
   delete this;
 }
-
-#if defined(RUN_BROWSER_TESTS)
-void CobaltRenderFrameObserver::DidClearWindowObject() {
-  const auto& cmd = *base::CommandLine::ForCurrentProcess();
-  if (cmd.HasSwitch(switches::kExposeInternalsForTesting)) {
-    // The internals object is injected here so that window.internals is exposed
-    // to JavaScript at initial load of the web app, when the frame navigates
-    // from the initial empty document to the actual document. This approach is
-    // borrowed from content shell.
-    blink::WebTestingSupport::InjectInternalsObject(
-        render_frame()->GetWebFrame());
-  }
-}
-#endif  // defined(RUN_BROWSER_TESTS)
 
 void CobaltRenderFrameObserver::DidMeaningfulLayout(
     blink::WebMeaningfulLayout meaningful_layout) {
