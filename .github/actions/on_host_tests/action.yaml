@@ -58,6 +58,10 @@ runs:
 
         for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
           filename=$(basename "${test_binary_path}")
+          if [[ "${filename}" == *.apk ]]; then
+            echo "Skipping ${filename} (APK cannot be run on host)"
+            continue
+          fi
           test_binary="${filename%%.*}"
 
           if [[ "${{ matrix.shard }}" != "0" && "${test_binary}" =~ ^nplb ]]; then
@@ -79,23 +83,43 @@ runs:
           # TODO: Investigate test_runner.py
 
           ENTRYPOINT=./"${test_binary_path}"
+          if [[ "${test_binary}" == run_*_junit_tests ]]; then
+            # junit tests do not support the same flags as gtest.
+            if [ "${test_filter}" == "-*" ]; then
+              echo "Skipped due to test filter." >  ${log_path}
+            else
+              stdbuf -i0 -o0 -e0 $ENTRYPOINT junit \
+                  --test-launcher-summary-output="${xml_path}.json" 2>&1 | tee ${log_path} || {
+                failed_suites="${failed_suites} ${test_binary}"
+              }
 
-          if [ "${test_filter}" == "-*" ]; then
-            echo "Skipped due to test filter." >  ${log_path}
+              if [ -f "${xml_path}.json" ]; then
+                python3 ${GITHUB_WORKSPACE}/cobalt/tools/result_json_to_junit_xml.py "${xml_path}.json" "${xml_path}"
+              fi
+
+              if [[ ! -f ${xml_path} ]]; then
+                # Test binary or summary production crashed.
+                python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+              fi
+            fi
           else
-            export GTEST_TOTAL_SHARDS=${{ inputs.num_gtest_shards }}
-            export GTEST_SHARD_INDEX=${{ matrix.shard }}
-            /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                stdbuf -i0 -o0 -e0 $ENTRYPOINT \
-                --single-process-tests \
-                --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              failed_suites="${failed_suites} ${test_binary}"
-            }
+            if [ "${test_filter}" == "-*" ]; then
+              echo "Skipped due to test filter." >  ${log_path}
+            else
+              export GTEST_TOTAL_SHARDS=${{ inputs.num_gtest_shards }}
+              export GTEST_SHARD_INDEX=${{ matrix.shard }}
+              /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                  stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+                  --single-process-tests \
+                  --gtest_output="xml:${xml_path}" \
+                  --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
+                failed_suites="${failed_suites} ${test_binary}"
+              }
 
-            if [[ ! -f ${xml_path} ]]; then
-              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+              if [[ ! -f ${xml_path} ]]; then
+                # Test binary crashed. Generate a fake JUnit XML report with the last run test.
+                python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+              fi
             fi
           fi
         done
