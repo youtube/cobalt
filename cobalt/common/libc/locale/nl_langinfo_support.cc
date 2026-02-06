@@ -89,6 +89,123 @@ std::string CollapseSpaces(const std::string& input) {
   return result;
 }
 
+// Returns the relevant LC_TIME nl_langinfo string from the C/POSIX locale.
+std::string GetCTimeLanginfo(nl_item item) {
+  switch (item) {
+    // Date and Time Formats
+    case D_T_FMT:
+      return "%a %b %e %H:%M:%S %Y";
+    case D_FMT:
+      return "%m/%d/%y";
+    case T_FMT:
+      return "%H:%M:%S";
+    case T_FMT_AMPM:
+      return "%I:%M:%S %p";
+    case AM_STR:
+      return "AM";
+    case PM_STR:
+      return "PM";
+
+    // Days of the Week (Full)
+    case DAY_1:
+      return "Sunday";
+    case DAY_2:
+      return "Monday";
+    case DAY_3:
+      return "Tuesday";
+    case DAY_4:
+      return "Wednesday";
+    case DAY_5:
+      return "Thursday";
+    case DAY_6:
+      return "Friday";
+    case DAY_7:
+      return "Saturday";
+
+    // Days of the Week (Abbreviated)
+    case ABDAY_1:
+      return "Sun";
+    case ABDAY_2:
+      return "Mon";
+    case ABDAY_3:
+      return "Tue";
+    case ABDAY_4:
+      return "Wed";
+    case ABDAY_5:
+      return "Thu";
+    case ABDAY_6:
+      return "Fri";
+    case ABDAY_7:
+      return "Sat";
+
+    // Months (Full)
+    case MON_1:
+      return "January";
+    case MON_2:
+      return "February";
+    case MON_3:
+      return "March";
+    case MON_4:
+      return "April";
+    case MON_5:
+      return "May";
+    case MON_6:
+      return "June";
+    case MON_7:
+      return "July";
+    case MON_8:
+      return "August";
+    case MON_9:
+      return "September";
+    case MON_10:
+      return "October";
+    case MON_11:
+      return "November";
+    case MON_12:
+      return "December";
+
+    // Months (Abbreviated)
+    case ABMON_1:
+      return "Jan";
+    case ABMON_2:
+      return "Feb";
+    case ABMON_3:
+      return "Mar";
+    case ABMON_4:
+      return "Apr";
+    case ABMON_5:
+      return "May";
+    case ABMON_6:
+      return "Jun";
+    case ABMON_7:
+      return "Jul";
+    case ABMON_8:
+      return "Aug";
+    case ABMON_9:
+      return "Sep";
+    case ABMON_10:
+      return "Oct";
+    case ABMON_11:
+      return "Nov";
+    case ABMON_12:
+      return "Dec";
+
+    default:
+      return "";
+  }
+}
+
+// Returns the relevant LC_NUMERIC nl_langinfo string from the C/POSIX locale.
+std::string GetCNumericLanginfo(nl_item item) {
+  switch (item) {
+    case RADIXCHAR:
+      return ".";
+    case THOUSEP:
+    default:
+      return "";
+  }
+}
+
 // Convenience method to convert a POSIX locale string to the ICU string format.
 // Some POSIX strings like sr_RS@latin require special handling to be fully
 // translated from POSIX to ICU.
@@ -342,7 +459,10 @@ icu::UnicodeString GetPatternFromSkeleton(const std::string& locale_id,
 
 std::string GetLocalizedDateSymbol(const std::string& locale,
                                    TimeNameType type,
-                                   int index) {
+                                   nl_item item) {
+  if (locale == cobalt::kCLocale || locale == cobalt::kPosixLocale) {
+    return GetCTimeLanginfo(item);
+  }
   std::string result;
 
   UErrorCode status = U_ZERO_ERROR;
@@ -354,28 +474,34 @@ std::string GetLocalizedDateSymbol(const std::string& locale,
   }
 
   int count = 0;
+  int index;
 
   switch (type) {
     case TimeNameType::kDay:
+      index = item - DAY_1;
       result =
           ToUtf8(syms.getWeekdays(count, icu::DateFormatSymbols::STANDALONE,
                                   icu::DateFormatSymbols::WIDE)[index + 1]);
       break;
     case TimeNameType::kAbbrevDay:
+      index = item - ABDAY_1;
       result = ToUtf8(
           syms.getWeekdays(count, icu::DateFormatSymbols::STANDALONE,
                            icu::DateFormatSymbols::ABBREVIATED)[index + 1]);
       break;
     case TimeNameType::kMonth:
+      index = item - MON_1;
       result = ToUtf8(syms.getMonths(count, icu::DateFormatSymbols::STANDALONE,
                                      icu::DateFormatSymbols::WIDE)[index]);
       break;
     case TimeNameType::kAbbrevMonth:
+      index = item - ABMON_1;
       result =
           ToUtf8(syms.getMonths(count, icu::DateFormatSymbols::STANDALONE,
                                 icu::DateFormatSymbols::ABBREVIATED)[index]);
       break;
     case TimeNameType::kAmPm:
+      index = item - AM_STR;
       result = ToUtf8(syms.getAmPmStrings(count)[index]);
   }
 
@@ -383,6 +509,9 @@ std::string GetLocalizedDateSymbol(const std::string& locale,
 }
 
 std::string NlGetNumericData(const std::string& locale, nl_item type) {
+  if (locale == cobalt::kCLocale || locale == cobalt::kPosixLocale) {
+    return GetCNumericLanginfo(type);
+  }
   std::string result;
 
   UErrorCode status = U_ZERO_ERROR;
@@ -412,6 +541,10 @@ std::string NlGetNumericData(const std::string& locale, nl_item type) {
 }
 
 std::string GetPosixPattern(const std::string& locale, nl_item item) {
+  if (locale == cobalt::kCLocale || locale == cobalt::kPosixLocale) {
+    return GetCTimeLanginfo(item);
+  }
+
   icu::UnicodeString icu_pattern;
 
   // For |D_FMT| and |T_FMT|, ICU has stored data for each locale that closely

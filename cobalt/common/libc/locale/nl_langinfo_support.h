@@ -30,7 +30,7 @@ enum class TimeNameType { kDay, kAbbrevDay, kMonth, kAbbrevMonth, kAmPm };
 // TimeNameType. This includes |DAY*|, |ABDAY*|, |AM/PM_STR|, |MON*|, |ABMON*|.
 std::string GetLocalizedDateSymbol(const std::string& locale,
                                    TimeNameType type,
-                                   int index);
+                                   nl_item item);
 
 // Will retrieve the corresponding Numeric data for a given locale. This mainly
 // supports the |RADIXCHAR| and |THOUSEP| nl_items.
