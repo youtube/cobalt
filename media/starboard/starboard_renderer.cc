@@ -32,6 +32,10 @@
 #include "media/base/android_overlay_config.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+namespace starboard::android::shared {
+extern void ResetBaselineTime();
+}
+
 namespace media {
 
 namespace {
@@ -613,6 +617,7 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_.reset();
 
     LOG(INFO) << "Creating SbPlayerBridge.";
+    starboard::android::shared::ResetBaselineTime();
 
     player_bridge_.reset(new SbPlayerBridge(
         GetSbPlayerInterface(), task_runner_,
