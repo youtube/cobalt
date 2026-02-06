@@ -52,8 +52,8 @@ const char kUncompressedLibraryPath[] = "lib/libcobalt.so";
 
 }  // namespace
 
-const auto kChannelAndSbVersionToOmahaIdMap =
-    base::MakeFixedFlatMap<base::StringPiece, base::StringPiece>({
+const auto kChannelAndSbVersionToOmahaIdMap = base::
+    MakeFixedFlatMap<base::StringPiece, base::StringPiece, kOmahaIdMapSize>({
         {"control17", "{40061C09-D926-4B82-8D42-600C06B6134C}"},
         {"dogfood17", "{E91075F4-353A-4E7D-A339-6563D2B7858D}"},
         {"experiment17", "{42B5CF5A-96A4-4F64-AD0E-7C62705222FF}"},

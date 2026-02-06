@@ -32,8 +32,10 @@ namespace cobalt {
 namespace updater {
 
 // Map of Omaha config IDs with channel and starboard version as indices.
-extern const base::fixed_flat_map<base::StringPiece, base::StringPiece, 14>
-    kChannelAndSbVersionToOmahaIdMap;
+inline constexpr size_t kOmahaIdMapSize = 14;
+extern const base::
+    fixed_flat_map<base::StringPiece, base::StringPiece, kOmahaIdMapSize>
+        kChannelAndSbVersionToOmahaIdMap;
 
 // The default manifest version to assume when the actual manifest cannot be
 // parsed for any reason. This should not be used for installation manager
