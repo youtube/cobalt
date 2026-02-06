@@ -73,6 +73,12 @@ if (!is_android) {
     testonly = true
 
     sources = [ "app/cobalt.cc" ]
+    if (is_starboard) {
+      sources += [
+        "browser/performance/startup_time.cc",
+        "browser/performance/startup_time.h",
+      ]
+    }
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
