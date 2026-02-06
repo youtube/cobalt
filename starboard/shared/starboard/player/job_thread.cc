@@ -73,9 +73,10 @@ JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
 JobThread::~JobThread() {
   std::lock_guard lock(stop_mutex_);
   SB_CHECK(stopped_)
-      << "JobThread must be stopped before destruction to ensure any running "
-         "task is finished and all pending tasks are cleared while the owner "
-         "is still valid. See b/477902972#comment7";
+      << "JobThread::Stop() must be called before destruction (e.g. inside "
+         "dtor body) to ensure any running task is finished and all pending "
+         "tasks are cleared while the owner is still valid. See "
+         "http://b/477902972#comment7";
 }
 
 void JobThread::Stop() {
