@@ -415,11 +415,11 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // apps. So initially we use 50% more memory to avoid flickering
     // or raster-on-demand.
     settings.max_memory_for_prepaint_percentage = 67;
-    #if BUILDFLAG(IS_COBALT)
-      if (cmd.HasSwitch(cc::switches::kEnableCCLayerTreeOptimization)) {
-        settings.max_memory_for_prepaint_percentage = 0;
-      }
-    #endif
+#if BUILDFLAG(IS_COBALT)
+    if (cmd.HasSwitch(cc::switches::kEnableCCLayerTreeOptimization)) {
+      settings.max_memory_for_prepaint_percentage = 0;
+    }
+#endif
   } else {
     // On other devices we have increased memory excessively to avoid
     // raster-on-demand already, so now we reserve 50% _only_ to avoid
