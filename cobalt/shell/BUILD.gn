@@ -268,9 +268,12 @@ static_library("cobalt_shell_lib") {
     "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
+<<<<<<< HEAD
     "common/url_constants.h",
     "gpu/shell_content_gpu_client.cc",
     "gpu/shell_content_gpu_client.h",
+=======
+>>>>>>> 630722d3115 (Remove test helper files from Cobalt shell (#9000))
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
