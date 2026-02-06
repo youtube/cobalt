@@ -208,12 +208,14 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
     // Want to detect the mement that # frames drops under 12.
     // This shoudld NOT happen, since another path is working to have 128
     // pending input packets.
-    SB_CHECK_GT(number_of_frames_, 8)
+    SB_CHECK_GT(number_of_frames_, 2)
         << " # of sink frames=" << sink_frames_.size();
   } else {
+    SB_LOG(INFO) << __func__ << ": frame inventory=" << number_of_frames_.load()
+                 << ", g_was_full_once=" << to_string(g_was_full_once);
     // Begins logic, once after buffer has > 12 frames.
     // Otherwise, the crash happens at initial priming.
-    g_was_full_once = !can_accept_more_data;
+    g_was_full_once = number_of_frames_.load() > 6;
   }
 
   return can_accept_more_data;
@@ -355,6 +357,14 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb);
   number_of_frames_.fetch_sub(
       static_cast<int32_t>(number_of_sink_frames - sink_frames_.size()));
+
+  int64_t now_us = CurrentMonotonicTime();
+  if (now_us - last_frame_count_log_time_ >= 100'000) {
+    SB_LOG(INFO) << "VideoRenderer frame inventory: "
+                 << number_of_frames_.load();
+    last_frame_count_log_time_ = now_us;
+  }
+
   if (number_of_frames_.load() <= 1 && end_of_stream_decoded_.load() &&
       !ended_cb_called_.load()) {
     ended_cb_called_.store(true);

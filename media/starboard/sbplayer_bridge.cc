@@ -307,10 +307,9 @@ void SbPlayerBridge::WriteBuffers(
       g_last_video_need_data_time_us = 0;
       int64_t delay_us = now_us - request_time;
       if (delay_us > 1'000'000) {
-        LOG(WARNING) << "TTFF: Hardware Decoder Starvation! It took "
-                     << delay_us / 1'000
-                     << " ms to deliver data after the request (gap between "
-                        "OnNeedData and WriteBuffers).";
+        LOG(WARNING)
+            << "TTFF: Extra latency between OnNeedData and WriteBuffers(msec)="
+            << delay_us / 1'000;
       }
     }
   }
@@ -1082,6 +1081,9 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
 #else   // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
     state_ = kPlaying;
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+  }
+  if (stream_type == DemuxerStream::VIDEO) {
+    g_last_video_need_data_time_us = starboard::CurrentMonotonicTime();
   }
   host_->OnNeedData(stream_type, max_number_of_samples_to_write);
 }

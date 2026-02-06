@@ -183,11 +183,13 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   if (buffers.empty())
     return false;
 
+  /*
   if (type_ == VIDEO) {
     LOG(INFO) << "ChunkDemuxerStream::Append(VIDEO) count=" << buffers.size()
               << " first_pts=" << buffers.front()->timestamp().InSecondsF()
               << " last_pts=" << buffers.back()->timestamp().InSecondsF();
   }
+  */
 
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, SHUTDOWN);
@@ -364,8 +366,10 @@ void ChunkDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
       range_str += base::StringPrintf("[%f, %f] ", range.start(i).InSecondsF(),
                                       range.end(i).InSecondsF());
     }
+    /*
     LOG(INFO) << "ChunkDemuxerStream::Read(VIDEO) count=" << count
               << " buffered=" << range_str;
+    */
   }
 
   if (!is_enabled_) {

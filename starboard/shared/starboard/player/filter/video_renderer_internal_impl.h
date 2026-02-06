@@ -116,6 +116,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   std::mutex sink_frames_mutex_;
   Frames sink_frames_;
 
+  int64_t last_frame_count_log_time_ = 0;
+
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   enum BufferingState {
     kWaitForBuffer,

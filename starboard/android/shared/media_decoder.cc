@@ -17,6 +17,8 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include <map>
+
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/trace_event/trace_event.h"
@@ -361,6 +363,12 @@ void MediaCodecDecoder::DecoderThreadFunc() {
         std::lock_guard lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
+        if (dequeue_output_results.size() > 1 || pending_inputs.size() > 1) {
+          SB_LOG(INFO) << "Decoder backlog: output_frames="
+                       << dequeue_output_results.size()
+                       << ", pending_inputs=" << pending_inputs.size()
+                       << ", input_slots=" << input_buffer_indices.size();
+        }
       }
 
       if (!dequeue_output_results.empty()) {
@@ -562,6 +570,10 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
         BUFFER_FLAG_CODEC_CONFIG, false);
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
+    if (media_type_ == kSbMediaTypeVideo) {
+      std::lock_guard lock(mutex_);
+      pts_to_enqueue_time_us_[pts_us] = CurrentMonotonicTime();
+    }
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
           dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
@@ -717,6 +729,24 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
   dequeue_output_result.num_bytes = size;
 
   std::lock_guard lock(mutex_);
+  if (media_type_ == kSbMediaTypeVideo) {
+    int64_t now_us = CurrentMonotonicTime();
+    int64_t interval_us = last_output_buffer_available_time_us_
+                              ? now_us - *last_output_buffer_available_time_us_
+                              : 0;
+    last_output_buffer_available_time_us_ = now_us;
+    auto iter = pts_to_enqueue_time_us_.find(presentation_time_us);
+    if (iter != pts_to_enqueue_time_us_.end()) {
+      int64_t decode_time_us = now_us - iter->second;
+      SB_LOG(INFO) << "Frame Decoded: PTS="
+                   << FormatWithDigitSeparators(presentation_time_us / 1'000)
+                   << ", decode time(msec)="
+                   << FormatWithDigitSeparators(decode_time_us / 1'000)
+                   << ", interval(msec)="
+                   << FormatWithDigitSeparators(interval_us / 1'000);
+      pts_to_enqueue_time_us_.erase(iter);
+    }
+  }
   dequeue_output_results_.push_back(dequeue_output_result);
   condition_variable_.notify_one();
 }
