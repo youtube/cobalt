@@ -13,7 +13,7 @@ import sys
 
 command = [
     os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
-    '--evergreen_content=app/{library_target}/content', '--evergreen_library=lib{library_target}.so'
+    '--evergreen_content=.', '--evergreen_library={library}.so'
 ] + sys.argv[1:]
 try:
     result = subprocess.run(command, check=False)
@@ -28,11 +28,11 @@ except Exception as e:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=str, required=True)
-parser.add_argument('--library_target', type=str, required=True)
+parser.add_argument('--library', type=str, required=True)
 args = parser.parse_args()
 
 with open(args.output, 'w', encoding='utf-8') as f:
-  f.write(_TEMPLATE.format(library_target=args.library_target))
+  f.write(_TEMPLATE.format(library=args.library))
 current_permissions = stat.S_IMODE(os.stat(args.output).st_mode)
 new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
 os.chmod(args.output, new_permissions)
