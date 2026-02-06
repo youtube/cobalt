@@ -39,4 +39,7 @@ const char kUseMobileUserAgent[] = "use-mobile-user-agent";
 // A string used to override the default user agent with a custom one.
 const char kUserAgent[] = "user-agent";
 
+// Delay in minutes before the memory log is first emitted.
+const char kTestMemoryLogDelayInMinutes[] = "test-memory-log-delay-in-minutes";
+
 }  // namespace embedder_support

@@ -145,10 +145,13 @@ source_set("metrics") {
     "metrics/cobalt_metrics_service_client.h",
     "metrics/cobalt_metrics_services_manager_client.cc",
     "metrics/cobalt_metrics_services_manager_client.h",
+    "metrics/cobalt_process_memory_metrics_emitter.cc",
+    "metrics/cobalt_process_memory_metrics_emitter.h",
   ]
   deps = [
     ":switches",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//components/embedder_support:metrics",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",

@@ -42,7 +42,7 @@
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/google/google_brand.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
-#include "chrome/browser/metrics/process_memory_metrics_emitter.h"
+#include "chrome/browser/metrics/chrome_process_memory_metrics_emitter.h"
 #include "chrome/browser/metrics/tab_stats/tab_stats_tracker.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/shell_integration.h"
@@ -169,7 +169,7 @@ void RecordMemoryMetricsAfterDelay() {
 // Records memory metrics, and then triggers memory collection after a delay.
 void RecordMemoryMetrics() {
   scoped_refptr<ProcessMemoryMetricsEmitter> emitter(
-      new ProcessMemoryMetricsEmitter);
+      new ChromeProcessMemoryMetricsEmitter);
   emitter->FetchAndEmitProcessMemoryMetrics();
 
   performance_manager::PerformanceManager::RecordMemoryMetrics();

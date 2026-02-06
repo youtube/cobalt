@@ -19,10 +19,13 @@
 #include "base/path_service.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/metrics/cobalt_process_memory_metrics_emitter.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -36,6 +39,28 @@
 
 namespace cobalt {
 
+namespace {
+
+void RecordMemoryMetrics();
+
+// Records memory metrics after a delay.
+void RecordMemoryMetricsAfterDelay() {
+  content::GetUIThreadTaskRunner({})->PostDelayedTask(
+      FROM_HERE, base::BindOnce(&RecordMemoryMetrics),
+      memory_instrumentation::GetDelayForNextMemoryLog());
+}
+
+// Records memory metrics, and then triggers memory collection after a delay.
+void RecordMemoryMetrics() {
+  scoped_refptr<ProcessMemoryMetricsEmitter> emitter(
+      new CobaltProcessMemoryMetricsEmitter);
+  emitter->FetchAndEmitProcessMemoryMetrics();
+
+  RecordMemoryMetricsAfterDelay();
+}
+
+}  // namespace
+
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -47,6 +72,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  RecordMemoryMetricsAfterDelay();
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 

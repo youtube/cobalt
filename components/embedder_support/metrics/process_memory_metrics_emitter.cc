@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/metrics/process_memory_metrics_emitter.h"
+#include "components/embedder_support/metrics/process_memory_metrics_emitter.h"
 
 #include <array>
 #include <set>
@@ -26,22 +26,13 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/metrics/tab_footprint_aggregator.h"
-#include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/common/chrome_switches.h"
+#include "components/embedder_support/metrics/tab_footprint_aggregator.h"
+#include "components/embedder_support/switches.h"
 #include "components/metrics/metrics_data_validation.h"
-#include "components/performance_manager/public/graph/frame_node.h"
-#include "components/performance_manager/public/graph/graph.h"
-#include "components/performance_manager/public/graph/graph_operations.h"
-#include "components/performance_manager/public/graph/page_node.h"
-#include "components/performance_manager/public/graph/process_node.h"
-#include "components/performance_manager/public/performance_manager.h"
 #include "components/services/paint_preview_compositor/public/mojom/paint_preview_compositor.mojom.h"
 #include "content/public/browser/audio_service_info.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_switches.h"
-#include "extensions/buildflags/buildflags.h"
 #include "media/mojo/mojom/cdm_service.mojom.h"
 #include "partition_alloc/buildflags.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -59,12 +50,6 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "media/mojo/mojom/media_foundation_service.mojom.h"
-#endif
-
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "extensions/browser/extension_registry.h"
-#include "extensions/browser/process_map.h"
-#include "extensions/common/extension.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -1223,11 +1208,8 @@ void EmitUtilityMemoryMetrics(HistogramProcessType ptype,
 }
 
 #if BUILDFLAG(IS_ANDROID)
-// Return the base::android::ChildBindingState if the process with `pid` is a
-// renderer. If the `pid` is not in the list of live renderers it is assumed to
-// be unbound. If the `process_type` is not for a renderer return nullopt.
 std::optional<base::android::ChildBindingState>
-GetAndroidRendererProcessBindingState(
+ProcessMemoryMetricsEmitter::GetAndroidRendererProcessBindingState(
     memory_instrumentation::mojom::ProcessType process_type,
     base::ProcessId pid) {
   if (process_type != memory_instrumentation::mojom::ProcessType::RENDERER) {
@@ -1249,8 +1231,6 @@ GetAndroidRendererProcessBindingState(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-}  // namespace
-
 ProcessMemoryMetricsEmitter::ProcessMemoryMetricsEmitter()
     : pid_scope_(base::kNullProcessId) {}
 
@@ -1268,9 +1248,9 @@ void ProcessMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
     const base::CommandLine* command_line =
         base::CommandLine::ForCurrentProcess();
     int test_delay_in_minutes = 0;
-    if (command_line->HasSwitch(switches::kTestMemoryLogDelayInMinutes)) {
+    if (command_line->HasSwitch(embedder_support::kTestMemoryLogDelayInMinutes)) {
       base::StringToInt(command_line->GetSwitchValueASCII(
-                            switches::kTestMemoryLogDelayInMinutes),
+                            embedder_support::kTestMemoryLogDelayInMinutes),
                         &test_delay_in_minutes);
     }
     // Allow a negative value to test the crashing scenario.
@@ -1306,10 +1286,10 @@ void ProcessMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
     }
   }
 
-  performance_manager::Graph* graph =
-      performance_manager::PerformanceManager::GetGraph();
-  auto process_infos = GetProcessToPageInfoMap(graph);
-  ReceivedProcessInfos(std::move(process_infos));
+  FetchProcessInfos();
+}
+
+void ProcessMemoryMetricsEmitter::FetchProcessInfos() {
 }
 
 void ProcessMemoryMetricsEmitter::MarkServiceRequestsInProgress() {
@@ -1357,38 +1337,7 @@ ukm::UkmRecorder* ProcessMemoryMetricsEmitter::GetUkmRecorder() {
 
 int ProcessMemoryMetricsEmitter::GetNumberOfExtensions(base::ProcessId pid) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  // Retrieve the renderer process host for the given pid.
-
-  content::RenderProcessHost* rph = nullptr;
-  for (auto iter = content::RenderProcessHost::AllHostsIterator();
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (!iter.GetCurrentValue()->GetProcess().IsValid())
-      continue;
-
-    if (iter.GetCurrentValue()->GetProcess().Pid() == pid) {
-      rph = iter.GetCurrentValue();
-      break;
-    }
-  }
-  if (!rph) {
-    return 0;
-  }
-
-  // Count the number of extensions associated with this `rph`'s profile.
-  extensions::ProcessMap* process_map =
-      extensions::ProcessMap::Get(rph->GetBrowserContext());
-  if (!process_map) {
-    return 0;
-  }
-
-  const extensions::Extension* extension =
-      process_map->GetEnabledExtensionByProcessID(rph->GetDeprecatedID());
-  // Only include this extension if it's not a hosted app.
-  return (extension && !extension->is_hosted_app()) ? 1 : 0;
-#else
   return 0;
-#endif
 }
 
 std::optional<base::TimeDelta> ProcessMemoryMetricsEmitter::GetProcessUptime(
@@ -1696,76 +1645,6 @@ void ProcessMemoryMetricsEmitter::CollateResults() {
   }
 
   global_dump_ = nullptr;
-}
-
-namespace {
-
-// Returns true iff the given |process| is responsible for hosting the
-// main-frame of the given |page|.
-bool HostsMainFrame(const performance_manager::ProcessNode* process,
-                    const performance_manager::PageNode* page) {
-  const performance_manager::FrameNode* main_frame = page->GetMainFrameNode();
-  if (main_frame == nullptr) {
-    // |process| can't host a frame that doesn't exist.
-    return false;
-  }
-
-  return main_frame->GetProcessNode() == process;
-}
-
-}  // namespace
-
-std::vector<ProcessMemoryMetricsEmitter::ProcessInfo>
-ProcessMemoryMetricsEmitter::GetProcessToPageInfoMap(
-    performance_manager::Graph* graph) {
-  std::vector<ProcessInfo> process_infos;
-  // Assign page nodes unique IDs within this lookup only.
-  base::flat_map<const performance_manager::PageNode*, uint64_t> page_id_map;
-  for (const performance_manager::ProcessNode* process_node :
-       graph->GetAllProcessNodes()) {
-    if (process_node->GetProcessId() == base::kNullProcessId)
-      continue;
-
-    // First add all processes and their basic information.
-    ProcessInfo& process_info = process_infos.emplace_back();
-    process_info.pid = process_node->GetProcessId();
-    process_info.launch_time = process_node->GetLaunchTime();
-
-    // Then add information about their associated page nodes. Only renderers
-    // are associated with page nodes.
-    if (process_node->GetProcessType() != content::PROCESS_TYPE_RENDERER) {
-      continue;
-    }
-
-    base::flat_set<const performance_manager::PageNode*> page_nodes =
-        performance_manager::GraphOperations::GetAssociatedPageNodes(
-            process_node);
-    const base::TimeTicks now = base::TimeTicks::Now();
-    for (const performance_manager::PageNode* page_node : page_nodes) {
-      if (page_node->GetUkmSourceID() == ukm::kInvalidSourceId)
-        continue;
-
-      // Get or generate the tab id.
-      uint64_t& tab_id = page_id_map[page_node];
-      if (tab_id == 0u) {
-        // 0 is an invalid id, meaning `page_node` was just inserted in
-        // `page_id_map` and its tab id must be generated.
-        tab_id = page_id_map.size();
-      }
-
-      PageInfo& page_info = process_info.page_infos.emplace_back();
-      page_info.ukm_source_id = page_node->GetUkmSourceID();
-
-      page_info.tab_id = tab_id;
-      page_info.hosts_main_frame = HostsMainFrame(process_node, page_node);
-      page_info.is_visible = page_node->IsVisible();
-      page_info.time_since_last_visibility_change =
-          now - page_node->GetLastVisibilityChangeTime();
-      page_info.time_since_last_navigation =
-          page_node->GetTimeSinceLastNavigation();
-    }
-  }
-  return process_infos;
 }
 
 ProcessMemoryMetricsEmitter::ProcessInfo::ProcessInfo() = default;

@@ -11,7 +11,7 @@
 #include "base/process/process.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/metrics/process_memory_metrics_emitter.h"
+#include "chrome/browser/metrics/chrome_process_memory_metrics_emitter.h"
 #include "chrome/browser/resource_coordinator/tab_load_tracker.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -153,9 +153,9 @@ bool TabMemoryMetricsReporter::EmitMemoryMetricsAfterPageLoaded(
   if (!process.IsValid())
     return false;
   // To record only this tab's process memory metrics, we will create
-  // ProcessMemoryMetricsEmitter with pid.
+  // ChromeProcessMemoryMetricsEmitter with pid.
   scoped_refptr<ProcessMemoryMetricsEmitter> emitter(
-      new ProcessMemoryMetricsEmitter(process.Pid()));
+      new ChromeProcessMemoryMetricsEmitter(process.Pid()));
   emitter->FetchAndEmitProcessMemoryMetrics();
   return true;
 }

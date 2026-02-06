@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_BROWSER_METRICS_PROCESS_MEMORY_METRICS_EMITTER_H_
-#define CHROME_BROWSER_METRICS_PROCESS_MEMORY_METRICS_EMITTER_H_
+#ifndef COMPONENTS_EMBEDDER_SUPPORT_METRICS_PROCESS_MEMORY_METRICS_EMITTER_H_
+#define COMPONENTS_EMBEDDER_SUPPORT_METRICS_PROCESS_MEMORY_METRICS_EMITTER_H_
 
 #include <memory>
 #include <optional>
@@ -20,10 +20,6 @@
 
 namespace ukm {
 class UkmRecorder;
-}
-
-namespace performance_manager {
-class Graph;
 }
 
 // This class asynchronously fetches memory metrics for each process, and then
@@ -58,14 +54,17 @@ class ProcessMemoryMetricsEmitter
  protected:
   virtual ~ProcessMemoryMetricsEmitter();
 
+  // Virtual for testing.
+  virtual void FetchProcessInfos();
+
   // Virtual for testing. Callback invoked when memory_instrumentation service
   // is finished taking a memory dump.
   virtual void ReceivedMemoryDump(
       bool success,
       std::unique_ptr<memory_instrumentation::GlobalMemoryDump> dump);
 
-  // Virtual for testing. Callback invoked when the performance_manager
-  // returns info for each process.
+  // Virtual for testing. Callback invoked when the process information
+  // is received.
   virtual void ReceivedProcessInfos(std::vector<ProcessInfo> process_infos);
 
   // Virtual for testing.
@@ -80,15 +79,21 @@ class ProcessMemoryMetricsEmitter
   virtual std::optional<base::TimeDelta> GetProcessUptime(base::TimeTicks now,
                                                           base::ProcessId pid);
 
+#if BUILDFLAG(IS_ANDROID)
+  // Virtual for testing. Returns the child process binding state for the given
+  // process.
+  virtual std::optional<base::android::ChildBindingState>
+  GetAndroidRendererProcessBindingState(
+      memory_instrumentation::mojom::ProcessType process_type,
+      base::ProcessId pid);
+#endif
+
  private:
   friend class base::RefCountedThreadSafe<ProcessMemoryMetricsEmitter>;
 
   // This class sends two asynchronous service requests, whose results need to
   // be collated.
   void CollateResults();
-
-  static std::vector<ProcessInfo> GetProcessToPageInfoMap(
-      performance_manager::Graph* graph);
 
   // The results of each request are cached. When both requests are finished,
   // the results are collated.
@@ -131,4 +136,4 @@ struct ProcessMemoryMetricsEmitter::ProcessInfo {
   base::TimeTicks launch_time;
 };
 
-#endif  // CHROME_BROWSER_METRICS_PROCESS_MEMORY_METRICS_EMITTER_H_
+#endif  // COMPONENTS_EMBEDDER_SUPPORT_METRICS_PROCESS_MEMORY_METRICS_EMITTER_H_
