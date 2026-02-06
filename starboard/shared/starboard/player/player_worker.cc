@@ -281,6 +281,9 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     return;
   }
   if (static_cast<size_t>(samples_written) == input_buffers.size()) {
+    // SB_LOG(INFO) << "TTFF: OnNeedData Triggered by Post-Write Check
+    // (media_type="
+    //             << media_type << ")";
     UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
   } else {
     SB_DCHECK_GE(samples_written, 0);

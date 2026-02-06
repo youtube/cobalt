@@ -921,6 +921,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
 
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+    SB_LOG(INFO) << "TTFF: OnNeedData Triggered by Decoder Input (pending="
+                 << media_decoder_->GetNumberOfPendingInputs() << ")";
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
