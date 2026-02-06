@@ -27,12 +27,12 @@ class CobaltSecureNavigationThrottle : public content::NavigationThrottle {
       override;
 
   // Allow the user to enable HTTPS enforcement via a command line parameter.
-  bool ShouldEnforceHTTPS(const base::CommandLine& command_line);
+  virtual bool ShouldEnforceHTTPS(const base::CommandLine& command_line);
   content::NavigationThrottle::ThrottleCheckResult EnforceHTTPS();
 
   // Allow the user to enable CSP headers enforcement via a command line
   // parameter.
-  bool ShouldEnforceCSP(const base::CommandLine& command_line);
+  virtual bool ShouldEnforceCSP(const base::CommandLine& command_line);
   content::NavigationThrottle::ThrottleCheckResult EnforceCSPHeaders();
 
   const char* GetNameForLogging() override;

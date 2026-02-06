@@ -75,9 +75,3 @@ if (starboard_toolchain == "") {
     starboard_toolchain = cobalt_toolchain
   }
 }
-
-declare_args() {
-  # TODO(b/428999732, b/437999182): Cobalt shell was started as a minimal test shell.
-  # We use this param to separate all test logics from the Cobalt shell.
-  run_browser_tests = !is_official_build
-}
