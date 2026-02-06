@@ -308,8 +308,8 @@ void Signals::RestoreHandlerAndReraiseSignalOnReturn(
   // signals that do not re-raise autonomously), such as signals delivered via
   // kill() and asynchronous hardware faults such as SEGV_MTEAERR, which would
   // otherwise be lost when re-raising the signal via raise().
-// TODO: (cobalt b/406511608) Re-enable once we use crashpad in hermetic builds.
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   int retval = syscall(SYS_rt_tgsigqueueinfo,
                        getpid(),
                        syscall(SYS_gettid),
@@ -329,6 +329,7 @@ void Signals::RestoreHandlerAndReraiseSignalOnReturn(
   }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
         // BUILDFLAG(IS_CHROMEOS)
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // Explicitly re-raise the signal if it will not re-raise itself. Because
   // signal handlers normally execute with their signal blocked, this raise()

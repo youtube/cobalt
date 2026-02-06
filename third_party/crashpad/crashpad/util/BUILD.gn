@@ -418,6 +418,10 @@ crashpad_static_library("util") {
 
   deps = [ "//build:chromeos_buildflags" ]
 
+  if (is_cobalt_hermetic_build && current_toolchain == default_toolchain) {
+    sources += ["misc/capture_context_linux.S"]
+  }
+
   if (crashpad_is_android) {
     sources += [
       "linux/initial_signal_dispositions.cc",
