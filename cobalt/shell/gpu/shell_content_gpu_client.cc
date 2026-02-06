@@ -28,7 +28,6 @@ ShellContentGpuClient::~ShellContentGpuClient() = default;
 void ShellContentGpuClient::ExposeInterfacesToBrowser(
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
-    mojo::BinderMap* binders) {
-}
+    mojo::BinderMap* binders) {}
 
 }  // namespace content

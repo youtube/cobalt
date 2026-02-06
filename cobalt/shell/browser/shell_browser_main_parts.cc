@@ -72,17 +72,10 @@
 #include "ui/linux/linux_ui_factory.h"  // nogncheck
 #endif
 
-<<<<<<< HEAD
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/shell/common/device_authentication.h"
 #endif
 
-=======
->>>>>>> 701c780c680 (Remove test logics and GN flag from Cobalt target (#8982))
 namespace content {
 
 namespace {
