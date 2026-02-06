@@ -201,7 +201,6 @@ AlsaAudioSink::~AlsaAudioSink() {
   }
   // audio_out_thread_ is created at ctor and is not null.
   audio_out_thread_->Stop();
-  audio_out_thread_.reset();
 
   delete[] static_cast<uint8_t*>(silence_frames_);
 }

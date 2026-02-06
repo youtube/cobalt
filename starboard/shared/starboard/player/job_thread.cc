@@ -71,7 +71,11 @@ JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
     : thread_(std::move(thread)), job_queue_(std::move(job_queue)) {}
 
 JobThread::~JobThread() {
-  Stop();
+  std::lock_guard lock(stop_mutex_);
+  SB_CHECK(stopped_)
+      << "JobThread must be stopped before destruction to ensure any running "
+         "task is finished and all pending tasks are cleared while the owner "
+         "is still valid. See b/477902972#comment7";
 }
 
 void JobThread::Stop() {

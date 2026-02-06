@@ -42,7 +42,6 @@ PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
   stop_requested_.store(true);
   if (job_thread_) {
     job_thread_->Stop();
-    job_thread_.reset();
   }
 }
 

@@ -378,7 +378,6 @@ PulseAudioSinkType::~PulseAudioSinkType() {
       destroying_ = true;
     }
     audio_thread_->Stop();
-    audio_thread_.reset();
   }
   SB_DCHECK(sinks_.empty());
   if (context_) {
