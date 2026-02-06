@@ -1,4 +1,9 @@
 {
+  "docker_service": "",
+  "use_cache": false,
+  "build_runners": [
+    "macos-latest"
+  ],
   "platforms": [
     "tvos-arm64-simulator"
   ],

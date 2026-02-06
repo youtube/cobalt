@@ -89,7 +89,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
     if use_rbe:
       f.write(f'use_remoteexec = true {gen_comment}\n')
     if use_sccache:
-      f.write(f'cc_wrapper = sccache {gen_comment}\n')
+      f.write(f'cc_wrapper = "sccache" {gen_comment}\n')
     f.write(
         f'rbe_cfg_dir = rebase_path("//cobalt/reclient_cfgs") {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')

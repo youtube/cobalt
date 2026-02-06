@@ -21,6 +21,8 @@ on:
     secrets:
       datadog_api_key:
         required: false
+      SCCACHE_GCS_KEY_MAC:
+        required: false
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
@@ -218,6 +220,13 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
+      - name: Set number Docker Requirement
+        id: set-use-cache
+        shell: bash
+        run: |
+          set -x
+          use_cache=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc 'if .use_cache != null then .use_cache else true end')
+          echo "use_cache=${use_cache}" >> $GITHUB_OUTPUT
       - name: Set Docker files checksum
         id: set-docker-hash
         shell: bash
@@ -247,10 +256,12 @@ jobs:
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
+      use_cache: ${{ steps.set-use-cache.outputs.use_cache }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
+    if: needs.initialize.outputs.use_cache == 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
@@ -270,7 +281,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true' && needs.initialize.outputs.use_cache == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -291,7 +302,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
-    if: needs.initialize.outputs.web_tests == 'true'
+    if: needs.initialize.outputs.web_tests == 'true' && needs.initialize.outputs.use_cache == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -310,8 +321,35 @@ jobs:
     outputs:
       docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
-  build:
+  build-ready:
     needs: [initialize, docker-build-image]
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    if: always()
+    steps:
+      - name: Build ready check
+        id: build-ready
+        env:
+          DOCKER_BUILD_IMAGE_RESULT: ${{ needs.docker-build-image.result }}
+          INITIALIZE_RESULT: ${{ needs.initialize.result }}
+          use_cache: ${{ needs.initialize.outputs.use_cache }}
+        run: |
+          # Skip entirely if initialize failed
+          if [ $INITIALIZE_RESULT != "success" ]; then
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Skip if requires docker by docker-build-image failed
+          if [ $use_cache == "true" && $DOCKER_BUILD_IMAGE_RESULT != "success" ]; then
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "success=true" >> $GITHUB_OUTPUT
+    outputs:
+      success: ${{ steps.build-ready.outputs.success }}
+
+  build:
+    needs: [initialize, docker-build-image, build-ready]
+    if: always() && needs.build-ready.outputs.success == 'true'
     permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
@@ -338,12 +376,14 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Restore CI Essentials
+        if: ${{ needs.initialize.outputs.use_cache == 'true' }}
         uses: actions/download-artifact@v4
         with:
           path: pre-run
           name: ci-essentials-${{ inputs.platform }}
 
       - name: Prepare Workspace for Checkout
+        if: ${{ needs.initialize.outputs.use_cache == 'true' }}
         uses: ./pre-run/.github/actions/prepare-runner-cache
 
       - name: Checkout
@@ -360,11 +400,14 @@ jobs:
         id: setup-depot-tools
         continue-on-error: true
         uses: ./cobalt/src/.github/actions/depot_tools
+        with:
+          use_cache: ${{ needs.initialize.outputs.use_cache }}
 
       - name: Retry Depot Tools Set Up
         if: steps.setup-depot-tools.outcome != 'success'
         uses: ./cobalt/src/.github/actions/depot_tools
         with:
+          use_cache: ${{ needs.initialize.outputs.use_cache }}
           clear_cache: true
 
       - name: Build Cobalt
@@ -376,6 +419,7 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          sccache_gcs_key_mac: ${{ secrets.SCCACHE_GCS_KEY_MAC }}
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
@@ -561,11 +605,13 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
       - name: Restore CI Essentials
+        if: ${{ needs.initialize.outputs.use_cache == 'true' }}
         uses: actions/download-artifact@v4
         with:
           path: pre-run
           name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
+        if: ${{ needs.initialize.outputs.use_cache == 'true' }}
         uses: ./pre-run/.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4

@@ -27,6 +27,7 @@ runs:
       run: |
         if [[ "${USE_CACHE}" == "false" ]]; then
           echo "base_path=${{ runner.temp }}" >> ${GITHUB_OUTPUT}
+          echo "TMPDIR=${{ runner.temp }}" >> $GITHUB_ENV
         else
           echo "base_path=/runner-cache" >> ${GITHUB_OUTPUT}
         fi
@@ -106,21 +107,16 @@ runs:
           "https://github.com/${{ github.repository }}"
       shell: bash
 
-    - name: Set target OS for Android
-      if: contains(matrix.platform, 'android')
+    - name: Set target OS
+      shell: bash
       run: |
         cd cobalt
-        echo "target_os=['android']" >> .gclient
+        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
+          echo "target_os=['android']" >> .gclient
+        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+          echo "target_os=['ios']" >> .gclient
+        fi
         gclient validate
-      shell: bash
-
-    - name: Set target OS for tvOS
-      if: contains(matrix.platform, 'tvos')
-      run: |
-        cd cobalt
-        echo "target_os=['ios']" >> .gclient
-        gclient validate
-      shell: bash
 
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
