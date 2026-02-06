@@ -30,6 +30,8 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
@@ -51,6 +53,14 @@ class MediaCodecBridge {
   private static final String KEY_CROP_RIGHT = "crop-right";
   private static final String KEY_CROP_BOTTOM = "crop-bottom";
   private static final String KEY_CROP_TOP = "crop-top";
+
+  private static final HandlerThread sCallbackThread = new HandlerThread("MediaCodecCallbacks");
+  private static final Handler sCallbackHandler;
+
+  static {
+    sCallbackThread.start();
+    sCallbackHandler = new Handler(sCallbackThread.getLooper());
+  }
 
   private final Object mNativeBridgeLock = new Object();
 
@@ -340,7 +350,7 @@ class MediaCodecBridge {
             }
           }
         };
-    mMediaCodec.get().setCallback(mCallback);
+    mMediaCodec.get().setCallback(mCallback, sCallbackHandler);
 
     if (isFrameRenderedCallbackEnabled() || mIsTunnelingPlayback) {
       mFrameRendererListener =
@@ -357,7 +367,7 @@ class MediaCodecBridge {
               }
             }
           };
-      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
+      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, sCallbackHandler);
     }
 
     if (mIsTunnelingPlayback) {
@@ -998,7 +1008,7 @@ class MediaCodecBridge {
               }
             }
           };
-      mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+      mMediaCodec.get().setOnFirstTunnelFrameReadyListener(sCallbackHandler, mFirstTunnelFrameReadyListener);
     } else {
       Log.w(
           TAG,
