@@ -25,6 +25,7 @@ namespace media {
 
 std::unique_ptr<MediaService> CreateMediaService(
     mojo::PendingReceiver<mojom::MediaService> receiver) {
+  LOG(ERROR) << "Cobalt: " << __func__;
 #if BUILDFLAG(IS_ANDROID)
   return std::make_unique<MediaService>(
       std::make_unique<AndroidMojoMediaClient>(), std::move(receiver));
@@ -39,6 +40,7 @@ std::unique_ptr<MediaService> CreateMediaService(
 std::unique_ptr<MediaService> CreateGpuMediaService(
     mojo::PendingReceiver<mojom::MediaService> receiver,
     std::unique_ptr<GpuMojoMediaClient> client) {
+  LOG(ERROR) << "Cobalt: " << __func__;
   return std::make_unique<MediaService>(std::move(client), std::move(receiver));
 }
 

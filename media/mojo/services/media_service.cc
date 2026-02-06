@@ -18,6 +18,7 @@ MediaService::MediaService(std::unique_ptr<MojoMediaClient> mojo_media_client,
     : receiver_(this, std::move(receiver)),
       mojo_media_client_(std::move(mojo_media_client)) {
   DCHECK(mojo_media_client_);
+  LOG(ERROR) << "Cobalt: " << __func__;
   mojo_media_client_->Initialize();
 }
 
@@ -30,6 +31,7 @@ void MediaService::CreateInterfaceFactory(
   if (!mojo_media_client_)
     return;
 
+  LOG(ERROR) << "Cobalt: " << __func__;
   interface_factory_receivers_.Add(
       std::make_unique<InterfaceFactoryImpl>(std::move(frame_interfaces),
                                              mojo_media_client_.get()),

@@ -166,6 +166,8 @@ void OverlayStrategyUnderlayStarboard::CommitCandidate(
     const OverlayProposedCandidate& proposed_candidate,
     AggregatedRenderPass* render_pass) {
   DCHECK(GetVideoGeometrySetter());
+  LOG(ERROR) << "Cobalt: " << __func__ << " "
+             << proposed_candidate.candidate.display_rect.ToString();
   GetVideoGeometrySetter()->SetVideoGeometry(
       proposed_candidate.candidate.display_rect,
       std::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
