@@ -89,6 +89,7 @@ std::string CollapseSpaces(const std::string& input) {
   return result;
 }
 
+// Returns the relevant LC_TIME nl_langinfo string from the C/POSIX locale.
 std::string GetCTimeLanginfo(nl_item item) {
   switch (item) {
     // Date and Time Formats
@@ -194,6 +195,17 @@ std::string GetCTimeLanginfo(nl_item item) {
   }
 }
 
+// Returns the relevant LC_NUMERIC nl_langinfo string from the C/POSIX locale.
+std::string GetCNumericLanginfo(nl_item item) {
+  switch (item) {
+    case RADIXCHAR:
+      return ".";
+    case THOUSEP:
+    default:
+      return "";
+  }
+}
+
 // Convenience method to convert a POSIX locale string to the ICU string format.
 // Some POSIX strings like sr_RS@latin require special handling to be fully
 // translated from POSIX to ICU.
@@ -240,16 +252,6 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
   }
 
   return loc;
-}
-
-std::string GetCNumericLanginfo(nl_item item) {
-  switch (item) {
-    case RADIXCHAR:
-      return ".";
-    case THOUSEP:
-    default:
-      return "";
-  }
 }
 
 // ICU and POSIX use different systems to represent date format strings, and

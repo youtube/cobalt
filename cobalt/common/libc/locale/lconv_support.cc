@@ -310,6 +310,7 @@ std::string GetGroupingString(const icu::DecimalFormat* formatter) {
 }
 }  //  namespace
 
+// Resets the LconvImpl's LC_NUMERIC values to the C/POSIX locale values.
 void LconvImpl::ResetNumericToC() {
   stored_decimal = ".";
   stored_thousands = "";
@@ -317,6 +318,7 @@ void LconvImpl::ResetNumericToC() {
   current_numeric_locale = "C";
 }
 
+// Resets the LconvImpl's LC_MONETARY values to the C/POSIX locale values.
 void LconvImpl::ResetMonetaryToC() {
   stored_mon_decimal = "";
   stored_mon_thousands_sep = "";
