@@ -3506,6 +3506,9 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     cc::switches::kDisableCheckerImaging,
     cc::switches::kDisableCompositedAntialiasing,
     cc::switches::kDisableThreadedAnimation,
+#if BUILDFLAG(IS_COBALT)
+    cc::switches::kCCLayerTreeOptimization,
+#endif
     cc::switches::kEnableGpuBenchmarking,
     cc::switches::kEnableClippedImageScaling,
     cc::switches::kHighlightNonLCDTextLayers,

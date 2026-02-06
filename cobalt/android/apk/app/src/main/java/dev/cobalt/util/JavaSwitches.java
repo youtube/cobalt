@@ -26,6 +26,9 @@ public class JavaSwitches {
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
 
+  /** GPU flag to enable memory settings in layer tree and set max_memory_for_prepaint_percentage. Value type: Integer (MiB) */
+  public static final String CC_LAYER_TREE_OPTIMIZATION = "CCLayerTreeOptimization";
+
   /** V8 flag to enable jitless mode. Value type: Boolean (presence means true) */
   public static final String V8_JITLESS = "V8Jitless";
 
@@ -52,6 +55,12 @@ public class JavaSwitches {
     if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
       extraCommandLineArgs.add("--enable-low-end-device-mode");
       extraCommandLineArgs.add("--disable-rgba-4444-textures");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
+      extraCommandLineArgs.add(
+        "--cc-layer-tree-optimization="
+            + javaSwitches.get(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION).replaceAll("[^0-9]", ""));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.V8_JITLESS)) {

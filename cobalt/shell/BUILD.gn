@@ -223,8 +223,6 @@ static_library("cobalt_shell_lib") {
     "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
-    "gpu/shell_content_gpu_client.cc",
-    "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
