@@ -198,7 +198,6 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
-    case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
     case kSbEventTypeWindowSizeChanged:
       CHECK(g_platform_event_source);

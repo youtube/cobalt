@@ -138,6 +138,7 @@ persistence.
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
 * `kSbEventTypeOnScreenKeyboardBlurred`
+* `kSbEventTypeVerticalSync`
 
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
@@ -184,6 +185,9 @@ The existing code was migrated to C11 atomics.
 Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
 the global namespace into ::starboard::shared::starboard::media.
+
+### Updated `kSbEventTypeAccessibilityTextToSpeechSettingsChanged` SbEvent
+Now the data field of this SbEvent type is a boolean indicating if text-to-speech is enabled.
 
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
