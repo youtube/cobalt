@@ -50,12 +50,16 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128");
     javaSwitches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "256");
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
+    javaSwitches.put(JavaSwitches.ENABLE_LAYER_TREE_OPTIMIZATION, "true");
+
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
     assertThat(args).doesNotContain("--disable-quic");
     assertThat(args).doesNotContain("--enable-low-end-device-mode");
     assertThat(args).doesNotContain("--disable-rgba-4444-textures");
+
+    assertThat(args).contains("--enable-cc-layer-tree-optimization");
 
     assertThat(args).contains("--js-flags=--jitless");
     assertThat(args).contains("--js-flags=--write-protect-code-memory");
