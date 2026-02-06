@@ -802,10 +802,12 @@ void StarboardRenderer::OnDemuxerStreamRead(
                                    : elapsed_us;
     int64_t queuing_duration_us =
         (receive_callback_us > 0) ? (now_us - receive_callback_us) : 0;
-    LOG(WARNING) << "TTFF: Large data roundtrip interval(msec)="
-                 << (elapsed_us / 1'000)
-                 << " (read=" << (read_duration_us / 1'000)
-                 << ", queuing=" << (queuing_duration_us / 1'000) << ")";
+    LOG(WARNING) << "TTFF: Slow Data Roundtrip! Total delay = "
+                 << (elapsed_us / 1'000) << " ms. "
+                 << "[Upstream (MojoRenderer/Renderer) wait = "
+                 << (read_duration_us / 1'000) << " ms, "
+                 << "Local (GPU thread queue) wait = "
+                 << (queuing_duration_us / 1'000) << " ms]";
   }
 
   if (pending_flush_cb_) {

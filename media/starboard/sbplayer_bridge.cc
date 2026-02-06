@@ -296,20 +296,7 @@ void SbPlayerBridge::WriteBuffers(
   const char* type_string =
       (type == DemuxerStream::Type::AUDIO ? "AUDIO" : "VIDEO");
   TRACE_EVENT1("media", "SbPlayerBridge::WriteBuffers", "type", type_string);
-
-  static int64_t last_audio_write_us = 0;
-  static int64_t last_video_write_us = 0;
-  int64_t now = starboard::CurrentMonotonicTime();
-  int64_t* last_write_us = (type == DemuxerStream::Type::AUDIO)
-                               ? &last_audio_write_us
-                               : &last_video_write_us;
-
-  if (*last_write_us != 0 && (now - *last_write_us) > 500'000) {
-    LOG(WARNING) << "TTFF: Large gap in WriteBuffers("
-                 << (type == DemuxerStream::Type::AUDIO ? "AUDIO" : "VIDEO")
-                 << "): " << (now - *last_write_us) / 1'000 << " msec";
-  }
-  *last_write_us = now;
+  int64_t now_us = starboard::CurrentMonotonicTime();
 
   if (type == DemuxerStream::Type::VIDEO) {
     if (g_last_video_need_data_time_us != 0) {
@@ -318,11 +305,12 @@ void SbPlayerBridge::WriteBuffers(
           "media", "VideoDataFlow",
           perfetto::TerminatingFlow::ProcessScoped(request_time));
       g_last_video_need_data_time_us = 0;
-      int64_t delay_us = now - request_time;
+      int64_t delay_us = now_us - request_time;
       if (delay_us > 1'000'000) {
-        LOG(WARNING)
-            << "TTFF: Large browser task delay (OnNeedData -> WriteBuffers): "
-            << delay_us / 1'000 << " msec";
+        LOG(WARNING) << "TTFF: Hardware Decoder Starvation! It took "
+                     << delay_us / 1'000
+                     << " ms to deliver data after the request (gap between "
+                        "OnNeedData and WriteBuffers).";
       }
     }
   }
