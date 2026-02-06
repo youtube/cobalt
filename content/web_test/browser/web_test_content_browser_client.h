@@ -10,8 +10,11 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "content/shell/browser/shell_content_browser_client.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "content/web_test/common/fake_bluetooth_chooser.mojom-forward.h"
+#endif
 #include "content/web_test/common/web_test.mojom-forward.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -36,9 +39,11 @@ struct WebPreferences;
 }  // namespace blink
 
 namespace content {
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 class FakeBluetoothChooser;
 class FakeBluetoothChooserFactory;
 class FakeBluetoothDelegate;
+#endif
 class MockBadgeService;
 class MockClipboardHost;
 class NavigationThrottleRegistry;
@@ -57,9 +62,11 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
   void SetPopupBlockingEnabled(bool block_popups_);
   void ResetMockClipboardHosts();
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   // Retrieves the last created FakeBluetoothChooser instance.
   std::unique_ptr<FakeBluetoothChooser> GetNextFakeBluetoothChooser();
   void ResetFakeBluetoothDelegate();
+#endif
 
   void ResetWebSensorProviderAutomation();
 
@@ -101,7 +108,9 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override;
   bool CanAcceptUntrustedExchangesIfNeeded() override;
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   BluetoothDelegate* GetBluetoothDelegate() override;
+#endif
   content::TtsPlatform* GetTtsPlatform() override;
   std::unique_ptr<LoginDelegate> CreateLoginDelegate(
       const net::AuthChallengeInfo& auth_info,
@@ -145,9 +154,11 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   // Creates and stores a FakeBluetoothChooserFactory instance.
   void CreateFakeBluetoothChooserFactory(
       mojo::PendingReceiver<mojom::FakeBluetoothChooserFactory> receiver);
+#endif
   void BindClipboardHost(
       RenderFrameHost* render_frame_host,
       mojo::PendingReceiver<blink::mojom::ClipboardHost> receiver);
@@ -202,9 +213,11 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
 
   bool block_popups_ = true;
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   // Stores the FakeBluetoothChooserFactory that produces FakeBluetoothChoosers.
   std::unique_ptr<FakeBluetoothChooserFactory> fake_bluetooth_chooser_factory_;
   std::unique_ptr<FakeBluetoothDelegate> fake_bluetooth_delegate_;
+#endif
   std::unique_ptr<MockClipboardHost> mock_clipboard_host_;
   std::unique_ptr<MockBadgeService> mock_badge_service_;
   mojo::UniqueReceiverSet<blink::test::mojom::DevicePostureProviderAutomation>

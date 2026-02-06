@@ -15,6 +15,7 @@
 #include "base/task/thread_pool.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "cc/base/switches.h"
 #include "components/language_detection/content/common/language_detection.mojom.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
@@ -23,7 +24,9 @@
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"
 #include "content/browser/background_fetch/background_fetch_service_impl.h"
 #include "content/browser/bad_message.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
+#endif
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/browsing_topics/browsing_topics_document_host.h"
@@ -137,7 +140,9 @@
 #include "third_party/blink/public/mojom/background_sync/background_sync.mojom.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom.h"
 #include "third_party/blink/public/mojom/blob/file_backed_blob_factory.mojom.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "third_party/blink/public/mojom/bluetooth/web_bluetooth.mojom.h"
+#endif
 #include "third_party/blink/public/mojom/buckets/bucket_manager_host.mojom.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
 #include "third_party/blink/public/mojom/choosers/color_chooser.mojom.h"
@@ -181,7 +186,10 @@
 #include "third_party/blink/public/mojom/push_messaging/push_messaging.mojom.h"
 #include "third_party/blink/public/mojom/quota/quota_manager_host.mojom.h"
 #include "third_party/blink/public/mojom/sensor/web_sensor_provider.mojom.h"
+// Serial depends on Bluetooth
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "third_party/blink/public/mojom/serial/serial.mojom.h"
+#endif
 #include "third_party/blink/public/mojom/sms/webotp_service.mojom.h"
 #include "third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom.h"
 #include "third_party/blink/public/mojom/speech/speech_synthesis.mojom.h"
@@ -941,8 +949,10 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
         &BindWebNNContextProviderForRenderFrame, base::Unretained(host)));
   }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   map->Add<blink::mojom::WebBluetoothService>(base::BindRepeating(
       &WebBluetoothServiceImpl::BindIfAllowed, base::Unretained(host)));
+#endif
 
   map->Add<blink::mojom::PushMessaging>(base::BindRepeating(
       &RenderFrameHostImpl::GetPushMessaging, base::Unretained(host)));
@@ -1099,8 +1109,11 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
                           base::Unretained(host)));
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Serial depends on Bluetooth
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &RenderFrameHostImpl::BindSerialService, base::Unretained(host)));
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   map->Add<blink::mojom::SmartCardService>(base::BindRepeating(
@@ -1395,8 +1408,11 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
                           base::Unretained(host)));
   map->Add<blink::mojom::ReportingServiceProxy>(base::BindRepeating(
       &CreateReportingServiceProxyForDedicatedWorker, base::Unretained(host)));
+// Serial depends on Bluetooth
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   map->Add<blink::mojom::SerialService>(base::BindRepeating(
       &DedicatedWorkerHost::BindSerialService, base::Unretained(host)));
+#endif
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::HidService>(base::BindRepeating(
       &DedicatedWorkerHost::BindHidService, base::Unretained(host)));

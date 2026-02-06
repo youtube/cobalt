@@ -20,8 +20,11 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
+#include "build/lightweight_buildflags.h"
 #include "content/web_test/common/web_test.mojom.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "content/web_test/common/web_test_bluetooth_fake_adapter_setter.mojom.h"
+#endif
 #include "content/web_test/common/web_test_constants.h"
 #include "content/web_test/common/web_test_runtime_flags.h"
 #include "content/web_test/renderer/fake_screen_orientation_impl.h"
@@ -528,10 +531,12 @@ class TestRunner {
   ///////////////////////////////////////////////////////////////////////////
   // Internal helpers
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   mojom::WebTestBluetoothFakeAdapterSetter& GetBluetoothFakeAdapterSetter();
   void HandleBluetoothFakeAdapterSetterDisconnected();
   mojo::Remote<mojom::WebTestBluetoothFakeAdapterSetter>
       bluetooth_fake_adapter_setter_;
+#endif
 
   bool test_is_running_ = false;
 

@@ -14,6 +14,7 @@
 #include "base/functional/overloaded.h"
 #include "base/memory/safety_checks.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/broadcast_channel/broadcast_channel_provider.h"
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
@@ -863,6 +864,7 @@ void DedicatedWorkerHost::CreateCodeCacheHost(
                                  GetStorageKey(), std::move(receiver));
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void DedicatedWorkerHost::BindSerialService(
     mojo::PendingReceiver<blink::mojom::SerialService> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -876,6 +878,7 @@ void DedicatedWorkerHost::BindSerialService(
 
   ancestor_render_frame_host->BindSerialService(std::move(receiver));
 }
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
 void DedicatedWorkerHost::BindHidService(

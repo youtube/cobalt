@@ -58,6 +58,7 @@
 #include "base/types/optional_util.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "components/download/public/common/download_url_parameters.h"
 #include "components/input/input_router.h"
 #include "components/input/timeout_monitor.h"
@@ -67,7 +68,8 @@
 #include "content/browser/accessibility/render_accessibility_host.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/file_backed_blob_factory_frame_impl.h"
-#include "content/browser/bluetooth/web_bluetooth_service_impl.h"
+// TODO(lightweight): Upstream to Chromium.
+//#include "content/browser/bluetooth/web_bluetooth_service_impl.h"
 #include "content/browser/broadcast_channel/broadcast_channel_provider.h"
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browser_main_loop.h"
@@ -152,7 +154,10 @@
 #include "content/browser/renderer_host/view_transition_opt_in_state.h"
 #include "content/browser/scoped_active_url.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_reporter.h"
+// Disable serial when bluetooth is disabled.
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "content/browser/serial/serial_service.h"
+#endif
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/site_info.h"
 #include "content/browser/sms/webotp_service.h"
@@ -14073,6 +14078,8 @@ void RenderFrameHostImpl::BindNFCReceiver(
 }
 #endif
 
+// Serial depends on Bluetooth
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void RenderFrameHostImpl::BindSerialService(
     mojo::PendingReceiver<blink::mojom::SerialService> receiver) {
   if (!IsFeatureEnabled(network::mojom::PermissionsPolicyFeature::kSerial)) {
@@ -14100,6 +14107,7 @@ void RenderFrameHostImpl::BindSerialService(
 
   SerialService::GetOrCreateForCurrentDocument(this)->Bind(std::move(receiver));
 }
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
 void RenderFrameHostImpl::GetHidService(

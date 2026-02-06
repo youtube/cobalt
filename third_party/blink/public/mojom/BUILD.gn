@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/ui.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//printing/buildflags/buildflags.gni")
@@ -1135,6 +1136,12 @@ mojom("mojom_platform") {
 
   # Don't scramble message IDs so they are redistributable to external tests.
   scramble_message_ids = false
+
+  if (disable_bluetooth) {
+    # Serial depends on Bluetooth
+    sources -= [ "serial/serial.mojom" ]
+    public_deps -= [ "//device/bluetooth/public/mojom" ]
+  }
 }
 
 # Kept separate from "mojom_platform" because the Java bindings are
@@ -1782,71 +1789,73 @@ mojom("mojom_modules") {
   ]
 }
 
-mojom("web_bluetooth_mojo_bindings") {
-  visibility = [
-    "//third_party/blink/common",
-    "//third_party/blink/public/common:common",
-    "//third_party/blink/public/common:headers",
-  ]
+if (!disable_bluetooth) {
+  mojom("web_bluetooth_mojo_bindings") {
+    visibility = [
+      "//third_party/blink/common",
+      "//third_party/blink/public/common:common",
+      "//third_party/blink/public/common:headers",
+    ]
 
-  visibility_blink = [
-    "//third_party/blink/common",
-    "//third_party/blink/public/common:common",
-    "//third_party/blink/public/common:headers",
-    "//third_party/blink/renderer/platform:blink_platform_public_deps",
-  ]
+    visibility_blink = [
+      "//third_party/blink/common",
+      "//third_party/blink/public/common:common",
+      "//third_party/blink/public/common:headers",
+      "//third_party/blink/renderer/platform:blink_platform_public_deps",
+    ]
 
-  sources = [ "bluetooth/web_bluetooth.mojom" ]
+    sources = [ "bluetooth/web_bluetooth.mojom" ]
 
-  public_deps = [
-    "//device/bluetooth/public/mojom",
-    "//mojo/public/mojom/base",
-  ]
+    public_deps = [
+      "//device/bluetooth/public/mojom",
+      "//mojo/public/mojom/base",
+    ]
 
-  shared_cpp_typemaps = [
-    {
-      types = [
-        {
-          mojom = "blink.mojom.WebBluetoothDeviceId"
-          cpp = "::blink::WebBluetoothDeviceId"
-        },
-      ]
-      traits_headers = [ "//third_party/blink/public/common/bluetooth/web_bluetooth_device_id_mojom_traits.h" ]
-    },
-  ]
+    shared_cpp_typemaps = [
+      {
+        types = [
+          {
+            mojom = "blink.mojom.WebBluetoothDeviceId"
+            cpp = "::blink::WebBluetoothDeviceId"
+          },
+        ]
+        traits_headers = [ "//third_party/blink/public/common/bluetooth/web_bluetooth_device_id_mojom_traits.h" ]
+      },
+    ]
 
-  blink_cpp_typemaps = [
-    {
-      types = [
-        {
-          mojom = "bluetooth.mojom.UUID"
-          cpp = "::WTF::String"
-          nullable_is_same_type = true
-        },
-      ]
-      traits_private_headers = [
-        "//third_party/blink/renderer/platform/mojo/bluetooth_mojom_traits.h",
-      ]
-      traits_public_deps = [ "//device/bluetooth" ]
-    },
-  ]
+    blink_cpp_typemaps = [
+      {
+        types = [
+          {
+            mojom = "bluetooth.mojom.UUID"
+            cpp = "::WTF::String"
+            nullable_is_same_type = true
+          },
+        ]
+        traits_private_headers = [
+          "//third_party/blink/renderer/platform/mojo/bluetooth_mojom_traits.h",
+        ]
+        traits_public_deps = [ "//device/bluetooth" ]
+      },
+    ]
 
-  blink_cpp_typemaps += shared_cpp_typemaps
+    blink_cpp_typemaps += shared_cpp_typemaps
 
-  cpp_typemaps = shared_cpp_typemaps
+    cpp_typemaps = shared_cpp_typemaps
 
-  # The chromium variant must be linked with content and use the same export
-  # settings in component build because of the WebBluetoothDeviceId typemap
-  # inside content.
-  export_class_attribute = "BLINK_COMMON_EXPORT"
-  export_define = "BLINK_COMMON_IMPLEMENTATION=1"
-  export_header = "third_party/blink/public/common/common_export.h"
+    # The chromium variant must be linked with content and use the same export
+    # settings in component build because of the WebBluetoothDeviceId typemap
+    # inside content.
+    export_class_attribute = "BLINK_COMMON_EXPORT"
+    export_define = "BLINK_COMMON_IMPLEMENTATION=1"
+    export_header = "third_party/blink/public/common/common_export.h"
 
-  # Similarly, the blink variant must be linked with the platform component
-  # since it uses types from it in its typemaps.
-  export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
-  export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
-  export_header_blink = "third_party/blink/public/platform/web_common.h"
+    # Similarly, the blink variant must be linked with the platform component
+    # since it uses types from it in its typemaps.
+    export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
+    export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
+    export_header_blink = "third_party/blink/public/platform/web_common.h"
+  }
 }
 
 mojom("mojom_mhtml_load_result") {

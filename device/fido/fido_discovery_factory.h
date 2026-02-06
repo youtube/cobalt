@@ -15,6 +15,7 @@
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #include "device/fido/cable/cable_discovery_data.h"
 #include "device/fido/cable/v2_constants.h"
@@ -171,7 +172,9 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoDiscoveryFactory {
       cable_invalidated_pairing_callback_;
   std::optional<base::RepeatingCallback<void(cablev2::Event)>>
       cable_event_callback_;
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   bool cable_must_support_ctap_ = true;
+#endif
 #if BUILDFLAG(IS_CHROMEOS)
   base::RepeatingCallback<std::string()> generate_request_id_callback_;
   bool require_legacy_cros_authenticator_ = false;
