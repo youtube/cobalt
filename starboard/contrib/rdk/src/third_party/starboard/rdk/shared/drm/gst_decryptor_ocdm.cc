@@ -457,7 +457,7 @@ static GstCaps* cobalt_ocdm_decryptor_transform_caps(GstBaseTransform* base, Gst
     if (!duplicate) {
       gst_caps_append_structure(transformed_caps, out_structure);
     } else {
-      gst_object_unref(out_structure);
+      gst_structure_free(out_structure);
     }
   }
 

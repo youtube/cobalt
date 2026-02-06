@@ -2197,7 +2197,8 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
     }
   }
 
-  if (g_str_has_prefix(GST_ELEMENT_NAME(element), "vqueue")) {
+  if (g_str_has_prefix(GST_ELEMENT_NAME(element), "vqueue") &&
+      g_object_class_find_property(G_OBJECT_GET_CLASS(element), "max-size-buffers")) {
     const guint kNumVideoBuffers = kVideoBufferDurationNs / (16 * GST_MSECOND);
     guint max_size_buffers = 0;
     g_object_get(element, "max-size-buffers", &max_size_buffers, nullptr);
