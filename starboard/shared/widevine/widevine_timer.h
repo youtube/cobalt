@@ -28,6 +28,7 @@ namespace starboard {
 // be called from any threads.
 class WidevineTimer : public ::widevine::Cdm::ITimer {
  public:
+  WidevineTimer();
   ~WidevineTimer() override;
 
   // Call |client->onTimerExpired(context)| after |delay_in_milliseconds|.
@@ -40,8 +41,8 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   void cancel(IClient* client) override;
 
  private:
+  const std::unique_ptr<JobThread> job_thread_;
   std::mutex mutex_;
-  std::unique_ptr<JobThread> job_thread_;  // Guarded by |mutex_|.
   std::map<IClient*, JobQueue::JobOwner*>
       active_clients_;  // Guarded by |mutex_|.
 };

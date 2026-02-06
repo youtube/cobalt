@@ -22,15 +22,14 @@
 
 namespace starboard {
 
+WidevineTimer::WidevineTimer() : job_thread_(JobThread::Create("wv_timer")) {
+  SB_CHECK(job_thread_);
+}
+
 WidevineTimer::~WidevineTimer() {
+  job_thread_->Stop();
+
   std::lock_guard lock(mutex_);
-  if (job_thread_) {
-    // Flush any pending tasks before deleting |active_clients_|. This ensures
-    // that background tasks (like those scheduled by cancel()) that capture
-    // iterators into |active_clients_| finish before the data is destroyed.
-    // TODO: b/477902972 - Call stop method instead, once it's added.
-    job_thread_->ScheduleAndWait([] {});
-  }
   for (auto iter : active_clients_) {
     delete iter.second;
   }
@@ -40,12 +39,6 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                                IClient* client,
                                void* context) {
   std::unique_lock lock(mutex_);
-  if (active_clients_.empty()) {
-    SB_CHECK(!job_thread_);
-    job_thread_ = std::make_unique<JobThread>("wv_timer");
-  }
-
-  SB_CHECK(job_thread_);
 
   auto iter = active_clients_.find(client);
   if (iter == active_clients_.end()) {
@@ -67,18 +60,11 @@ void WidevineTimer::cancel(IClient* client) {
     return;
   }
 
-  SB_CHECK(job_thread_);
-
   job_thread_->ScheduleAndWait([this, iter] {
     iter->second->CancelPendingJobs();
     delete iter->second;
     active_clients_.erase(iter);
   });
-
-  if (active_clients_.empty()) {
-    // Kill the thread on the last |client|.
-    job_thread_.reset();
-  }
 }
 
 }  // namespace starboard

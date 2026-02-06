@@ -94,7 +94,7 @@ void Dav1dVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("dav1d_video_decoder"));
+    decoder_thread_ = JobThread::Create("dav1d_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
 
@@ -130,6 +130,7 @@ void Dav1dVideoDecoder::Reset() {
     decoder_thread_->ScheduleAndWait(
         std::bind(&Dav1dVideoDecoder::TeardownCodec, this));
 
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 

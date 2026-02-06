@@ -61,6 +61,7 @@ void OpenH264VideoDecoder::Reset() {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
     decoder_thread_->ScheduleAndWait(
         std::bind(&OpenH264VideoDecoder::TeardownCodec, this));
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 
@@ -133,7 +134,7 @@ void OpenH264VideoDecoder::WriteInputBuffers(
     return;
   }
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("openh264_video_decoder"));
+    decoder_thread_ = JobThread::Create("openh264_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
   const auto& input_buffer = input_buffers[0];
