@@ -87,9 +87,8 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   }
 
 #if BUILDFLAG(IS_ANDROIDTV)
-  // Set the HangWatcher delegate before initializing.
-  static cobalt::browser::CobaltHangWatcherDelegate g_hang_delegate;
-  base::HangWatcher::SetDelegate(&g_hang_delegate);
+  // This delegate is for reading the flag value.
+  cobalt::browser::CobaltHangWatcherDelegate::Initialize();
 #endif
 
   InitializeHangWatcher();

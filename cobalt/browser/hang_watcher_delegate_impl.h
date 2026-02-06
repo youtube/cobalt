@@ -25,6 +25,8 @@ class CobaltHangWatcherDelegate : public base::HangWatcher::Delegate {
   CobaltHangWatcherDelegate() = default;
   ~CobaltHangWatcherDelegate() override = default;
 
+  static void Initialize();
+
   bool IsHangReportingEnabled() override;
 };
 

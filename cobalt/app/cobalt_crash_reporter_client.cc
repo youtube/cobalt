@@ -26,7 +26,11 @@
 #include "cobalt/version.h"
 
 namespace {
+#if BUILDFLAG(IS_ANDROIDTV)
 constexpr char kProductName[] = "Cobalt_ATV";
+#else
+constexpr char kProductName[] = "Cobalt";
+#endif
 constexpr char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
 }  // namespace
 

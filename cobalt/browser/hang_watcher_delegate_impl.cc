@@ -17,11 +17,16 @@
 #include <cstdint>
 #include <optional>
 
-#include "base/logging.h"
 #include "cobalt/browser/global_features.h"
 
 namespace cobalt {
 namespace browser {
+
+// static
+void CobaltHangWatcherDelegate::Initialize() {
+  static base::NoDestructor<CobaltHangWatcherDelegate> instance;
+  base::HangWatcher::SetDelegate(instance.get());
+}
 
 bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
   std::optional<cobalt::GlobalFeatures::SettingValue> setting =
