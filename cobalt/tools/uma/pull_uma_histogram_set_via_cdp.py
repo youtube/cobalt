@@ -210,11 +210,10 @@ def _get_chrome_guiding_metrics_for_memory() -> list:
 
 
 def _get_cobalt_resident_memory_metrics() -> list:
+  # TODO(482357006): Re-add process-specific resident memory metrics (Browser,
+  # Renderer, GPU) when moving to multi-process architecture.
   return [
       'Memory.Total.Resident',
-      'Memory.Browser.Resident',
-      'Memory.Renderer.Resident',
-      'Memory.Gpu.Resident',
   ]
 
 
