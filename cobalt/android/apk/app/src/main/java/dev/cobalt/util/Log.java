@@ -41,19 +41,19 @@ public final class Log {
   private static void initLogging() {
     try {
       sLogV =
-          android.util.Log.class.getDeclaredMethod(
+          org.chromium.base.Log.class.getDeclaredMethod(
               "v", String.class, String.class, Throwable.class);
       sLogD =
-          android.util.Log.class.getDeclaredMethod(
+          org.chromium.base.Log.class.getDeclaredMethod(
               "d", String.class, String.class, Throwable.class);
       sLogI =
-          android.util.Log.class.getDeclaredMethod(
+          org.chromium.base.Log.class.getDeclaredMethod(
               "i", String.class, String.class, Throwable.class);
       sLogW =
-          android.util.Log.class.getDeclaredMethod(
+          org.chromium.base.Log.class.getDeclaredMethod(
               "w", String.class, String.class, Throwable.class);
       sLogE =
-          android.util.Log.class.getDeclaredMethod(
+          org.chromium.base.Log.class.getDeclaredMethod(
               "e", String.class, String.class, Throwable.class);
     } catch (Throwable e) {
       // ignore
@@ -94,21 +94,21 @@ public final class Log {
   }
 
   public static int v(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.VERBOSE)) {
+    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.VERBOSE)) {
       return logWithMethod(sLogV, tag, messageTemplate, args);
     }
     return 0;
   }
 
   public static int d(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
+    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.DEBUG)) {
       return logWithMethod(sLogD, tag, messageTemplate, args);
     }
     return 0;
   }
 
   public static int i(String tag, String messageTemplate, Object... args) {
-    if (android.util.Log.isLoggable(TAG, android.util.Log.INFO)) {
+    if (org.chromium.base.Log.isLoggable(TAG, org.chromium.base.Log.INFO)) {
       return logWithMethod(sLogI, tag, messageTemplate, args);
     }
     return 0;
