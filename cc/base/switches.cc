@@ -119,5 +119,8 @@ const char kCCLayerTreeTestLongTimeout[] = "cc-layer-tree-test-long-timeout";
 const char kCCScrollAnimationDurationForTesting[] =
     "cc-scroll-animation-duration-in-seconds";
 
+// Enables GPU memory optimization settings in layer tree
+const char kEnableCCLayerTreeOptimization[] = "enable-cc-layer-tree-optimization";
+
 }  // namespace switches
 }  // namespace cc

@@ -71,6 +71,9 @@ CC_BASE_EXPORT extern const char kCCLayerTreeTestNoTimeout[];
 CC_BASE_EXPORT extern const char kCCLayerTreeTestLongTimeout[];
 CC_BASE_EXPORT extern const char kCCScrollAnimationDurationForTesting[];
 
+// experimental flag for tuning GPU memory settings in LayerTree.
+CC_BASE_EXPORT extern const char kEnableCCLayerTreeOptimization[];
+
 }  // namespace switches
 }  // namespace cc
 

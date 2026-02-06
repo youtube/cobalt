@@ -3506,6 +3506,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     cc::switches::kDisableCheckerImaging,
     cc::switches::kDisableCompositedAntialiasing,
     cc::switches::kDisableThreadedAnimation,
+    cc::switches::kEnableCCLayerTreeOptimization,
     cc::switches::kEnableGpuBenchmarking,
     cc::switches::kEnableClippedImageScaling,
     cc::switches::kHighlightNonLCDTextLayers,
