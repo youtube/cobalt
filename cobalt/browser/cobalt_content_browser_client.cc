@@ -75,10 +75,6 @@
 #include "cobalt/android/jni_headers/CobaltActivity_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 namespace cobalt {
 
 namespace {
@@ -540,20 +536,6 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
-
-#if defined(RUN_BROWSER_TESTS)
-  // Overrides for --run-web-tests.
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    // Disable artificial timeouts for PNA-only preflights in warning-only mode
-    // for web tests. We do not exercise this behavior with web tests as it is
-    // intended to be a temporary rollout stage, and the short timeout causes
-    // flakiness when the test server takes just a tad too long to respond.
-    feature_overrides.emplace_back(
-        std::cref(
-            network::features::kPrivateNetworkAccessPreflightShortTimeout),
-        base::FeatureList::OVERRIDE_DISABLE_FEATURE);
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
 
   feature_list->InitializeFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),

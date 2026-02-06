@@ -355,11 +355,6 @@ test("cobalt_browsertests") {
     "//third_party/mesa_headers",
   ]
 
-  # official builds do not include this in content_shell_lib
-  if (is_official_build) {
-    deps += [ "//cobalt/shell:browsertests_sources" ]
-  }
-
   if (is_android) {
     deps += [
       ":content_browsertests_java",

@@ -89,11 +89,6 @@
 #include "cobalt/shell/app/ios/shell_application_ios.h"
 #endif
 
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"            // nogncheck
-#include "cobalt/shell/utility/shell_content_utility_client.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 namespace {
 
 #if !BUILDFLAG(IS_ANDROIDTV)
@@ -137,16 +132,6 @@ ShellMainDelegate::~ShellMainDelegate() {}
 
 absl::optional<int> ShellMainDelegate::BasicStartupComplete() {
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
-
-#if defined(RUN_BROWSER_TESTS)
-  if (command_line.HasSwitch("run-layout-test")) {
-    std::cerr << std::string(79, '*') << "\n"
-              << "* The flag --run-layout-test is obsolete. Please use --"
-              << switches::kRunWebTests << " instead. *\n"
-              << std::string(79, '*') << "\n";
-    command_line.AppendSwitch(switches::kRunWebTests);
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
 
 #if BUILDFLAG(IS_ANDROID)
   Compositor::Initialize();
@@ -394,12 +379,5 @@ ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
   renderer_client_ = std::make_unique<ShellContentRendererClient>();
   return renderer_client_.get();
 }
-#if defined(RUN_BROWSER_TESTS)
-ContentUtilityClient* ShellMainDelegate::CreateContentUtilityClient() {
-  utility_client_ =
-      std::make_unique<ShellContentUtilityClient>(is_content_browsertests_);
-  return utility_client_.get();
-}
-#endif  // defined(RUN_BROWSER_TESTS)
 
 }  // namespace content
