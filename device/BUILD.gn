@@ -557,6 +557,13 @@ test("device_unittests") {
       "//device/bluetooth:mocks",
       "//device/bluetooth/public/mojom:deprecated_experimental_interfaces",
     ]
+
+    if (is_android) {
+      deps -= [
+        ":bluetooth_test_java",
+        ":bluetooth_test_jni_headers",
+      ]
+    }
   }
 }
 
@@ -589,6 +596,10 @@ if (is_android) {
       ":bluetooth_test_javagen",
       ":bluetooth_test_jni_headers",
     ]
+
+    if (disable_bluetooth) {
+      deps -= [ "//device/bluetooth:java" ]
+    }
   }
 
   robolectric_binary("device_junit_tests") {

@@ -5,8 +5,10 @@
 import("//build/config/lightweight.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
-# If disable_bluetooth is true, this module should not be built.
-assert(!disable_bluetooth)
+if (is_linux) {
+  # If disable_bluetooth is true, this module should not be built.
+  assert(!disable_bluetooth)
+}
 
 mojom("mojom") {
   generate_java = true
