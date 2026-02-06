@@ -58,6 +58,12 @@
       "test_attempts": "6"
     }
   ],
+  "yts_playback_test_targets": [
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:ATV_KIMONO_YTS_PLAYBACK_TESTS_ARM_DEVICES",
+      "test_attempts": "3"
+    }
+  ],
   "test_dimensions": {
     "device_type": "arm_devices",
     "device_pool": "maneki"
