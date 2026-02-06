@@ -200,12 +200,10 @@ def _get_histograms_from_file(file_path: str) -> list:
 
 
 def _get_chrome_guiding_metrics_for_memory() -> list:
+  # TODO(482357006): Re-add process-specific private memory metrics (Browser,
+  # Renderer, GPU) when moving to multi-process architecture.
   return [
-      'Memory.Browser.PrivateMemoryFootprint',
-      'Memory.Gpu.PrivateMemoryFootprint',
-      'Memory.Renderer.PrivateMemoryFootprint',
       'Memory.Total.PrivateMemoryFootprint',
-      'Memory.Browser.MemoryFootprint',
   ]
 
 

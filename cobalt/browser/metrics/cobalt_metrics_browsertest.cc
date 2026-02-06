@@ -68,7 +68,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
           .size(),
       1u);
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
-  // TODO(482357006): Re-add process-specific resident memory metrics (Browser,
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
   // Renderer, GPU) when moving to multi-process architecture.
 }
 
@@ -95,7 +95,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
           .size(),
       1u);
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
-  // TODO(482357006): Re-add process-specific resident memory metrics (Browser,
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
   // Renderer, GPU) when moving to multi-process architecture.
 }
 

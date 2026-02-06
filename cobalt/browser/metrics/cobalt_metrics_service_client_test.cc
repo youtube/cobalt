@@ -324,7 +324,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
                                       1);
   histogram_tester.ExpectUniqueSample("Memory.Total.Resident", 20, 1);
-  // TODO(482357006): Re-add process-specific resident memory metrics (Browser,
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
   // Renderer, GPU) when moving to multi-process architecture.
 }
 

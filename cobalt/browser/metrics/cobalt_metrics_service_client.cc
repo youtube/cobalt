@@ -379,7 +379,7 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
   uint64_t total_private_footprint_kb = 0;
   uint64_t total_resident_kb = 0;
 
-  // TODO(482357006): Re-add process-specific resident memory metrics (Browser,
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
   // Renderer, GPU) when moving to multi-process architecture.
   for (const auto& process_dump : global_dump->process_dumps()) {
     total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
