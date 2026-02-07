@@ -118,6 +118,9 @@ class MediaDrmBridge {
   // Instances are only returned if initialization succeeds; therefore, this
   // member is guaranteed to be valid for the lifetime of the object.
   base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
+
+  // |j_media_crypto_| is non-null after initialization, but may be reset
+  // via CreateMediaCryptoSession() if a session creation failure occurs.
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
