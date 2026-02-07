@@ -169,6 +169,10 @@ void Application::InjectOsNetworkConnectedEvent() {
   Inject(new Event(kSbEventTypeOsNetworkConnected, NULL, NULL));
 }
 
+void Application::InjectDateTimeConfigurationChangedEvent() {
+  Inject(new Event(kSbEventDateTimeConfigurationChanged, NULL, NULL));
+}
+
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeWindowSizeChanged, context, callback));
