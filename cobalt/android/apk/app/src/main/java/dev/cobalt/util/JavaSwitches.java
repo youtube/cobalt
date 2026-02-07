@@ -47,6 +47,9 @@ public class JavaSwitches {
   /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
   public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
 
+  /** CC flag to set the number of raster threads. Value type: Integer */
+  public static final String NUM_RASTER_THREADS = "NumRasterThreads";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -88,6 +91,11 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+    if (javaSwitches.containsKey(JavaSwitches.NUM_RASTER_THREADS)) {
+      extraCommandLineArgs.add(
+          "--num-raster-threads="
+              + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
     }
     return extraCommandLineArgs;
   }

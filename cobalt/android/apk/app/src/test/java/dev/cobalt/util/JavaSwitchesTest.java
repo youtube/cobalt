@@ -51,7 +51,7 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "256");
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
     javaSwitches.put(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION, "0");
-
+    javaSwitches.put(JavaSwitches.NUM_RASTER_THREADS, "4");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
@@ -67,7 +67,8 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--initial-old-space-size=128");
     assertThat(args).contains("--js-flags=--max-old-space-size=256");
     assertThat(args).contains("--js-flags=--max-semi-space-size=16");
-    assertThat(args).hasSize(6);
+    assertThat(args).contains("--num-raster-threads=4");
+    assertThat(args).hasSize(7);
   }
 
   @Test
