@@ -126,14 +126,28 @@ void MinRequiredFramesTester::TesterThreadFunc() {
       is_test_complete_ = false;
     }
 
-    audio_sink_ = new AudioTrackAudioSink(
-        NULL, task.number_of_channels, task.sample_rate, task.sample_type,
-        frame_buffers, max_required_frames_,
-        min_required_frames_ * task.number_of_channels *
-            GetSampleSize(task.sample_type),
-        &MinRequiredFramesTester::UpdateSourceStatusFunc,
-        &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
+    audio_sink_ =
+        AudioTrackAudioSink::Create(
+            /*type=*/nullptr, task.number_of_channels, task.sample_rate,
+            task.sample_type, frame_buffers, max_required_frames_,
+            min_required_frames_ * task.number_of_channels *
+                GetSampleSize(task.sample_type),
+            &MinRequiredFramesTester::UpdateSourceStatusFunc,
+            &MinRequiredFramesTester::ConsumeFramesFunc,
+            &MinRequiredFramesTester::ErrorFunc,
+            /*start_media_time=*/0,
+            /*tunnel_mode_audio_session_id=*/-1,
+            /*is_web_audio=*/false, /*context=*/this)
+            .release();
+    if (!audio_sink_) {
+      SB_LOG(ERROR) << "Failed to create audio sink.";
+      // Mark as complete so we can continue with the next task.
+      {
+        std::lock_guard lock(mutex_);
+        is_test_complete_ = true;
+      }
+      test_complete_cv_.notify_one();
+    }
     {
       std::unique_lock lock(mutex_);
       bool notified = test_complete_cv_.wait_for(
@@ -143,9 +157,8 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     }
 
     // Get start threshold before release the audio sink.
-    int start_threshold = audio_sink_->IsAudioTrackValid()
-                              ? audio_sink_->GetStartThresholdInFrames()
-                              : 0;
+    int start_threshold =
+        audio_sink_ ? audio_sink_->GetStartThresholdInFrames() : 0;
 
     // |min_required_frames_| is shared between two threads. Release audio sink
     // to end audio sink thread before access |min_required_frames_| on this
