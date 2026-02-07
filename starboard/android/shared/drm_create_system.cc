@@ -40,12 +40,11 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 
-  DrmSystem* drm_system =
-      new DrmSystem(key_system, context, update_request_callback,
-                    session_updated_callback, key_statuses_changed_callback);
-  if (!drm_system->is_valid()) {
-    delete drm_system;
+  std::unique_ptr<DrmSystem> drm_system = DrmSystem::Create(
+      key_system, context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback);
+  if (!drm_system) {
     return kSbDrmSystemInvalid;
   }
-  return drm_system;
+  return drm_system.release();
 }

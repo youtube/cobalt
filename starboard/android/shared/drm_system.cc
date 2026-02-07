@@ -55,7 +55,24 @@ DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
 }  // namespace
 
+// static
+std::unique_ptr<DrmSystem> DrmSystem::Create(
+    std::string_view key_system,
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
+  auto drm_system = std::make_unique<DrmSystem>(
+      PassKey<DrmSystem>(), key_system, context, update_request_callback,
+      session_updated_callback, key_statuses_changed_callback);
+  if (!drm_system->media_drm_bridge_) {
+    return nullptr;
+  }
+  return drm_system;
+}
+
 DrmSystem::DrmSystem(
+    PassKey<DrmSystem>,
     std::string_view key_system,
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
@@ -75,10 +92,10 @@ DrmSystem::DrmSystem(
                              : nullptr) {
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
-  media_drm_bridge_ = std::make_unique<MediaDrmBridge>(
+  media_drm_bridge_ = MediaDrmBridge::Create(
       base::raw_ref<MediaDrmBridge::Host>(*this), key_system_,
       enable_app_provisioning_);
-  if (!media_drm_bridge_->is_valid()) {
+  if (!media_drm_bridge_) {
     return;
   }
   SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system

@@ -32,6 +32,7 @@
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -41,7 +42,15 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                   public MediaDrmBridge::Host,
                   private Thread {
  public:
-  DrmSystem(std::string_view key_system,
+  static std::unique_ptr<DrmSystem> Create(
+      std::string_view key_system,
+      void* context,
+      SbDrmSessionUpdateRequestFunc update_request_callback,
+      SbDrmSessionUpdatedFunc session_updated_callback,
+      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+
+  DrmSystem(PassKey<DrmSystem>,
+            std::string_view key_system,
             void* context,
             SbDrmSessionUpdateRequestFunc update_request_callback,
             SbDrmSessionUpdatedFunc session_updated_callback,
@@ -83,7 +92,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   void OnInsufficientOutputProtection();
 
-  bool is_valid() const { return media_drm_bridge_->is_valid(); }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
   }
