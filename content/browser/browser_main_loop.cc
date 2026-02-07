@@ -414,6 +414,7 @@ class OopDataDecoder : public data_decoder::ServiceProvider {
   }
 };
 
+#if !BUILDFLAG(IS_COBALT)
 void BindHidManager(mojo::PendingReceiver<device::mojom::HidManager> receiver) {
 #if !BUILDFLAG(IS_ANDROID)
   if (!BrowserThread::CurrentlyOn(BrowserThread::UI)) {
@@ -425,6 +426,7 @@ void BindHidManager(mojo::PendingReceiver<device::mojom::HidManager> receiver) {
   GetDeviceService().BindHidManager(std::move(receiver));
 #endif
 }
+#endif // !BUILDFLAG(IS_COBALT)
 
 uint32_t GenerateBrowserSalt() {
   uint32_t salt;
@@ -1304,7 +1306,9 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
   // so this cannot happen any earlier than now.
   InitializeMojo();
 
+#if !BUILDFLAG(IS_COBALT)
   data_decoder_service_provider_ = std::make_unique<OopDataDecoder>();
+#endif // !BUILDFLAG(IS_COBALT)
 
   HistogramSynchronizer::GetInstance();
 
@@ -1369,6 +1373,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
     InitializeAudio();
   }
 
+#if !BUILDFLAG(IS_COBALT)
   {
     TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:MidiService");
     midi_service_ = std::make_unique<midi::MidiService>();
@@ -1383,6 +1388,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
         base::BindRepeating(&BindHidManager));
 #endif
   }
+#endif // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_WIN)
   if (!base::FeatureList::IsEnabled(
@@ -1409,6 +1415,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
         std::make_unique<MediaStreamManager>(audio_system_.get());
   }
 
+#if !BUILDFLAG(IS_COBALT)
   {
     TRACE_EVENT0("startup",
                  "BrowserMainLoop::PostCreateThreads:InitSpeechRecognition");
@@ -1421,6 +1428,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
                  "BrowserMainLoop::PostCreateThreads::SaveFileManager");
     save_file_manager_ = new SaveFileManager();
   }
+#endif // !BUILDFLAG(IS_COBALT)
 
   // Alert the clipboard class to which threads are allowed to access the
   // clipboard:
