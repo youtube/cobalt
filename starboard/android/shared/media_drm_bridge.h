@@ -23,7 +23,9 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ref.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/drm.h"
 
 namespace starboard {
@@ -61,17 +63,17 @@ class MediaDrmBridge {
     bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
   };
 
-  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                 std::string_view key_system,
-                 bool enable_app_provisioning);
+  static std::unique_ptr<MediaDrmBridge> Create(
+      base::raw_ref<MediaDrmBridge::Host> host,
+      std::string_view key_system,
+      bool enable_app_provisioning);
+
+  MediaDrmBridge(PassKey<MediaDrmBridge>,
+                 base::raw_ref<MediaDrmBridge::Host> host);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
   MediaDrmBridge& operator=(const MediaDrmBridge&) = delete;
-
-  bool is_valid() const {
-    return !j_media_drm_bridge_.is_null() && !j_media_crypto_.is_null();
-  }
 
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
@@ -107,9 +109,14 @@ class MediaDrmBridge {
   static bool IsCbcsSupported(JNIEnv* env);
 
  private:
-  const raw_ref<MediaDrmBridge::Host> host_;
+  bool Initialize(std::string_view key_system, bool enable_app_provisioning);
+
+  const base::raw_ref<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
 
+  // The factory method guarantees that |j_media_drm_bridge_| is non-null.
+  // Instances are only returned if initialization succeeds; therefore, this
+  // member is guaranteed to be valid for the lifetime of the object.
   base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
