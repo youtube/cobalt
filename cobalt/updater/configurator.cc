@@ -303,7 +303,7 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   auto it = kChannelAndSbVersionToOmahaIdMap.find(channel +
                                                   std::to_string(sb_version));
   if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
-    return it->second;
+    return std::string(it->second);
   }
   // All undefined channel requests go to the default EAP config.
   LOG(INFO) << "Configurator::GetAppGuidHelper updater channel and starboard "
