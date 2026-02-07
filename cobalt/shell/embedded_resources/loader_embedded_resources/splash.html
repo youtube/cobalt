@@ -64,12 +64,12 @@
        * Displays static splash screen for devices that don't support VP9
        * @param urlParams URL parameters containing cache configuration
        */
-      function handleStaticImageFallback(urlParams, afterImageLoad) {
+      function handleStaticImageFallback(urlParams, splashTopic, afterImageLoad) {
         const placeholderEl = getPlaceholderEl();
         if (!placeholderEl) {
           return;
         }
-
+        urlParams.append('fallback', `${splashTopic}splash.png`);
         fetch('h5vcc-embedded://splash.png?' + urlParams.toString())
         .then(response => {
           if (!response.ok) {
@@ -96,7 +96,7 @@
        * Plays the splash video based on resolution the device support
        * @param urlParams URL parameters containing cache and fallback configuration
        */
-      function handleVideo(urlParams, afterVideoStart) {
+      function handleVideo(urlParams, splashTopic, afterVideoStart) {
         const videoEl = getVideoEl();
         if (!videoEl) {
           return;
@@ -104,9 +104,8 @@
         const mediaSource = new MediaSource();
         mediaSource.addEventListener('sourceopen', async () => {
           const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
-          if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) {
-            urlParams.append('fallback', 'splash_480.webm');
-          }
+          const splashFormat = (MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) ? '' : '_480';
+          urlParams.append('fallback', `${splashTopic}splash${splashFormat}.webm`);
           try {
             const response = await fetch(
                 'h5vcc-embedded://splash.webm?' + urlParams.toString());
@@ -142,12 +141,16 @@
         if (!params.has('cache')) {
           params.append('cache', 'default');
         }
+        const topicName = params.get('cache');
+        // Only topic=music using music_splash{_480}.{webm/png}. All others
+        // are default splash screen.
+        const splashTopic = (topicName === 'music') ? 'music_' : '';
 
         if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
-          return handleStaticImageFallback(params, afterImageLoad);
+          return handleStaticImageFallback(params, splashTopic, afterImageLoad);
         }
 
-        return handleVideo(params, afterVideoStart);
+        return handleVideo(params, splashTopic, afterVideoStart);
       }
 
       animate(() => console.log('splash animation completed!'));
