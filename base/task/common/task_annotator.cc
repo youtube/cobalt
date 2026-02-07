@@ -359,6 +359,15 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
 TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
   DCHECK_EQ(this, GetCurrentLongTaskTracker());
 
+  task_end_time_ = tick_clock_->NowTicks();
+
+  auto duration = task_end_time_ - task_start_time_;
+  if (duration >= base::Milliseconds(500)) {
+    LOG(WARNING) << "MainThread Hang Detected! Duration: "
+                 << duration.InMilliseconds() << "ms. "
+                 << "Posted from: " << pending_task_.posted_from.ToString();
+  }
+
   // Use this to ensure that NowTicks() are not called
   // unnecessarily.
   bool is_tracing = false;
@@ -368,7 +377,6 @@ TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
     return;
   }
 
-  task_end_time_ = tick_clock_->NowTicks();
   MaybeTraceInterestingTaskDetails();
 
   if ((task_end_time_ - task_start_time_) >= kMaxTaskDurationTimeDelta) {
