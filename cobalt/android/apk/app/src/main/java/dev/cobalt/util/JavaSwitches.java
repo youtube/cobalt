@@ -49,6 +49,8 @@ public class JavaSwitches {
 
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
+  /** CC flag to set the number of raster threads. Value type: Integer */
+  public static final String NUM_RASTER_THREADS = "NumRasterThreads";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -98,6 +100,11 @@ public class JavaSwitches {
     }
     if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--force-image-splash-screen");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.NUM_RASTER_THREADS)) {
+      extraCommandLineArgs.add(
+          "--num-raster-threads="
+              + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
     }
     return extraCommandLineArgs;
   }
