@@ -22,6 +22,10 @@
 
 #include <linux/input.h>
 
+#ifndef KEY_OK
+#define KEY_OK 353
+#endif
+
 #include "starboard/common/once.h"
 
 #include "third_party/starboard/rdk/shared/log_override.h"
@@ -131,6 +135,9 @@ struct LinuxKeyMappingImpl {
     SbKeyModifiers mapped_modifiers;
   };
 
+  // Default mapping for the Lima M1 RDK remote (t4h). It can be overridden at
+  // runtime via keymapping.json ($COBALT_CONTENT_DIR/app/cobalt/content/etc/keymapping.json)
+  // without rebuilding Cobalt—e.g. for testing or to use a different remote.
   std::vector<KeyMapping> key_mappings_ = {
     { KEY_M, kSbKeyModifiersCtrl, KEY_UNKNOWN,     kSbKeyModifiersNone },  // Menu
     { KEY_G, kSbKeyModifiersCtrl, KEY_UNKNOWN,     kSbKeyModifiersNone },  // Guide
@@ -147,6 +154,8 @@ struct LinuxKeyMappingImpl {
     { KEY_I, kSbKeyModifiersCtrl, KEY_INFO,        kSbKeyModifiersNone },
     { KEY_Y, kSbKeyModifiersCtrl, KEY_MUTE,        kSbKeyModifiersNone },
     { KEY_L, kSbKeyModifiersCtrl, KEY_ESC,         kSbKeyModifiersNone },
+    { KEY_BACKSPACE, kSbKeyModifiersNone, KEY_ESC, kSbKeyModifiersNone },
+    { KEY_OK, kSbKeyModifiersNone, KEY_ENTER, kSbKeyModifiersNone },
     { KEY_F, kSbKeyModifiersCtrl, KEY_FASTFORWARD, kSbKeyModifiersNone },
     { KEY_W, kSbKeyModifiersCtrl, KEY_REWIND,      kSbKeyModifiersNone },
     { KEY_P, kSbKeyModifiersCtrl, KEY_PLAYPAUSE,   kSbKeyModifiersNone },
