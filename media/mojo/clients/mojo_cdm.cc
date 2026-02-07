@@ -435,8 +435,14 @@ void MojoCdm::OnMetricsReceived(
     uint32_t promise_id,
     const absl::optional<std::string>& metrics_string) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  cdm_promise_adapter_.ResolvePromise(promise_id,
-      metrics_string.value_or(std::string()));
+  if (metrics_string) {
+    cdm_promise_adapter_.ResolvePromise(promise_id,
+                                        metrics_string.value_or(std::string()));
+  } else {
+    cdm_promise_adapter_.RejectPromise(
+        promise_id, CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
+        "GetMetrics() is not supported.");
+  }
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
