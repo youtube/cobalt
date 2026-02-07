@@ -808,4 +808,9 @@ public class StarboardBridge {
   protected void hideSplashScreen() {
     StartupGuard.getInstance().disarm();
   }
+
+  @CalledByNative
+  protected void setStartupMilestone(int milestone) {
+    StartupGuard.getInstance().setStartupMilestone(milestone);
+  }
 }

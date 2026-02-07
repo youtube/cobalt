@@ -28,6 +28,8 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
+void SetStartupMilestone(int milestone);
+
 // This class serves as a bridge between the native code and Android
 // StarboardBridge Java class.
 class StarboardBridge {
@@ -71,6 +73,8 @@ class StarboardBridge {
   void CloseAllCobaltService(JNIEnv* env) const;
 
   void HideSplashScreen(JNIEnv* env) const;
+
+  void SetStartupMilestone(JNIEnv* env, jint milestone) const;
 
  private:
   StarboardBridge() = default;
