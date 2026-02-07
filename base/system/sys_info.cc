@@ -39,7 +39,12 @@ int SysInfo::NumberOfEfficientProcessors() {
 // static
 uint64_t SysInfo::AmountOfPhysicalMemory() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableLowEndDeviceMode)) {
+          switches::kEnableLowEndDeviceMode)
+  #if BUILDFLAG(IS_COBALT)
+   && !base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableLowEndDeviceModeNoSimulatedMemory)
+  #endif
+        ) {
     // Keep using 512MB as the simulated RAM amount for when users or tests have
     // manually enabled low-end device mode. Note this value is different from
     // the threshold used for low end devices.
@@ -55,7 +60,12 @@ uint64_t SysInfo::AmountOfPhysicalMemory() {
 // static
 uint64_t SysInfo::AmountOfAvailablePhysicalMemory() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableLowEndDeviceMode)) {
+          switches::kEnableLowEndDeviceMode)
+#if BUILDFLAG(IS_COBALT)
+      && !base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kEnableLowEndDeviceModeNoSimulatedMemory)
+#endif
+  ) {
     // Estimate the available memory by subtracting our memory used estimate
     // from the fake |kLowMemoryDeviceThresholdMB| limit.
     uint64_t memory_used =

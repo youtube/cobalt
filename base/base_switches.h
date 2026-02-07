@@ -19,6 +19,9 @@ extern const char kDisableLowEndDeviceMode[];
 extern const char kEnableCrashReporter[];
 extern const char kEnableFeatures[];
 extern const char kEnableLowEndDeviceMode[];
+#if BUILDFLAG(IS_COBALT)
+extern const char kEnableLowEndDeviceModeNoSimulatedMemory[];
+#endif
 extern const char kEnableBackgroundThreadPool[];
 extern const char kFieldTrialHandle[];
 extern const char kForceFieldTrials[];
