@@ -4,10 +4,12 @@
 
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 
+#include "base/threading/platform_thread.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/http/http_response_headers.h"
+#include "starboard/common/log.h"
 
 namespace {
 const char kSwitchValueTrue[] = "true";
@@ -24,6 +26,9 @@ CobaltSecureNavigationThrottle::~CobaltSecureNavigationThrottle() = default;
 // Called when a network request is about to be made for this navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::WillStartRequest() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] CobaltSecureNavigationThrottle::WillStartRequest URL: "
+               << navigation_handle()->GetURL();
   if (ShouldEnforceHTTPS(*base::CommandLine::ForCurrentProcess())) {
     return EnforceHTTPS();
   }
@@ -33,6 +38,9 @@ CobaltSecureNavigationThrottle::WillStartRequest() {
 // Called when a server redirect is received by the navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::WillRedirectRequest() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] CobaltSecureNavigationThrottle::WillRedirectRequest URL: "
+               << navigation_handle()->GetURL();
   if (ShouldEnforceHTTPS(*base::CommandLine::ForCurrentProcess())) {
     return EnforceHTTPS();
   }
@@ -42,6 +50,10 @@ CobaltSecureNavigationThrottle::WillRedirectRequest() {
 // Called when a response's metadata is available
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::WillProcessResponse() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] CobaltSecureNavigationThrottle::WillProcessResponse "
+                  "(First Bytes Back) URL: "
+               << navigation_handle()->GetURL();
   if (ShouldEnforceCSP(*base::CommandLine::ForCurrentProcess())) {
     return EnforceCSPHeaders();
   }

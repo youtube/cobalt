@@ -219,6 +219,11 @@ public class MediaCodecCapabilitiesLogger {
    * particular system.
    */
   public static void dumpAllDecoders() {
+    Log.i(
+        TAG,
+        "COBALT_STARTUP_LOG: ["
+            + Thread.currentThread().getName()
+            + "] MediaCodecCapabilitiesLogger.dumpAllDecoders START");
     StringBuilder decoderDumpString = new StringBuilder();
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
       if (info.isEncoder()) {

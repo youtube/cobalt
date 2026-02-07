@@ -14,6 +14,12 @@
 
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
+#include "base/threading/platform_thread.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
+#include "starboard/common/log.h"
+#include "url/gurl.h"
+
 namespace content {
 
 SplashScreenWebContentsObserver::SplashScreenWebContentsObserver(
@@ -26,6 +32,47 @@ SplashScreenWebContentsObserver::~SplashScreenWebContentsObserver() = default;
 
 void SplashScreenWebContentsObserver::WebContentsDestroyed() {
   Observe(nullptr);
+}
+
+void SplashScreenWebContentsObserver::DidStartNavigation(
+    NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+                 << "] SPLASH::DidStartNavigation (Primary Main Frame) URL: "
+                 << navigation_handle->GetURL();
+  }
+}
+
+void SplashScreenWebContentsObserver::DidRedirectNavigation(
+    NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+                 << "] SPLASH::DidRedirectNavigation (Primary Main Frame) URL: "
+                 << navigation_handle->GetURL();
+  }
+}
+
+void SplashScreenWebContentsObserver::DidFinishNavigation(
+    NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+                 << "] SPLASH::DidFinishNavigation (Primary Main Frame) URL: "
+                 << navigation_handle->GetURL()
+                 << (navigation_handle->HasCommitted() ? " [COMMITTED]"
+                                                       : " [NOT COMMITTED]");
+  }
+}
+
+void SplashScreenWebContentsObserver::DidStartLoading() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] SPLASH::DidStartLoading URL: "
+               << web_contents()->GetLastCommittedURL();
+}
+
+void SplashScreenWebContentsObserver::DidStopLoading() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] SPLASH::DidStopLoading URL: "
+               << web_contents()->GetLastCommittedURL();
 }
 
 void SplashScreenWebContentsObserver::LoadProgressChanged(double progress) {

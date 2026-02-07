@@ -176,6 +176,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
     @Override
     public void startBrowserProcessesAsync(@LibraryProcessType int libraryProcessType,
             boolean startGpuProcess, boolean startMinimalBrowser, final StartupCallback callback) {
+        Log.i(TAG, "COBALT_STARTUP_LOG: [" + Thread.currentThread().getName() + "] BrowserStartupControllerImpl.startBrowserProcessesAsync");
         assert !LibraryLoader.isBrowserProcessStartupBlockedForTesting();
         assertProcessTypeSupported(libraryProcessType);
         assert ThreadUtils.runningOnUiThread() : "Tried to start the browser on the wrong thread.";
@@ -215,6 +216,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
             prepareToStartBrowserProcess(false, new Runnable() {
                 @Override
                 public void run() {
+                    Log.i(TAG, "COBALT_STARTUP_LOG: [" + Thread.currentThread().getName() + "] BrowserStartupControllerImpl deferrableTask.run START");
                     ThreadUtils.assertOnUiThread();
                     if (mHasCalledContentStart) return;
                     mCurrentBrowserStartType = startMinimalBrowser
@@ -277,6 +279,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
      * Start the browser process by calling ContentMain.start().
      */
     int contentStart() {
+        Log.i(TAG, "COBALT_STARTUP_LOG: [" + Thread.currentThread().getName() + "] BrowserStartupControllerImpl.contentStart");
         int result = 0;
         if (mContentMainCallbackForTests == null) {
             boolean startMinimalBrowser =
@@ -305,6 +308,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
      */
     @VisibleForTesting
     int contentMainStart(boolean startMinimalBrowser) {
+        Log.i(TAG, "COBALT_STARTUP_LOG: [" + Thread.currentThread().getName() + "] BrowserStartupControllerImpl.contentMainStart");
         return ContentMain.start(startMinimalBrowser);
     }
 
@@ -433,6 +437,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
         if (mPrepareToStartCompleted) {
             return;
         }
+        Log.i(TAG, "COBALT_STARTUP_LOG: [" + Thread.currentThread().getName() + "] BrowserStartupControllerImpl.prepareToStartBrowserProcess START");
         Log.d(TAG, "Initializing chromium process, singleProcess=%b", singleProcess);
         mPrepareToStartCompleted = true;
         try (ScopedSysTraceEvent e = ScopedSysTraceEvent.scoped("prepareToStartBrowserProcess")) {
@@ -455,8 +460,10 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
             DeviceUtilsImpl.addDeviceSpecificUserAgentSwitch();
             BrowserStartupControllerImplJni.get().setCommandLineFlags(singleProcess);
         }
+        Log.i(TAG, "COBALT_STARTUP_LOG: [" + Thread.currentThread().getName() + "] BrowserStartupControllerImpl.prepareToStartBrowserProcess END");
 
         if (deferrableTask != null) {
+            Log.i(TAG, "COBALT_STARTUP_LOG: [" + Thread.currentThread().getName() + "] BrowserStartupControllerImpl posting deferrableTask");
             PostTask.postTask(TaskTraits.UI_USER_BLOCKING, deferrableTask);
         }
     }

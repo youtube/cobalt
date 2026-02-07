@@ -18,6 +18,7 @@
 
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
@@ -41,6 +42,8 @@
 namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
+  LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+            << "] CobaltBrowserMainParts::PreCreateThreads [5/7]";
   SetupMetrics();
 #if BUILDFLAG(IS_ANDROIDTV)
   base::android::MemoryPressureListenerAndroid::Initialize(

@@ -58,6 +58,8 @@ ApplicationAndroid::ApplicationAndroid(
     const std::string& cache_dir,
     const std::string& native_library_dir)
     : Application(stubSbEventHandle) {
+  SB_LOG(INFO)
+      << "COBALT_STARTUP_LOG: ApplicationAndroid::ApplicationAndroid [4/6]";
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
