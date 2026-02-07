@@ -18,6 +18,7 @@
 #include "base/hash/md5.h"
 #include "base/logging.h"
 #include "base/metrics/metrics_hashes.h"
+#include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
@@ -365,7 +366,20 @@ TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
   if (duration >= base::Milliseconds(500)) {
     LOG(WARNING) << "MainThread Hang Detected! Duration: "
                  << duration.InMilliseconds() << "ms. "
-                 << "Posted from: " << pending_task_.posted_from.ToString();
+                 << "Posted from: " << pending_task_.posted_from.ToString()
+                 << (task_description_.empty()
+                         ? ""
+                         : base::StringPrintf(" [Source: %s]",
+                                              task_description_.c_str()))
+                 << (pending_task_.ipc_interface_name
+                         ? base::StringPrintf(" [IPC: %s]",
+                                              pending_task_.ipc_interface_name)
+                         : "")
+                 << (pending_task_.ipc_hash
+                         ? base::StringPrintf(" [IPC Hash: 0x%x]",
+                                              pending_task_.ipc_hash)
+                         : "")
+                 << " Seq: " << pending_task_.sequence_num;
   }
 
   // Use this to ensure that NowTicks() are not called

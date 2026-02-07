@@ -177,6 +177,10 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] TaskAnnotator::LongTaskTracker {
                      uint32_t (*method_info)(),
                      bool is_response);
 
+  void SetTaskDescription(std::string description) {
+    task_description_ = std::move(description);
+  }
+
   void MaybeTraceInterestingTaskDetails();
 
   // In long-task tracking, not every task (including its queue time) will be
@@ -211,6 +215,7 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] TaskAnnotator::LongTaskTracker {
   // known. Note that this will not compile in the Native client.
   uint32_t (*ipc_method_info_)();
   bool is_response_ = false;
+  std::string task_description_;
   // RAW_PTR_EXCLUSION: Performance reasons: based on analysis of sampling
   // profiler data (TaskAnnotator::LongTaskTracker::~LongTaskTracker).
   [[maybe_unused]] RAW_PTR_EXCLUSION PendingTask& pending_task_;

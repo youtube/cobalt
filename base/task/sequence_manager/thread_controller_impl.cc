@@ -11,6 +11,7 @@
 #include "base/message_loop/message_pump.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/common/lazy_now.h"
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 #include "base/task/sequence_manager/sequenced_task_source.h"
@@ -18,6 +19,38 @@
 #include "build/build_config.h"
 
 namespace base::sequence_manager::internal {
+
+namespace {
+
+std::string TaskTypeToString(uint8_t task_type) {
+  switch (task_type) {
+    case 1: return "kDOMManipulation";
+    case 2: return "kUserInteraction";
+    case 3: return "kNetworking";
+    case 4: return "kNetworkingControl";
+    case 5: return "kHistoryTraversal";
+    case 6: return "kEmbed";
+    case 7: return "kMediaElementEvent";
+    case 8: return "kCanvasBlobSerialization";
+    case 9: return "kMicrotask";
+    case 10: return "kJavascriptTimerDelayedHighNesting";
+    case 72: return "kJavascriptTimerImmediate";
+    case 73: return "kJavascriptTimerDelayedLowNesting";
+    case 23: return "kInternalDefault";
+    case 24: return "kInternalLoading";
+    case 29: return "kInternalMedia";
+    case 32: return "kInternalUserInteraction";
+    case 33: return "kInternalInspector";
+    case 38: return "kMainThreadTaskQueueCompositor";
+    case 39: return "kMainThreadTaskQueueDefault";
+    case 40: return "kMainThreadTaskQueueInput";
+    case 41: return "kMainThreadTaskQueueIdle";
+    case 43: return "kMainThreadTaskQueueControl";
+    default: return base::StringPrintf("kOther(%d)", task_type);
+  }
+}
+
+}  // namespace
 
 using ShouldScheduleWork = WorkDeduplicator::ShouldScheduleWork;
 
@@ -205,6 +238,7 @@ void ThreadControllerImpl::DoWork(WorkType work_type) {
       // Note: all arguments after task are just passed to a TRACE_EVENT for
       // logging so lambda captures are safe as lambda is executed inline.
       SequencedTaskSource* source = sequence_;
+      base::TimeTicks sub_task_start = base::TimeTicks::Now();
       task_annotator_.RunTask(
           "ThreadControllerImpl::RunTask", selected_task->task,
           [&selected_task, &source](perfetto::EventContext& ctx) {
@@ -214,6 +248,14 @@ void ThreadControllerImpl::DoWork(WorkType work_type) {
             }
             source->MaybeEmitTaskDetails(ctx, *selected_task);
           });
+      base::TimeDelta sub_duration = base::TimeTicks::Now() - sub_task_start;
+      if (sub_duration >= base::Milliseconds(100)) {
+        LOG(WARNING) << "Slow Task inside DoWork! Duration: "
+                     << sub_duration.InMilliseconds() << "ms. "
+                     << "Source: " << selected_task->task.posted_from.ToString()
+                     << " Type: "
+                     << TaskTypeToString(selected_task->task.task_type);
+      }
       if (!weak_ptr) {
         return;
       }
