@@ -31,6 +31,7 @@
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
@@ -41,6 +42,7 @@
 #include "starboard/key.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+
 
 namespace starboard::android::shared {
 
@@ -58,6 +60,8 @@ ApplicationAndroid::ApplicationAndroid(
     const std::string& cache_dir,
     const std::string& native_library_dir)
     : Application(stubSbEventHandle) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 6);
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()

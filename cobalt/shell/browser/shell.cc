@@ -340,6 +340,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 18);
   WebContents::CreateParams create_params(browser_context, site_instance);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
@@ -375,15 +377,21 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 20);
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 19);
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
 }
 
 void Shell::DidStopLoading() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 21);
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {
     web_contents()->GetRenderWidgetHostView()->Focus();
