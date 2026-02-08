@@ -363,12 +363,6 @@ void MediaCodecDecoder::DecoderThreadFunc() {
         std::lock_guard lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
-        if (dequeue_output_results.size() > 1 || pending_inputs.size() > 1) {
-          SB_LOG(INFO) << "Decoder backlog: output_frames="
-                       << dequeue_output_results.size()
-                       << ", pending_inputs=" << pending_inputs.size()
-                       << ", input_slots=" << input_buffer_indices.size();
-        }
       }
 
       if (!dequeue_output_results.empty()) {
@@ -741,6 +735,13 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
                    << ", interval(msec)="
                    << FormatWithDigitSeparators(interval_us / 1'000)
                    << (interval_us > 50'000 ? ": WARNING: Large interval" : "");
+      // For debugging, we abort immediately, if a problem happens.
+      SB_CHECK_LT(interval_us, 500'000)
+          << "Frame Decoded: PTS="
+          << FormatWithDigitSeparators(presentation_time_us / 1'000)
+          << ", interval(msec)="
+          << FormatWithDigitSeparators(interval_us / 1'000)
+          << (interval_us > 50'000 ? ": WARNING: Large interval" : "");
       pts_to_enqueue_time_us_.erase(iter);
     }
   }

@@ -183,13 +183,34 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   if (buffers.empty())
     return false;
 
-  /*
-  if (type_ == VIDEO) {
-    LOG(INFO) << "ChunkDemuxerStream::Append(VIDEO) count=" << buffers.size()
-              << " first_pts=" << buffers.front()->timestamp().InSecondsF()
-              << " last_pts=" << buffers.back()->timestamp().InSecondsF();
+  {
+    base::TimeDelta start_pts = buffers.front()->timestamp();
+    base::TimeDelta end_pts =
+        buffers.back()->timestamp() + buffers.back()->duration();
+    base::TimeDelta inventory_end = GetBufferedDuration();
+    base::TimeDelta read_head = stream_->GetNextBufferTimestamp();
+
+    if (type_ == VIDEO && inventory_end != kNoTimestamp) {
+      if (read_head != kNoTimestamp) {
+        LOG(INFO) << "MSE: Supplier Produced type=VIDEO"
+                  << ", count=" << buffers.size() << ", chunk="
+                  << start_pts.InMilliseconds() << ".."
+                  << end_pts.InMilliseconds() << "ms"
+                  << ", inventory_end(ms)=" << inventory_end.InMilliseconds()
+                  << ", read(ms)=" << read_head.InMilliseconds()
+                  << ", safety_gap(ms)="
+                  << (inventory_end - read_head).InMilliseconds();
+      } else {
+        LOG(INFO) << "MSE: Supplier Produced type=VIDEO"
+                  << ", count=" << buffers.size() << ", chunk="
+                  << start_pts.InMilliseconds() << ".."
+                  << end_pts.InMilliseconds() << "ms"
+                  << ", inventory_end(ms)=" << inventory_end.InMilliseconds()
+                  << ", read(ms)=N/A"
+                  << ", safety_gap(ms)=N/A";
+      }
+    }
   }
-  */
 
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, SHUTDOWN);
@@ -1082,6 +1103,7 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
 
 bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
                                        base::span<const uint8_t> data) {
+  LOG(INFO) << "MSE: Append id=" << id << ", bytes=" << data.size();
   DVLOG(1) << "AppendToParseBuffer(" << id << ", " << data.size() << ")";
 
   DCHECK(!id.empty());

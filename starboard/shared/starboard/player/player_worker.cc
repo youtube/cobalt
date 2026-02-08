@@ -267,6 +267,11 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   }
 
   SbMediaType media_type = input_buffers.front()->sample_type();
+  if (media_type == kSbMediaTypeVideo) {
+    SB_LOG(INFO) << "MSE: Worker Receiving VIDEO incoming="
+                 << input_buffers.size()
+                 << " already_pending=" << pending_video_buffers_.size();
+  }
   if (media_type == kSbMediaTypeAudio) {
     SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);
     SB_DCHECK(pending_audio_buffers_.empty());

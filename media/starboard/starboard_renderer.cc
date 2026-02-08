@@ -932,6 +932,9 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
   int max_buffers =
       std::min(max_number_of_buffers_to_write, max_samples_per_write_);
 
+  LOG(INFO) << "MSE: Consumer Request type=" << type_string
+            << " max_buffers=" << max_buffers;
+
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
       LOG(WARNING)

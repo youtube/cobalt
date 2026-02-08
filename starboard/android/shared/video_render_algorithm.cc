@@ -21,6 +21,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/features.h"
 
 namespace starboard {
@@ -59,6 +60,18 @@ void VideoRenderAlgorithmAndroid::Render(
   SB_CHECK(media_time_provider);
   SB_CHECK(frames);
   SB_CHECK(draw_frame_cb);
+
+  if (frames->size() > 0) {
+    bool is_audio_playing;
+    bool is_audio_eos_played;
+    bool is_underflow;
+    double playback_rate;
+    int64_t playback_time = media_time_provider->GetCurrentMediaTime(
+        &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+    // SB_LOG(INFO) << __func__ << " > frames->size()=" << frames->size() << ",
+    // playback_time(msec)=" << FormatWithDigitSeparators(playback_time /
+    // 1'000);
+  }
 
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
@@ -126,6 +139,12 @@ void VideoRenderAlgorithmAndroid::Render(
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
     if (early_us < kBufferTooLateThreshold) {
+      SB_LOG(INFO)
+          << "Dropping frame: PTS="
+          << FormatWithDigitSeparators(frames->front()->timestamp() / 1'000)
+          << ", early_us=" << FormatWithDigitSeparators(early_us / 1'000)
+          << ", threshold="
+          << FormatWithDigitSeparators(kBufferTooLateThreshold / 1'000);
       frames->pop_front();
       ++dropped_frames_;
     } else if (early_us < kBufferReadyThreshold) {

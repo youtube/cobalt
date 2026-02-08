@@ -397,6 +397,12 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
                    << FormatWithDigitSeparators(interval_us / 1'000)
                    << (interval_us > 100'000 ? ": WARNING: Large interval"
                                              : "");
+      // For debugging, abort immediately, if a problem is detected.
+      SB_CHECK_LT(interval_us, 500'000)
+          << " Too large interval: PTS="
+          << FormatWithDigitSeparators(frame->timestamp() / 1'000)
+          << ", interval(msec)="
+          << FormatWithDigitSeparators(interval_us / 1'000);
     }
 
     rendered_ = true;
@@ -929,10 +935,14 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
       video_frame_tracker_->OnInputBuffer(input_buffer->timestamp());
     }
   }
-
+  int old_val = media_decoder_->GetNumberOfPendingInputs();
   media_decoder_->WriteInputBuffers(input_buffers);
+  int new_val = media_decoder_->GetNumberOfPendingInputs();
+  SB_LOG(INFO) << __func__ << " > pending_inputs: old=" << old_val
+               << ", new=" << new_val << ", gap=" << (new_val - old_val);
+
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
-    SB_LOG(INFO) << "TTFF: OnNeedData Triggered by Decoder Input (pending="
+    SB_LOG(INFO) << "MSE: Decoder Input (pending_in_hardware="
                  << media_decoder_->GetNumberOfPendingInputs() << ")";
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {

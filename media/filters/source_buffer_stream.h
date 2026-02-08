@@ -190,6 +190,8 @@ class MEDIA_EXPORT SourceBufferStream {
   // stream buffer queue.
   bool IsNextBufferConfigChanged();
 
+  base::TimeDelta GetNextBufferTimestamp();
+
  private:
   friend class SourceBufferStreamTest;
 
@@ -248,11 +250,6 @@ class MEDIA_EXPORT SourceBufferStream {
   // |highest_timestamp_in_append_sequence_| within fudge room.
   bool IsNextGopAdjacentToEndOfCurrentAppendSequence(
       base::TimeDelta next_gop_timestamp) const;
-
-  // Helper method that returns the timestamp for the next buffer that
-  // |selected_range_| will return from GetNextBuffer() call, or kNoTimestamp
-  // if in between seeking (i.e. |selected_range_| is null).
-  base::TimeDelta GetNextBufferTimestamp();
 
   // Finds the range that should contain a coded frame group that begins with
   // |start_timestamp| (presentation time) and returns the iterator pointing to
