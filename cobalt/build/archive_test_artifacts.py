@@ -26,8 +26,8 @@ _EXCLUDE_DIRS = [
     'lib.java/',
     './exe.unstripped/',
     './lib.unstripped/',
-    '../../third_party/jdk/',
 ]
+_JDK_DIR = '../../third_party/jdk/'
 
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
@@ -80,6 +80,7 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     target_path, target_name = target.split(':')
+    is_junit = 'junit' in target_name
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if use_android_deps_path:
@@ -112,6 +113,9 @@ def create_archive(
 
       for line in runtime_deps_file:
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
+          continue
+
+        if line.startswith(_JDK_DIR) and not is_junit:
           continue
 
         if flatten_deps and line.startswith('../../'):
