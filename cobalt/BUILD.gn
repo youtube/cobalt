@@ -16,6 +16,7 @@ import("//build/linux/strip_binary.gni")
 import("//build/toolchain/toolchain.gni")
 import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
+import("//tools/binary_size/sizes.gni")
 import("//ui/base/ui_features.gni")
 
 if (!toolchain_for_rust_host_build_tools) {
@@ -74,6 +75,9 @@ group("gn_all") {
       "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
       "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
     ]
+  }
+  if (use_evergreen) {
+    deps += [ ":cobalt_sizes" ]
   }
 }
 
@@ -332,5 +336,18 @@ test("cobalt_unittests") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
+  }
+}
+
+if (use_evergreen) {
+  sizes_test("cobalt_sizes") {
+    data_deps = [ ":cobalt" ]
+    data = [ "${root_out_dir}/libcobalt.so" ]
+    executable_args = [
+      "--platform",
+      "cobalt-evergreen",
+      "--isolated-script-test-output",
+      "${root_out_dir}/test_results.json",
+    ]
   }
 }

@@ -63,7 +63,9 @@ jobs:
             cobalt/build
             cobalt/docker
             cobalt/testing/filters
+            cobalt/testing/tools
             cobalt/tools
+            tools/binary_size
             docker-compose.yaml
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
@@ -395,6 +397,36 @@ jobs:
       - name: Run API Leak Detector
         uses: ./cobalt/src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
+
+  check_binary_size:
+    needs: [initialize, build]
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: Check Binary Sizes
+    if: startsWith(inputs.platform, 'evergreen-arm') && contains(fromJson(needs.initialize.outputs.build_configs), 'gold')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set Up Depot Tools
+        uses: ./src/.github/actions/depot_tools
+      - name: Download all size artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: size_artifacts_evergreen-arm-*_gold
+          path: size_artifacts
+
+      - name: Move size artifacts
+        run: mv size_artifacts src/
+        shell: bash
+
+      - name: Process size artifacts
+        run: |
+          cd src
+          cobalt/testing/tools/process_size_artifacts.sh
+        shell: bash
 
   on-device-test:
     needs: [initialize, build]

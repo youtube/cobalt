@@ -119,6 +119,15 @@ runs:
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
+      - name: Archive Evergreen ARM Size Artifacts
+        if: startsWith(matrix.platform, 'evergreen-arm') && matrix.config == 'gold'
+        uses: actions/upload-artifact@v4
+        with:
+          name: size_artifacts_${{ matrix.platform }}_${{ matrix.config }}
+          path: |
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/bin
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/sizes
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/libcobalt.so
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
         uses: actions/upload-artifact@v4
