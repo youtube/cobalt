@@ -211,6 +211,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
   std::map<int64_t, int64_t> pts_to_enqueue_time_us_;
+  std::optional<int64_t> last_input_time_us_;
   std::optional<int64_t> last_output_buffer_available_time_us_;
 
   bool is_output_restricted_ = false;

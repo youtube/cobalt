@@ -351,6 +351,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
                         << FormatWithDigitSeparators(wall_delta_ms);
       }
     }
+    const int64_t prev_release_us = last_render_ ? last_render_->release_us : 0;
     last_render_ = FrameRenderInfo{frame->timestamp(), now_us, release_us};
 
     if (!latency_logged_ && frame_count_ > kStartupFrameCount) {
@@ -386,6 +387,16 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
           << ", render gap(msec)=" << FormatWithDigitSeparators(render_gap_ms)
           << ", stutter(msec)=" << FormatWithDigitSeparators(stutter_ms);
       latency_logged_ = true;
+    }
+
+    if (prev_release_us > 0) {
+      const int64_t interval_us = release_us - prev_release_us;
+      SB_LOG(INFO) << "Frame Rendered: PTS="
+                   << FormatWithDigitSeparators(frame->timestamp() / 1'000)
+                   << ", interval(msec)="
+                   << FormatWithDigitSeparators(interval_us / 1'000)
+                   << (interval_us > 100'000 ? ": WARNING: Large interval"
+                                             : "");
     }
 
     rendered_ = true;

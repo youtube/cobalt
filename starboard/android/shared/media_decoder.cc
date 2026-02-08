@@ -483,15 +483,14 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   PendingInput pending_input;
   bool input_buffer_already_written = false;
 
-  static int64_t last_input_time_us = 0;
   int64_t now_us = CurrentMonotonicTime();
-  if (now_us - last_input_time_us > 500'000 && last_input_time_us != 0) {
+  if (last_input_time_us_ && now_us - *last_input_time_us_ > 500'000) {
     SB_LOG(WARNING) << "TTFF: Large gap in decoder input intake ("
                     << GetDecoderName(media_type_)
-                    << "): " << (now_us - last_input_time_us) / 1'000
+                    << "): " << (now_us - *last_input_time_us_) / 1'000
                     << " msec";
   }
-  last_input_time_us = now_us;
+  last_input_time_us_ = now_us;
 
   if (pending_input_to_retry_) {
     dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
@@ -737,13 +736,11 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     last_output_buffer_available_time_us_ = now_us;
     auto iter = pts_to_enqueue_time_us_.find(presentation_time_us);
     if (iter != pts_to_enqueue_time_us_.end()) {
-      int64_t decode_time_us = now_us - iter->second;
       SB_LOG(INFO) << "Frame Decoded: PTS="
                    << FormatWithDigitSeparators(presentation_time_us / 1'000)
-                   << ", decode time(msec)="
-                   << FormatWithDigitSeparators(decode_time_us / 1'000)
                    << ", interval(msec)="
-                   << FormatWithDigitSeparators(interval_us / 1'000);
+                   << FormatWithDigitSeparators(interval_us / 1'000)
+                   << (interval_us > 50'000 ? ": WARNING: Large interval" : "");
       pts_to_enqueue_time_us_.erase(iter);
     }
   }
@@ -805,6 +802,7 @@ bool MediaCodecDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
+    last_input_time_us_ = std::nullopt;
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};

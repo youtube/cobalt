@@ -128,6 +128,11 @@ void CookieJar::SetCookie(const String& value) {
   base::TimeDelta elapsed = timer.Elapsed();
   base::UmaHistogramTimes("Blink.SetCookieTime", elapsed);
 
+  if (elapsed >= base::Milliseconds(10)) {
+    LOG(WARNING) << "Cookie IPC Trace: Set Duration="
+                 << elapsed.InMilliseconds() << "ms";
+  }
+
   if (base::FeatureList::IsEnabled(kCookieJarAblation)) {
     base::TimeDelta delay = elapsed * kCookieJarAblationDelayFactor.Get() +
                             kCookieJarAblationDelayOffset.Get();
@@ -222,6 +227,10 @@ String CookieJar::Cookies() {
   base::TimeDelta elapsed = timer.Elapsed();
   if (ipc_needed) {
     base::UmaHistogramTimes("Blink.CookiesTime.IpcNeeded", elapsed);
+    if (elapsed >= base::Milliseconds(10)) {
+      LOG(WARNING) << "Cookie IPC Trace: Get Duration="
+                   << elapsed.InMilliseconds() << "ms";
+    }
   } else {
     base::UmaHistogramTimes("Blink.CookiesTime.IpcNotNeeded", elapsed);
   }
