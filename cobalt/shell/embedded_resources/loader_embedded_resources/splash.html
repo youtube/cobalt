@@ -136,6 +136,7 @@
        */
       function playSplashAnimation(afterVideoStart, afterImageLoad) {
         const params = new URLSearchParams(window.location.search);
+        const forceImage = params.get('force_image');
         // The default splash video is splash.webm. If it does not exist in
         // the given cache, "fallback" parameter specifies which built-in video
         // to use.
@@ -143,7 +144,7 @@
           params.append('cache', 'default');
         }
 
-        if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
+        if (forceImage === 'true' || !MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
           return handleStaticImageFallback(params, afterImageLoad);
         }
 

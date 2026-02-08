@@ -41,6 +41,7 @@
 #include "cobalt/shell/embedded_resources/embedded_js.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
+#include "net/base/url_util.h"
 
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
@@ -438,6 +439,11 @@ void Shell::LoadSplashScreenWebContents() {
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GURL(switches::kSplashScreenURL);
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kForceImageSplashScreen)) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    }
     NavigationController::LoadURLParams params(splash_screen_url);
     params.frame_name = std::string();
     params.transition_type = ui::PageTransitionFromInt(
