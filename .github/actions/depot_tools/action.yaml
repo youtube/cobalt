@@ -1,18 +1,13 @@
 name: Set Up Depot Tools
-description: Sets up Depot Tools and initializes gclient. Requires source code to be cloned to src/ directory.
+description: Sets up Depot Tools and initializes gclient. Optionally performs checkout and uses git cache.
+
 inputs:
   run_sync:
     description: Whether or not to run gclient sync.
     default: 'true'
-  clear_cache:
-    description: Whether or not to clear runner cache.
-    default: 'false'
   rbe_instance:
     description: The RBE instance to use.
     default: projects/cobalt-actions-prod/instances/default_instance
-  # TODO: b/477593749 - runner-cache is not available on default Github Mac
-  # runners and so we special case to use runner.temp for now. Clean this up
-  # when self-hosted Mac runners are available.
   use_cache:
     description: Whether or not to use runner cache.
     default: 'true'
@@ -20,67 +15,40 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set Depot Tools Base Path
-      id: paths
+    - name: Set Cache Path
+      id: cache-path
+      shell: bash
       env:
         USE_CACHE: ${{ inputs.use_cache }}
       run: |
-        if [[ "${USE_CACHE}" == "false" ]]; then
-          echo "base_path=${{ runner.temp }}" >> ${GITHUB_OUTPUT}
+        if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
+          echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
         else
-          echo "base_path=/runner-cache" >> ${GITHUB_OUTPUT}
+          echo "path=" >> ${GITHUB_OUTPUT}
         fi
-      shell: bash
-
-    - name: Clear Cache
-      if: inputs.clear_cache == 'true'
-      env:
-        USE_CACHE: ${{ inputs.use_cache }}
-        BASE_PATH: ${{ steps.paths.outputs.base_path }}
-        DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
-        CIPD_CACHE_DIR: "${{ steps.paths.outputs.base_path }}/cobalt/.cipd_cache"
-      run: |
-        set -x
-        # Remove gclient/depot tools.
-        rm -rf "${DEPOT_TOOLS_BASE_PATH}" "${CIPD_CACHE_DIR}"
-
-        # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
-        if [[ "${USE_CACHE}" == "true" ]]; then
-          git -C "${BASE_PATH}/cobalt/src" submodule deinit -f --all
-          git -C "${BASE_PATH}/cobalt/src" clean -ffdx
-        fi
-      shell: bash
 
     - name: Clone Depot Tools
-      env:
-        DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
-      run: |
-        if [ -d "${DEPOT_TOOLS_BASE_PATH}" ]; then
-          echo "Depot tools directory exists, skipping clone."
-        else
-          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "${DEPOT_TOOLS_BASE_PATH}"
-        fi
-      shell: bash
-
-    - name: Reset Cached Depot Tools
-      if: inputs.clear_cache == 'false' && inputs.use_cache == 'true'
-      env:
-        DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
-      run: git -C "${DEPOT_TOOLS_BASE_PATH}" reset --hard origin/main
-      shell: bash
+      uses: ./.github/actions/checkout
+      with:
+        repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        ref: main
+        fetch_depth: 0
+        path: depot_tools
+        use_cache: ${{ inputs.use_cache }}
 
     - name: Add Depot Tools to PATH
-      env:
-        DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
-      run: echo "${DEPOT_TOOLS_BASE_PATH}" >> ${GITHUB_PATH}
+      run: echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+      shell: bash
+
+    - name: Set CIPD Cache Directory
+      if: steps.cache-path.outputs.path != ''
+      run: echo "CIPD_CACHE_DIR=${{ steps.cache-path.outputs.path }}/cipd-cache" >> ${GITHUB_ENV}
       shell: bash
 
     - name: Bootstrap Bundled python3
-      env:
-        DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
       run: |
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${DEPOT_TOOLS_BASE_PATH}/bootstrap_python3 && bootstrap_python3
+        source ${GITHUB_WORKSPACE}/depot_tools/bootstrap_python3 && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -90,20 +58,23 @@ runs:
     - name: Run gclient config
       env:
         RBE_INSTANCE: ${{ inputs.rbe_instance }}
-        CACHE_DIR_BASE_PATH: ${{ steps.paths.outputs.base_path }}/gclient-cache
-        USE_CACHE: ${{ inputs.use_cache }}
+        REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
       run: |
+        set -x
         cd cobalt
+
         CACHE_ARG=()
-        if [[ "${USE_CACHE}" == "true" ]]; then
-          CACHE_ARG=("--cache-dir=${CACHE_DIR_BASE_PATH}")
+        if [[ -n "${CACHE_PATH}" ]]; then
+          CACHE_ARG=(--cache-dir="${CACHE_PATH}"/git-cache)
         fi
+
         gclient config \
           --name=src \
+          "${CACHE_ARG[@]}" \
           --custom-var=download_remoteexec_cfg=True \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
-          "${CACHE_ARG[@]}" \
-          "https://github.com/${{ github.repository }}"
+          "${REPOSITORY}"
       shell: bash
 
     - name: Set target OS for Android
@@ -124,6 +95,8 @@ runs:
 
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
+      env:
+        REF: ${{ github.sha }}
       run: |
         cd cobalt
         gclient sync \
@@ -133,7 +106,7 @@ runs:
           --nohooks \
           --force \
           --delete_unversioned_trees \
-          --revision ${{ github.sha }}
+          --revision "${REF}"
       shell: bash
 
     - name: Run gclient runhooks
