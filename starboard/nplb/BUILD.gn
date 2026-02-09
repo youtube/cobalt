@@ -98,6 +98,7 @@ test("nplb") {
       "file_helpers.cc",
       "flat_map_test.cc",
       "gles_test.cc",
+      "gpu_memory_allocation_test.cc",
       "include_all.c",
       "include_all_too.c",
       "key_test.cc",
