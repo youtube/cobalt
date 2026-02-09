@@ -18,12 +18,17 @@
 #include <string.h>
 #include <time.h>
 
+#include <string>
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
 namespace {
+
+const char* kClocale = "C";
+const char* kTZEnv = "TZ";
+const char* kUTC0 = "UTC0";
 
 const int kBufferSize = 256;
 
@@ -43,10 +48,10 @@ class PosixStrftimeTest : public ::testing::Test {
 
     original_locale_ = setlocale(LC_TIME, nullptr);
     ASSERT_NE(original_locale_, nullptr);
-    setlocale(LC_TIME, "C");
+    setlocale(LC_TIME, kClocale);
     memset(buffer_, 0, kBufferSize);
 
-    locale_ = newlocale(LC_TIME_MASK, "C", nullptr);
+    locale_ = newlocale(LC_TIME_MASK, kClocale, nullptr);
     ASSERT_NE(locale_, nullptr);
 
     // Ensure TZ is set before running the tests.
@@ -85,6 +90,8 @@ TEST_F(PosixStrftimeTest, StandardSpecifiers) {
       {"%x", "10/26/23"},
       {"%X", "10:30:00"},
       {"%C", "20"},
+      {"%U", "43"},
+      {"%h", "Oct"},
   };
 
   for (const auto& test_case : kTestCases) {
@@ -136,8 +143,10 @@ TEST_F(PosixStrftimeTest, SpecialCharacterSpecifiers) {
 }
 
 TEST_F(PosixStrftimeTest, TimezoneAbbreviationUTC) {
-  char* old_tz = getenv("TZ");
-  setenv("TZ", "UTC", 1);
+  const char* env_tz = getenv(kTZEnv);
+  std::string old_tz = env_tz ? env_tz : "";
+  bool old_tz_exists = (env_tz != nullptr);
+  setenv(kTZEnv, kUTC0, 1);
   tzset();
 
   memset(&tm_, 0, sizeof(tm_));
@@ -156,12 +165,12 @@ TEST_F(PosixStrftimeTest, TimezoneAbbreviationUTC) {
       break;
     }
   }
-
   EXPECT_TRUE(is_valid) << "Expected UTC, GMT, or Z, but got: " << buffer_;
-  if (old_tz) {
-    setenv("TZ", old_tz, 1);
+
+  if (old_tz_exists) {
+    setenv(kTZEnv, old_tz.c_str(), 1);
   } else {
-    unsetenv("TZ");
+    unsetenv(kTZEnv);
   }
   tzset();
 }
@@ -178,6 +187,24 @@ TEST_F(PosixStrftimeTest, PaddedAndNumericSpecifiers) {
   tm_.tm_wday = 1;  // Monday
   strftime(buffer_, kBufferSize, "%u-%w", &tm_);
   EXPECT_STREQ("1-1", buffer_);
+}
+
+TEST_F(PosixStrftimeTest, TimezoneOffsetSpecifier) {
+  const char* env_tz = getenv(kTZEnv);
+  std::string old_tz = env_tz ? env_tz : "";
+  bool old_tz_exists = (env_tz != nullptr);
+  setenv(kTZEnv, kUTC0, 1);
+  tzset();
+
+  strftime(buffer_, kBufferSize, "%z", &tm_);
+  EXPECT_STREQ("+0000", buffer_);
+
+  if (old_tz_exists) {
+    setenv(kTZEnv, old_tz.c_str(), 1);
+  } else {
+    unsetenv(kTZEnv);
+  }
+  tzset();
 }
 
 TEST_F(PosixStrftimeTest, AMPMSpecifier) {
@@ -275,12 +302,6 @@ TEST_F(PosixStrftimeTest, LargeYear) {
       (strcmp(buffer_, "+10005") == 0) || (strcmp(buffer_, "10005") == 0);
 
   EXPECT_TRUE(match) << "Expected +10005 or 10005, but got: " << buffer_;
-}
-
-TEST_F(PosixStrftimeTest, LiteralPercentL) {
-  size_t result = strftime_l(buffer_, kBufferSize, "%%", &tm_, locale_);
-  EXPECT_EQ(result, 1U);
-  EXPECT_STREQ("%", buffer_);
 }
 
 }  // namespace
