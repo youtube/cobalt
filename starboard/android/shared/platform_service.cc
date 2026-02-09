@@ -66,11 +66,6 @@ CobaltExtensionPlatformService Open(void* context,
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate(
           {context, receive_callback, name});
-  // TODO: b/450024477 - Plumb the Activity through the platform service API.
-  // Passing a null Activity is a temporary workaround to avoid breaking the
-  // build during the JNI migration, since the Activity is not available in
-  // this context.
-
   auto cobalt_service =
       starboard::StarboardBridge::GetInstance()->OpenCobaltService(
           env, reinterpret_cast<jlong>(service), name);
@@ -88,9 +83,6 @@ void Close(CobaltExtensionPlatformService service) {
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
-
-  // base::android::ScopedJavaLocalRef<jobject> j_cobalt_service(env,
-  // service->cobalt_service);
   auto j_cobalt_service =
       base::android::JavaParamRef<jobject>(env, service->cobalt_service);
   Java_CobaltService_onClose(env, j_cobalt_service);

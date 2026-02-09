@@ -178,6 +178,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
@@ -189,8 +190,6 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
-
-    sub_modules += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service" ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
