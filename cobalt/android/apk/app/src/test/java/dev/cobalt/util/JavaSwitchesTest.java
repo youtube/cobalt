@@ -51,7 +51,8 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "256");
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
     javaSwitches.put(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION, "0");
-
+    javaSwitches.put(JavaSwitches.DISABLE_SPLASH_SCREEN, "true");
+    javaSwitches.put(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN, "true");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
@@ -67,7 +68,9 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--initial-old-space-size=128");
     assertThat(args).contains("--js-flags=--max-old-space-size=256");
     assertThat(args).contains("--js-flags=--max-semi-space-size=16");
-    assertThat(args).hasSize(6);
+    assertThat(args).contains("--disable-splash-screen");
+    assertThat(args).contains("--force-image-splash-screen");
+    assertThat(args).hasSize(9);
   }
 
   @Test
