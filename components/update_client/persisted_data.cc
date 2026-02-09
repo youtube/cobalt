@@ -102,6 +102,8 @@ std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
   return GetString(id, "updaterchannel");
 }
 std::string PersistedData::GetLatestChannel() const {
+  if (!pref_service_)
+    return std::string();
   const base::Value::Dict* dict =
       &pref_service_->GetDict(kPersistedDataPreference);
   if (!dict)
