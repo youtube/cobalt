@@ -500,15 +500,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public boolean isMicrophoneDisconnected() {
-    // A check specifically for microphones is not available before API 28, so it is assumed that a
-    // connected input audio device is a microphone.
-    AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
-    AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_INPUTS);
-    if (devices.length > 0) {
-      return false;
-    }
-
-    // fallback to check for BT voice capable RCU
+    // the app updates on devices with SDK_INT >= 24
+    // getInputDevice(), getInputDeviceIds() is available for android.os.Build.VERSION.SDK_INT >= 16
+    // hasMicrophone() is available for android.os.Build.VERSION.SDK_INT >= 23
     InputManager inputManager = (InputManager) appContext.getSystemService(Context.INPUT_SERVICE);
     final int[] inputDeviceIds = inputManager.getInputDeviceIds();
     for (int inputDeviceId : inputDeviceIds) {
@@ -518,6 +512,15 @@ public class StarboardBridge {
         return false;
       }
     }
+
+    AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
+    AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_INPUTS);
+    for (AudioDeviceInfo device : devices) {
+      if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_MIC) {
+        return false;
+      }
+    }
+
     return true;
   }
 
