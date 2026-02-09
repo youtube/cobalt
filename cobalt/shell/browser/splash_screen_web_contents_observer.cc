@@ -14,15 +14,11 @@
 
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
+#include "content/public/browser/navigation_handle.h"
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 #endif
-
-#include "base/threading/platform_thread.h"
-#include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/web_contents.h"
-#include "starboard/common/log.h"
-#include "url/gurl.h"
 
 namespace content {
 
