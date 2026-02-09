@@ -25,7 +25,6 @@
 namespace content {
 class ShellContentClient;
 class ShellContentBrowserClient;
-class ShellContentGpuClient;
 class ShellContentRendererClient;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
@@ -56,7 +55,6 @@ class ShellMainDelegate : public ContentMainDelegate {
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
   ContentClient* CreateContentClient() override;
   ContentBrowserClient* CreateContentBrowserClient() override;
-  ContentGpuClient* CreateContentGpuClient() override;
   ContentRendererClient* CreateContentRendererClient() override;
 
   static void InitializeResourceBundle();
@@ -77,7 +75,6 @@ class ShellMainDelegate : public ContentMainDelegate {
 #endif
 
   std::unique_ptr<ShellContentBrowserClient> browser_client_;
-  std::unique_ptr<ShellContentGpuClient> gpu_client_;
   std::unique_ptr<ShellContentRendererClient> renderer_client_;
   std::unique_ptr<ShellContentClient> content_client_;
 
