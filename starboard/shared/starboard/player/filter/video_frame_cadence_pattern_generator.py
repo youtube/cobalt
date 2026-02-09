@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,22 +24,24 @@ video_frame_cadence_pattern_generator.cc.
 
 import argparse
 from fractions import Fraction
+import textwrap
+
+_MAX_ITERATIONS = 120
+_MAX_PATTERN_LENGTH = 1000
 
 
 class VideoFrameCadencePatternGenerator:
+  """Generates a cadence pattern based on video frame rate and display refresh
+  rate, mimicking the logic from the Starboard C++ implementation.
   """
-    Generates a cadence pattern based on video frame rate and display refresh
-    rate, mimicking the logic from the Starboard C++ implementation.
-    """
 
   def __init__(self, frame_rate: float, refresh_rate: float):
-    """
-        Initializes the generator with the given rates.
+    """Initializes the generator with the given rates.
 
-        Args:
-            frame_rate: The frame rate of the video source in frames per second.
-            refresh_rate: The refresh rate of the display in Hz.
-        """
+    Args:
+      frame_rate: The frame rate of the video source in frames per second.
+      refresh_rate: The refresh rate of the display in Hz.
+    """
     if frame_rate <= 0 or refresh_rate <= 0:
       raise ValueError("Frame rate and refresh rate must be positive.")
     self.refresh_rate = float(refresh_rate)
@@ -60,8 +63,7 @@ class VideoFrameCadencePatternGenerator:
     refresh_ticks = int(
         (current_frame_time - 1 / self.refresh_rate) * self.refresh_rate)
 
-    max_iterations = 120
-    for _ in range(max_iterations):
+    for _ in range(_MAX_ITERATIONS):
       refresh_time = refresh_ticks / self.refresh_rate
       if refresh_time >= next_frame_time:
         break
@@ -71,30 +73,36 @@ class VideoFrameCadencePatternGenerator:
 
     return current_frame_display_times
 
-  def advance_to_next_frame(self):
+  def advance_to_next_frame(self) -> None:
     """Advances the internal counter to the next video frame."""
     self.frame_index += 1
 
 
-def main():
+def main() -> None:
   """Main function to parse arguments and print the cadence."""
   parser = argparse.ArgumentParser(
       description="Calculate the video frame release cadence.",
       formatter_class=argparse.RawTextHelpFormatter,
-      epilog="""
+      epilog=textwrap.dedent("""
 Example Usage:
-  # Classic 3:2 pulldown for film on NTSC displays
-  python video_frame_cadence_pattern_generator.py --frame-rate 24 --refresh-rate 60
-  # Output: 3 2
+  Example #1:
+  python3 video_frame_cadence_pattern_generator.py --frame-rate 24 --refresh-rate 60
 
-  # Smooth playback for 25fps content on a 60Hz display
-  python video_frame_cadence_pattern_generator.py --frame-rate 25 --refresh-rate 60
-  # Output: 3 2 3 2 2
+  Video Frame Rate:   24.0 fps
+  Display Refresh Rate: 60.0 Hz
+  ----------------------------------------
+  Cadence pattern repeats every 2 video frames:
+  3 2
 
-  # Standard NTSC drop-frame video on a true 60Hz display
-  python video_frame_cadence_pattern_generator.py --frame-rate 29.97 --refresh-rate 60
-  # Output: A long pattern of 2s with an occasional 3.
-""")
+  Example #2:
+  python3 video_frame_cadence_pattern_generator.py --frame-rate 25 --refresh-rate 60
+
+  Video Frame Rate:   25.0 fps
+  Display Refresh Rate: 60.0 Hz
+  ----------------------------------------
+  Cadence pattern repeats every 5 video frames:
+  3 2 3 2 2
+"""))
   parser.add_argument(
       "--frame-rate",
       type=float,
@@ -125,7 +133,8 @@ Example Usage:
 
     cadence = []
     # Ensure we don't get stuck in a huge loop for complex fractions
-    for _ in range(min(pattern_length, 1000)):
+
+    for _ in range(min(pattern_length, _MAX_PATTERN_LENGTH)):
       cadence.append(
           str(generator.get_number_of_times_current_frame_displays()))
       generator.advance_to_next_frame()
