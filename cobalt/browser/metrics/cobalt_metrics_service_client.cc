@@ -350,14 +350,24 @@ void CobaltMetricsServiceClient::SetMetricsListener(
 void CobaltMetricsServiceClient::RecordMemoryMetrics(
     memory_instrumentation::GlobalMemoryDump* global_dump) {
   uint64_t total_private_footprint_kb = 0;
+  uint64_t total_resident_kb = 0;
+
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
+  // Renderer, GPU) when moving to multi-process architecture.
   for (const auto& process_dump : global_dump->process_dumps()) {
     total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+    total_resident_kb += process_dump.os_dump().resident_set_kb;
   }
 
   if (total_private_footprint_kb > 0) {
     uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
     MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
                                 total_private_footprint_mb);
+  }
+
+  if (total_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.Resident",
+                                total_resident_kb / 1024);
   }
 }
 
