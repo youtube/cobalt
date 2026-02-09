@@ -48,7 +48,6 @@ void SplashScreenWebContentsObserver::DidStartNavigation(
     NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
     JNIEnv* env = base::android::AttachCurrentThread();
     starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 24);
   }
@@ -59,7 +58,6 @@ void SplashScreenWebContentsObserver::DidRedirectNavigation(
     NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
     JNIEnv* env = base::android::AttachCurrentThread();
     starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 27);
   }
@@ -70,7 +68,6 @@ void SplashScreenWebContentsObserver::DidFinishNavigation(
     NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
     JNIEnv* env = base::android::AttachCurrentThread();
     starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 25);
   }
@@ -79,7 +76,6 @@ void SplashScreenWebContentsObserver::DidFinishNavigation(
 
 void SplashScreenWebContentsObserver::DidStartLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  LOG(INFO) << "StartupGuard: web_contents()->GetLastCommittedURL():" << web_contents()->GetLastCommittedURL();
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 23);
 #endif
@@ -87,7 +83,6 @@ void SplashScreenWebContentsObserver::DidStartLoading() {
 
 void SplashScreenWebContentsObserver::DidStopLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  LOG(INFO) << "StartupGuard: web_contents()->GetLastCommittedURL():" << web_contents()->GetLastCommittedURL();
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 28);
 #endif

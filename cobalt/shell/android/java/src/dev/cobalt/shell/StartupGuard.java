@@ -56,7 +56,6 @@ public class StartupGuard {
             Log.e(TAG, "Invalid milestone: " + milestone);
             return;
         }
-        Log.i(TAG, "StartupGuard setStartupMilestone:" + milestone);
         startupStatus |= (1 << milestone);
     }
 
@@ -79,8 +78,7 @@ public class StartupGuard {
     public void disarm() {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
-            Log.i(TAG, "StartupGuard cancelled crash.");
-            Log.i(TAG, "StartupGuard Status: 0x" + Integer.toHexString(startupStatus));
+            Log.i(TAG, "StartupGuard cancelled crash. Status: 0x" + Integer.toHexString(startupStatus));
         }
     }
 }

@@ -388,7 +388,6 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 
 void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  LOG(INFO) << "StartupGuard: base::PlatformThread::GetName():" << base::PlatformThread::GetName();
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 27);
 #endif
@@ -399,7 +398,6 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
                           const GURL& validated_url) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  LOG(INFO) << "StartupGuard: validated_url:" << validated_url;
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 31);
 #endif
@@ -408,7 +406,6 @@ void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
 void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
     JNIEnv* env = base::android::AttachCurrentThread();
     if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
       starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 22);
@@ -423,7 +420,6 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
     JNIEnv* env = base::android::AttachCurrentThread();
     if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
       starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 26);
@@ -437,7 +433,6 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 
 void Shell::DidStartLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  LOG(INFO) << "StartupGuard: base::PlatformThread::GetName():" << base::PlatformThread::GetName();
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 21);
 #endif
