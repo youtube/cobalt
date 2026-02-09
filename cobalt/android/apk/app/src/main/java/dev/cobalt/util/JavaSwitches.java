@@ -47,6 +47,9 @@ public class JavaSwitches {
   /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
   public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
 
+  public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
+  public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -88,6 +91,13 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {
+      extraCommandLineArgs.add("--disable-splash-screen");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
+      extraCommandLineArgs.add("--force-image-splash-screen");
     }
     return extraCommandLineArgs;
   }
