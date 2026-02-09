@@ -14,6 +14,16 @@
 
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
+
+#include "base/threading/platform_thread.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
+#include "starboard/common/log.h"
+#include "url/gurl.h"
+
 namespace content {
 
 SplashScreenWebContentsObserver::SplashScreenWebContentsObserver(
@@ -32,6 +42,55 @@ void SplashScreenWebContentsObserver::LoadProgressChanged(double progress) {
   if (progress >= 1.0 && on_load_complete_) {
     std::move(on_load_complete_).Run();
   }
+}
+
+void SplashScreenWebContentsObserver::DidStartNavigation(
+    NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
+    JNIEnv* env = base::android::AttachCurrentThread();
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 24);
+  }
+#endif
+}
+
+void SplashScreenWebContentsObserver::DidRedirectNavigation(
+    NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
+    JNIEnv* env = base::android::AttachCurrentThread();
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 27);
+  }
+#endif
+}
+
+void SplashScreenWebContentsObserver::DidFinishNavigation(
+    NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
+    JNIEnv* env = base::android::AttachCurrentThread();
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 25);
+  }
+#endif
+}
+
+void SplashScreenWebContentsObserver::DidStartLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "StartupGuard: web_contents()->GetLastCommittedURL():" << web_contents()->GetLastCommittedURL();
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 23);
+#endif
+}
+
+void SplashScreenWebContentsObserver::DidStopLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "StartupGuard: web_contents()->GetLastCommittedURL():" << web_contents()->GetLastCommittedURL();
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 28);
+#endif
 }
 
 }  // namespace content

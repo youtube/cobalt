@@ -47,8 +47,10 @@ CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
 absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+#if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 14);
+#endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -81,8 +83,10 @@ CobaltMainDelegate::CreateContentUtilityClient() {
 
 absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
+#if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 15);
+#endif
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -123,8 +127,10 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
+#if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 16);
+#endif
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
     return std::move(main_function_params);

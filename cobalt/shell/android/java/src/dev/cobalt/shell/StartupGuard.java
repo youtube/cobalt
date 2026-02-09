@@ -3,8 +3,6 @@ package dev.cobalt.shell;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
 
 /**
  * This class crashes the application if scheduled and not disarmed
@@ -19,7 +17,7 @@ import org.chromium.base.annotations.JNINamespace;
 public class StartupGuard {
     private final Handler handler;
     private final Runnable crashRunnable;
-    private int startupStatus = 0;
+    private volatile int startupStatus = 0;
 
     private static class LazyHolder {
         private static final StartupGuard INSTANCE = new StartupGuard();
@@ -36,7 +34,7 @@ public class StartupGuard {
             @Override
             public void run() {
                 throw new RuntimeException(
-                        "Application startup may not have succeeded, crash triggered by StartupGuard. Status: " + startupStatus);
+                        "Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x" + Integer.toHexString(startupStatus));
             }
         };
     }
@@ -54,6 +52,10 @@ public class StartupGuard {
      * @param milestone The milestone to set, 0-indexed.
      */
     public synchronized void setStartupMilestone(int milestone) {
+        if (milestone < 0 || milestone >= 32) {
+            Log.e(TAG, "Invalid milestone: " + milestone);
+            return;
+        }
         Log.i(TAG, "StartupGuard setStartupMilestone:" + milestone);
         startupStatus |= (1 << milestone);
     }
@@ -78,7 +80,7 @@ public class StartupGuard {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
             Log.i(TAG, "StartupGuard cancelled crash.");
-            Log.i(TAG, "StartupGuard Status:" + startupStatus);
+            Log.i(TAG, "StartupGuard Status: 0x" + Integer.toHexString(startupStatus));
         }
     }
 }

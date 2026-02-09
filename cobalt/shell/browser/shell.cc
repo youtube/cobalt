@@ -340,8 +340,14 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents) {
+#if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 18);
+  if (create_splash_screen_web_contents) {
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 19);
+  } else {
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 18);
+  }
+#endif
   WebContents::CreateParams create_params(browser_context, site_instance);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
@@ -372,26 +378,72 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
+#if BUILDFLAG(IS_ANDROIDTV)
+    JNIEnv* env = base::android::AttachCurrentThread();
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 20);
+#endif
     g_platform->MainFrameCreated(this);
   }
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "StartupGuard: base::PlatformThread::GetName():" << base::PlatformThread::GetName();
   JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 20);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 27);
+#endif
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
 }
 
-void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
+                          const GURL& validated_url) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "StartupGuard: validated_url:" << validated_url;
   JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 19);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 31);
+#endif
+}
+
+void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 22);
+    } else {
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 29);
+    }
+
+  }
+#endif
+}
+
+void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "StartupGuard: navigation_handle->GetURL():" << navigation_handle->GetURL();
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 26);
+    } else {
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 30);
+    }
+  }
+#endif
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
 }
 
-void Shell::DidStopLoading() {
+void Shell::DidStartLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "StartupGuard: base::PlatformThread::GetName():" << base::PlatformThread::GetName();
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 21);
+#endif
+}
+
+void Shell::DidStopLoading() {
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {
     web_contents()->GetRenderWidgetHostView()->Focus();

@@ -28,8 +28,6 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
-void SetStartupMilestone(int milestone);
-
 // This class serves as a bridge between the native code and Android
 // StarboardBridge Java class.
 class StarboardBridge {
