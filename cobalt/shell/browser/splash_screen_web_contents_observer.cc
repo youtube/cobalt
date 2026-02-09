@@ -48,18 +48,7 @@ void SplashScreenWebContentsObserver::DidStartNavigation(
     NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 24);
-  }
-#endif
-}
-
-void SplashScreenWebContentsObserver::DidRedirectNavigation(
-    NavigationHandle* navigation_handle) {
-#if BUILDFLAG(IS_ANDROIDTV)
-  if (navigation_handle->IsInPrimaryMainFrame()) {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 27);
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(24);
   }
 #endif
 }
@@ -68,23 +57,20 @@ void SplashScreenWebContentsObserver::DidFinishNavigation(
     NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 25);
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(25);
   }
 #endif
 }
 
 void SplashScreenWebContentsObserver::DidStartLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 23);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(23);
 #endif
 }
 
 void SplashScreenWebContentsObserver::DidStopLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 28);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(28);
 #endif
 }
 

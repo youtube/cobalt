@@ -341,11 +341,10 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
   if (create_splash_screen_web_contents) {
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 19);
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(19);
   } else {
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 18);
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(18);
   }
 #endif
   WebContents::CreateParams create_params(browser_context, site_instance);
@@ -379,8 +378,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
 #if BUILDFLAG(IS_ANDROIDTV)
-    JNIEnv* env = base::android::AttachCurrentThread();
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 20);
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(20);
 #endif
     g_platform->MainFrameCreated(this);
   }
@@ -388,8 +386,7 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 
 void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 27);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(27);
 #endif
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
@@ -398,19 +395,17 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
                           const GURL& validated_url) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 31);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(31);
 #endif
 }
 
 void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    JNIEnv* env = base::android::AttachCurrentThread();
     if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 22);
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(22);
     } else {
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 29);
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(29);
     }
 
   }
@@ -420,11 +415,10 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    JNIEnv* env = base::android::AttachCurrentThread();
     if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 26);
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(26);
     } else {
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 30);
+      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(30);
     }
   }
 #endif
@@ -433,8 +427,7 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 
 void Shell::DidStartLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 21);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(21);
 #endif
 }
 

@@ -43,8 +43,7 @@ namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(env, 17);
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
   SetupMetrics();
 #if BUILDFLAG(IS_ANDROIDTV)
