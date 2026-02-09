@@ -150,8 +150,6 @@ void VideoRendererImpl::WriteEndOfStream() {
   decoder_->WriteEndOfStream();
 }
 
-bool g_was_full_once = false;
-
 void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
@@ -189,36 +187,11 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
 
   // This is also guarded by |sink_frames_mutex_|.
   algorithm_->Seek(seek_to_time);
-
-  g_was_full_once = false;
 }
 
 bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_CHECK(BelongsToCurrentThread());
-  bool can_accept_more_data =
-      number_of_frames_.load() <
-          static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
-      !end_of_stream_written_.load() && need_more_input_.load();
-#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  if (can_accept_more_data) {
-    last_can_accept_more_data = CurrentMonotonicTime();
-  }
-#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  if (g_was_full_once) {
-    // Want to detect the mement that # frames drops under 12.
-    // This shoudld NOT happen, since another path is working to have 128
-    // pending input packets.
-    SB_CHECK_GT(number_of_frames_, 2)
-        << " # of sink frames=" << sink_frames_.size();
-  } else {
-    SB_LOG(INFO) << __func__ << ": frame inventory=" << number_of_frames_.load()
-                 << ", g_was_full_once=" << to_string(g_was_full_once);
-    // Begins logic, once after buffer has > 12 frames.
-    // Otherwise, the crash happens at initial priming.
-    g_was_full_once = number_of_frames_.load() > 6;
-  }
-
-  return can_accept_more_data;
+  return !end_of_stream_written_.load() && need_more_input_.load();
 }
 
 void VideoRendererImpl::SetBounds(int z_index,
