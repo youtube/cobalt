@@ -31,6 +31,12 @@ const char kEnableFeatures[] = "enable-features";
 // Force low-end device mode when set.
 const char kEnableLowEndDeviceMode[]        = "enable-low-end-device-mode";
 
+#if BUILDFLAG(IS_COBALT)
+// Force low-end device mode when set, but do not fake physical memory.
+const char kEnableLowEndDeviceModeNoSimulatedMemory[] =
+    "enable-low-end-device-mode-no-simulated-memory";
+#endif
+
 // Enable the use of background thread priorities for background tasks in the
 // ThreadPool even on systems where it is disabled by default, e.g. due to
 // concerns about priority inversions.

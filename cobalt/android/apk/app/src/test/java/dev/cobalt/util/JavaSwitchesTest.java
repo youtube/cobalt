@@ -74,6 +74,17 @@ public class JavaSwitchesTest {
   }
 
   @Test
+  public void getExtraCommandLineArgs_LowEndDeviceModeNoSimulatedMemory() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY, "true");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--enable-low-end-device-mode");
+    assertThat(args).contains("--enable-low-end-device-mode-no-simulated-memory");
+  }
+
+  @Test
   public void getExtraCommandLineArgs_SanitizeValues() {
     Map<String, String> javaSwitches = new HashMap<>();
     javaSwitches.put(JavaSwitches.V8_GC_INTERVAL, "1,000ms");

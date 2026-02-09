@@ -25,6 +25,8 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
+  public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
+      "EnableLowEndDeviceModeNoSimulatedMemory";
 
   /** GPU flag to enable memory settings in layer tree and set max_memory_for_prepaint_percentage. Value type: Integer (MiB) */
   public static final String CC_LAYER_TREE_OPTIMIZATION = "CCLayerTreeOptimization";
@@ -58,6 +60,9 @@ public class JavaSwitches {
     if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
       extraCommandLineArgs.add("--enable-low-end-device-mode");
       extraCommandLineArgs.add("--disable-rgba-4444-textures");
+      if (javaSwitches.containsKey(JavaSwitches.ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY)) {
+        extraCommandLineArgs.add("--enable-low-end-device-mode-no-simulated-memory");
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
