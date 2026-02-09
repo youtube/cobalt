@@ -20,7 +20,7 @@ char *__asctime_r(const struct tm *restrict tm, char *restrict buf)
 	static char mon_name[12][4] = {
 		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    };
+	};
 
 	if (tm == NULL || buf == NULL ||
 		tm->tm_wday < 0 || tm->tm_wday > 6 ||

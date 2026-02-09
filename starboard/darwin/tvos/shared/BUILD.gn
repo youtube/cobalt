@@ -282,7 +282,6 @@ static_library("starboard_platform") {
               "//starboard/shared/uikit/egl_surface.mm",
               "//starboard/shared/uikit/file_flush.cc",
               "//starboard/shared/uikit/game_controller_input_device.mm",
-              "//starboard/shared/uikit/get_home_directory.cc",
               "//starboard/shared/uikit/graphics.cc",
               "//starboard/shared/uikit/graphics.h",
               "//starboard/shared/uikit/input_device.mm",

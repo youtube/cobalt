@@ -269,18 +269,18 @@ INSTANTIATE_TEST_SUITE_P(Posix,
 // --- Dumper Test ---
 
 const char* kLocaleFormats[] = {
-    "af_ZA", "sq_AL",       "am_ET", "ar_SA",  "hy_AM", "as_IN", "az_AZ",
-    "bn_BD", "eu_ES",       "be_BY", "bs_BA",  "bg_BG", "ca_ES", "zh_CN",
-    "zh_HK", "zh_TW",       "hr_HR", "cs_CZ",  "da_DK", "nl_NL", "en_US",
-    "en_IN", "en_GB",       "et_EE", "fil_PH", "fi_FI", "fr_FR", "fr_CA",
-    "gl_ES", "ka_GE",       "de_DE", "el_GR",  "gu_IN", "he_IL", "hi_IN",
-    "hu_HU", "is_IS",       "id_ID", "it_IT",  "ja_JP", "kn_IN", "kk_KZ",
-    "km_KH", "ko_KR",       "ky_KG", "lo_LA",  "lv_LV", "lt_LT", "mk_MK",
-    "ms_MY", "ml_IN",       "mr_IN", "mn_MN",  "my_MM", "ne_NP", "or_IN",
-    "fa_IR", "pl_PL",       "pt_BR", "pt_PT",  "pa_IN", "ro_RO", "ru_RU",
-    "sr_RS", "sr_RS@latin", "si_LK", "sk_SK",  "sl_SI", "es_MX", "es_ES",
-    "es_US", "sw_KE",       "sv_SE", "ta_IN",  "te_IN", "th_TH", "tr_TR",
-    "uk_UA", "ur_PK",       "uz_UZ", "vi_VN",  "zu_ZA"};
+    "C",     "POSIX", "af_ZA", "sq_AL",       "am_ET", "ar_SA",  "hy_AM",
+    "as_IN", "az_AZ", "bn_BD", "eu_ES",       "be_BY", "bs_BA",  "bg_BG",
+    "ca_ES", "zh_CN", "zh_HK", "zh_TW",       "hr_HR", "cs_CZ",  "da_DK",
+    "nl_NL", "en_US", "en_IN", "en_GB",       "et_EE", "fil_PH", "fi_FI",
+    "fr_FR", "fr_CA", "gl_ES", "ka_GE",       "de_DE", "el_GR",  "gu_IN",
+    "he_IL", "hi_IN", "hu_HU", "is_IS",       "id_ID", "it_IT",  "ja_JP",
+    "kn_IN", "kk_KZ", "km_KH", "ko_KR",       "ky_KG", "lo_LA",  "lv_LV",
+    "lt_LT", "mk_MK", "ms_MY", "ml_IN",       "mr_IN", "mn_MN",  "my_MM",
+    "ne_NP", "or_IN", "fa_IR", "pl_PL",       "pt_BR", "pt_PT",  "pa_IN",
+    "ro_RO", "ru_RU", "sr_RS", "sr_RS@latin", "si_LK", "sk_SK",  "sl_SI",
+    "es_MX", "es_ES", "es_US", "sw_KE",       "sv_SE", "ta_IN",  "te_IN",
+    "th_TH", "tr_TR", "uk_UA", "ur_PK",       "uz_UZ", "vi_VN",  "zu_ZA"};
 
 std::string EscapeString(const char* str) {
   if (!str) {
