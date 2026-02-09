@@ -14,6 +14,8 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
@@ -30,6 +32,8 @@ import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
 import androidx.media3.extractor.TrackOutput.CryptoData;
 import java.io.IOException;
+
+import dev.cobalt.util.Log;
 
 /** Implements the ExoPlayer MediaPeriod interface to write samples to the ExoPlayerSampleStream. */
 public class ExoPlayerMediaPeriod implements MediaPeriod {
@@ -192,7 +196,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     public void reevaluateBuffer(long positionUs) {}
 
     public void destroySampleStream() {
+      if (mStream != null) {
         mStream.destroy();
+      }
     }
 
     /**
@@ -202,19 +208,19 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
      * @param encryptionMode Signals the type of Widevine encryption.
-     * @param cryptoBuffer The information required to decrypt this sample.
      * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
      * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
-     * @param drmInitData Contains the initialization data required to configure the decoders. This
      * must be non-null when writing the first sample of the stream.
      */
     public void writeSample(@NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame,
-            int encryptionMode, @Nullable byte[] cryptoBuffer, int encryptedBlocks, int clearBlocks,
-            @Nullable byte[] drmInitData) {
-        if (cryptoBuffer != null) {
+            int encryptionMode, @Nullable byte[] key, int encryptedBlocks, int clearBlocks,
+            @Nullable byte[] initializationVector, int iv_size,
+            @Nullable int[] subsampleEncryptedBytes, @Nullable int[] subsampleClearBytes) {
+        if (key != null) {
             mStream.writeSample(samples, size, timestamp, isKeyFrame,
-                    new CryptoData(encryptionMode, cryptoBuffer, encryptedBlocks, clearBlocks),
-                    drmInitData);
+                    new CryptoData(encryptionMode, key, encryptedBlocks, clearBlocks), initializationVector, iv_size,
+                    subsampleEncryptedBytes, subsampleClearBytes);
+            return;
         }
         mStream.writeSample(samples, size, timestamp, isKeyFrame);
     }
@@ -224,6 +230,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     }
 
     public boolean canAcceptMoreData() {
+      if (mStream == null) {
+        return false;
+      }
         return mStream.canAcceptMoreData();
     }
 }

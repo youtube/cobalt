@@ -39,10 +39,7 @@ ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
       update_job_(std::bind(&ExoPlayerPlayerWorkerHandler::Update, this)),
-      bridge_(
-          std::make_unique<ExoPlayerBridge>(creation_param->audio_stream_info,
-                                            creation_param->video_stream_info,
-                                            creation_param->drm_system)),
+      creation_param_(*creation_param),
       drm_system_(
           reinterpret_cast<DrmSystemExoPlayer*>(creation_param->drm_system)) {
   SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut)
@@ -70,14 +67,19 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
 
   AttachToCurrentThread();
 
-  // std::vector<const uint8_t> drm_init_data;
-  // if (drm_system_) {
-  //   drm_init_data = drm_system_->GetInitializationData();
+  std::vector<uint8_t> drm_init_data;
+  if (!drm_initialized_ && drm_system_) {
+    drm_init_data = drm_system_->GetInitializationData();
 
-  //   if (drm_init_data.size() == 0) {
-  //     return Failure("Did not get init data in time");
-  //   }
-  // }
+    if (drm_init_data.size() == 0) {
+      return Failure("Did not get init data in time");
+    }
+    drm_initialized_ = true;
+  }
+
+  bridge_ = std::make_unique<ExoPlayerBridge>(
+      creation_param_.audio_stream_info, creation_param_.video_stream_info,
+      creation_param_.drm_system, drm_init_data);
 
   if (!bridge_->is_valid() ||
       !bridge_->Init(
@@ -120,6 +122,8 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
     SB_DCHECK(input_buffer);
   }
 
+  std::vector<uint8_t> drm_init_data;
+
   SbMediaType sample_type = input_buffers.front()->sample_type();
   *samples_written = 0;
   if (IsEOSWritten(sample_type)) {
@@ -128,7 +132,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
                     << " sample after EOS is written.";
   } else {
     if (bridge_->CanAcceptMoreData(sample_type)) {
-      bridge_->WriteSamples(input_buffers, sample_type);
+      bridge_->WriteSamples(input_buffers, sample_type, drm_init_data);
       *samples_written = static_cast<int>(input_buffers.size());
     }
   }

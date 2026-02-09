@@ -25,6 +25,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
@@ -48,11 +49,12 @@ using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
+using base::android::ToJavaByteArray;
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
-constexpr int kWaitForInitializedTimeoutUsec = 250'000;  // 250 ms.
-constexpr int kMaxSampleBufferSize = 6 * 1024 * 1024;    // 6 MB.
+constexpr int kWaitForInitializedTimeoutUsec = 25000000;  // 25 s.
+constexpr int kMaxSampleBufferSize = 6 * 1024 * 1024;     // 6 MB.
 constexpr int kADTSHeaderSize = 7;
 constexpr bool kForceTunneledPlayback = false;
 
@@ -69,12 +71,31 @@ int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
     const SbMediaVideoStreamInfo& video_stream_info,
-    const SbDrmSystem drm_system) {
+    const SbDrmSystem drm_system,
+    const std::vector<uint8_t>& drm_init_data) {
   ON_INSTANCE_CREATED(ExoPlayerBridge);
+
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_drm_bridge;
+  ScopedJavaLocalRef<jobject> j_session_manager;
+  if (SbDrmSystemIsValid(drm_system)) {
+    DrmSystemExoPlayer* drm_system_exoplayer =
+        reinterpret_cast<DrmSystemExoPlayer*>(drm_system);
+    SB_LOG(INFO) << "GETTING DRM BRIDGE";
+    j_drm_bridge = ScopedJavaLocalRef<jobject>(
+        env, drm_system_exoplayer->get_exoplayer_drm_bridge());
+    SB_LOG(INFO) << "GOT DRM BRIDGE";
+    if (!j_drm_bridge.is_null()) {
+      SB_LOG(INFO) << "GETTING SESSION MANAGER";
+      j_session_manager = drm_system_exoplayer->GetDrmSessionManager();
+      SB_LOG(INFO) << "GOT SESSION MANAGER";
+    }
+  }
 
   ScopedJavaLocalRef<jobject> j_audio_media_source;
   if (audio_stream_info.codec != kSbMediaAudioCodecNone) {
-    j_audio_media_source = CreateAudioMediaSource(audio_stream_info);
+    j_audio_media_source = CreateAudioMediaSource(
+        audio_stream_info, j_session_manager.obj(), drm_init_data);
     if (!j_audio_media_source) {
       init_error_msg_ = "Could not create ExoPlayer audio MediaSource";
       SB_LOG(ERROR) << init_error_msg_;
@@ -82,11 +103,11 @@ ExoPlayerBridge::ExoPlayerBridge(
     }
   }
 
-  JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_video_media_source;
   ScopedJavaGlobalRef<jobject> j_output_surface;
   if (video_stream_info.codec != kSbMediaVideoCodecNone) {
-    j_video_media_source = CreateVideoMediaSource(video_stream_info);
+    j_video_media_source = CreateVideoMediaSource(
+        video_stream_info, j_session_manager.obj(), drm_init_data);
     if (!j_video_media_source) {
       init_error_msg_ = "Could not create ExoPlayer video MediaSource";
       SB_LOG(ERROR) << init_error_msg_;
@@ -114,7 +135,8 @@ ExoPlayerBridge::ExoPlayerBridge(
   ScopedJavaLocalRef<jobject> j_exoplayer_bridge =
       Java_ExoPlayerManager_createExoPlayerBridge(
           env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
-          j_audio_media_source, j_video_media_source, nullptr, j_output_surface,
+          j_audio_media_source, j_video_media_source, j_drm_bridge,
+          j_output_surface,
           (ShouldEnableTunneledPlayback(video_stream_info) &&
            audio_stream_info.codec != kSbMediaAudioCodecNone) ||
               kForceTunneledPlayback);
@@ -130,8 +152,6 @@ ExoPlayerBridge::ExoPlayerBridge(
 }
 
 ExoPlayerBridge::~ExoPlayerBridge() {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   ON_INSTANCE_RELEASED(ExoPlayerBridge);
   player_is_releasing_.store(true);
 
@@ -157,7 +177,6 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
 bool ExoPlayerBridge::Init(ErrorCB error_cb,
                            PrerolledCB prerolled_cb,
                            EndedCB ended_cb) {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_CHECK(error_cb);
   SB_CHECK(prerolled_cb);
   SB_CHECK(ended_cb);
@@ -188,8 +207,6 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
 }
 
 void ExoPlayerBridge::Seek(int64_t timestamp) {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -200,9 +217,8 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
-                                   SbMediaType type) {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
+                                   SbMediaType type,
+                                   std::vector<uint8_t>& drm_init_data) {
   // TODO: It's possible that a video sample may contain valid
   // SbMediaColorMetadata after codec creation. When that happens,
   // we should recreate the video decoder to use the new metadata.
@@ -225,6 +241,48 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
     ScopedJavaLocalRef<jbyteArray> sample_data_local_ref(
         env, static_cast<jbyteArray>(env->NewLocalRef(j_sample_data_.obj())));
 
+    if (input_buffer->drm_info()) {
+      const SbDrmSampleInfo* drm_sample_info = input_buffer->drm_info();
+
+      ScopedJavaLocalRef<jbyteArray> j_iv =
+          ToJavaByteArray(env, drm_sample_info->initialization_vector,
+                          drm_sample_info->initialization_vector_size);
+      ScopedJavaLocalRef<jbyteArray> j_key = ToJavaByteArray(
+          env, drm_sample_info->identifier, drm_sample_info->identifier_size);
+      ScopedJavaLocalRef<jbyteArray> j_init_data;
+
+      if (drm_init_data.size() > 0) {
+        j_init_data =
+            ToJavaByteArray(env, drm_init_data.data(), drm_init_data.size());
+      } else {
+        j_init_data = NULL;
+      }
+
+      // Reshape the sub sample mapping like this:
+      // [(c0, e0), (c1, e1), ...] -> [c0, c1, ...] and [e0, e1, ...]
+      DrmSubsampleData subsample_data =
+          GetDrmSubsampleData(env, *drm_sample_info, offset);
+
+      jint cipher_mode = 1;  // CRYPTO_MODE_AES_CTR
+      jint blocks_to_encrypt = 0;
+      jint blocks_to_skip = 0;
+
+      if (drm_sample_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
+        cipher_mode = 2;  // CRYPTO_MODE_AES_CBC
+        blocks_to_encrypt =
+            drm_sample_info->encryption_pattern.crypt_byte_block;
+        blocks_to_skip = drm_sample_info->encryption_pattern.skip_byte_block;
+      }
+
+      Java_ExoPlayerBridge_writeEncryptedSample(
+          env, j_exoplayer_bridge_, sample_data_local_ref, size,
+          input_buffer->timestamp(), is_key_frame, type, cipher_mode, j_key,
+          blocks_to_encrypt, blocks_to_skip, j_iv,
+          drm_sample_info->initialization_vector_size,
+          subsample_data.encrypted_bytes, subsample_data.clear_bytes);
+      return;
+    }
+
     Java_ExoPlayerBridge_writeSample(
         env, j_exoplayer_bridge_, sample_data_local_ref, size,
         input_buffer->timestamp(), is_key_frame, type);
@@ -232,8 +290,6 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
 }
 
 void ExoPlayerBridge::WriteEOS(SbMediaType type) const {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -243,8 +299,6 @@ void ExoPlayerBridge::WriteEOS(SbMediaType type) const {
 }
 
 void ExoPlayerBridge::SetPause(bool pause) const {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -259,8 +313,6 @@ void ExoPlayerBridge::SetPause(bool pause) const {
 }
 
 void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -271,8 +323,6 @@ void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
 }
 
 void ExoPlayerBridge::SetVolume(const double volume) const {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -282,8 +332,6 @@ void ExoPlayerBridge::SetVolume(const double volume) const {
 }
 
 void ExoPlayerBridge::Stop() const {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -292,8 +340,6 @@ void ExoPlayerBridge::Stop() const {
 }
 
 ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return MediaInfo();
   }
@@ -305,8 +351,6 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
 }
 
 bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) const {
-  // SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return false;
   }

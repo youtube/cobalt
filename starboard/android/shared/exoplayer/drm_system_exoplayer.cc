@@ -19,10 +19,9 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
-
-#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
@@ -35,9 +34,11 @@ using base::android::JavaByteArrayToString;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
+using base::android::ToJavaByteArray;
 
-constexpr int kWaitForInitializedTimeoutUsec = 250'000;  // 250 ms.
+constexpr int kWaitForInitializedTimeoutUsec = 25000000;  // 25 s.
 constexpr char kNoUrl[] = "";
+const char kFirstSbDrmSessionId[] = "initialdrmsessionid";
 
 std::string JavaByteArrayToString(
     JNIEnv* env,
@@ -78,6 +79,16 @@ DrmSystemExoPlayer::DrmSystemExoPlayer(
   j_exoplayer_drm_bridge_.Reset(j_exoplayer_drm_bridge);
 }
 
+base::android::ScopedJavaLocalRef<jobject>
+DrmSystemExoPlayer::GetDrmSessionManager() const {
+  if (!j_exoplayer_drm_bridge_) {
+    return ScopedJavaLocalRef<jobject>();
+  }
+  JNIEnv* env = AttachCurrentThread();
+  return Java_ExoPlayerDrmBridge_getDrmSessionManager(env,
+                                                      j_exoplayer_drm_bridge_);
+}
+
 DrmSystemExoPlayer::~DrmSystemExoPlayer() {
   Java_ExoPlayerDrmBridge_release(AttachCurrentThread(),
                                   j_exoplayer_drm_bridge_);
@@ -89,6 +100,7 @@ void DrmSystemExoPlayer::GenerateSessionUpdateRequest(
     const void* initialization_data,
     int initialization_data_size) {
   SB_LOG(INFO) << "CALLED GENERATESESSIONUPDATEREQUEST() WITH TYPE " << type;
+  ticket_ = ticket;
   // Store initialization data to create ExoPlayer formats.
   initialization_data_ = std::vector<uint8_t>(
       reinterpret_cast<const uint8_t*>(initialization_data),
@@ -104,6 +116,11 @@ void DrmSystemExoPlayer::UpdateSession(int ticket,
                                        const void* session_id,
                                        int session_id_size) {
   SB_LOG(INFO) << "CALLED UPDATESESSION()";
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> j_response =
+      ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(key), key_size);
+  Java_ExoPlayerDrmBridge_SetKeyRequestResponse(env, j_exoplayer_drm_bridge_,
+                                                j_response);
 }
 void DrmSystemExoPlayer::CloseSession(const void* session_id_data,
                                       int session_id_size) {}
@@ -115,6 +132,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemExoPlayer::Decrypt(
 }
 
 bool DrmSystemExoPlayer::IsServerCertificateUpdatable() {
+  // TODO: Enable this.
   return false;
 }
 
@@ -138,8 +156,11 @@ const void* DrmSystemExoPlayer::GetMetrics(int* size) {
   }
 
   jbyte* metrics_elements = env->GetByteArrayElements(j_metrics.obj(), nullptr);
+  if (!metrics_elements) {
+    *size = 0;
+    return nullptr;
+  }
   jsize metrics_size = base::android::SafeGetArrayLength(env, j_metrics);
-  SB_DCHECK(metrics_elements);
 
   metrics_.assign(metrics_elements, metrics_elements + metrics_size);
 
@@ -151,17 +172,19 @@ const void* DrmSystemExoPlayer::GetMetrics(int* size) {
 
 void DrmSystemExoPlayer::ExecuteKeyRequest(
     JNIEnv* env,
-    const JavaParamRef<jbyteArray>& j_session_id,
-    const JavaParamRef<jbyteArray>& j_message) {
+    const JavaParamRef<jbyteArray>& j_message,
+    const JavaParamRef<jbyteArray>& j_session_id) {
+  SB_LOG(INFO) << "CALLING EXECUTE KEY REQUEST";
   std::string session_id = JavaByteArrayToString(env, j_session_id);
   std::string message = JavaByteArrayToString(env, j_message);
-  update_request_callback_(
-      this, context_, kSbDrmTicketInvalid, kSbDrmStatusSuccess,
-      kSbDrmSessionRequestTypeLicenseRequest, nullptr, session_id.data(),
-      session_id.size(), message.data(), message.size(), kNoUrl);
+  update_request_callback_(this, context_, ticket_, kSbDrmStatusSuccess,
+                           kSbDrmSessionRequestTypeLicenseRequest, nullptr,
+                           session_id.data(), session_id.size(), message.data(),
+                           message.size(), kNoUrl);
 }
 
 std::vector<uint8_t> DrmSystemExoPlayer::GetInitializationData() {
+  SB_LOG(INFO) << "CALLED GetInitializationData()";
   bool received_init_data;
   {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -175,6 +198,7 @@ std::vector<uint8_t> DrmSystemExoPlayer::GetInitializationData() {
     return std::vector<uint8_t>();
   }
 
+  SB_LOG(INFO) << "RETURNING VALID INIT DATA";
   return initialization_data_;
 }
 

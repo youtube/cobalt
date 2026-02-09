@@ -19,8 +19,6 @@ import static dev.cobalt.media.Log.TAG;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
-import androidx.media3.common.DrmInitData;
-import androidx.media3.common.DrmInitData.SchemeData;
 import androidx.media3.common.Format;
 import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.common.util.UnstableApi;
@@ -31,9 +29,12 @@ import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
+import androidx.media3.extractor.TrackOutput;
 import androidx.media3.extractor.TrackOutput.CryptoData;
 import dev.cobalt.util.Log;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /** Queues encoded media to be retrieved by the player renderers */
 @UnstableApi
@@ -42,6 +43,7 @@ public class ExoPlayerSampleStream implements SampleStream {
     private final SampleQueue mSampleQueue;
     private volatile boolean mEndOfStream = false;
     private final ParsableByteArray mSampleData = new ParsableByteArray();
+
     // The memory here is managed by Java rather than the native allocator, which may increase
     // memory pressure.
     // TODO: Have the SampleQueue read directly from native memory, rather than manage its own
@@ -75,7 +77,7 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @param isKeyFrame Whether the sample is a keyframe.
      */
     public void writeSample(@NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        writeSample(samples, size, timestamp, isKeyFrame, null, null);
+        writeSample(samples, size, timestamp, isKeyFrame, null, null, 0, null, null);
     }
 
     /**
@@ -85,31 +87,56 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
      * @param cryptoData The information required to decrypt this sample.
-     * @param drmInitData The information required configure the Format for encrypted streams.
+     * @param initializationVector The initialization vector for this sample.
+     * @param ivSize The size of the initialization vector.
      */
     public void writeSample(@NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame,
-            @Nullable CryptoData cryptoData, @Nullable byte[] drmInitData) {
-        if (drmInitData != null) {
-            updateEncryptedFormat(drmInitData);
-        }
-
+            @Nullable CryptoData cryptoData, @Nullable byte[] initializationVector, int ivSize,
+            @Nullable int[] subsampleEncryptedBytes, @Nullable int[] subsampleClearBytes) {
         int flags = 0;
         if (isKeyFrame) {
             flags |= C.BUFFER_FLAG_KEY_FRAME;
         }
 
-        mSampleData.reset(samples, size);
-        // TODO: Optimize by avoiding an extra sample copy here.
-        mSampleQueue.sampleData(mSampleData, size);
-
+        int totalSize = size;
         if (cryptoData != null) {
-            if (mSampleQueue.getUpstreamFormat().drmInitData == null) {
-                // TODO: Surface error here.
-                Log.e(TAG, "Attempted to queue an encrypted sample before init data is set.");
-                return;
+            flags |= C.BUFFER_FLAG_ENCRYPTED;
+            ParsableByteArray encryptionSignalByte = new ParsableByteArray(1);
+            // If subsamples are present, set the 0x80 bit.
+            boolean hasSubsamples = subsampleEncryptedBytes != null && subsampleClearBytes != null && subsampleEncryptedBytes.length > 0;
+            encryptionSignalByte.getData()[0] = (byte) (ivSize | (hasSubsamples ? 0x80 : 0));
+            encryptionSignalByte.setPosition(0);
+            mSampleQueue.sampleData(encryptionSignalByte, 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+            totalSize++;
+
+            ParsableByteArray ivData = new ParsableByteArray(initializationVector, ivSize);
+            mSampleQueue.sampleData(ivData, ivSize, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+            totalSize += ivSize;
+
+            if (hasSubsamples) {
+                int subsampleCount = subsampleEncryptedBytes.length;
+                ParsableByteArray subsampleCountData = new ParsableByteArray(2);
+                subsampleCountData.getData()[0] = (byte) (subsampleCount >> 8);
+                subsampleCountData.getData()[1] = (byte) (subsampleCount & 0xFF);
+                subsampleCountData.setPosition(0);
+                mSampleQueue.sampleData(subsampleCountData, 2, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+                totalSize += 2;
+
+                int subsampleDataLength = 6 * subsampleCount;
+                ByteBuffer subsampleBuffer = ByteBuffer.allocate(subsampleDataLength);
+                for (int i = 0; i < subsampleCount; i++) {
+                    subsampleBuffer.putShort((short) subsampleClearBytes[i]);
+                    subsampleBuffer.putInt(subsampleEncryptedBytes[i]);
+                }
+                ParsableByteArray subsampleData = new ParsableByteArray(subsampleBuffer.array());
+                mSampleQueue.sampleData(subsampleData, subsampleDataLength, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+                totalSize += subsampleDataLength;
             }
         }
-        mSampleQueue.sampleMetadata(timestamp, flags, size, 0, cryptoData);
+
+        mSampleData.reset(samples, size);
+        mSampleQueue.sampleData(mSampleData, size);
+        mSampleQueue.sampleMetadata(timestamp, flags, totalSize, 0, cryptoData);
     }
 
     public void writeEndOfStream() {
@@ -157,9 +184,6 @@ public class ExoPlayerSampleStream implements SampleStream {
                             "Caught DecoderInputBuffer.InsufficientCapacityException from read() %s",
                             e));
         }
-        Log.i(TAG,
-                String.format("TOTAL BUFFERED DURATION IS  %s",
-                        mSampleQueue.getLargestQueuedTimestampUs()));
 
         return read;
     }
@@ -199,6 +223,7 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     public void destroy() {
+        mSampleQueue.reset();
         mSampleQueue.release();
     }
 
@@ -215,24 +240,5 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     public boolean endOfStreamWritten() {
         return mEndOfStream;
-    }
-
-    public void updateEncryptedFormat(@NonNull byte[] drmInitData) {
-        Format currentFormat = mSampleQueue.getUpstreamFormat();
-        Format encryptedFormat =
-                new Format.Builder()
-                        .setSampleRate(currentFormat.sampleRate)
-                        .setChannelCount(currentFormat.channelCount)
-                        .setSampleMimeType(currentFormat.sampleMimeType)
-                        .setInitializationData(currentFormat.initializationData)
-                        .setWidth(currentFormat.width)
-                        .setHeight(currentFormat.height)
-                        .setAverageBitrate(currentFormat.averageBitrate)
-                        .setFrameRate(currentFormat.frameRate)
-                        .setColorInfo(currentFormat.colorInfo)
-                        .setDrmInitData(new DrmInitData(new SchemeData(
-                                C.WIDEVINE_UUID, currentFormat.sampleMimeType, drmInitData)))
-                        .build();
-        mSampleQueue.format(encryptedFormat);
     }
 }

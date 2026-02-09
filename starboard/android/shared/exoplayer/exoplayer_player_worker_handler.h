@@ -74,12 +74,14 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   JobQueue::JobToken update_job_token_;
   const std::function<void()> update_job_;
 
-  const std::unique_ptr<ExoPlayerBridge> bridge_;
+  std::unique_ptr<ExoPlayerBridge> bridge_;
 
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
 
-  const DrmSystemExoPlayer* drm_system_;
+  SbPlayerCreationParam creation_param_;
+  DrmSystemExoPlayer* drm_system_;
+  bool drm_initialized_ = false;
 };
 
 }  // namespace starboard

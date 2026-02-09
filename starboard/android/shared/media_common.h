@@ -17,9 +17,11 @@
 
 #include <jni.h>
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 
+#include "base/android/jni_array.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -27,6 +29,51 @@
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 
 namespace starboard {
+
+struct DrmSubsampleData {
+  base::android::ScopedJavaLocalRef<jintArray> clear_bytes;
+  base::android::ScopedJavaLocalRef<jintArray> encrypted_bytes;
+  int32_t subsample_count;
+};
+
+inline DrmSubsampleData GetDrmSubsampleData(
+    JNIEnv* env,
+    const SbDrmSampleInfo& drm_sample_info,
+    int offset = 0) {
+  int32_t subsample_count = drm_sample_info.subsample_count;
+  std::unique_ptr<jint[]> clear_bytes(new jint[subsample_count]);
+  std::unique_ptr<jint[]> encrypted_bytes(new jint[subsample_count]);
+
+  for (int i = 0; i < subsample_count; ++i) {
+    int32_t clear = drm_sample_info.subsample_mapping[i].clear_byte_count;
+    int32_t encrypted =
+        drm_sample_info.subsample_mapping[i].encrypted_byte_count;
+
+    // Apply offset to the first subsample
+    if (i == 0 && offset > 0) {
+      if (clear >= offset) {
+        clear -= offset;
+      } else {
+        // Logic to handle cases where offset > clear header (e.g. consume into
+        // encrypted)
+        int32_t remaining_offset = offset - clear;
+        clear = 0;
+        encrypted = std::max(0, encrypted - remaining_offset);
+      }
+    }
+    clear_bytes[i] = clear;
+    encrypted_bytes[i] = encrypted;
+  }
+
+  return {
+      base::android::ToJavaIntArray(
+          env, base::span<const jint>(clear_bytes.get(),
+                                      static_cast<size_t>(subsample_count))),
+      base::android::ToJavaIntArray(
+          env, base::span<const jint>(encrypted_bytes.get(),
+                                      static_cast<size_t>(subsample_count))),
+      subsample_count};
+}
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.

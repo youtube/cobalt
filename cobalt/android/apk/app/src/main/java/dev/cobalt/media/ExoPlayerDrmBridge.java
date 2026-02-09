@@ -17,15 +17,13 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
-import android.media.MediaDrm;
 import android.os.Build;
 import android.util.Base64;
-import androidx.media3.common.C;
+import androidx.annotation.Nullable;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.ExoMediaDrm;
 import androidx.media3.exoplayer.drm.ExoMediaDrm.KeyRequest;
 import androidx.media3.exoplayer.drm.ExoMediaDrm.ProvisionRequest;
-import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
 import androidx.media3.exoplayer.drm.MediaDrmCallback;
 import androidx.media3.exoplayer.drm.MediaDrmCallbackException;
 import androidx.media3.exoplayer.drm.UnsupportedDrmException;
@@ -45,53 +43,89 @@ public class ExoPlayerDrmBridge {
     private final NativeMediaDrmCallback mMediaDrmCallback;
     private final DefaultDrmSessionManager mDrmSessionManager;
     private final MediaSource.Factory mMediaSourceFactory;
-    private FrameworkMediaDrm mMediaDrm;
+    private ExoMediaDrmWrapper mMediaDrm;
     private byte[] mSessionId;
 
-    private final class NativeMediaDrmCallback implements MediaDrmCallback {
-        private CompletableFuture<byte[]> pendingProvisionRequestResponse;
-        private CompletableFuture<byte[]> pendingKeyRequestResponse;
+  private static final UUID WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
 
+    private final class NativeMediaDrmCallback implements MediaDrmCallback {
+        private CompletableFuture<byte[]> mPendingProvisionRequestResponse;
+        private CompletableFuture<byte[]> mPendingKeyRequestResponse;
+
+        /**
+         * Executes a provisioning request.
+         *
+         * @param uuid The UUID of the content protection scheme.
+         * @param request The provisioning request.
+         * @return The response data.
+         * @throws MediaDrmCallbackException If an error occurs.
+         */
         @Override
         public byte[] executeProvisionRequest(UUID uuid, ProvisionRequest request)
                 throws MediaDrmCallbackException {
             Log.i(TAG, "Called executeProvisionRequest()");
-            pendingProvisionRequestResponse = new CompletableFuture<>();
+
+            if (mMediaDrm != null) {
+              mSessionId = mMediaDrm.getSessionId();
+            }
+
+            mPendingProvisionRequestResponse = new CompletableFuture<>();
             ExoPlayerDrmBridgeJni.get().executeProvisionRequest(
                     mNativeDrmSystemExoplayer, request.getData(), mSessionId);
 
             try {
-                return pendingProvisionRequestResponse.get(10, TimeUnit.SECONDS);
+                return mPendingProvisionRequestResponse.get(10, TimeUnit.SECONDS);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
 
+        /**
+         * Executes a key request.
+         *
+         * @param uuid The UUID of the content protection scheme.
+         * @param request The key request.
+         * @return The response data.
+         * @throws MediaDrmCallbackException If an error occurs.
+         */
         @Override
         public byte[] executeKeyRequest(UUID uuid, KeyRequest request)
                 throws MediaDrmCallbackException {
             Log.i(TAG, "Called executeKeyRequest()");
-            pendingKeyRequestResponse = new CompletableFuture<>();
+
+          if (mMediaDrm != null) {
+            mSessionId = mMediaDrm.getSessionId();
+          }
+
+          if (mSessionId == null) {
+            Log.e(TAG, "Key request fired but mSessionId is still null!");
+          }
+
+            mPendingKeyRequestResponse = new CompletableFuture<>();
             ExoPlayerDrmBridgeJni.get().executeKeyRequest(
                     mNativeDrmSystemExoplayer, request.getData(), mSessionId);
 
             try {
-                return pendingKeyRequestResponse.get(10, TimeUnit.SECONDS);
+                return mPendingKeyRequestResponse.get(10, TimeUnit.SECONDS);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
 
         public void setProvisionRequestResponse(byte[] response) {
-            if (pendingProvisionRequestResponse != null) {
-                pendingProvisionRequestResponse.complete(response);
+            if (mPendingProvisionRequestResponse == null) {
+              Log.e(TAG, "Recieved NULL provision request response.");
+              return;
             }
+          mPendingProvisionRequestResponse.complete(response);
         }
 
         public void setKeyRequestResponse(byte[] response) {
-            if (pendingKeyRequestResponse != null) {
-                pendingKeyRequestResponse.complete(response);
-            }
+          if (mPendingKeyRequestResponse == null) {
+            Log.e(TAG, "Recieved NULL key request response.");
+            return;
+          }
+          mPendingKeyRequestResponse.complete(response);
         }
     }
 
@@ -99,19 +133,12 @@ public class ExoPlayerDrmBridge {
         @Override
         public ExoMediaDrm acquireExoMediaDrm(UUID uuid) {
             try {
-                FrameworkMediaDrm mediaDrm = FrameworkMediaDrm.newInstance(uuid);
-                mediaDrm.setOnEventListener((exoMediaDrm, sessionId, event, extra, data) -> {
-                    if (event == MediaDrm.EVENT_KEY_REQUIRED) {
-                        Log.i(TAG, "SETTING SESSION ID");
-                        mSessionId = sessionId;
-                    }
-                });
-                mMediaDrm = mediaDrm;
-                return mediaDrm;
+                mMediaDrm = new ExoMediaDrmWrapper(uuid);
+                return mMediaDrm;
             } catch (UnsupportedDrmException e) {
                 Log.e(TAG,
                         String.format(
-                                "Could not create mediaDrm instance, error: %s", e.toString()));
+                                "Could not create mediaDrm instance, error: %s", e));
                 throw new RuntimeException("Failed to instantiate MediaDrm", e);
             }
         }
@@ -122,19 +149,25 @@ public class ExoPlayerDrmBridge {
         mMediaDrmCallback = new NativeMediaDrmCallback();
         mDrmSessionManager =
                 new DefaultDrmSessionManager.Builder()
-                        .setUuidAndExoMediaDrmProvider(C.WIDEVINE_UUID, new MediaDrmProvider())
+                        .setUuidAndExoMediaDrmProvider(WIDEVINE_UUID, new MediaDrmProvider())
                         .build(mMediaDrmCallback);
         mMediaSourceFactory = new DefaultMediaSourceFactory(context).setDrmSessionManagerProvider(
                 mediaItem -> mDrmSessionManager);
     }
+
     public MediaSource.Factory getMediaSourceFactory() {
         return mMediaSourceFactory;
     }
 
     @CalledByNative
+    public DefaultDrmSessionManager getDrmSessionManager() {
+        return mDrmSessionManager;
+    }
+
+    @CalledByNative
     public void release() {
         if (mDrmSessionManager != null) {
-            mDrmSessionManager.release();
+          mDrmSessionManager.release();
         }
     }
 

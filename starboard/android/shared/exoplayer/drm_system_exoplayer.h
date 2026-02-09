@@ -27,10 +27,9 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
-#include "starboard/shared/starboard/drm/drm_system_internal.h"
-// #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -75,8 +74,11 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
       const base::android::JavaParamRef<jbyteArray>& j_message) {}
   std::vector<uint8_t> GetInitializationData();
 
-  //   // Return true when the drm system is ready for secure input buffers.
-  //   bool IsReady();
+  base::android::ScopedJavaGlobalRef<jobject> get_exoplayer_drm_bridge() const {
+    return j_exoplayer_drm_bridge_;
+  }
+
+  base::android::ScopedJavaLocalRef<jobject> GetDrmSessionManager() const;
 
  private:
   const std::string key_system_;
@@ -95,6 +97,8 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
   std::vector<uint8_t> metrics_;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_drm_bridge_;
+
+  int ticket_;
 };
 
 }  // namespace starboard

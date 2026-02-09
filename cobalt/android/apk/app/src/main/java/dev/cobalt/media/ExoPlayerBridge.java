@@ -33,6 +33,7 @@ import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
+import androidx.media3.exoplayer.analytics.PlayerId;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -254,7 +255,7 @@ public class ExoPlayerBridge {
     @CalledByNative
     public void writeSample(
             byte[] samples, int size, long timestamp, boolean isKeyFrame, int type) {
-      writeSample(samples, size, timestamp, isKeyFrame, type, 0, null, 0, 0, null);
+      writeEncryptedSample(samples, size, timestamp, isKeyFrame, type, 0, null, 0, 0, null, 0, null, null);
     }
 
   /**
@@ -265,15 +266,13 @@ public class ExoPlayerBridge {
    * @param isKeyFrame Whether the sample is a keyframe.
    * @param type The type of the media source (audio or video).
    * @param encryptionMode Signals the type of Widevine encryption.
-   * @param cryptoBuffer The information required to decrypt this sample.
    * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
    * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
-   * @param drmInitData Contains the initialization data required to configure the decoders. This
-   * must be non-null when writing the first sample of the stream
    */
   @CalledByNative
-  public void writeSample(
-     @NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] cryptoBuffer, int encryptedBlocks, int clearBlocks,  @Nullable byte[] drmInitData) {
+  public void writeEncryptedSample(
+     @NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] key, int encryptedBlocks, int clearBlocks, @Nullable byte[] initializationVector, int iv_size,
+     @Nullable int[] subsampleEncryptedBytes, @Nullable int[] subsampleClearBytes) {
     ExoPlayerMediaSource mediaSource =
         type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
     if (mediaSource == null || mIsReleasing) {
@@ -281,7 +280,7 @@ public class ExoPlayerBridge {
           String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
               type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
     }
-    mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, cryptoBuffer, encryptedBlocks, clearBlocks, drmInitData);
+    mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key, encryptedBlocks, clearBlocks, initializationVector, iv_size, subsampleEncryptedBytes, subsampleClearBytes);
   }
 
     /**
