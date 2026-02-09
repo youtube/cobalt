@@ -18,6 +18,9 @@
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/hang_watcher_delegate_impl.h"
+#endif
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "components/memory_system/initializer.h"
@@ -29,6 +32,11 @@
 #include "gpu/command_buffer/service/gpu_switches.h"
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/app/cobalt_crash_reporter_client.h"
+#include "components/crash/core/app/crashpad.h"
 #endif
 
 namespace cobalt {
@@ -85,6 +93,11 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
+#if BUILDFLAG(IS_ANDROIDTV)
+  // This delegate is for reading the flag value.
+  cobalt::browser::CobaltHangWatcherDelegate::Initialize();
+#endif
+
   InitializeHangWatcher();
 
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
@@ -137,6 +150,19 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   // to the |ui_task| for browser tests.
   return 0;
 }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+void CobaltMainDelegate::PreSandboxStartup() {
+  std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
+  CobaltCrashReporterClient::Create();
+  crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+  crash_reporter::SetUploadConsent(true);
+
+  content::ShellMainDelegate::PreSandboxStartup();
+}
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void CobaltMainDelegate::Shutdown() {
   main_runner_->Shutdown();

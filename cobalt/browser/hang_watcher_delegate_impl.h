@@ -1,5 +1,4 @@
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
-
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,22 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/gpu/shell_content_gpu_client.h"
+#ifndef COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_
+#define COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_
 
-#include "base/functional/bind.h"
-#include "base/task/single_thread_task_runner.h"
-#include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "base/threading/hang_watcher.h"
 
-namespace content {
+namespace cobalt {
+namespace browser {
 
-ShellContentGpuClient::ShellContentGpuClient() = default;
+class CobaltHangWatcherDelegate : public base::HangWatcher::Delegate {
+ public:
+  CobaltHangWatcherDelegate() = default;
+  ~CobaltHangWatcherDelegate() override = default;
 
-ShellContentGpuClient::~ShellContentGpuClient() = default;
+  static void Initialize();
 
-void ShellContentGpuClient::ExposeInterfacesToBrowser(
-    const gpu::GpuPreferences& gpu_preferences,
-    const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
-    mojo::BinderMap* binders) {
-}
+  bool IsHangReportingEnabled() override;
+};
 
-}  // namespace content
+}  // namespace browser
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_

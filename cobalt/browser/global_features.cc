@@ -113,6 +113,16 @@ void GlobalFeatures::SetSettings(const std::string& key,
   }();
 }
 
+std::optional<GlobalFeatures::SettingValue> GlobalFeatures::GetSetting(
+    const std::string& key) const {
+  base::AutoLock auto_lock(lock_);
+  auto it = settings_.find(key);
+  if (it != settings_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
 void GlobalFeatures::CreateExperimentConfig() {
   DCHECK(!experiment_config_);
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
