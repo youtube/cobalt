@@ -135,6 +135,7 @@
        */
       function playSplashAnimation(afterVideoStart, afterImageLoad) {
         const params = new URLSearchParams(window.location.search);
+        const forceImage = params.get('force_image');
         // The default splash video is splash.webm. If it does not exist in
         // the given cache, "fallback" parameter specifies which built-in video
         // to use.
@@ -146,8 +147,13 @@
         // are default splash screen.
         const splashTopic = (topicName === 'music') ? 'music_' : '';
 
+<<<<<<< HEAD
         if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
           return handleStaticImageFallback(params, splashTopic, afterImageLoad);
+=======
+        if (forceImage === 'true' || !MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
+          return handleStaticImageFallback(params, afterImageLoad);
+>>>>>>> 346e06ebed (android: Add experiment for splash screen (#8996))
         }
 
         return handleVideo(params, splashTopic, afterVideoStart);

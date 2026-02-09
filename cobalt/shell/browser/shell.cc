@@ -46,6 +46,11 @@
 #include "cobalt/shell/embedded_resources/embedded_js.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
+<<<<<<< HEAD
+=======
+#include "net/base/url_util.h"
+
+>>>>>>> 346e06ebed (android: Add experiment for splash screen (#8996))
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -513,9 +518,16 @@ void Shell::LoadSplashScreenWebContents() {
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GURL(switches::kSplashScreenURL);
+<<<<<<< HEAD
     if (!splash_topic_.empty()) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
+=======
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kForceImageSplashScreen)) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+>>>>>>> 346e06ebed (android: Add experiment for splash screen (#8996))
     }
     NavigationController::LoadURLParams params(splash_screen_url);
     params.frame_name = std::string();

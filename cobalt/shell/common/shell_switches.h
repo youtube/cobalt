@@ -35,6 +35,13 @@ extern const char kDisableSplashScreen[];
 extern const char kDisableSystemFontCheck[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
+<<<<<<< HEAD
+=======
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+extern const char kContentShellDevToolsTabTarget[];
+#endif
+extern const char kForceImageSplashScreen[];
+>>>>>>> 346e06ebed (android: Add experiment for splash screen (#8996))
 extern const char kIsolatedContextOrigins[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];

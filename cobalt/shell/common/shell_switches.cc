@@ -40,6 +40,19 @@ const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
 // Hides toolbar from content_shell's host window.
 const char kContentShellHideToolbar[] = "content-shell-hide-toolbar";
 
+<<<<<<< HEAD
+=======
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// Let DevTools front-end talk to the target of type "tab" rather than
+// "frame" when inspecting a WebContents.
+const char kContentShellDevToolsTabTarget[] =
+    "content-shell-devtools-tab-target";
+#endif
+
+// Force to display a static image as splash screen.
+const char kForceImageSplashScreen[] = "force-image-splash-screen";
+
+>>>>>>> 346e06ebed (android: Add experiment for splash screen (#8996))
 // Enables APIs guarded with the [IsolatedContext] IDL attribute for the given
 // comma-separated list of origins.
 const char kIsolatedContextOrigins[] = "isolated-context-origins";
