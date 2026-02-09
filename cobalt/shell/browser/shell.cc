@@ -30,6 +30,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
+#include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -341,6 +342,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents) {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::CreateNewWindow [6/7]";
   WebContents::CreateParams create_params(browser_context, site_instance);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
@@ -371,20 +374,92 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
+    SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+                 << "] Shell::RenderFrameCreated (Primary Main Frame)";
     g_platform->MainFrameCreated(this);
   }
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::PrimaryMainDocumentElementAvailable";
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
 }
 
+void Shell::DocumentOnLoadCompletedInPrimaryMainFrame() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::DocumentOnLoadCompletedInPrimaryMainFrame URL: "
+               << web_contents_->GetLastCommittedURL();
+}
+
+void Shell::DOMContentLoaded(RenderFrameHost* render_frame_host) {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::DOMContentLoaded URL: "
+               << web_contents_->GetLastCommittedURL();
+}
+
+void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
+                          const GURL& validated_url) {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::DidFinishLoad URL: " << validated_url;
+}
+
+void Shell::OnVisibilityChanged(Visibility visibility) {
+  std::string visibility_str;
+  switch (visibility) {
+    case Visibility::HIDDEN:
+      visibility_str = "HIDDEN";
+      break;
+    case Visibility::OCCLUDED:
+      visibility_str = "OCCLUDED";
+      break;
+    case Visibility::VISIBLE:
+      visibility_str = "VISIBLE";
+      break;
+  }
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::OnVisibilityChanged: " << visibility_str
+               << " URL: " << web_contents_->GetLastCommittedURL();
+}
+
+void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+                 << "] Shell::DidStartNavigation (Primary Main Frame) URL: "
+                 << navigation_handle->GetURL();
+  }
+}
+
+void Shell::DidRedirectNavigation(NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+                 << "] Shell::DidRedirectNavigation (Primary Main Frame) URL: "
+                 << navigation_handle->GetURL();
+  }
+}
+
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+                 << "] Shell::DidFinishNavigation (Primary Main Frame) URL: "
+                 << navigation_handle->GetURL()
+                 << (navigation_handle->HasCommitted() ? " [COMMITTED]"
+                                                       : " [NOT COMMITTED]");
+  }
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
 }
 
+void Shell::DidStartLoading() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::DidStartLoading URL: "
+               << web_contents_->GetLastCommittedURL();
+}
+
 void Shell::DidStopLoading() {
+  SB_LOG(INFO) << "COBALT_STARTUP_LOG: [" << base::PlatformThread::GetName()
+               << "] Shell::DidStopLoading URL: "
+               << web_contents_->GetLastCommittedURL();
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {
     web_contents()->GetRenderWidgetHostView()->Focus();
