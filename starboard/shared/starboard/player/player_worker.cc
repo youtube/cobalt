@@ -61,7 +61,7 @@ PlayerWorker* PlayerWorker::CreateInstance(
 PlayerWorker::~PlayerWorker() {
   ON_INSTANCE_RELEASED(PlayerWorker);
 
-  job_thread_->Schedule([this] { DoDestroy(); });
+  job_thread_->ScheduleAndWait([this] { DoDestroy(); });
   job_thread_->Stop();
 
   // Now the whole pipeline has been torn down and no callback will be called.
