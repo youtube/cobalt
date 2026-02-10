@@ -33,7 +33,7 @@ ninja -C out/evergreen-arm-softfp_devel/ nplb_install
 3. Run the `nplb` test
 
 ```
-.../elf_loader_sandbox --evergreen_library=app/nplb/lib/libnplb.so
+.../elf_loader_sandbox --evergreen_library=libnplb.so
                        --evergreen_content=app/nplb/content
 ```
 

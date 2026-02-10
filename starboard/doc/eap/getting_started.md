@@ -69,7 +69,7 @@ out/evergreen-x64_devel/loader_app
 To run `nplb`:
 
 ```
-out/evergreen-x64_devel/elf_loader_sandbox --evergreen_content=. --evergreen_libary=libnplb.so
+out/evergreen-x64_devel/elf_loader_sandbox --evergreen_content=app/nplb/content --evergreen_library=libnplb.so
 ```
 
 ## Additional Tips: ##
