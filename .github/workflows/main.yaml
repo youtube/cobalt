@@ -343,7 +343,7 @@ jobs:
           upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' )
-        uses: ./.github/actions/package
+        uses: ./src/.github/actions/package
         with:
           package_dir: out/test-package
       - name: Run API Leak Detector
