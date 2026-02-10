@@ -1,0 +1,87 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_cc_library")
+load("//bazel:cc_binary_with_flags.bzl", "cc_binary_with_flags")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+skia_cc_library(
+    name = "skottie",
+    srcs = [
+        "//modules/skottie/src:srcs",
+        "//src/utils:json_hdrs",
+        "//src/utils:json_srcs",
+    ],
+    hdrs = ["//modules/skottie/include:hdrs"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//:skia_internal",
+        "//modules/skresources",
+        "//modules/sksg",
+        "//modules/skshaper",
+        "//modules/skunicode",
+    ],
+)
+
+skia_cc_library(
+    name = "utils",
+    srcs = ["//modules/skottie/utils:srcs"],
+    hdrs = ["//modules/skottie/utils:hdrs"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":skottie",
+    ],
+)
+
+cc_binary_with_flags(
+    name = "skottie_tool_cpu",
+    testonly = True,
+    srcs = [
+        "//modules/skottie/src:skottie_tool",
+        "//tools/flags",
+    ],
+    defines = ["CPU_ONLY"],
+    set_flags = {
+        "fontmgr_factory": ["custom_directory_fontmgr_factory"],
+        "include_decoder": [
+            "jpeg_decode_codec",
+            "png_decode_codec",
+            "webp_decode_codec",
+        ],
+        "enable_sksl": ["True"],
+        "use_harfbuzz": ["True"],
+        "use_icu": ["True"],
+    },
+    deps = [
+        ":skottie",
+        ":utils",
+    ],
+)
+
+cc_binary_with_flags(
+    name = "skottie_tool_gpu",
+    testonly = True,
+    srcs = [
+        "//modules/skottie/src:skottie_tool",
+        "//tools/flags",
+    ],
+    defines = ["GPU_ONLY"],
+    set_flags = {
+        "enable_gpu_test_utils": ["True"],
+        "fontmgr_factory": ["custom_directory_fontmgr_factory"],
+        "gpu_backend": ["gl_backend"],
+        "include_decoder": [
+            "jpeg_decode_codec",
+            "png_decode_codec",
+            "webp_decode_codec",
+        ],
+        "use_harfbuzz": ["True"],
+        "use_icu": ["True"],
+        "with_gl_standard": ["gl_standard"],
+    },
+    deps = [
+        ":skottie",
+        ":utils",
+        "//tools/gpu:utils",
+    ],
+)

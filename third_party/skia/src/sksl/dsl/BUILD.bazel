@@ -1,0 +1,41 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_filegroup")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+skia_filegroup(
+    name = "srcs",
+    srcs = [
+        "DSL.h",
+        "DSLBlock.cpp",
+        "DSLBlock.h",
+        "DSLCase.cpp",
+        "DSLCase.h",
+        "DSLCore.cpp",
+        "DSLCore.h",
+        "DSLExpression.cpp",
+        "DSLExpression.h",
+        "DSLFunction.cpp",
+        "DSLFunction.h",
+        "DSLLayout.cpp",
+        "DSLLayout.h",
+        "DSLModifiers.h",
+        "DSLStatement.cpp",
+        "DSLStatement.h",
+        "DSLType.cpp",
+        "DSLType.h",
+        "DSLVar.cpp",
+        "DSLVar.h",
+        "//src/sksl/dsl/priv:srcs",
+    ],
+    visibility = ["//src/sksl:__pkg__"],
+)
+
+skia_filegroup(
+    name = "private_hdrs",
+    srcs = [
+        "//src/sksl/dsl/priv:private_hdrs",
+    ],
+    visibility = ["//src/sksl:__pkg__"],
+)

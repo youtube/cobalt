@@ -41,6 +41,7 @@
 #include "cobalt/shell/embedded_resources/embedded_js.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
+#include "net/base/url_util.h"
 
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
@@ -342,9 +343,11 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const bool create_splash_screen_web_contents) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (create_splash_screen_web_contents) {
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(19);
+    starboard::android::shared::StarboardBridge::GetInstance()
+        ->SetStartupMilestone(19);
   } else {
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(18);
+    starboard::android::shared::StarboardBridge::GetInstance()
+        ->SetStartupMilestone(18);
   }
 #endif
   WebContents::CreateParams create_params(browser_context, site_instance);
@@ -378,7 +381,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
 #if BUILDFLAG(IS_ANDROIDTV)
-    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(20);
+    starboard::android::shared::StarboardBridge::GetInstance()
+        ->SetStartupMilestone(20);
 #endif
     g_platform->MainFrameCreated(this);
   }
@@ -386,7 +390,8 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 
 void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(27);
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(27);
 #endif
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
@@ -395,19 +400,22 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
                           const GURL& validated_url) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(31);
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(31);
 #endif
 }
 
 void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(22);
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->SetStartupMilestone(22);
     } else {
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(29);
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->SetStartupMilestone(29);
     }
-
   }
 #endif
 }
@@ -415,10 +423,13 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
-    if (navigation_handle->GetURL() == "https://www.youtube.com/tv") { // Splash
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(26);
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->SetStartupMilestone(26);
     } else {
-      starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(30);
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->SetStartupMilestone(30);
     }
   }
 #endif
@@ -427,7 +438,8 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 
 void Shell::DidStartLoading() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(21);
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(21);
 #endif
 }
 
@@ -486,6 +498,11 @@ void Shell::LoadSplashScreenWebContents() {
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GURL(switches::kSplashScreenURL);
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kForceImageSplashScreen)) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    }
     NavigationController::LoadURLParams params(splash_screen_url);
     params.frame_name = std::string();
     params.transition_type = ui::PageTransitionFromInt(

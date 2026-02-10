@@ -25,6 +25,8 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
+  public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
+      "EnableLowEndDeviceModeNoSimulatedMemory";
 
   /** GPU flag to enable memory settings in layer tree and set max_memory_for_prepaint_percentage. Value type: Integer (MiB) */
   public static final String CC_LAYER_TREE_OPTIMIZATION = "CCLayerTreeOptimization";
@@ -47,6 +49,11 @@ public class JavaSwitches {
   /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
   public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
 
+  public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
+  public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
+  /** CC flag to set the number of raster threads. Value type: Integer */
+  public static final String NUM_RASTER_THREADS = "NumRasterThreads";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -55,6 +62,9 @@ public class JavaSwitches {
     if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
       extraCommandLineArgs.add("--enable-low-end-device-mode");
       extraCommandLineArgs.add("--disable-rgba-4444-textures");
+      if (javaSwitches.containsKey(JavaSwitches.ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY)) {
+        extraCommandLineArgs.add("--enable-low-end-device-mode-no-simulated-memory");
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
@@ -88,6 +98,18 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {
+      extraCommandLineArgs.add("--disable-splash-screen");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
+      extraCommandLineArgs.add("--force-image-splash-screen");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.NUM_RASTER_THREADS)) {
+      extraCommandLineArgs.add(
+          "--num-raster-threads="
+              + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
     }
     return extraCommandLineArgs;
   }

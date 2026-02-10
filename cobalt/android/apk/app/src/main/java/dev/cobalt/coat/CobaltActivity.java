@@ -164,7 +164,7 @@ public abstract class CobaltActivity extends Activity {
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
 
-    
+
     StartupGuard.getInstance().setStartupMilestone(2);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
@@ -388,7 +388,11 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
-    StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
+    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+    } else {
+      StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
+    }
 
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
@@ -454,11 +458,6 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
-    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
-      Log.i(TAG, "StartupGuard is disabled by Java switch.");
-      StartupGuard.getInstance().disarm();
-    }
-
     StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
