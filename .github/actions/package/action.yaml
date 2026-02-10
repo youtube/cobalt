@@ -14,7 +14,7 @@ runs:
         PACKAGE_DIR: ${{ inputs.package_dir }}
       run: |
         set -x
-        cd cobalt/src/
+        cd src/
 
         # Determine the correct build platform directory name.
         # This maps to the platform package.json files under cobalt/build.
