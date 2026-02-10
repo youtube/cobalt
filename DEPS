@@ -316,7 +316,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '0f9ccaeb4a88dbff7a7c86e998ceea7d6f947950',
+  'v8_revision': '3d1baf826e1286e35d04e9991ba0a669e26d25a3',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -328,7 +328,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling PDFium
   # and whatever else without interference from each other.
-  'pdfium_revision': '66c6bc40966122935d37eef739deb988581214d4',
+  'pdfium_revision': '53909bbc260e7bc9fe54f2e77bb0ad653dc345fe',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling BoringSSL
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'L0od0R-EeKmvaZDT_j4pLRQvkGw84eHeZSgJ9SgPNakC',
+              'version': '7T7Edf36iqTJeWF-AM8E12aG6JSxn5ZRBAoSgivNFE8C',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': '9H3o3cPy7yJcJBFyaBYU1o1MMI9C76HHOgA4tO_A9MgC',
+              'version': '4ejZeEWiV11DhYFgzk2SqA6hcSnd0brKt1XZ1CMrsbIC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'Q2Lf3E2JIf-8BeVp5crqhAmbgisuG2RRlNDqEUrk9-AC',
+              'version': 'GL33lhMKA3nunNu5tlOBZBWtYiGs-vkKdi0_uB0Y90wC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
