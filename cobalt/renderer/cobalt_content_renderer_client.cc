@@ -153,7 +153,6 @@ void CobaltContentRendererClient::RenderThreadStarted() {
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 }
 
-#if BUILDFLAG(IS_ANDROID)
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
