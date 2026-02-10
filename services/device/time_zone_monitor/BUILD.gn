@@ -52,9 +52,6 @@ source_set("time_zone_monitor") {
     sources += [ "time_zone_monitor_linux.cc" ]
   }
 
-<<<<<<< HEAD
-  if (is_chromeos) {
-=======
   if (is_starboard) {
     sources += [
       "time_zone_monitor_starboard.cc",
@@ -64,7 +61,6 @@ source_set("time_zone_monitor") {
   }
 
   if (is_chromeos_ash) {
->>>>>>> 64e44ec788 (Integrate Chromium's TimeZoneneMonitor service in Chrobalt (#8855))
     sources += [ "time_zone_monitor_ash.cc" ]
     deps += [ "//chromeos/ash/components/settings" ]
   }
