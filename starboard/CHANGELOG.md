@@ -28,6 +28,7 @@ The functionality is migrated to use `getauxval` instead.
 * `fchmod`
 * `fchown`
 * `fdatasync`
+* `fstatat`
 * `gai_strerror`
 * `getauxval`
 * `getcwd`
@@ -40,13 +41,13 @@ The functionality is migrated to use `getauxval` instead.
 * `isatty`
 * `kill`
 * `link`
-* `lstat`
 * `madvise`
 * `malloc_usable_size`
 * `mincore`
 * `mkdtemp`
 * `mkostemp`
 * `mkstemp`
+* `openat`
 * `pathconf`
 * `pause`
 * `pipe`
@@ -113,20 +114,31 @@ The functionality is migrated to use `getauxval` instead.
 * `utimensat`
 * `writev`
 
+### Removed the following POSIX Symbols:
+The following were removed in favor of more modern POSIX APIs added above.
+* `open`
+* `stat`
+
 ### From `starboard/time_zone.h`
  * Removed `SbTimeZoneGetCurrent`. The time offset is now derived
    from the name returned by `SbTimeZoneGetName`, using the zoneinfo
    that is in the included ICU data.
 
+### Introduces new system property kSbSystemPathFilesDirectory.
+
+Path to directory for permanent storage. Both read and write access are
+required. The path is used primarily for DOM localStorage and HTTP cookies
+persistence.
+
 ### Removed the following SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
 * `kSbEventTypeAccessibilityCaptionSettingsChanged`
-* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 * `kSbEventTypeOnScreenKeyboardShown`
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
 * `kSbEventTypeOnScreenKeyboardBlurred`
+* `kSbEventTypeVerticalSync`
 
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
@@ -173,6 +185,9 @@ The existing code was migrated to C11 atomics.
 Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
 the global namespace into ::starboard::shared::starboard::media.
+
+### Updated `kSbEventTypeAccessibilityTextToSpeechSettingsChanged` SbEvent
+Now the data field of this SbEvent type is a boolean indicating if text-to-speech is enabled.
 
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.

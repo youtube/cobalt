@@ -18,6 +18,10 @@ if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 visibility = [ "//third_party/blink/renderer/*" ]
 
 config("modules_implementation") {
@@ -177,7 +181,12 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
     ]
+
+    if (!is_androidtv) {
+      sub_modules += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service" ]
+    }
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
@@ -372,6 +381,7 @@ generate_event_interfaces("modules_event_interfaces") {
 
   if (is_cobalt) {
     sources += [
+      "cobalt/h5vcc_accessibility/text_to_speech_change_event.idl",
       "cobalt/h5vcc_metrics/metrics_event.idl",
       "cobalt/h5vcc_runtime/deep_link_event.idl",
       "cobalt/h5vcc_system/h_5_vcc_system.idl",
@@ -660,7 +670,10 @@ source_set("unit_tests") {
   ]
 
   if (is_cobalt) {
-    sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
+    sources += [
+      "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
+      "cobalt/h5vcc_experiments/experiments_utils_test.cc",
+    ]
   }
 
   if (rtc_use_h264) {

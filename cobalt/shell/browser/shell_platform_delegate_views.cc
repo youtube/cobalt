@@ -376,6 +376,21 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   shell_data.window_widget->Show();
 }
 
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  ShellViewForWidget(shell_data.window_widget)
+      ->SetWebContents(shell->splash_screen_web_contents(),
+                       shell_data.content_size);
+  shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+  shell_data.window_widget->Show();
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  SetContents(shell);
+}
+
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   shell->web_contents()->Resize(gfx::Rect(content_size));

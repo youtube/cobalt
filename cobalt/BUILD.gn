@@ -79,10 +79,12 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/h5vcc_accessibility:manager",
       "//cobalt/browser/h5vcc_runtime:deep_link_manager",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
+      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
@@ -192,6 +194,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
   ]
 
   if (is_starboard) {
@@ -199,6 +202,10 @@ test("cobalt_unittests") {
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
+  }
+
+  if (!is_android) {
+    sources += [ "//cobalt/shell/browser/splash_screen_unittest.cc" ]
   }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
@@ -213,14 +220,16 @@ test("cobalt_unittests") {
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-    "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
+    "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//mojo/core/embedder",
+    "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",
@@ -235,10 +244,25 @@ test("cobalt_unittests") {
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
     "//cobalt/shell:cobalt_shell_lib",
+    "//content/browser:for_content_tests",
     "//content/public/common:switches",
+    "//content/test:test_support",
     "//gpu/config",
     "//sandbox/policy:policy",
+    "//ui/events/devices",
   ]
+
+  if (is_android) {
+    deps += [
+      "//base:base_java_test_support",
+      "//content/public/android:content_java",
+      "//ui/android:ui_java",
+    ]
+  }
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
+  }
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]

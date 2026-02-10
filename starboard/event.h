@@ -186,12 +186,6 @@ typedef enum SbEventType {
   // string.
   kSbEventTypeLink,
 
-  // The beginning of a vertical sync has been detected. This event is very
-  // timing-sensitive, so as little work as possible should be done on the main
-  // thread if the application wants to receive this event in a timely manner.
-  // No data argument.
-  kSbEventTypeVerticalSync,
-
   // An event type reserved for scheduled callbacks. It will only be sent in
   // response to an application call to SbEventSchedule(), and it will call the
   // callback directly, so SbEventHandle should never receive this event
@@ -227,6 +221,10 @@ typedef enum SbEventType {
   // as a change in the timezone setting). This should trigger the application
   // to re-query the relevant APIs to update the date and time.
   kSbEventDateTimeConfigurationChanged,
+
+  // The platform's text-to-speech settings have changed. The data field of
+  // this SbEvent type is a boolean indicating if text-to-speech is enabled.
+  kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
 } SbEventType;
 
 // Structure representing a Starboard event and its data.

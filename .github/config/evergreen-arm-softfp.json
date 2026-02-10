@@ -4,7 +4,11 @@
     "evergreen-arm-softfp"
   ],
   "targets": [
-    "cobalt"
+    "cobalt",
+    "cobalt_loaded_content",
+    "crash_sandbox",
+    "noop_sandbox",
+    "one_app_only_sandbox"
   ],
   "build_configs": [
     "devel",

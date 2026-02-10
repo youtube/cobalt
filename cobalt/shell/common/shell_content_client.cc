@@ -19,11 +19,13 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/grit/shell_resources.h"
 #include "content/public/common/content_switches.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "url/url_util.h"
 
 namespace content {
 
@@ -66,6 +68,9 @@ void ShellContentClient::AddAdditionalSchemes(Schemes* schemes) {
 #if BUILDFLAG(IS_ANDROID)
   schemes->local_schemes.push_back(url::kContentScheme);
 #endif
+  // Register kH5vccEmbeddedScheme as a standard scheme.
+  url::AddStandardScheme(kH5vccEmbeddedScheme, url::SCHEME_WITH_HOST);
+  schemes->local_schemes.push_back(kH5vccEmbeddedScheme);
 }
 
 }  // namespace content

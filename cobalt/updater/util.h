@@ -19,6 +19,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "base/containers/fixed_flat_map.h"
+#include "base/strings/string_piece.h"
 #include "base/version.h"
 #include "starboard/system.h"
 
@@ -30,17 +32,18 @@ namespace cobalt {
 namespace updater {
 
 // Map of Omaha config IDs with channel and starboard version as indices.
-extern const std::unordered_map<std::string, std::string>
-    kChannelAndSbVersionToOmahaIdMap;
+inline constexpr size_t kOmahaIdMapSize = 15;
+extern const base::
+    fixed_flat_map<base::StringPiece, base::StringPiece, kOmahaIdMapSize>
+        kChannelAndSbVersionToOmahaIdMap;
 
 // The default manifest version to assume when the actual manifest cannot be
 // parsed for any reason. This should not be used for installation manager
 // errors, or any other error unrelated to parsing the manifest.
 extern const char kDefaultManifestVersion[];
 
-// Legacy prod config containing all prod, tests and static channels with all
-// SB versions of C25 and prior.
-extern const char kOmahaCobaltAppID[];
+// Default config for the EAP branch.
+extern const char kOmahaCobaltEAPAppID[];
 
 extern const char kOmahaCobaltLTSNightlyAppID[];
 

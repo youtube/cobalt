@@ -1519,6 +1519,17 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           "'script-src' contains an invalid source: ''wrong''. It will be "
           "ignored.",
       },
+      {
+          "'wrong' 'cobalt_insecure_private_range'",
+          base::BindOnce([] {
+            auto csp = mojom::CSPSourceList::New();
+            csp->cobalt_insecure_private_range = true;
+            return csp;
+          }),
+          "The source list for the Content Security Policy directive "
+          "'script-src' contains an invalid source: ''wrong''. It will be "
+          "ignored.",
+      },
 #endif
   };
 

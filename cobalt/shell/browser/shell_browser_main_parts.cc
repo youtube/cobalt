@@ -153,7 +153,13 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
   Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size());
+                         gfx::Size(),
+#if BUILDFLAG(IS_ANDROID)
+                         false /* create_splash_screen_web_contents */
+#else
+                         switches::ShouldCreateSplashScreen()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {

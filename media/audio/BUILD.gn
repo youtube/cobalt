@@ -342,6 +342,18 @@ source_set("audio") {
       "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp",
     ]
   }
+
+  if (is_starboard) {
+    sources += [
+      "starboard/audio_input_stream_starboard.cc",
+      "starboard/audio_input_stream_starboard.h",
+      "starboard/audio_manager_starboard.cc",
+      "starboard/audio_manager_starboard.h",
+    ]
+    deps += [
+      "//starboard:starboard_headers_only"
+    ]
+  }
 }
 
 if (use_cras) {

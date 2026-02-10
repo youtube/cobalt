@@ -37,10 +37,12 @@
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "cobalt/version.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -62,6 +64,11 @@
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#include "content/public/browser/storage_partition.h"
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
@@ -89,6 +96,17 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+void BindPlatformWindowProviderService(
+    uint64_t window_handle,
+    mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+        receiver) {
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<cobalt::media::PlatformWindowProviderService>(
+          base::BindRepeating([](uint64_t handle) { return handle; },
+                              window_handle)),
+      std::move(receiver));
+}
 
 }  // namespace
 
@@ -134,9 +152,19 @@ CobaltContentBrowserClient::CobaltContentBrowserClient()
               nullptr,
               base::OnTaskRunnerDeleter(nullptr))) {
   DETACH_FROM_THREAD(thread_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
+  ui::PlatformWindowStarboard::SetWindowCreatedCallback(
+      base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowCreated,
+                          weak_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
-CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
+CobaltContentBrowserClient::~CobaltContentBrowserClient() {
+#if BUILDFLAG(IS_STARBOARD)
+  ui::PlatformWindowStarboard::SetWindowCreatedCallback(base::NullCallback());
+#endif  // BUILDFLAG(IS_STARBOARD)
+}
 
 // static
 CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
@@ -163,14 +191,25 @@ CobaltContentBrowserClient::CreateThrottlesForNavigation(
   return throttles;
 }
 
+std::unique_ptr<content::DevToolsManagerDelegate>
+CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
+#if defined(COBALT_IS_RELEASE_BUILD)
+  return nullptr;
+#else
+  return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
+#endif
+}
+
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
   // Default compiled javascript quota in Cobalt 25.
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
   constexpr size_t size = 3 * 1024 * 1024;
+  base::FilePath cache_path;
+  CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
-                                             context->GetPath());
+                                             cache_path);
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -233,8 +272,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-  base::FilePath base_cache_path = context->GetPath();
-  base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
   network_context_params->quic_user_agent_id = "";
@@ -251,15 +288,19 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // Configure on-disk storage for non-off-the-record profiles. Off-the-record
   // profiles just use default behavior (in memory storage, default sizes).
   if (!in_memory) {
-    network_context_params->http_cache_directory =
-        base_cache_path.Append(kCacheDirname);
-
     network_context_params->file_paths =
         ::network::mojom::NetworkContextFilePaths::New();
 
+    base::FilePath cache_path;
+    CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
+    network_context_params->http_cache_directory =
+        cache_path.Append(kCacheDirname);
+
+    base::FilePath user_data_dir =
+        context->GetPath().Append(relative_partition_path);
     network_context_params->file_paths->data_directory =
-        path.Append(kNetworkDataDirname);
-    network_context_params->file_paths->unsandboxed_data_path = path;
+        user_data_dir.Append(kNetworkDataDirname);
+    network_context_params->file_paths->unsandboxed_data_path = user_data_dir;
 
     // Currently this just contains HttpServerProperties, but that will likely
     // change.
@@ -293,13 +334,27 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (web_contents->GetPrimaryMainFrame() &&
+      web_contents->GetPrimaryMainFrame()->GetFrameName() ==
+          content::kCobaltSplashMainFrameName) {
+    // Don't observe WebContents if it's splash screen.
+    VLOG(1) << "NativeSplash: Skip observing WebContents for "
+               "kCobaltSplashMainFrameName.";
+    return;
+  }
+  VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
-  web_contents_delegate_.reset(new CobaltWebContentsDelegate());
-  content::Shell::SetShellCreatedCallback(base::BindOnce(
-      [](content::WebContentsDelegate* delegate, content::Shell* shell) {
-        shell->web_contents()->SetDelegate(delegate);
-      },
-      web_contents_delegate_.get()));
+#if BUILDFLAG(USE_EVERGREEN)
+  // Create the updater module singleton if not already created.
+  auto* storage_partition =
+      web_contents->GetPrimaryMainFrame()->GetStoragePartition();
+  if (storage_partition && !updater::UpdaterModule::GetInstance()) {
+    LOG(INFO) << "Creating UpdaterModule singleton.";
+    updater::UpdaterModule::CreateInstance(
+        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+        updater::kDefaultUpdateCheckDelay);
+  }
+#endif
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
@@ -366,6 +421,27 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   }
 
   return true;
+}
+
+void CobaltContentBrowserClient::AddPendingWindowReceiver(
+    mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+        receiver) {
+  if (cached_sb_window_) {
+    BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
+  } else {
+    pending_window_receivers_.push_back(std::move(receiver));
+  }
+}
+
+void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
+  // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows. This
+  // assumes only single PlatformWindowStarboard() in Cobalt.
+  CHECK(!cached_sb_window_);
+  cached_sb_window_ = reinterpret_cast<uint64_t>(window);
+  for (auto& receiver : pending_window_receivers_) {
+    BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
+  }
+  pending_window_receivers_.clear();
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(

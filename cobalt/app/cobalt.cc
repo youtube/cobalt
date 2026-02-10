@@ -19,21 +19,25 @@
 #include <string>
 #include <vector>
 
+#include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
@@ -97,19 +101,6 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
     params.argc = args.size();
     params.argv = args.data();
   }
-
-  base::FilePath content_shell_data_path;
-  base::PathService::Get(base::DIR_CACHE, &content_shell_data_path);
-  constexpr char cobalt_subdir[] = "cobalt";
-  if (content_shell_data_path.BaseName().value() != cobalt_subdir) {
-    content_shell_data_path = content_shell_data_path.Append(cobalt_subdir);
-    base::PathService::OverrideAndCreateIfNeeded(
-        base::DIR_CACHE, content_shell_data_path,
-        /*is_absolute=*/true, /*create=*/true);
-  }
-  base::PathService::OverrideAndCreateIfNeeded(
-      content::SHELL_DIR_USER_DATA, content_shell_data_path,
-      /*is_absolute=*/true, /*create=*/true);
 
   return RunContentProcess(std::move(params), GetContentMainRunner());
 }
@@ -185,9 +176,29 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
-    case kSbEventTypeVerticalSync:
+    case kSbEventTypeLowMemory: {
+      base::MemoryPressureListener::NotifyMemoryPressure(
+          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+      // Chromium internally calls Reclaim/ReclaimNormal at regular interval
+      // to claim free memory. Using ReclaimAll is more aggressive.
+      ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+
+      if (event->data) {
+        auto mem_cb = reinterpret_cast<SbEventCallback>(event->data);
+        mem_cb(nullptr);
+      }
+      break;
+    }
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged: {
+      if (event->data) {
+        auto* enabled = static_cast<const bool*>(event->data);
+        cobalt::browser::H5vccAccessibilityManager::GetInstance()
+            ->OnTextToSpeechStateChanged(*enabled);
+      }
+      break;
+    }
     case kSbEventTypeScheduled:
-    case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
       CHECK(g_platform_event_source);
       g_platform_event_source->HandleWindowSizeChangedEvent(event);
@@ -195,6 +206,7 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
+      device::NotifyTimeZoneChangeStarboard();
       break;
   }
 }

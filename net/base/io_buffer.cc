@@ -95,8 +95,8 @@ int DrainableIOBuffer::BytesConsumed() const {
 }
 
 void DrainableIOBuffer::SetOffset(int bytes) {
-  DCHECK_GE(bytes, 0);
-  DCHECK_LE(bytes, size_);
+  CHECK_GE(bytes, 0);
+  CHECK_LE(bytes, size_);
   used_ = bytes;
   data_ = base_->data() + used_;
 }
@@ -109,7 +109,20 @@ DrainableIOBuffer::~DrainableIOBuffer() {
 GrowableIOBuffer::GrowableIOBuffer() = default;
 
 void GrowableIOBuffer::SetCapacity(int capacity) {
-  DCHECK_GE(capacity, 0);
+  CHECK_GE(capacity, 0);
+// Calling reallocate with size 0 and a non-null pointer causes memory leaks
+// on many platforms, since it may return nullptr while also not deallocating
+// the previously allocated memory.
+#if BUILDFLAG(IS_COBALT)
+  if (capacity == 0) {
+    real_data_.reset();
+    capacity_ = 0;
+    offset_ = 0;
+    data_ = nullptr;
+    return;
+  }
+#endif
+
   // this will get reset in `set_offset`.
   data_ = nullptr;
   // realloc will crash if it fails.
@@ -123,8 +136,8 @@ void GrowableIOBuffer::SetCapacity(int capacity) {
 }
 
 void GrowableIOBuffer::set_offset(int offset) {
-  DCHECK_GE(offset, 0);
-  DCHECK_LE(offset, capacity_);
+  CHECK_GE(offset, 0);
+  CHECK_LE(offset, capacity_);
   offset_ = offset;
   data_ = real_data_.get() + offset;
 }

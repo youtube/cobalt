@@ -177,8 +177,9 @@ std::string Configurator::GetOSLongName() const {
 base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
     const {
   base::flat_map<std::string, std::string> params;
-  params.insert(std::make_pair("SABI", SB_SABI_JSON_ID));
-  params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
+  params.emplace("SABI", SB_SABI_JSON_ID);
+  params.emplace("sbversion", std::to_string(SB_API_VERSION));
+  params.emplace("egversion", GetCurrentEvergreenVersion());
 
   // The flag name to force an update is changed to `is_forced_update_` to
   // cover the cases where update is requested by client but channel stays the
@@ -186,44 +187,38 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   // isolate the changes to Omaha configs. If it's decided to change this flag
   // name on Omaha, it'll be done in a separate PR after the Omaha configs are
   // updated.
-  params.insert(std::make_pair(
-      "updaterchannelchanged",
-      std::atomic_load(&is_forced_update_) == 1 ? "True" : "False"));
+  params.emplace("updaterchannelchanged",
+                 std::atomic_load(&is_forced_update_) == 1 ? "True" : "False");
   // Brand name
-  params.insert(
-      std::make_pair("brand", GetDeviceProperty(kSbSystemPropertyBrandName)));
+  params.emplace("brand", GetDeviceProperty(kSbSystemPropertyBrandName));
 
   // Model name
-  params.insert(
-      std::make_pair("model", GetDeviceProperty(kSbSystemPropertyModelName)));
+  params.emplace("model", GetDeviceProperty(kSbSystemPropertyModelName));
 
   // Original Design manufacturer name
-  params.insert(
-      std::make_pair("manufacturer",
-                     GetDeviceProperty(kSbSystemPropertySystemIntegratorName)));
+  params.emplace("manufacturer",
+                 GetDeviceProperty(kSbSystemPropertySystemIntegratorName));
 
   // Chipset model number
-  params.insert(std::make_pair(
-      "chipset", GetDeviceProperty(kSbSystemPropertyChipsetModelNumber)));
+  params.emplace("chipset",
+                 GetDeviceProperty(kSbSystemPropertyChipsetModelNumber));
 
   // Firmware version
-  params.insert(std::make_pair(
-      "firmware", GetDeviceProperty(kSbSystemPropertyFirmwareVersion)));
-
+  params.emplace("firmware",
+                 GetDeviceProperty(kSbSystemPropertyFirmwareVersion));
   // Model year
-  params.insert(
-      std::make_pair("year", GetDeviceProperty(kSbSystemPropertyModelYear)));
+  params.emplace("year", GetDeviceProperty(kSbSystemPropertyModelYear));
 
   // User Agent String
-  params.insert(std::make_pair("uastring", user_agent_string_));
+  params.emplace("uastring", user_agent_string_);
 
   // Certification scope
-  params.insert(std::make_pair(
-      "certscope", GetDeviceProperty(kSbSystemPropertyCertificationScope)));
+  params.emplace("certscope",
+                 GetDeviceProperty(kSbSystemPropertyCertificationScope));
 
   // Compression status
-  params.insert(std::make_pair("usecompressedupdates",
-                               GetUseCompressedUpdates() ? "True" : "False"));
+  params.emplace("usecompressedupdates",
+                 GetUseCompressedUpdates() ? "True" : "False");
 
   return params;
 }
@@ -308,24 +303,12 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   auto it = kChannelAndSbVersionToOmahaIdMap.find(channel +
                                                   std::to_string(sb_version));
   if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
-    return it->second;
+    return std::string(it->second);
   }
+  // All undefined channel requests go to the default EAP config.
   LOG(INFO) << "Configurator::GetAppGuidHelper updater channel and starboard "
-            << "combination is undefined with the new Omaha configs.";
-
-  // All undefined channel requests go to prod configs except for static
-  // channel requests for C24 and older.
-  // TODO(b/449024263): Replace regex matchers with substring_set_matcher or re2
-  if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
-      sb_version >= 14 && sb_version <= 16) {
-    it = kChannelAndSbVersionToOmahaIdMap.find("prod" +
-                                               std::to_string(sb_version));
-    if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
-      return it->second;
-    }
-  }
-  LOG(INFO) << __func__ << " starboard version is invalid.";
-  return kOmahaCobaltAppID;
+            << "combination is undefined.";
+  return kOmahaCobaltEAPAppID;
 }
 
 std::string Configurator::GetAppGuid() const {

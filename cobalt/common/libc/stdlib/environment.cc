@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "cobalt/common/libc/no_destructor.h"
+#include "starboard/system.h"
 #include "starboard/time_zone.h"
 
 namespace cobalt {
@@ -99,6 +100,9 @@ char** Environment::InitializeGlobalEnviron() {
     // calling tzset().
     setenv("TZ", iana_id, 0 /* overwrite */);
   }
+
+  // Initialize the LANG variable from the Starboard API.
+  setenv("LANG", SbSystemGetLocaleId(), 0);
 
   RebuildAndSetGlobalEnviron();
   return ::environ;

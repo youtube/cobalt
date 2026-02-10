@@ -693,6 +693,25 @@ TEST(HTTPParsersTest, ParseContentSecurityPoliciesMeta) {
   EXPECT_EQ("default-src a.com", csp[0]->header->header_value);
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST(HTTPParsersTest, ParseContentSecurityPoliciesCobalt) {
+  auto csp = ParseContentSecurityPolicies(
+      "connect-src 'cobalt-insecure-local-network' 'cobalt-insecure-private-range'",
+      network::mojom::blink::ContentSecurityPolicyType::kEnforce,
+      network::mojom::blink::ContentSecurityPolicySource::kMeta,
+      KURL("http://example.com"));
+  ASSERT_EQ(1u, csp.size());
+
+  EXPECT_EQ(1u, csp[0]->directives.size());
+
+  auto connect_src = network::mojom::CSPDirectiveName::ConnectSrc;
+  auto source_list = csp[0]->directives.Take(connect_src);
+
+  EXPECT_TRUE(source_list->cobalt_insecure_local_network);
+  EXPECT_TRUE(source_list->cobalt_insecure_private_range);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 TEST(HTTPParsersTest, ParseContentSecurityPoliciesReportOnly) {
   auto csp = ParseContentSecurityPolicies(
       "frame-ancestors a.com",

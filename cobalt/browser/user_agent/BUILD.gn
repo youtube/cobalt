@@ -35,4 +35,10 @@ static_library("user_agent") {
       "ANDROID_ABI=$android_app_abi",
     ]
   }
+
+  deps = []
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater" ]
+  }
 }

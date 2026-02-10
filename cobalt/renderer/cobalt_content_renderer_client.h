@@ -5,14 +5,18 @@
 #ifndef COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
 #define COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
 
+#include <atomic>
+
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/hang_watcher.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/base/starboard/renderer_factory_traits.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace content {
@@ -57,13 +61,20 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // on media thread to post the task on Renderer thread.
   void BindHostReceiver(mojo::GenericPendingReceiver receiver);
 
+  uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
+
  private:
+  void OnGetSbWindow(uint64_t handle);
+
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
 
   base::ScopedClosureRunner unregister_thread_closure;
 
   gfx::Size viewport_size_;
+
+  std::atomic<uint64_t> sb_window_handle_ = 0;
+  bool window_handle_requested_ = false;
 
   THREAD_CHECKER(thread_checker_);
 

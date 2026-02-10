@@ -27,6 +27,9 @@ const char kContentShellDataPath[] = "data-path";
 // The directory breakpad should store minidumps in.
 const char kCrashDumpsDir[] = "crash-dumps-dir";
 
+// Disables showing splash screen.
+const char kDisableSplashScreen[] = "disable-splash-screen";
+
 // Disables the check for the system font when specified.
 const char kDisableSystemFontCheck[] = "disable-system-font-check";
 
@@ -57,5 +60,14 @@ const char kOmitDeviceAuthenticationQueryParameters[] =
 // perform any authentication, so exposing it too widely can be a security
 // risk.
 const char kRemoteDebuggingAddress[] = "remote-debugging-address";
+
+// The delay in milliseconds before shutting down the splash screen.
+const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
+
+bool ShouldCreateSplashScreen() {
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  return !command_line->HasSwitch(kDisableSplashScreen);
+}
 
 }  // namespace switches

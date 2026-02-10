@@ -14,6 +14,8 @@
 
 source_set("service") {
   sources = [
+    "platform_window_provider_service.cc",
+    "platform_window_provider_service.h",
     "video_geometry_setter_service.cc",
     "video_geometry_setter_service.h",
   ]

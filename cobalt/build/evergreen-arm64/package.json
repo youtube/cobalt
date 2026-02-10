@@ -1,15 +1,36 @@
 {
     "archive_datas": [
         {
+            "tar_paths": [
+                {
+                    "from_path": "lib.unstripped/libcobalt.so",
+                    "to_tar": "symbols/libcobalt.so.tar.gz"
+                }
+            ],
             "files": [
+                "app/cobalt/lib/libcobalt.lz4",
                 "cobalt_shell.pak",
-                "libcobalt.so",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
-                "lib.unstripped/libcobalt.so"
+                "libcobalt.so",
+                "libcrash_sandbox.so",
+                "libnoop_sandbox.so",
+                "libone_app_only_sandbox.so",
+                {
+                    "from_file": "cobalt_shell.pak",
+                    "to_file": "content/cobalt_shell.pak"
+                },
+                {
+                    "from_file": "libcobalt.so",
+                    "to_file": "lib/libcobalt.so"
+                }
             ],
             "rename_files": [
+                {
+                    "from_file": "app/cobalt/lib/libcobalt.lz4",
+                    "to_file": "lib/compressed/libcobalt.lz4"
+                },
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
@@ -23,8 +44,16 @@
                     "to_file": "licenses_cobalt.txt"
                 },
                 {
-                    "from_file": "lib.unstripped/libcobalt.so",
-                    "to_file": "symbols/libcobalt.so"
+                    "from_file": "libcrash_sandbox.so",
+                    "to_file": "lib/test_apps/tcrash/libcobalt.so"
+                },
+                {
+                    "from_file": "libnoop_sandbox.so",
+                    "to_file": "lib/test_apps/tnoop/libcobalt.so"
+                },
+                {
+                    "from_file": "libone_app_only_sandbox.so",
+                    "to_file": "lib/test_apps/t1app/libcobalt.so"
                 }
             ],
             "archive_type": "ARCHIVE_TYPE_ZIP"

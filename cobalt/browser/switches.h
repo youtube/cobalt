@@ -15,7 +15,6 @@
 #include <string>
 
 #include "base/command_line.h"
-#include "cobalt/shell/common/shell_switches.h"
 
 #ifndef COBALT_BROWSER_SWITCHES_H_
 #define COBALT_BROWSER_SWITCHES_H_

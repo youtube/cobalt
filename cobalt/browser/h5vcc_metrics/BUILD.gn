@@ -13,10 +13,6 @@
 # limitations under the License.
 
 source_set("h5vcc_metrics") {
-  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # being depended-on by :browser above.
-  testonly = true
-
   sources = [
     "h5vcc_metrics_impl.cc",
     "h5vcc_metrics_impl.h",
@@ -27,8 +23,10 @@ source_set("h5vcc_metrics") {
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//components/metrics",
     "//components/metrics_services_manager",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//third_party/metrics_proto",
   ]
 }
