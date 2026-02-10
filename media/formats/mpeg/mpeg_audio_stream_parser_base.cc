@@ -135,6 +135,7 @@ bool MPEGAudioStreamParserBase::AppendToParseBuffer(const uint8_t* buf,
   uninspected_pending_bytes_ = base::checked_cast<int>(size);
   if (!queue_.Push(buf, uninspected_pending_bytes_)) {
     DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size " << size;
+    uninspected_pending_bytes_ = 0;
     return false;
   }
 
