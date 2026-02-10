@@ -26,6 +26,7 @@
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track_bridge.h"
+#include "starboard/android/shared/video_decoder.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/thread.h"
@@ -67,6 +68,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int64_t start_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      MediaCodecVideoDecoder* video_decoder,
       void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -113,6 +115,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      MediaCodecVideoDecoder* video_decoder,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -149,6 +152,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   void* const context_;
 
   AudioTrackBridge bridge_;
+  MediaCodecVideoDecoder* const video_decoder_;
 
   volatile bool quit_ = false;
   std::unique_ptr<Thread> audio_out_thread_;

@@ -332,8 +332,8 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
       static_cast<int32_t>(number_of_sink_frames - sink_frames_.size()));
 
   int64_t now_us = CurrentMonotonicTime();
-  if (now_us - last_frame_count_log_time_ >= 100'000) {
-    SB_LOG(INFO) << "VideoRenderer frame inventory: "
+  if (now_us - last_frame_count_log_time_ >= 500'000) {
+    SB_LOG(INFO) << "VideoRenderer: number_of_frames="
                  << number_of_frames_.load();
     last_frame_count_log_time_ = now_us;
   }

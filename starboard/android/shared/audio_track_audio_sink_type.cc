@@ -24,6 +24,7 @@
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/scoped_timer.h"
 #include "starboard/common/string.h"
@@ -134,6 +135,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     int64_t start_time,
     int tunnel_mode_audio_session_id,
     bool is_web_audio,
+    MediaCodecVideoDecoder* video_decoder,
     void* context)
     : type_(type),
       channels_(channels),
@@ -156,7 +158,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
               tunnel_mode_audio_session_id,
-              is_web_audio) {
+              is_web_audio),
+      video_decoder_(video_decoder) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
@@ -213,6 +216,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   bool release_frames_after_audio_starts = features::FeatureList::IsEnabled(
       features::kReleaseVideoFramesAfterAudioStarts);
 
+  bool is_paused_to_recover_av_sync = false;
+  int64_t last_gap_logged_us = CurrentMonotonicTime();
+
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -258,6 +264,48 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
     }
 
+    int64_t current_audio_head_ms =
+        (start_time_ + GetFramesDurationUs(playback_head_position)) / 1000;
+    std::optional<int64_t> current_video_head_ms;
+    if (video_decoder_) {
+      current_video_head_ms = video_decoder_->GetVideoHeadMs();
+    }
+    int64_t now_us = CurrentMonotonicTime();
+    if (current_video_head_ms && now_us > last_gap_logged_us + 1'000'000) {
+      SB_LOG(INFO) << "A/V sync: audio_head(ms)=" << current_audio_head_ms
+                   << ", video_head(ms)=" << *current_video_head_ms
+                   << ", gap(ms)="
+                   << (current_audio_head_ms - *current_video_head_ms);
+      last_gap_logged_us = now_us;
+    }
+
+    if (current_video_head_ms &&
+        current_audio_head_ms - *current_video_head_ms > 100) {
+      if (was_playing && !is_paused_to_recover_av_sync) {
+        SB_LOG(INFO) << "Pause audio to recover A/V sync: audio_head(ms)="
+                     << current_audio_head_ms
+                     << ", video_head(ms)=" << *current_video_head_ms
+                     << ", gap(ms)="
+                     << (current_audio_head_ms - *current_video_head_ms);
+        is_paused_to_recover_av_sync = true;
+        bridge_.Pause();
+      }
+    } else {
+      if (was_playing && is_paused_to_recover_av_sync) {
+        SB_LOG(INFO) << "Resuming audio, A/V sync recovered: audio_head(ms)="
+                     << current_audio_head_ms << ", video_head(ms)="
+                     << (current_video_head_ms
+                             ? std::to_string(*current_video_head_ms)
+                             : "N/A")
+                     << ", gap(ms)="
+                     << (current_video_head_ms
+                             ? std::to_string(current_audio_head_ms -
+                                              *current_video_head_ms)
+                             : "N/A");
+        is_paused_to_recover_av_sync = false;
+        bridge_.Play();
+      }
+    }
     int frames_in_buffer;
     int offset_in_frames;
     bool is_playing;
@@ -469,7 +517,8 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
                 update_source_status_func, consume_frames_func, error_func,
-                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio, context);
+                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio,
+                /*video_decoder=*/nullptr, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -485,6 +534,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int64_t start_media_time,
     int tunnel_mode_audio_session_id,
     bool is_web_audio,
+    MediaCodecVideoDecoder* video_decoder,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
@@ -496,7 +546,8 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,
       update_source_status_func, consume_frames_func, error_func,
-      start_media_time, tunnel_mode_audio_session_id, is_web_audio, context);
+      start_media_time, tunnel_mode_audio_session_id, is_web_audio,
+      video_decoder, context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

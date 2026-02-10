@@ -300,6 +300,10 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
 
 class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
  public:
+  explicit Sink(MediaCodecVideoDecoder* video_decoder)
+      : video_decoder_(video_decoder) {
+    SB_CHECK(video_decoder_);
+  }
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -325,6 +329,11 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
     frame_count_++;
     const auto release_us = release_time_in_nanoseconds / 1'000;
     const int64_t now_us = CurrentMonotonicTime();
+    auto gap_us = now_us - release_us;
+    SB_LOG(INFO) << __func__ << ": PTS="
+                 << FormatWithDigitSeparators(frame->timestamp() / 1'000)
+                 << ", lead_time(msec)=" << (gap_us / 1'000)
+                 << (gap_us > 0 ? ", WARNING" : "");
 
     if (!first_render_) {
       first_render_ = FrameRenderInfo{};
@@ -405,7 +414,13 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
           << FormatWithDigitSeparators(interval_us / 1'000);
     }
 
+    video_decoder_->last_rendered_pts_us_.store(frame->timestamp());
     rendered_ = true;
+    constexpr int64_t kRenderLeadUs = 3'000;
+    if (release_us < now_us + kRenderLeadUs) {
+      release_time_in_nanoseconds = (now_us + kRenderLeadUs) * 1'000;
+    }
+
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
 
@@ -423,6 +438,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   };
   std::optional<FrameRenderInfo> first_render_;
   std::optional<FrameRenderInfo> last_render_;
+  MediaCodecVideoDecoder* video_decoder_;
 };
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
@@ -519,7 +535,7 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
   if (sink_ == nullptr) {
-    sink_ = make_scoped_refptr<Sink>();
+    sink_ = make_scoped_refptr<Sink>(this);
   }
   return sink_;
 }
@@ -1390,6 +1406,11 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
 // Temporary solution for PoC to skip long plumbing.
 void ResetBaselineTime() {
   g_baseline_us_ = CurrentMonotonicTime();
+}
+
+// static
+int64_t MediaCodecVideoDecoder::GetVideoHeadMs() const {
+  return last_rendered_pts_us_.load() / 1'000;
 }
 
 }  // namespace starboard

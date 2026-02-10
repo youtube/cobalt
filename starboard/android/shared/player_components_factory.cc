@@ -64,7 +64,8 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
+  explicit AudioRendererSinkAndroid(MediaCodecVideoDecoder* video_decoder,
+                                    int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -86,7 +87,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
                   tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  context);
+                  video_decoder, context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
@@ -328,6 +329,33 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
 
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      // Set max_video_input_size with a positive value to overwrite
+      // MediaFormat.KEY_MAX_INPUT_SIZE. Use 0 as default value.
+      int max_video_input_size = creation_parameters.max_video_input_size();
+      SB_LOG_IF(INFO, max_video_input_size > 0)
+          << "The maximum size in bytes of a buffer of data is "
+          << max_video_input_size;
+
+      if (tunnel_mode_audio_session_id == -1) {
+        force_secure_pipeline_under_tunnel_mode = false;
+      }
+
+      auto video_decoder_result = CreateVideoDecoder(
+          creation_parameters, tunnel_mode_audio_session_id,
+          force_secure_pipeline_under_tunnel_mode, max_video_input_size);
+      if (video_decoder_result) {
+        auto video_decoder_impl = std::move(video_decoder_result.value());
+        components.video.render_algorithm =
+            video_decoder_impl->GetRenderAlgorithm();
+        components.video.renderer_sink = video_decoder_impl->GetSink();
+        components.video.decoder = std::move(video_decoder_impl);
+      } else {
+        return Failure("Failed to create video decoder: " +
+                       video_decoder_result.error());
+      }
+    }
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       const bool enable_platform_opus_decoder =
           FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
@@ -369,41 +397,19 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       if (tunnel_mode_audio_session_id != -1) {
         components.audio.renderer_sink = TryToCreateTunnelModeAudioRendererSink(
-            tunnel_mode_audio_session_id, creation_parameters);
+            tunnel_mode_audio_session_id,
+            static_cast<MediaCodecVideoDecoder*>(
+                components.video.decoder.get()),
+            creation_parameters);
         if (!components.audio.renderer_sink) {
           tunnel_mode_audio_session_id = -1;
         }
       }
       if (!components.audio.renderer_sink) {
         components.audio.renderer_sink =
-            std::make_unique<AudioRendererSinkAndroid>();
-      }
-    }
-
-    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      // Set max_video_input_size with a positive value to overwrite
-      // MediaFormat.KEY_MAX_INPUT_SIZE. Use 0 as default value.
-      int max_video_input_size = creation_parameters.max_video_input_size();
-      SB_LOG_IF(INFO, max_video_input_size > 0)
-          << "The maximum size in bytes of a buffer of data is "
-          << max_video_input_size;
-
-      if (tunnel_mode_audio_session_id == -1) {
-        force_secure_pipeline_under_tunnel_mode = false;
-      }
-
-      auto video_decoder_result = CreateVideoDecoder(
-          creation_parameters, tunnel_mode_audio_session_id,
-          force_secure_pipeline_under_tunnel_mode, max_video_input_size);
-      if (video_decoder_result) {
-        auto video_decoder_impl = std::move(video_decoder_result.value());
-        components.video.render_algorithm =
-            video_decoder_impl->GetRenderAlgorithm();
-        components.video.renderer_sink = video_decoder_impl->GetSink();
-        components.video.decoder = std::move(video_decoder_impl);
-      } else {
-        return Failure("Failed to create video decoder: " +
-                       video_decoder_result.error());
+            std::make_unique<AudioRendererSinkAndroid>(
+                static_cast<MediaCodecVideoDecoder*>(
+                    components.video.decoder.get()));
       }
     }
 
@@ -581,10 +587,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
   std::unique_ptr<AudioRendererSink> TryToCreateTunnelModeAudioRendererSink(
       int tunnel_mode_audio_session_id,
+      MediaCodecVideoDecoder* video_decoder,
       const CreationParameters& creation_parameters) {
     std::unique_ptr<AudioRendererSink> audio_sink =
         std::make_unique<AudioRendererSinkAndroid>(
-            tunnel_mode_audio_session_id);
+            video_decoder, tunnel_mode_audio_session_id);
     // We need to double check if the audio sink can actually be created.
     int max_cached_frames, min_frames_per_append;
     GetAudioRendererParams(creation_parameters, &max_cached_frames,

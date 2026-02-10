@@ -101,6 +101,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   bool is_decoder_created() const { return media_decoder_ != NULL; }
 
+  // Return current estimated rendered PTS in msec.
+  int64_t GetVideoHeadMs() const;
+
  private:
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
@@ -229,6 +232,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   size_t number_of_preroll_frames_;
 
   const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;
+  std::atomic<int64_t> last_rendered_pts_us_{0};
 };
 
 }  // namespace starboard
