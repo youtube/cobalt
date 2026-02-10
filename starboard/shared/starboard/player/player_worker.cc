@@ -250,8 +250,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     }
     if (!write_pending_sample_job_token_.is_valid()) {
       write_pending_sample_job_token_ = job_thread_->Schedule(
-          std::bind(&PlayerWorker::DoWritePendingSamples, this),
-          kWritePendingSampleDelayUsec);
+          [this] { DoWritePendingSamples(); }, kWritePendingSampleDelayUsec);
     }
   }
 }
