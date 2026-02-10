@@ -35,12 +35,6 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 
-#ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
-const int kPlayerStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
-#else   // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
-const int kPlayerStackSize = 0;
-#endif  // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
-
 // 8 ms is enough to ensure that DoWritePendingSamples() is called twice for
 // every frame in HFR.
 // TODO: Reduce this as there should be enough frames caches in the renderers.
@@ -55,13 +49,9 @@ DECLARE_INSTANCE_COUNTER(PlayerWorker)
 class PlayerWorker::WorkerThread : public Thread {
  public:
   WorkerThread(PlayerWorker* worker,
-               int64_t stack_size,
                std::mutex* mutex,
                std::condition_variable* cv)
-      : Thread("player_worker", stack_size),
-        worker_(worker),
-        mutex_(mutex),
-        cv_(cv) {}
+      : Thread("player_worker"), worker_(worker), mutex_(mutex), cv_(cv) {}
 
   void Run() override {
     SbThreadSetPriority(kSbThreadPriorityHigh);
@@ -142,8 +132,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 
   std::mutex mutex;
   std::condition_variable condition_variable;
-  thread_ = std::make_unique<WorkerThread>(this, kPlayerStackSize, &mutex,
-                                           &condition_variable);
+  thread_ = std::make_unique<WorkerThread>(this, &mutex, &condition_variable);
   thread_->Start();
 
   std::unique_lock lock(mutex);
@@ -210,7 +199,8 @@ void PlayerWorker::DoInit() {
       std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
                 Result<void>(Unexpected(std::string())), _2);
   Result<void> result = handler_->Init(
-      player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
+      job_queue_.get(), player_,
+      std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),
       std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
       update_player_error_cb);

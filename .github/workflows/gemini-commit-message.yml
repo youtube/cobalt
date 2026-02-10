@@ -28,6 +28,8 @@ env:
         should explain the 'what' and 'why' of the change, not the 'how', and
         wrap at 72 characters.
     4.  **Bug Trailer:** Add a 'Bug: xyz' git trailer on the last line.
+        The format of the trailer is e.g. `Bug: 1234` or `Issue: 1234`, where
+        1234 is the bug number (no b/).
 
     **Tag Selection (Prefix the subject line with one of these):**
 
@@ -84,9 +86,11 @@ jobs:
 
           diff_content=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3.diff" "$PR_API_URL")
 
-          echo "diff_content<<EOF" >> $GITHUB_OUTPUT
-          echo "$diff_content" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "diff_content<<EOF"
+            echo "$diff_content"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       # --- Step 2: Call Gemini API ---
       - name: 'Generate Commit Message with Gemini'
@@ -124,9 +128,11 @@ jobs:
 
           gemini_text_response=$(echo "$api_response" | jq -r '.candidates[0].content.parts[0].text // "Error: Could not parse a valid response from the Gemini API. Please check the API response logs in the workflow run."')
 
-          echo "response<<EOF" >> $GITHUB_OUTPUT
-          echo "$gemini_text_response" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "response<<EOF"
+            echo "$gemini_text_response"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       # --- Step 3: Post Comment ---
       - name: 'Post Commit Message as Comment'

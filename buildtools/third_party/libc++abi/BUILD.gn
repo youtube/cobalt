@@ -9,6 +9,9 @@ import("//build/config/unwind.gni")
 source_set("libc++abi") {
   if (export_libcxxabi_from_executables) {
     visibility = [ "//build/config:executable_deps" ]
+    if (is_cobalt_hermetic_build) {
+      visibility += [ "//buildtools/third_party/libc++" ]
+    }
   } else {
     visibility = [ "//buildtools/third_party/libc++" ]
   }

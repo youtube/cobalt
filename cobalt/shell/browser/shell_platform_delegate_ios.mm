@@ -22,10 +22,16 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/browser_accessibility_state.h"
+#include "content/public/browser/scoped_accessibility_mode.h"
+#include "content/public/browser/visibility.h"
+#include "content/public/browser/web_contents.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
+#import "starboard/tvos/shared/starboard_application.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
+#include "ui/accessibility/ax_mode.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -35,23 +41,26 @@
 
 namespace {
 
-static const char kGraphicsTracingCategories[] =
+const char kGraphicsTracingCategories[] =
     "-*,blink,cc,gpu,renderer.scheduler,sequence_manager,v8,toplevel,viz,evdev,"
     "input,benchmark";
 
-static const char kDetailedGraphicsTracingCategories[] =
+const char kDetailedGraphicsTracingCategories[] =
     "-*,blink,cc,gpu,renderer.scheduler,sequence_manager,v8,toplevel,viz,evdev,"
     "input,benchmark,disabled-by-default-skia,disabled-by-default-skia.gpu,"
     "disabled-by-default-skia.gpu.cache,disabled-by-default-skia.shaders";
 
-static const char kNavigationTracingCategories[] =
+const char kNavigationTracingCategories[] =
     "-*,benchmark,toplevel,ipc,base,browser,navigation,omnibox,ui,shutdown,"
     "safe_browsing,loading,startup,mojom,renderer_host,"
     "disabled-by-default-system_stats,disabled-by-default-cpu_profiler,dwrite,"
     "fonts,ServiceWorker,passwords,disabled-by-default-file,sql,"
     "disabled-by-default-user_action_samples,disk_cache";
 
-static const char kAllTracingCategories[] = "*";
+const char kAllTracingCategories[] = "*";
+
+constexpr ui::AXMode kVoiceOverEnabledAXMode =
+    ui::kAXModeComplete | ui::AXMode::kFromPlatform | ui::AXMode::kScreenReader;
 
 }  // namespace
 
@@ -109,6 +118,7 @@ static const char kAllTracingCategories[] = "*";
 - (void)startTracingWithCategories:(const char*)categories;
 - (UIAlertController*)actionSheetWithTitle:(nullable NSString*)title
                                    message:(nullable NSString*)message;
+- (void)voiceOverStatusDidChange;
 @end
 
 @implementation ContentShellWindowDelegate
@@ -121,6 +131,7 @@ static const char kAllTracingCategories[] = "*";
 @synthesize toolbarBackgroundView = _toolbarBackgroundView;
 @synthesize toolbarContentView = _toolbarContentView;
 @synthesize tracingHandler = _tracingHandler;
+std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
 
 + (UIColor*)backgroundColorDefault {
   return [UIColor colorWithRed:66.0 / 255.0
@@ -135,6 +146,44 @@ static const char kAllTracingCategories[] = "*";
                           blue:53.0 / 255.0
                          alpha:1.0];
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+// Intercept UIPressTypeMenu event and do not forward it to the
+// superclass's pressesBegan method, as it will cause the application to
+// exit immediately. Instead, we save the UIPressTypeMenu press and event
+// and only forward it when suspendApplication is invoked.
+- (void)pressesBegan:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [SBDGetApplication() registerMenuPressBegan:press pressesEvent:event];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesBegan:nonMenuPresses withEvent:event];
+  }
+}
+
+- (void)pressesEnded:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [SBDGetApplication() registerMenuPressEnded:press pressesEvent:event];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesEnded:nonMenuPresses withEvent:event];
+  }
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 - (void)viewDidLoad {
   [super viewDidLoad];
@@ -209,8 +258,34 @@ static const char kAllTracingCategories[] = "*";
     [_contentView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
   ]];
 
-  UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
-  [_contentView addSubview:web_contents_view];
+  // UIView that will contain the video rendered by SbPlayer. The non-tvOS code
+  // path renders the video as an underlay, so add it before the web contents
+  // view. Each video will be rendered as a subview of this view.
+  // Note that the actual size and and position of this view are irrelevant at
+  // this point: it will be changed in starboard's
+  // AVSBVideoRenderer::SetBounds() when necessary.
+  UIView* playerContainerView = [[UIView alloc] init];
+  playerContainerView.accessibilityIdentifier = @"Player Container";
+  [_contentView addSubview:playerContainerView];
+  [SBDGetApplication() setPlayerContainerView:playerContainerView];
+
+  // Enable Accessibility if VoiceOver is already running.
+  if (UIAccessibilityIsVoiceOverRunning()) {
+    _scopedAccessibilityMode =
+        content::BrowserAccessibilityState::GetInstance()
+            ->CreateScopedModeForProcess(kVoiceOverEnabledAXMode);
+  }
+
+  // Register for VoiceOver notifications.
+  [[NSNotificationCenter defaultCenter]
+      addObserver:self
+         selector:@selector(voiceOverStatusDidChange)
+             name:UIAccessibilityVoiceOverStatusDidChangeNotification
+           object:nil];
+
+  // Once the splash screen web contents are created, the corresponding UIView
+  // will be added to `_contentView`.
+  _shell->LoadSplashScreenWebContents();
 }
 
 - (id)initWithShell:(content::Shell*)shell {
@@ -401,6 +476,13 @@ static const char kAllTracingCategories[] = "*";
 }
 
 - (void)setContents:(UIView*)content {
+  // The frame must be explicitly set for the actual web view after the splash
+  // screen is shown. Doing so for the splash screen view too does not hurt.
+  content.frame = _contentView.bounds;
+  // There is no need to manually remove other views: when the splash screen is
+  // shown, it is the first view. When this method is called because the web
+  // contents need to be shown, the splash screen view has already been deleted
+  // and removed from the hierarchy automatically.
   [_contentView addSubview:content];
 }
 
@@ -415,6 +497,17 @@ static const char kAllTracingCategories[] = "*";
       CGRectMake(CGRectGetWidth(_menuButton.bounds) / 2,
                  CGRectGetHeight(_menuButton.bounds), 1, 1);
   return alertController;
+}
+
+- (void)voiceOverStatusDidChange {
+  content::BrowserAccessibilityState* accessibility_state =
+      content::BrowserAccessibilityState::GetInstance();
+  if (UIAccessibilityIsVoiceOverRunning()) {
+    _scopedAccessibilityMode = accessibility_state->CreateScopedModeForProcess(
+        kVoiceOverEnabledAXMode);
+  } else {
+    _scopedAccessibilityMode.reset();
+  }
 }
 
 @end
@@ -524,7 +617,8 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 
   UIWindow* window =
       [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-  window.backgroundColor = [UIColor whiteColor];
+  // Use black as background color to match the splash screen's background.
+  window.backgroundColor = [UIColor blackColor];
   window.tintColor = [UIColor darkGrayColor];
 
   ContentShellWindowDelegate* controller =
@@ -557,9 +651,30 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   //  setContents:web_contents_view];
 }
 
-void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
 
-void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
+  UIView* web_contents_view =
+      shell->splash_screen_web_contents()->GetNativeView().Get();
+  [static_cast<ContentShellWindowDelegate*>(
+      shell_data.window.rootViewController) setContents:web_contents_view];
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  content::WebContents* web_contents = shell->web_contents();
+  if (web_contents->GetVisibility() != content::Visibility::VISIBLE) {
+    // Explicitly call WasShown() to match the call to WasHidden() made by
+    // Shell::ScheduleSwitchToMainWebContents().
+    web_contents->WasShown();
+  }
+  UIView* web_contents_view = web_contents->GetNativeView().Get();
+  [static_cast<ContentShellWindowDelegate*>(
+      shell_data.window.rootViewController) setContents:web_contents_view];
+}
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
@@ -594,7 +709,6 @@ void ShellPlatformDelegate::EnableUIControl(Shell* shell,
     }
     default:
       NOTREACHED() << "Unknown UI control";
-      return;
   }
   [button setEnabled:is_enabled];
 }

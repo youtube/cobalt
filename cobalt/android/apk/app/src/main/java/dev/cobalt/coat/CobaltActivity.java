@@ -63,10 +63,7 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
-import org.chromium.content_public.browser.NavigationHandle;
-import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -75,6 +72,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
 
   // This key differs in naming format for legacy reasons
@@ -103,8 +101,11 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
-  private CobaltConnectivityDetector mCobaltConnectivityDetector;
-  private WebContentsObserver mWebContentsObserver;
+
+  private boolean mIsCobaltUsingAndroidOverlay;
+  private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
+
+  private boolean mEnableSplashScreen;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -164,6 +165,9 @@ public abstract class CobaltActivity extends Activity {
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
+    mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
+    Bundle metaData = getActivityMetaData();
+    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
@@ -266,30 +270,10 @@ public abstract class CobaltActivity extends Activity {
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
-            // Initialize and register a WebContentsObserver.
-            mWebContentsObserver =
-              new org.chromium.content_public.browser.WebContentsObserver(getActiveWebContents()) {
-                @Override
-                public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
-                  if (!navigationHandle.isSameDocument()) {
-                    mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
-                  }
-                }
-
-                @Override
-                public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
-                  // The connectivity detector will consider the app has loaded if the navigation has
-                  // committed successfully with a valid internet connection.
-                  if (navigationHandle.hasCommitted()
-                      && !navigationHandle.isErrorPage()
-                      && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
-                        mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
-                  }
-                }
-              };
-
-            // Load splash screen.
-            mShellManager.getActiveShell().loadSplashScreenWebContents();
+            if (mEnableSplashScreen) {
+              // Load splash screen.
+              mShellManager.getActiveShell().loadSplashScreenWebContents();
+            }
           }
         });
   }
@@ -401,16 +385,18 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
-    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
-    mVideoSurfaceView = new VideoSurfaceView(this);
-    addContentView(
-        mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    if (!mIsCobaltUsingAndroidOverlay) {
+      mVideoSurfaceView = new VideoSurfaceView(this);
+      addContentView(
+          mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    } else {
+      Log.i(TAG, "Do not create VideoSurfaceView.");
+    }
   }
 
   /**
@@ -460,17 +446,15 @@ public abstract class CobaltActivity extends Activity {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
 
-  public CobaltConnectivityDetector getCobaltConnectivityDetector() {
-    return mCobaltConnectivityDetector;
-  }
-
   @Override
   protected void onStart() {
-    if (!isReleaseBuild()) {
+    if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (mForceCreateNewVideoSurfaceView) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
+    } else if (mForceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -482,14 +466,13 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
-    updateShellActivityVisible(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
       webContents.onResume();
-      // visibility:visible event
-      webContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
+    // visibility:visible event
+    updateShellActivityVisible(true);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
   }
 
@@ -504,11 +487,10 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
-      // visibility:hidden event
-      webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       // document.onfreeze event
       webContents.onFreeze();
     }
@@ -526,7 +508,6 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    mCobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -537,17 +518,10 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (mCobaltConnectivityDetector != null) {
-      mCobaltConnectivityDetector.destroy();
-    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
-    if (mWebContentsObserver != null) {
-      mWebContentsObserver.observe(null);
-      mWebContentsObserver = null;
-    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -649,6 +623,9 @@ public abstract class CobaltActivity extends Activity {
   protected boolean isReleaseBuild() {
     return StarboardBridge.isReleaseBuild();
   }
+  protected boolean isDevelopmentBuild() {
+    return StarboardBridge.isDevelopmentBuild();
+  }
 
   @Override
   protected void onNewIntent(Intent intent) {
@@ -670,6 +647,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     runOnUiThread(
         new Runnable() {
           @Override
@@ -680,6 +660,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
@@ -712,6 +695,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     ViewParent parent = mVideoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;

@@ -25,7 +25,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 bool GetHomeDirectory(char* out_path, int path_size) {
   const char* home_directory = getenv("HOME");
@@ -51,4 +51,4 @@ bool GetHomeDirectory(char* out_path, int path_size) {
   return true;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

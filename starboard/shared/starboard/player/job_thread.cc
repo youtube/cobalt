@@ -25,67 +25,76 @@ namespace starboard {
 
 class JobThread::WorkerThread : public Thread {
  public:
-  WorkerThread(JobThread* job_thread,
-               const char* thread_name,
-               int64_t stack_size,
-               SbThreadPriority priority,
-               std::mutex* mutex,
-               std::condition_variable* cv)
-      : Thread(thread_name, stack_size),
-        job_thread_(job_thread),
-        priority_(priority),
-        mutex_(mutex),
-        cv_(cv) {}
+  WorkerThread(std::string_view thread_name, SbThreadPriority priority)
+      : Thread(std::string(thread_name)), priority_(priority) {}
 
   void Run() override {
     SbThreadSetPriority(priority_);
+    auto job_queue = std::make_unique<JobQueue>();
+    JobQueue* job_queue_ptr = job_queue.get();
     {
-      std::lock_guard lock(*mutex_);
-      job_thread_->job_queue_ = std::make_unique<JobQueue>();
+      std::lock_guard lock(mutex_);
+      job_queue_to_transfer_ = std::move(job_queue);
     }
-    cv_->notify_one();
-    job_thread_->RunLoop();
+    cv_.notify_one();
+    job_queue_ptr->RunUntilStopped();
+  }
+
+  std::unique_ptr<JobQueue> TakeJobQueue() {
+    std::unique_lock lock(mutex_);
+    cv_.wait(lock, [this] { return job_queue_to_transfer_ != nullptr; });
+    return std::move(job_queue_to_transfer_);
   }
 
  private:
-  JobThread* job_thread_;
   SbThreadPriority priority_;
-  std::mutex* mutex_;
-  std::condition_variable* cv_;
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  std::unique_ptr<JobQueue> job_queue_to_transfer_;
 };
 
-JobThread::JobThread(const char* thread_name,
-                     int64_t stack_size,
-                     SbThreadPriority priority) {
-  std::mutex mutex;
-  std::condition_variable condition_variable;
-
-  thread_ = std::make_unique<WorkerThread>(
-      this, thread_name, stack_size, priority, &mutex, &condition_variable);
-  thread_->Start();
-
-  std::unique_lock lock(mutex);
-  condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
-  SB_DCHECK(job_queue_);
+std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name) {
+  return JobThread::Create(thread_name, kSbThreadPriorityNormal);
 }
+
+std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name,
+                                             SbThreadPriority priority) {
+  auto thread = std::make_unique<WorkerThread>(thread_name, priority);
+  thread->Start();
+  auto job_queue = thread->TakeJobQueue();
+  return std::unique_ptr<JobThread>(
+      new JobThread(std::move(thread), std::move(job_queue)));
+}
+
+JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
+                     std::unique_ptr<JobQueue> job_queue)
+    : thread_(std::move(thread)), job_queue_(std::move(job_queue)) {}
 
 JobThread::~JobThread() {
-  // TODO: There is a potential race condition here since job_queue_ can get
-  // reset if it's is stopped while this dtor is running. Thus, avoid stopping
-  // job_queue_ before JobThread is destructed.
-  if (job_queue_) {
-    job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
-  }
-  thread_->Join();
+  std::lock_guard lock(stop_mutex_);
+  SB_CHECK(stopped_)
+      << "JobThread::Stop() must be called before destruction (e.g. inside "
+         "dtor body) to ensure any running task is finished and all pending "
+         "tasks are cleared while the owner is still valid. See "
+         "http://b/477902972#comment7";
 }
 
-void JobThread::RunLoop() {
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+void JobThread::Stop() {
+  SB_CHECK(!job_queue_->BelongsToCurrentThread())
+      << "Stop() should not be called from the worker thread itself. This "
+         "would result in a deadlock during Join().";
 
-  job_queue_->RunUntilStopped();
-  // TODO: Investigate removing this line to avoid the race condition in the
-  // dtor.
-  job_queue_.reset();
+  // Use a mutex to ensure that if multiple threads call Stop() (e.g. one
+  // explicitly and one via the destructor), they all wait until the join
+  // is actually complete.
+  std::lock_guard lock(stop_mutex_);
+  if (stopped_) {
+    return;
+  }
+  stopped_ = true;
+
+  job_queue_->StopSoon();
+  thread_->Join();
 }
 
 }  // namespace starboard

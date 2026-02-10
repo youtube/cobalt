@@ -1,83 +1,117 @@
 name: Set Up Depot Tools
-description: Sets up Depot Tools and initializes gclient. Requires source code to be cloned to src/ directory.
+description: Sets up Depot Tools and initializes gclient. Optionally performs checkout and uses git cache.
+
 inputs:
   run_sync:
     description: Whether or not to run gclient sync.
     default: 'true'
-  use_cache:
-    description: Whether or not to use runner cache.
-    default: 'true'
   rbe_instance:
     description: The RBE instance to use.
     default: projects/cobalt-actions-prod/instances/default_instance
+  use_cache:
+    description: Whether or not to use runner cache.
+    default: 'true'
 
 runs:
   using: "composite"
   steps:
-      - name: Clear Cache and Clone Depot Tools
-        if: inputs.use_cache != 'true'
-        run: |
-          rm -rf /runner-cache/depot_tools /runner-cache/cobalt/.cipd_cache
-          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /runner-cache/depot_tools
-          git -C /runner-cache/cobalt/src clean -ffdx
-        shell: bash
+    - name: Set Cache Path
+      id: cache-path
+      shell: bash
+      env:
+        USE_CACHE: ${{ inputs.use_cache }}
+      run: |
+        if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
+          echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
+        else
+          echo "path=" >> ${GITHUB_OUTPUT}
+        fi
 
-      - name: Reset Cached Depot Tools
-        if: inputs.use_cache == 'true'
-        run: git -C /runner-cache/depot_tools reset --hard origin/main
-        shell: bash
+    - name: Clone Depot Tools
+      uses: ./.github/actions/checkout
+      with:
+        repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        ref: main
+        fetch_depth: 0
+        path: depot_tools
+        use_cache: ${{ inputs.use_cache }}
 
-      - name: Add Depot Tools to PATH
-        run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
-        shell: bash
+    - name: Add Depot Tools to PATH
+      run: echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+      shell: bash
 
-      - name: Bootstrap Bundled python3
-        run: |
-          # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-          source /runner-cache/depot_tools/bootstrap_python3 && bootstrap_python3
-        shell: bash
+    - name: Set CIPD Cache Directory
+      if: steps.cache-path.outputs.path != ''
+      run: echo "CIPD_CACHE_DIR=${{ steps.cache-path.outputs.path }}/cipd-cache" >> ${GITHUB_ENV}
+      shell: bash
 
-      - name: Disable Chromium client side build telemetry
-        run: build_telemetry opt-out
-        shell: bash
+    - name: Bootstrap Bundled python3
+      run: |
+        # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
+        source ${GITHUB_WORKSPACE}/depot_tools/bootstrap_python3 && bootstrap_python3
+      shell: bash
 
-      - name: Run gclient config
-        run: |
-          cd cobalt
-          gclient config \
-            --name=src \
-            --custom-var=download_remoteexec_cfg=True \
-            --custom-var='rbe_instance="${{ inputs.rbe_instance }}"' \
-            https://github.com/${{ github.repository }}
-        shell: bash
+    - name: Disable Chromium client side build telemetry
+      run: build_telemetry opt-out
+      shell: bash
 
-      - name: Set target OS for Android
-        if: contains(matrix.platform, 'android')
-        run: |
-          cd cobalt
-          echo "target_os=['android']" >> .gclient
-          gclient validate
-        shell: bash
+    - name: Run gclient config
+      env:
+        RBE_INSTANCE: ${{ inputs.rbe_instance }}
+        REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+      run: |
+        set -x
+        cd cobalt
 
-      - name: Run gclient sync
-        if: inputs.run_sync == 'true'
-        run: |
-          cd cobalt
-          gclient sync \
-            --verbose \
-            --shallow \
-            --no-history \
-            --nohooks \
-            --force \
-            --delete_unversioned_trees \
-            --revision ${{ github.sha }}
-        shell: bash
+        CACHE_ARG=()
+        if [[ -n "${CACHE_PATH}" ]]; then
+          CACHE_ARG=(--cache-dir="${CACHE_PATH}"/git-cache)
+        fi
 
-      - name: Run gclient runhooks
-        if: inputs.run_sync == 'true'
-        env:
-          CIPD_CACHE_DIR: "/runner-cache/cobalt/.cipd_cache"
-        run: |
-          cd cobalt
-          gclient runhooks --verbose
-        shell: bash
+        gclient config \
+          --name=src \
+          "${CACHE_ARG[@]}" \
+          --custom-var=download_remoteexec_cfg=True \
+          --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+          "${REPOSITORY}"
+      shell: bash
+
+    - name: Set target OS for Android
+      if: contains(matrix.platform, 'android')
+      run: |
+        cd cobalt
+        echo "target_os=['android']" >> .gclient
+        gclient validate
+      shell: bash
+
+    - name: Set target OS for tvOS
+      if: contains(matrix.platform, 'tvos')
+      run: |
+        cd cobalt
+        echo "target_os=['ios']" >> .gclient
+        gclient validate
+      shell: bash
+
+    - name: Run gclient sync
+      if: inputs.run_sync == 'true'
+      env:
+        REF: ${{ github.sha }}
+      run: |
+        cd cobalt
+        gclient sync \
+          --verbose \
+          --shallow \
+          --no-history \
+          --nohooks \
+          --force \
+          --delete_unversioned_trees \
+          --revision "${REF}"
+      shell: bash
+
+    - name: Run gclient runhooks
+      if: inputs.run_sync == 'true'
+      run: |
+        cd cobalt
+        gclient runhooks --verbose
+      shell: bash

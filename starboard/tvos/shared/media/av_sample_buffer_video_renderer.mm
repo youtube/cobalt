@@ -18,6 +18,7 @@
 #import <UIKit/UIKit.h>
 #include <libkern/OSByteOrder.h>
 
+#include "base/apple/foundation_util.h"
 #import "starboard/tvos/shared/defines.h"
 #include "starboard/tvos/shared/media/avutil/utils.h"
 #import "starboard/tvos/shared/media/player_manager.h"
@@ -129,17 +130,21 @@ const size_t kCachedFramesHighWatermark = 40;
 const int kRequiredBuffersInDisplayLayer = 16;
 
 UIWindow* GetPlatformWindow() {
-  SB_CHECK(!UIApplication.sharedApplication.supportsMultipleScenes);
-  UIWindowScene* scene = reinterpret_cast<UIWindowScene*>(
-      UIApplication.sharedApplication.connectedScenes.anyObject);
+  NSSet<UIScene*>* connected_scenes =
+      UIApplication.sharedApplication.connectedScenes;
+  SB_CHECK_EQ(connected_scenes.count, 1U);
+  UIWindowScene* scene =
+      base::apple::ObjCCastStrict<UIWindowScene>(connected_scenes.anyObject);
   return scene.keyWindow;
 }
 
 }  // namespace
 
-AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
+AVSBVideoRenderer::AVSBVideoRenderer(JobQueue* job_queue,
+                                     const VideoStreamInfo& video_stream_info,
                                      SbDrmSystem drm_system)
-    : video_stream_info_(video_stream_info),
+    : JobOwner(job_queue),
+      video_stream_info_(video_stream_info),
       sample_buffer_builder_(
           AVVideoSampleBufferBuilder::CreateBuilder(video_stream_info)) {
   if (drm_system && DrmSystemPlatform::IsSupported(drm_system)) {
@@ -153,8 +158,7 @@ AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
     display_layer_.videoGravity = AVLayerVideoGravityResizeAspect;
 
     id<SBDStarboardApplication> application = SBDGetApplication();
-    SBDWindowManager* windowManager = application.windowManager;
-    [windowManager.currentApplicationWindow attachPlayerView:display_view_];
+    [application attachPlayerView:display_view_];
   });
 
   ObserverRegistry::RegisterObserver(&observer_);

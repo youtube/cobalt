@@ -61,10 +61,6 @@ using features::FeatureList;
 // TODO: Allow this to be configured per playback at run time from the web app.
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
-// Forces video surface to reset after tunnel mode playbacks. This prevents
-// video distortion on some platforms.
-constexpr bool kForceResetSurfaceUnderTunnelMode = true;
-
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
@@ -196,10 +192,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
-    auto audio_renderer = std::make_unique<AudioRendererPassthrough>(
+    auto audio_renderer = AudioRendererPassthrough::Create(
+        creation_parameters.job_queue(),
         creation_parameters.audio_stream_info(),
         creation_parameters.drm_system(), enable_flush_during_seek);
-    if (!audio_renderer->is_valid()) {
+    if (!audio_renderer) {
       return Failure("Failed to create audio renderer.");
     }
 
@@ -221,9 +218,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       if (video_decoder) {
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
-        auto media_time_provider = audio_renderer.get();
+        auto media_time_provider = audio_renderer.value().get();
 
         video_renderer = std::make_unique<VideoRendererImpl>(
+            creation_parameters.job_queue(),
             std::unique_ptr<VideoDecoder>(std::move(video_decoder.value())),
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
@@ -233,7 +231,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
     return std::make_unique<PlayerComponentsPassthrough>(
-        std::move(audio_renderer), std::move(video_renderer));
+        std::move(audio_renderer.value()), std::move(video_renderer));
   }
 
   Result<MediaComponents> CreateSubComponents(
@@ -311,10 +309,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (tunnel_mode_audio_session_id == -1) {
       SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
     } else {
-      SB_LOG_IF(INFO, !kForceResetSurfaceUnderTunnelMode)
-          << "`kForceResetSurfaceUnderTunnelMode` is set to false, the video "
-             "surface will not be forced to reset after "
-             "tunneled playback.";
       SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
                    << tunnel_mode_audio_session_id << '.';
     }
@@ -332,6 +326,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << " audio decoder during Reset().";
 
     MediaComponents components;
+    JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       const bool enable_platform_opus_decoder =
@@ -340,7 +335,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
       auto decoder_creator =
-          [enable_flush_during_seek, enable_platform_opus_decoder](
+          [enable_flush_during_seek, enable_platform_opus_decoder, job_queue](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         bool use_libopus_decoder =
@@ -348,16 +343,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             !SbDrmSystemIsValid(drm_system) && !enable_platform_opus_decoder;
         if (use_libopus_decoder) {
           auto audio_decoder_impl =
-              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl;
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          auto audio_decoder_impl = std::make_unique<MediaCodecAudioDecoder>(
-              audio_stream_info, drm_system, enable_flush_during_seek);
-          if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl;
+          auto audio_decoder_impl = MediaCodecAudioDecoder::Create(
+              job_queue, audio_stream_info, drm_system,
+              enable_flush_during_seek);
+          if (audio_decoder_impl) {
+            return std::move(audio_decoder_impl.value());
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
@@ -367,7 +363,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       };
 
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
-          creation_parameters.audio_stream_info(),
+          job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
           enable_reset_audio_decoder);
 
@@ -479,26 +475,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    std::string error_message;
-    auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
+    auto result = MediaCodecVideoDecoder::Create(
+        creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        force_reset_surface, kForceResetSurfaceUnderTunnelMode,
-        force_big_endian_hdr_metadata, max_video_input_size,
-        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        &error_message);
-    if (!error_message.empty()) {
-      return Failure(error_message);
+        force_reset_surface, force_big_endian_hdr_metadata,
+        max_video_input_size, creation_parameters.surface_view(),
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec);
+    if (!result) {
+      return Failure(result.error());
     }
-    if (creation_parameters.video_codec() != kSbMediaVideoCodecAv1 &&
-        !video_decoder->is_decoder_created()) {
-      return Failure(
-          "Video decoder was not created, but no error message was provided.");
-    }
-    return video_decoder;
+
+    return result;
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,

@@ -22,6 +22,7 @@
 #include "base/containers/adapters.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
@@ -54,8 +55,8 @@ std::string GetApplicationKey(const GURL& url) {
 }
 
 std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
-  constexpr char kRecordHeader[] = "SAV1";
-  constexpr size_t kRecordHeaderSize = 4;
+  constexpr std::string_view kRecordHeader = "SAV1";
+  constexpr size_t kRecordHeaderSize = kRecordHeader.size();
 
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
@@ -78,29 +79,30 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     }
   }
 
-  if (record->GetSize() < static_cast<int64_t>(kRecordHeaderSize)) {
+  const auto record_size = record->GetSize();
+  if (record_size < base::checked_cast<int64_t>(kRecordHeaderSize)) {
     record->Delete();
     return nullptr;
   }
 
-  auto bytes = std::vector<uint8_t>(record->GetSize());
-  const int read_result =
-      record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+  auto bytes = std::vector<char>(base::checked_cast<size_t>(record_size));
+  const auto read_result = record->Read(bytes.data(), bytes.size());
+  static_assert(
+      std::is_same<decltype(read_result), decltype(record_size)>::value,
+      "StorageRecord::Read() and ::GetSize() return types should be the same.");
   record->Delete();
-  if (static_cast<size_t>(read_result) != bytes.size()) {
+  if (read_result < 0 || read_result != record_size) {
     return nullptr;
   }
 
-  std::string version(reinterpret_cast<const char*>(bytes.data()),
-                      kRecordHeaderSize);
+  const std::string_view version(bytes.data(), kRecordHeaderSize);
   if (version != kRecordHeader) {
     return nullptr;
   }
 
   auto storage = std::make_unique<cobalt::storage::Storage>();
-  if (!storage->ParseFromArray(
-          reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
-          bytes.size() - kRecordHeaderSize)) {
+  if (!storage->ParseFromArray(bytes.data() + kRecordHeaderSize,
+                               bytes.size() - kRecordHeaderSize)) {
     return nullptr;
   }
   return storage;
@@ -136,14 +138,23 @@ Task LogElapsedTimeTask() {
 }
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
 
-Task ReloadTask(content::WeakDocumentPtr weak_document_ptr) {
+Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
   return base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+      [](content::WeakDocumentPtr weak_document_ptr, const GURL& url,
          base::OnceClosure callback) {
-        RenderFrameHost(weak_document_ptr)->Reload();
+        auto* rfh = RenderFrameHost(weak_document_ptr);
+        content::WebContents* web_contents =
+            content::WebContents::FromRenderFrameHost(rfh);
+        if (web_contents) {
+          LOG(INFO) << "MigrationManager: Reloading URL: " << url.spec();
+          content::NavigationController::LoadURLParams params(url);
+          params.transition_type = ui::PageTransitionFromInt(
+              ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+          web_contents->GetController().LoadURLWithParams(params);
+        }
         std::move(callback).Run();
       },
-      weak_document_ptr);
+      weak_document_ptr, url);
 }
 
 base::FilePath GetOldCachePath() {
@@ -239,6 +250,7 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
+  GURL url = web_contents->GetLastCommittedURL();
   web_contents->Stop();
 
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
@@ -254,7 +266,7 @@ void MigrationManager::DoMigrationTasksOnce(
   tasks.push_back(LogElapsedTimeTask());
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(DeleteOldCacheDirectoryTask());
-  tasks.push_back(ReloadTask(weak_document_ptr));
+  tasks.push_back(ReloadTask(weak_document_ptr, url));
   std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
 }
 
@@ -337,7 +349,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
+        base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
         net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,

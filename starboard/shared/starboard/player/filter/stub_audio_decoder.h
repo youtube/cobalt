@@ -31,7 +31,8 @@ namespace starboard {
 
 class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit StubAudioDecoder(const AudioStreamInfo& audio_stream_info);
+  StubAudioDecoder(JobQueue* job_queue,
+                   const AudioStreamInfo& audio_stream_info);
   ~StubAudioDecoder() { Reset(); }
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;

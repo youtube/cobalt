@@ -150,6 +150,13 @@ if (is_ios && target_platform == "tvos") {
     }
     if (is_starboard) {
       deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    } else {
+      # Web test support only built for the linux-x64x11-no-starboard target.
+      deps += [
+        "//content/web_test:web_test_browser",
+        "//content/web_test:web_test_common",
+        "//content/web_test:web_test_renderer",
+      ]
     }
 
     data_deps = [
@@ -243,6 +250,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/cobalt_secure_navigation_throttle_unittest.cc",
+    "//cobalt/browser/cobalt_web_contents_observer_unittest.cc",
     "//cobalt/browser/command_line_logger_unittest.cc",
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",

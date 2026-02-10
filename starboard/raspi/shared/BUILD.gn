@@ -189,7 +189,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
     "//starboard/shared/stub/drm_update_server_certificate.cc",
     "//starboard/shared/stub/drm_update_session.cc",
-    "//starboard/shared/stub/media_is_supported.cc",
+    "//starboard/shared/stub/media_is_key_system_supported.cc",
     "//starboard/shared/stub/microphone_close.cc",
     "//starboard/shared/stub/microphone_create.cc",
     "//starboard/shared/stub/microphone_destroy.cc",
