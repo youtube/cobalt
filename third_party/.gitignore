@@ -52,7 +52,7 @@
 /asan
 /barhopper
 /bison
-/boringssl/src
+# /boringssl/src Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /bouncycastle/lib/
 /breakpad/breakpad
 /byte_buddy/android_sdk_build_tools_25_0_2
@@ -131,7 +131,7 @@
 /harfbuzz-ng/src
 /highway/src
 /hunspell_dictionaries
-/icu
+# /icu Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /icu4j/lib/
 /instrumented_libraries/scripts/*.tgz
 /instrumented_libraries/scripts/out/*
@@ -254,7 +254,7 @@
 /siso/siso
 /siso/siso.exe
 /siso/.versions
-/skia
+# /skia Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /smhasher/src
 /snappy/src
 /soda
