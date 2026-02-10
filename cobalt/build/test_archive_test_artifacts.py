@@ -129,9 +129,10 @@ class TestArchiveTestArtifacts(unittest.TestCase):
 
   @mock.patch('os.path.getsize', return_value=1024)
   @mock.patch('subprocess.check_call')
-  def test_create_archive_browsertests_redirection(  # pylint: disable=line-too-long
-      self, mock_call, unused_mock_getsize):
-    # Setup mock runtime_deps for another target to ensure it still runs if mixed
+  def test_create_archive_browsertests_redirection(self, mock_call,
+                                                   unused_mock_getsize):
+    # Setup mock runtime_deps for another target to ensure
+    # it still runs if mixed
     target_name = 'my_test'
     deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
     with open(deps_file, 'w', encoding='utf-8') as f:
