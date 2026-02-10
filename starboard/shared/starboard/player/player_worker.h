@@ -124,25 +124,27 @@ class PlayerWorker {
 
   void Seek(int64_t seek_to_time, int ticket) {
     job_thread_->Schedule(
-        std::bind(&PlayerWorker::DoSeek, this, seek_to_time, ticket));
+        [this, seek_to_time, ticket] { DoSeek(seek_to_time, ticket); });
   }
 
   void WriteSamples(InputBuffers input_buffers) {
-    job_thread_->Schedule(std::bind(&PlayerWorker::DoWriteSamples, this,
-                                    std::move(input_buffers)));
+    job_thread_->Schedule(
+        [this, input_buffers = std::move(input_buffers)]() mutable {
+          DoWriteSamples(std::move(input_buffers));
+        });
   }
 
   void WriteEndOfStream(SbMediaType sample_type) {
     job_thread_->Schedule(
-        std::bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
+        [this, sample_type] { DoWriteEndOfStream(sample_type); });
   }
 
   void SetBounds(Bounds bounds) {
-    job_thread_->Schedule(std::bind(&PlayerWorker::DoSetBounds, this, bounds));
+    job_thread_->Schedule([this, bounds] { DoSetBounds(bounds); });
   }
 
   void SetPause(bool pause) {
-    job_thread_->Schedule(std::bind(&PlayerWorker::DoSetPause, this, pause));
+    job_thread_->Schedule([this, pause] { DoSetPause(pause); });
   }
 
   void SetPlaybackRate(double playback_rate) {
@@ -159,11 +161,11 @@ class PlayerWorker {
       playback_rate = kMaximumPlaybackRate;
     }
     job_thread_->Schedule(
-        std::bind(&PlayerWorker::DoSetPlaybackRate, this, playback_rate));
+        [this, playback_rate] { DoSetPlaybackRate(playback_rate); });
   }
 
   void SetVolume(double volume) {
-    job_thread_->Schedule(std::bind(&PlayerWorker::DoSetVolume, this, volume));
+    job_thread_->Schedule([this, volume] { DoSetVolume(volume); });
   }
 
   SbDecodeTarget GetCurrentDecodeTarget() {
