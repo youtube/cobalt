@@ -54,6 +54,8 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.DISABLE_SPLASH_SCREEN, "true");
     javaSwitches.put(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN, "true");
     javaSwitches.put(JavaSwitches.NUM_RASTER_THREADS, "4");
+    javaSwitches.put(JavaSwitches.DISABLE_BRP, "true");
+    javaSwitches.put(JavaSwitches.ENABLE_BRP_RECLAIMER, "true");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
@@ -72,7 +74,9 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-splash-screen");
     assertThat(args).contains("--force-image-splash-screen");
     assertThat(args).contains("--num-raster-threads=4");
-    assertThat(args).hasSize(10);
+    assertThat(args).contains("--disable-features=PartitionAllocBackupRefPtr");
+    assertThat(args).contains("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+    assertThat(args).hasSize(12);
   }
 
   @Test
