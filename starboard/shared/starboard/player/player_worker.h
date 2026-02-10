@@ -25,12 +25,12 @@
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
-#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -123,26 +123,26 @@ class PlayerWorker {
   ~PlayerWorker();
 
   void Seek(int64_t seek_to_time, int ticket) {
-    job_queue_->Schedule(
+    job_thread_->Schedule(
         std::bind(&PlayerWorker::DoSeek, this, seek_to_time, ticket));
   }
 
   void WriteSamples(InputBuffers input_buffers) {
-    job_queue_->Schedule(std::bind(&PlayerWorker::DoWriteSamples, this,
-                                   std::move(input_buffers)));
+    job_thread_->Schedule(std::bind(&PlayerWorker::DoWriteSamples, this,
+                                    std::move(input_buffers)));
   }
 
   void WriteEndOfStream(SbMediaType sample_type) {
-    job_queue_->Schedule(
+    job_thread_->Schedule(
         std::bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
   }
 
   void SetBounds(Bounds bounds) {
-    job_queue_->Schedule(std::bind(&PlayerWorker::DoSetBounds, this, bounds));
+    job_thread_->Schedule(std::bind(&PlayerWorker::DoSetBounds, this, bounds));
   }
 
   void SetPause(bool pause) {
-    job_queue_->Schedule(std::bind(&PlayerWorker::DoSetPause, this, pause));
+    job_thread_->Schedule(std::bind(&PlayerWorker::DoSetPause, this, pause));
   }
 
   void SetPlaybackRate(double playback_rate) {
@@ -158,12 +158,12 @@ class PlayerWorker {
     } else if (playback_rate > kMaximumPlaybackRate) {
       playback_rate = kMaximumPlaybackRate;
     }
-    job_queue_->Schedule(
+    job_thread_->Schedule(
         std::bind(&PlayerWorker::DoSetPlaybackRate, this, playback_rate));
   }
 
   void SetVolume(double volume) {
-    job_queue_->Schedule(std::bind(&PlayerWorker::DoSetVolume, this, volume));
+    job_thread_->Schedule(std::bind(&PlayerWorker::DoSetVolume, this, volume));
   }
 
   SbDecodeTarget GetCurrentDecodeTarget() {
@@ -171,8 +171,6 @@ class PlayerWorker {
   }
 
  private:
-  class WorkerThread;
-
   PlayerWorker(SbMediaAudioCodec audio_codec,
                SbMediaVideoCodec video_codec,
                std::unique_ptr<Handler> handler,
@@ -194,7 +192,6 @@ class PlayerWorker {
                          Result<void> result,
                          const std::string& message);
 
-  void RunLoop();
   void DoInit();
   void DoSeek(int64_t seek_to_time, int ticket);
   void DoWriteSamples(InputBuffers input_buffers);
@@ -204,24 +201,26 @@ class PlayerWorker {
   void DoSetPause(bool pause);
   void DoSetPlaybackRate(double rate);
   void DoSetVolume(double volume);
-  void DoStop();
+  void DoDestroy();
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
-  std::unique_ptr<Thread> thread_;
-  std::unique_ptr<JobQueue> job_queue_;
+  const std::unique_ptr<JobThread> job_thread_;
 
-  SbMediaAudioCodec audio_codec_;
-  SbMediaVideoCodec video_codec_;
+  const SbMediaAudioCodec audio_codec_;
+  const SbMediaVideoCodec video_codec_;
+  // While |handler_| cannot be |const| because it is reset in the destructor,
+  // it remains unchanged after construction for the rest of the object's
+  // lifetime.
   std::unique_ptr<Handler> handler_;
-  UpdateMediaInfoCB update_media_info_cb_;
+  const UpdateMediaInfoCB update_media_info_cb_;
 
-  SbPlayerDecoderStatusFunc decoder_status_func_;
-  SbPlayerStatusFunc player_status_func_;
-  SbPlayerErrorFunc player_error_func_;
+  const SbPlayerDecoderStatusFunc decoder_status_func_;
+  const SbPlayerStatusFunc player_status_func_;
+  const SbPlayerErrorFunc player_error_func_;
   std::atomic_bool error_occurred_ = {false};
-  SbPlayer player_;
-  void* context_;
+  const SbPlayer player_;
+  void* const context_;
   int ticket_;
 
   SbPlayerState player_state_;
