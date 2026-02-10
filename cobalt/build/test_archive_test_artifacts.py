@@ -32,10 +32,21 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     os.chdir(self.old_cwd)
     shutil.rmtree(self.test_dir)
 
+  @mock.patch('tempfile.NamedTemporaryFile')
   @mock.patch('subprocess.check_call')
-  def test_make_tar(self, mock_call):
+  def test_make_tar(self, mock_call, mock_temp):
     archive_path = os.path.join(self.dest_dir, 'test.tar.gz')
-    file_lists = [(['file1', 'file2'], self.source_dir)]
+    file_lists = [
+        (['file2', 'file1'], self.source_dir),
+        (['file3'], self.out_dir),
+    ]
+
+    # Mock the temporary file objects
+    mock_file1 = mock.MagicMock()
+    mock_file1.name = '/tmp/fake_list1'
+    mock_file2 = mock.MagicMock()
+    mock_file2.name = '/tmp/fake_list2'
+    mock_temp.side_effect = [mock_file1, mock_file2]
 
     # Mock getsize to avoid error when checking created file
     with mock.patch('os.path.getsize', return_value=1024):
@@ -43,10 +54,10 @@ class TestArchiveTestArtifacts(unittest.TestCase):
       archive_test_artifacts._make_tar(archive_path, 'gz', 1, file_lists)
 
     self.assertTrue(mock_call.called)
-    tar_cmd = mock_call.call_args[0][0]
-    self.assertIn('tar', tar_cmd)
-    self.assertIn('-cvf', tar_cmd)
-    self.assertIn('gzip -1', tar_cmd)
+
+    # Verify file list content (sorted and newline-separated)
+    mock_file1.write.assert_called_with('file1\nfile2')
+    mock_file2.write.assert_called_with('file3')
 
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_linux_style(self, mock_make_tar):
