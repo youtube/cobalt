@@ -1,0 +1,70 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_cc_deps", "skia_filegroup", "split_srcs_and_hdrs")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+skia_filegroup(
+    name = "core_srcs",
+    srcs = [
+        "SkSLRasterPipelineBuilder.cpp",
+        "SkSLRasterPipelineCodeGenerator.cpp",
+        "SkSLVMCodeGenerator.cpp",
+    ],
+)
+
+# TODO(kjlubick) Could this be split up so we don't need to compile the SkSLMetalCodeGenerator
+# on platforms that don't support metal (e.g. WebGL, Linux)?
+GPU_SRCS = [
+    "SkSLCodeGenerator.h",
+    "SkSLGLSLCodeGenerator.cpp",
+    "SkSLGLSLCodeGenerator.h",
+    "SkSLMetalCodeGenerator.cpp",
+    "SkSLMetalCodeGenerator.h",
+    "SkSLPipelineStageCodeGenerator.cpp",
+    "SkSLPipelineStageCodeGenerator.h",
+    "SkSLSPIRVCodeGenerator.cpp",
+    "SkSLSPIRVCodeGenerator.h",
+    "SkSLSPIRVtoHLSL.cpp",
+    "SkSLSPIRVtoHLSL.h",
+    "SkSLWGSLCodeGenerator.cpp",
+    "SkSLWGSLCodeGenerator.h",
+]
+
+split_srcs_and_hdrs(
+    name = "gpu",
+    files = GPU_SRCS,
+)
+
+skia_filegroup(
+    name = "srcs",
+    srcs = [
+        ":core_srcs",
+    ] + select({
+        "//src/sksl:use_sksl_gpu_srcs": [":gpu_srcs"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//src/sksl:__pkg__"],
+)
+
+skia_filegroup(
+    name = "private_hdrs",
+    srcs = [
+        "SkSLRasterPipelineBuilder.h",
+        "SkSLRasterPipelineCodeGenerator.h",
+        "SkSLVMCodeGenerator.h",
+    ] + select({
+        "//src/sksl:use_sksl_gpu_srcs": [":gpu_hdrs"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//src/sksl:__pkg__"],
+)
+
+skia_cc_deps(
+    name = "deps",
+    visibility = ["//src/sksl:__pkg__"],
+    deps = select({
+        "//src/sksl:use_sksl_gpu_srcs": ["@spirv_cross"],
+        "//conditions:default": [],
+    }),
+)
