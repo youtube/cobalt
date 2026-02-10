@@ -128,6 +128,7 @@ ExperimentConfigManager::ExperimentConfigManager(
 
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   DCHECK(metrics_local_state_);
+  DCHECK(experiment_config_);
   DCHECK(!called_store_safe_config_);
 
   const base::Value::Dict& finch_params =
