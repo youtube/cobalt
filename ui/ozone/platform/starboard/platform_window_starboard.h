@@ -74,6 +74,9 @@ class PlatformWindowStarboard : public PlatformWindow,
   using WindowCreatedCallback = base::RepeatingCallback<void(SbWindow)>;
   static void SetWindowCreatedCallback(WindowCreatedCallback cb);
 
+  using WindowDestroyedCallback = base::RepeatingCallback<void(SbWindow)>;
+  static void SetWindowDestroyedCallback(WindowDestroyedCallback cb);
+
   // ui::PlatformEventObserverStarboard interface.
   void ProcessWindowSizeChangedEvent(int width, int height) override;
   void ProcessFocusEvent(bool is_focused) override;
@@ -90,8 +93,9 @@ class PlatformWindowStarboard : public PlatformWindow,
     kInactive,
   };
 
-  SbWindow sb_window_;
+  SbWindow sb_window_ = kSbWindowInvalid;
   bool use_native_frame_ = false;
+  bool widget_available_ = false;
   gfx::Rect bounds_;
   raw_ptr<PlatformWindowDelegate> delegate_ = nullptr;
   ui::PlatformWindowState window_state_ = ui::PlatformWindowState::kUnknown;

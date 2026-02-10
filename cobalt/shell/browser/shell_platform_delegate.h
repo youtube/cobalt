@@ -25,14 +25,15 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
-#if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
-namespace views {
-class ViewsDelegate;
-}
-#endif
-
 #if BUILDFLAG(IS_APPLE)
 #include "ui/display/screen.h"
+#endif
+
+#if defined(SHELL_USE_TOOLKIT_VIEWS)
+namespace views {
+class ViewsDelegate;
+class Widget;
+}  // namespace views
 #endif
 
 class GURL;
@@ -54,6 +55,18 @@ class ShellPlatformDelegate {
 
   // Helper for one time initialization of application.
   virtual void Initialize(const gfx::Size& default_window_size);
+
+  // Returns true if the application is in a visible state (Started or Blurred).
+  bool IsVisible() const;
+
+  // Lifecycle signals called from the application.
+  virtual void OnBlur();
+  virtual void OnFocus();
+  virtual void OnConceal();
+  virtual void OnReveal();
+  virtual void OnFreeze();
+  virtual void OnUnfreeze();
+  virtual void OnStop();
 
   // Called after creating a Shell instance, with its initial size.
   virtual void CreatePlatformWindow(Shell* shell,
@@ -157,6 +170,23 @@ class ShellPlatformDelegate {
 #endif
 
  protected:
+  // Internal work methods for state transitions. Overridden by platforms to
+  // perform window management.
+  virtual void DoBlur();
+  virtual void DoFocus();
+  virtual void DoConceal();
+  virtual void DoReveal();
+  virtual void DoFreeze();
+  virtual void DoUnfreeze();
+  virtual void DoStop();
+
+  void UpdateWebContentsVisibility(bool visible);
+  void UpdateWebContentsFrozen(bool frozen);
+
+  // Returns true if the application is in a non-visible state (Concealed,
+  // Frozen, or Stopped).
+  bool IsConcealed() const;
+
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
   // Allows the test subclasses to override the ViewsDelegate.
   virtual std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate();
@@ -185,6 +215,20 @@ class ShellPlatformDelegate {
   // implementation.
   struct PlatformData;
   std::unique_ptr<PlatformData> platform_;
+
+  enum ApplicationState {
+    kApplicationStateStarted = 1,
+    kApplicationStateBlurred = 2,
+    kApplicationStateConcealed = 3,
+    kApplicationStateFrozen = 4,
+    kApplicationStateStopped = 5,
+  };
+
+  void TransitionToState(ApplicationState state);
+
+  void RevealShell(Shell* shell);
+
+  ApplicationState application_state_ = kApplicationStateFrozen;
 
   bool skip_for_testing_ = false;
 };
