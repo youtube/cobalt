@@ -87,6 +87,10 @@ public abstract class CobaltActivity extends Activity {
   // How many seconds before the app exits if it fails to land YouTube home page.
   private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 60;
 
+  // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
+  // logic will be activated for a given session.
+  private static final double STARTUP_GUARD_PROBABILITY = 0.25;
+
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
@@ -388,8 +392,8 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
-    // Use a random check to run the StartupGuard logic only 25% of the time
-    if (Math.random() < 0.25) {
+    // Use a random check to run the StartupGuard logic only a certain percentage of the time.
+    if (Math.random() < STARTUP_GUARD_PROBABILITY) {
       if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
         Log.i(TAG, "StartupGuard is disabled by Java switch.");
       } else {
