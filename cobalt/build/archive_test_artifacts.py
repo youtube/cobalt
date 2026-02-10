@@ -66,6 +66,25 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
   print(f'Created {os.path.basename(archive_path)} ({archive_size})')
 
 
+def _handle_browsertests(
+    source_dir: str,
+    out_dir: str,
+    destination_dir: str,
+    compression: str,
+):
+  # Handle cobalt_browsertests using the specialized script.
+  collect_script = os.path.join(source_dir, 'cobalt', 'testing',
+                                'browser_tests', 'tools',
+                                'collect_test_artifacts.py')
+  output_name = f'cobalt_browsertests_artifacts.tar.{compression}'
+  cmd = [
+      sys.executable, collect_script, out_dir, '-o', output_name,
+      '--output_dir', destination_dir, '--compression', compression
+  ]
+  print(f"Running: {' '.join(cmd)}")
+  subprocess.check_call(cmd)
+
+
 def create_archive(
     *,
     targets: List[str],
@@ -79,28 +98,14 @@ def create_archive(
     flatten_deps: bool,
 ):
   """Main logic. Collects runtime dependencies for each target."""
-  # Handle cobalt_browsertests using the specialized script.
-  browsertests_target = next(
-      (t for t in targets if t.endswith(':cobalt_browsertests')), None)
-  if browsertests_target:
-    print(f'Detected {browsertests_target}. Using specialized collector.')
-    collect_script = os.path.join(source_dir, 'cobalt', 'testing',
-                                  'browser_tests', 'tools',
-                                  'collect_test_artifacts.py')
-    output_name = f'cobalt_browsertests_artifacts.tar.{compression}'
-    cmd = [
-        sys.executable, collect_script, out_dir, '-o', output_name,
-        '--output_dir', destination_dir, '--compression', compression
-    ]
-    print(f"Running: {' '.join(cmd)}")
-    subprocess.check_call(cmd)
-    # If this was the only target, we are done.
-    if len(targets) == 1:
-      return
-
   combined_deps = set()
   for target in targets:
+    # TODO(b/483460300): Unify unittest and browsertest packaging
     if target.endswith(':cobalt_browsertests'):
+      _handle_browsertests(source_dir, out_dir, destination_dir, compression)
+      # If this was the only target, we are done.
+      if len(targets) == 1:
+        return
       continue
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
