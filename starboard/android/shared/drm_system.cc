@@ -92,9 +92,9 @@ DrmSystem::DrmSystem(
                              : nullptr) {
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
-  media_drm_bridge_ = MediaDrmBridge::Create(
-      base::raw_ref<MediaDrmBridge::Host>(*this), key_system_,
-      enable_app_provisioning_);
+  media_drm_bridge_ =
+      MediaDrmBridge::Create(base::raw_ref<MediaDrmBridge::Host>(*this),
+                             key_system_, enable_app_provisioning_);
   if (!media_drm_bridge_) {
     return;
   }
