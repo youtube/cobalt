@@ -91,7 +91,8 @@ class MEDIA_EXPORT CobaltAudioRendererSink final : public AudioRendererSink {
   std::atomic<bool> is_playing_ = false;
   std::atomic<bool> is_eos_reached_ = false;
 
-  std::unique_ptr<SbAudioSink, SbAudioSinkDeleter> audio_sink_;
+  using AudioSinkUniquePtr = std::unique_ptr<SbAudioSink, SbAudioSinkDeleter>;
+  AudioSinkUniquePtr audio_sink_;
 
   double resample_ratio_ = 1.0;
   std::unique_ptr<MultiChannelResampler> resampler_ = nullptr;

@@ -84,13 +84,11 @@ void CobaltAudioRendererSink::Start() {
   }
 
   output_frame_buffers_[0] = output_frame_buffer_.get();
-  audio_sink_ =
-      std::unique_ptr<SbAudioSink, SbAudioSinkDeleter>(SbAudioSinkCreate(
-          params_.channels(), nearest_supported_sample_rate_,
-          output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
-          &output_frame_buffers_[0], frames_per_channel_,
-          &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-          &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
+  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
+      params_.channels(), nearest_supported_sample_rate_, output_sample_type_,
+      kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
+      frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
+      &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
   CHECK(audio_sink_);
 }
 
@@ -117,14 +115,13 @@ void CobaltAudioRendererSink::Flush() {
   audio_sink_.reset();
   frames_rendered_ = 0;
   frames_consumed_ = 0;
-  audio_sink_ =
-      std::unique_ptr<SbAudioSink, SbAudioSinkDeleter>(SbAudioSinkCreate(
-          params_.channels(),
-          SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()),
-          output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
-          &output_frame_buffers_[0], frames_per_channel_,
-          &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-          &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
+  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
+      params_.channels(),
+      SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()),
+      output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
+      &output_frame_buffers_[0], frames_per_channel_,
+      &CobaltAudioRendererSink::UpdateSourceStatusFunc,
+      &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
   CHECK(audio_sink_);
 }
 
