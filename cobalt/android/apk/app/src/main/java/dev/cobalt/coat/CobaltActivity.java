@@ -388,10 +388,15 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
-    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
-      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+    // Use a random check to run the StartupGuard logic only 25% of the time
+    if (Math.random() < 0.25) {
+      if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+        Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      } else {
+        StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
+      }
     } else {
-      StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
+      Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
     }
 
     createContent(savedInstanceState);
