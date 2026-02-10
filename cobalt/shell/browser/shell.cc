@@ -61,6 +61,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "media/media_buildflags.h"
+#include "net/base/url_util.h"
 #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
@@ -139,11 +140,13 @@ base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
              std::unique_ptr<WebContents> splash_screen_web_contents,
              bool should_set_delegate,
+             const std::string& topic,
              bool skip_for_testing)
     : WebContentsObserver(web_contents.get()),
       web_contents_(std::move(web_contents)),
       splash_screen_web_contents_(std::move(splash_screen_web_contents)),
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
+      splash_topic_(topic),
       skip_for_testing_(skip_for_testing) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
@@ -246,10 +249,11 @@ Shell* Shell::CreateShell(
     std::unique_ptr<WebContents> web_contents,
     std::unique_ptr<WebContents> splash_screen_web_contents,
     const gfx::Size& initial_size,
-    bool should_set_delegate) {
+    bool should_set_delegate,
+    const std::string& topic) {
   Shell* shell =
       new Shell(std::move(web_contents), std::move(splash_screen_web_contents),
-                should_set_delegate);
+                should_set_delegate, topic);
   GetPlatform()->CreatePlatformWindow(shell, initial_size);
   FinishShellInitialization(shell);
   return shell;
@@ -340,7 +344,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const GURL& url,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size,
-                              const bool create_splash_screen_web_contents) {
+                              const bool create_splash_screen_web_contents,
+                              const std::string& topic) {
 #if BUILDFLAG(IS_ANDROIDTV)
   if (create_splash_screen_web_contents) {
     starboard::android::shared::StarboardBridge::GetInstance()
@@ -370,7 +375,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   }
   Shell* shell = CreateShell(
       std::move(web_contents), std::move(splash_screen_web_contents),
-      AdjustWindowSize(initial_size), true /* should_set_delegate */);
+      AdjustWindowSize(initial_size), true /* should_set_delegate */, topic);
 
   if (!url.is_empty()) {
     shell->LoadURL(url);
@@ -502,6 +507,10 @@ void Shell::LoadSplashScreenWebContents() {
     if (command_line->HasSwitch(switches::kForceImageSplashScreen)) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    }
+    if (!splash_topic_.empty()) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
     }
     NavigationController::LoadURLParams params(splash_screen_url);
     params.frame_name = std::string();

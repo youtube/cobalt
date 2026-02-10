@@ -64,12 +64,14 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 }
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
-                                  const JavaParamRef<jstring>& jurl) {
+                                  const JavaParamRef<jstring>& jurl,
+                                  const JavaParamRef<jstring>& jtopic) {
   ShellBrowserContext* browserContext =
       ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
+  std::string topic = base::android::ConvertJavaStringToUTF8(env, jtopic);
   Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
-                         switches::ShouldCreateSplashScreen());
+                         switches::ShouldCreateSplashScreen(), topic);
 }
 
 void DestroyShellManager() {

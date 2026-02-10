@@ -212,23 +212,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LoaderEmbeddedResources::GenerateMap(resource_map);
     }
 
-    // Specify the built-in video if the cache is unavailable.
-    // Only for webm.
-    // TODO(458074360): Add fallback to static image if the device does
-    // not support VP9.
-    std::string fallback;
-    if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
-        (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE))) {
-      LOG(INFO) << "Fallback splash: " << fallback;
-      resource_key = std::move(fallback);
-    }
-
-    if (resource_map.find(resource_key) != resource_map.end()) {
-      FileContents file_contents = resource_map[resource_key];
-      content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
-                             file_contents.size);
-    }
-
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeTextHtml;
@@ -237,9 +220,25 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeVideoWebM;
     }
-
     bool is_cacheable_type =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
+
+    // Specify the built-in video/png if the cache is unavailable.
+    std::string fallback;
+    if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
+        is_cacheable_type) {
+      LOG(INFO) << "Fallback splash: " << fallback;
+      resource_key = std::move(fallback);
+    }
+
+    if (resource_map.find(resource_key) != resource_map.end()) {
+      FileContents file_contents = resource_map[resource_key];
+      content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
+                             file_contents.size);
+    } else {
+      LOG(WARNING) << "Resource not found: " << resource_key;
+    }
+
     if (is_cacheable_type && browser_context_) {
       ReadSplashCache(key);
       return;
