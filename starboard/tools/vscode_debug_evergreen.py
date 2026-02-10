@@ -39,6 +39,7 @@ To use it, add the following to your .vscode/launch.json:
 """
 
 import gdb
+import shlex
 
 
 class LoadEvergreenLibrary(gdb.Breakpoint):
@@ -70,15 +71,17 @@ class LoadEvergreenLibrary(gdb.Breakpoint):
       # Construct and execute the add-symbol-file command
       # The -o option offsets all sections by the base address, which matches
       # how the ELF loader maps the segments (assuming 0-based ELF segments).
-      cmd = f"add-symbol-file {file_path} -o {hex(base_addr)}"
+      cmd = f"add-symbol-file {shlex.quote(file_path)} -o {hex(base_addr)}"
 
       # We use from_tty=False to avoid "add symbol table from file? (y or n)"
       # prompts but add-symbol-file might still prompt.
       # To suppress confirmation, we can use "noconfirm" if available or
       # set confirm off temporarily.
       gdb.execute("set confirm off")
-      gdb.execute(cmd)
-      gdb.execute("set confirm on")
+      try:
+        gdb.execute(cmd)
+      finally:
+        gdb.execute("set confirm on")
 
       print("[Evergreen Loader Hook] Symbols loaded successfully.")
 
