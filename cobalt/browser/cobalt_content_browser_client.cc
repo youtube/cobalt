@@ -155,8 +155,9 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient()
-    : video_geometry_setter_service_(
+CobaltContentBrowserClient::CobaltContentBrowserClient(bool is_visible)
+    : is_visible_(is_visible),
+      video_geometry_setter_service_(
           std::unique_ptr<cobalt::media::VideoGeometrySetterService,
                           base::OnTaskRunnerDeleter>(
               nullptr,
@@ -186,7 +187,8 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
+  auto browser_main_parts =
+      std::make_unique<CobaltBrowserMainParts>(is_visible_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }

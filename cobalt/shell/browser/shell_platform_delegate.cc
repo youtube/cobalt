@@ -21,6 +21,20 @@
 
 namespace content {
 
+bool ShellPlatformDelegate::IsVisible() const {
+  return is_visible_;
+}
+
+void ShellPlatformDelegate::OnReveal() {
+  if (is_visible_) {
+    return;
+  }
+  is_visible_ = true;
+  for (auto* shell : Shell::windows()) {
+    RevealShell(shell);
+    shell->web_contents()->WasShown();
+  }
+}
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {}
