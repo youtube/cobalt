@@ -405,7 +405,6 @@ jobs:
         uses: ./.github/actions/e2e_tests
         with:
           e2e_test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
-          test_attempts: '${{ needs.initialize.outputs.e2e_test_attempts }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
 
