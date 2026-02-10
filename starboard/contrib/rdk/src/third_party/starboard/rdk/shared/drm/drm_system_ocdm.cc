@@ -60,9 +60,13 @@ using OcdmGstSessionDecryptBufferFn =
 using OcdmGetMetricSystemDataFn =
   OpenCDMError(*)(struct OpenCDMSystem* system, uint32_t* bufferLength, uint8_t* buffer);
 
+using OcdmGetMetricsFn =
+  OpenCDMError(*)(struct OpenCDMSystem* system, std::string& buffer);
+
 static OcdmGstSessionDecryptExFn g_ocdmGstSessionDecryptEx { nullptr };
 static OcdmGstSessionDecryptBufferFn g_ocdmGstSessionDecryptBuffer { nullptr };
 static OcdmGetMetricSystemDataFn g_ocdmGetMetricSystemData { nullptr };
+static OcdmGetMetricsFn g_ocdmGetMetrics { nullptr };
 
 }  // namespace
 
@@ -552,6 +556,14 @@ DrmSystemOcdm::DrmSystemOcdm(
     } else {
       SB_LOG(INFO) << "No opencdm_get_metric_system_data.";
     }
+
+    g_ocdmGetMetrics = reinterpret_cast<OcdmGetMetricsFn>(
+        dlsym(RTLD_DEFAULT, "opencdm_get_metrics"));
+    if (g_ocdmGetMetrics) {
+      SB_LOG(INFO) << "Has opencdm_get_metrics";
+    } else {
+      SB_LOG(INFO) << "No opencdm_get_metrics.";
+    }
   });
 }
 
@@ -761,13 +773,14 @@ int DrmSystemOcdm::Decrypt(const std::string& id,
 }
 
 const void* DrmSystemOcdm::GetMetrics(int* size) {
-  if ( !g_ocdmGetMetricSystemData )
-    return nullptr;
 
   SB_CHECK(ocdm_system_ != nullptr);
 
   const int kMaxRetry = 5;
   for (int i = 0; i < kMaxRetry; ++i) {
+    if ( !g_ocdmGetMetricSystemData )
+      break;
+
     uint32_t buffer_length =  ( 1 << i ) * 4 * 1024;
 
     std::vector<uint8_t> tmp;
@@ -790,6 +803,24 @@ const void* DrmSystemOcdm::GetMetrics(int* size) {
     }
 
     break;
+  }
+
+  // Use `opencdm_get_metrics` when `opencdm_get_metric_system_data` fails to
+  // get mertics data. This is observed in RDK/Amlogic where
+  // `opencdm_get_metric_system_data` returns with error code
+  // `INTERFACE_NOT_IMPLEMENTED`.
+  if (g_ocdmGetMetrics && metrics_.size() == 0) {
+    std::string buffer;
+    auto rc = g_ocdmGetMetrics(ocdm_system_, buffer);
+    if (rc == ERROR_NONE) {
+      uint16_t buffer_length = buffer.size();
+      uint16_t out_length = (((buffer_length * 8) / 6) + 4) * sizeof(TCHAR);
+      metrics_.resize(out_length, '\0');
+      out_length = WPEFramework::Core::URL::Base64Encode(
+          reinterpret_cast<const uint8_t*>(buffer.data()), buffer_length,
+          reinterpret_cast<char*>(metrics_.data()), out_length, false);
+      metrics_.resize(out_length);
+    }
   }
 
   *size = static_cast<int>(metrics_.size());
