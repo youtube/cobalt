@@ -1,0 +1,83 @@
+--- ISSUE (26 times; 25 similar) across 10 tests ---
+   7   : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.SunnyDay
+>> 8   : [alsa_audio_out/693763:0918/195726.273334(UTC):ERROR:alsa_util.cc(126)] AlsaOpenPlaybackDevice: snd_pcm_open() failed with error Host is down (-112)
+>> 9   : [nplb_loader/693759:0918/195726.273503(UTC):ERROR:audio_sink_internal.cc(163)] Failed to create SbAudioSink from preferred type.
+>> 10  : [nplb_loader/693759:0918/195726.273568(UTC):WARNING:audio_sink_internal.cc(169)] Try to create AudioSink using fallback type.
+   11  : [0;32m[       OK ] [mSbAudioSinkCreateTest.SunnyDay (14 ms)
+
+Occurred in these tests: SbAudioSinkCreateTest.MultiSink (16 times similar), SbAudioSinkCreateTest.SunnyDay, SbAudioSinkCreateTest.SunnyDayAllCombinations (2 times similar), SbAudioSinkTest.AllFramesConsumed, SbAudioSinkTest.ContinuousAppend, SbAudioSinkTest.MultipleAppendAndConsume, SbAudioSinkTest.Pause, SbAudioSinkTest.SomeFramesConsumed, SbAudioSinkTest.Underflow, SbAudioSinkTest.UpdateStatusCalled
+--- WARNING ---
+   70  : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidChannels
+>> 71  : [nplb_loader/693759:0918/195726.411369(UTC):WARNING:audio_sink_internal.cc(113)] Invalid audio channels 0
+   72  : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidChannels (0 ms)
+--- WARNING (2 times; 1 similar) across 2 tests ---
+   73  : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidFrequency
+>> 74  : [nplb_loader/693759:0918/195726.411456(UTC):WARNING:audio_sink_internal.cc(118)] Invalid audio sampling frequency 0
+   75  : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidFrequency (0 ms)
+
+Occurred in these tests: SbAudioSinkCreateTest.RainyDayInvalidFrequency, SbAudioSinkGetNearestSupportedSampleFrequencyTest.ZeroFrequency
+--- WARNING ---
+   76  : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidSampleType
+>> 77  : [nplb_loader/693759:0918/195726.411545(UTC):WARNING:audio_sink_internal.cc(124)] Invalid audio sample type 0
+   78  : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidSampleType (0 ms)
+--- WARNING ---
+   79  : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameStorageType
+>> 80  : [nplb_loader/693759:0918/195726.411626(UTC):WARNING:audio_sink_internal.cc(129)] Invalid audio frame storage type 1
+   81  : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameStorageType (0 ms)
+--- WARNING ---
+   82  : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameBuffers
+>> 83  : [nplb_loader/693759:0918/195726.411708(UTC):WARNING:audio_sink_internal.cc(135)] Pointer to frame buffers cannot be NULL
+>> 84  : [nplb_loader/693759:0918/195726.411718(UTC):WARNING:audio_sink_internal.cc(140)] Invalid frame buffer size 0
+   85  : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidFrameBuffers (0 ms)
+--- WARNING ---
+   86  : [0;32m[ RUN      ] [mSbAudioSinkCreateTest.RainyDayInvalidCallback
+>> 87  : [nplb_loader/693759:0918/195726.411800(UTC):WARNING:audio_sink_internal.cc(146)] update_source_status_func cannot be NULL
+>> 88  : [nplb_loader/693759:0918/195726.411810(UTC):WARNING:audio_sink_internal.cc(151)] consume_frames_func cannot be NULL
+   89  : [0;32m[       OK ] [mSbAudioSinkCreateTest.RainyDayInvalidCallback (0 ms)
+--- WARNING ---
+   2534: [0;32m[ RUN      ] [mSbMediaCanPlayMimeAndKeySystem.Invalid
+>> 2535: [nplb_loader/693759:0918/195727.561597(UTC):WARNING:parsed_mime_info.cc(138)] Unknown eotf abc.
+   2536: [0;32m[       OK ] [mSbMediaCanPlayMimeAndKeySystem.Invalid (0 ms)
+--- WARNING ---
+   2574: [0;32m[ RUN      ] [mSbMediaCanPlayMimeAndKeySystem.FLAKY_ValidatePerformance
+   2575: [nplb_loader/693759:0918/195727.562492(UTC):INFO:media_can_play_mime_and_key_system_test.cc(933)] SbMediaCanPlayMimeAndKeySystem - Warmup queries measured duration 16us total across 9 calls.
+   2576: [nplb_loader/693759:0918/195727.562515(UTC):INFO:media_can_play_mime_and_key_system_test.cc(936)]   Measured duration 1.77778us average per call.
+>> 2577: [nplb_loader/693759:0918/195727.562605(UTC):WARNING:parsed_mime_info.cc(138)] Unknown eotf catavision.
+   2578: [nplb_loader/693759:0918/195727.562656(UTC):INFO:media_can_play_mime_and_key_system_test.cc(933)] SbMediaCanPlayMimeAndKeySystem - SDR queries measured duration 121us total across 38 calls.
+   2579: [nplb_loader/693759:0918/195727.562676(UTC):INFO:media_can_play_mime_and_key_system_test.cc(936)]   Measured duration 3.18421us average per call.
+   2580: [nplb_loader/693759:0918/195727.562964(UTC):INFO:media_can_play_mime_and_key_system_test.cc(933)] SbMediaCanPlayMimeAndKeySystem - HDR queries measured duration 269us total across 82 calls.
+         ... (9 lines skipped) ...
+   2590: [0;32m[       OK ] [mSbMediaCanPlayMimeAndKeySystem.FLAKY_ValidatePerformance (0 ms)
+--- CRASH ---
+   2605: [0;32m[ RUN      ] [mMultiplePlayerTest.SunnyDay
+   2606: ERR: Display.cpp:1023 (initialize): ANGLE Display::initialize error 12289: Failed to initialize system egl
+   2607: ERR: Display.cpp:1023 (initialize): ANGLE Display::initialize error 12289: Failed to initialize system egl
+>> 2608: [nplb_loader/693759:0918/195727.586725(UTC):FATAL:fake_graphics_context_provider.cc(239)] Check failed: 0x3000 == (SbGetEglInterface()-> eglGetError()) (12288 vs. 12289)
+>> 2609: 	starboard::testing::FakeGraphicsContextProvider::InitializeEGL() [0x7f4d4cb858eb]
+>> 2610: 	testing::internal::TestFactoryImpl<>::CreateTest() [0x7f4d4cbb4028]
+>> 2611: 	testing::TestInfo::Run() [0x7f4d4cd7b404]
+>> 2612: 	testing::TestSuite::Run() [0x7f4d4cd7be47]
+>> 2613: 	testing::internal::UnitTestImpl::RunAllTests() [0x7f4d4cd85787]
+>> 2614: 	testing::UnitTest::Run() [0x7f4d4cd852a2]
+>> 2615: 	SbEventHandle [0x7f4d4cb85687]
+>> 2616: 	starboard::shared::starboard::Application::HandleEventAndUpdateState() [0x7f4d4dce8d0e]
+>> 2617: 	starboard::shared::starboard::Application::DispatchAndDelete() [0x7f4d4dce8902]
+>> 2618: 	starboard::shared::starboard::Application::DispatchStart() [0x7f4d4dce83d6]
+>> 2619: 	starboard::shared::starboard::Application::RunLoop() [0x7f4d4dce7a10]
+>> 2620: 	starboard::shared::starboard::Application::Run() [0x7f4d4dce7d1a]
+>> 2621: 	SbRunStarboardMain [0x7f4d4db541e0]
+>> 2622: 	<unknown> [0x7f4d4d233ca8]
+>> 2623: 	__libc_start_main [0x7f4d4d233d65]
+>> 2624: 	<unknown> [0x5576fdacbe4a]
+   2625: 
+   2626: Caught signal: SIGABRT (6)
+>> 2627: 	<unknown> [0x7f4d4d249df0]
+>> 2628: 	<unknown> [0x7f4d4d29e95c]
+>> 2629: 	gsignal [0x7f4d4d249cc2]
+>> 2630: 	abort [0x7f4d4d2324ac]
+>> 2631: 	<unknown> [0x7f4d4db999d9]
+>> 2632: 	<unknown> [0x7f4d4cdb691c]
+         ... (lines 2633-2649 are a repeat of lines 2609-2625) ...
+   2650: RETURN_CODE: -6
+Full log saved to: agents/extensions/cobalt_builds/tests/run_nplb_example1.log
+Log analysis summary: Errors: 27, Warnings: 9
