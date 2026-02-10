@@ -93,6 +93,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'accept',
     'access',
     'aligned_alloc',
+    'asctime_r',
     'bind',
     'calloc',
     'chmod',

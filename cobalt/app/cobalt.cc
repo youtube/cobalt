@@ -37,6 +37,7 @@
 #include "cobalt/shell/browser/shell_paths.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
@@ -197,7 +198,6 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
-    case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
     case kSbEventTypeWindowSizeChanged:
       CHECK(g_platform_event_source);
@@ -206,6 +206,7 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
+      device::NotifyTimeZoneChangeStarboard();
       break;
   }
 }

@@ -124,6 +124,12 @@ The following were removed in favor of more modern POSIX APIs added above.
    from the name returned by `SbTimeZoneGetName`, using the zoneinfo
    that is in the included ICU data.
 
+### Introduces new system property kSbSystemPathFilesDirectory.
+
+Path to directory for permanent storage. Both read and write access are
+required. The path is used primarily for DOM localStorage and HTTP cookies
+persistence.
+
 ### Removed the following SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
@@ -132,6 +138,7 @@ The following were removed in favor of more modern POSIX APIs added above.
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
 * `kSbEventTypeOnScreenKeyboardBlurred`
+* `kSbEventTypeVerticalSync`
 
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
@@ -178,6 +185,9 @@ The existing code was migrated to C11 atomics.
 Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
 the global namespace into ::starboard::shared::starboard::media.
+
+### Updated `kSbEventTypeAccessibilityTextToSpeechSettingsChanged` SbEvent
+Now the data field of this SbEvent type is a boolean indicating if text-to-speech is enabled.
 
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
@@ -1329,9 +1339,3 @@ options have been left in Cobalt, though renamed to `cobalt_configuration.gypi`.
 
 Please see [contrib/README.md](contrib/README.md) for description of
 expectations for contents in this directory.
-
-### Introduces new system property kSbSystemPathFilesDirectory.
-
-Path to directory for permanent storage. Both read and write access are
-required. The path is used primarily for DOM localStorage and HTTP cookies
-persistance.

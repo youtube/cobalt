@@ -223,19 +223,25 @@ struct lconv* localeconv(void) {
   std::string numeric_locale = current_loc->categories[LC_NUMERIC];
   std::string monetary_locale = current_loc->categories[LC_MONETARY];
 
-  if ((numeric_locale == cobalt::kCLocale ||
-       numeric_locale == cobalt::kPosixLocale) &&
-      (monetary_locale == cobalt::kCLocale ||
-       monetary_locale == cobalt::kPosixLocale)) {
-    current_lconv->ResetToC();
-    return &(current_lconv->result);
+  bool is_c_or_posix_numeric_locale = (numeric_locale == cobalt::kCLocale ||
+                                       numeric_locale == cobalt::kPosixLocale);
+  if (is_c_or_posix_numeric_locale) {
+    current_lconv->ResetNumericToC();
+  } else if (!cobalt::UpdateNumericLconv(numeric_locale, current_lconv)) {
+    SB_LOG(WARNING)
+        << "Failed to retrieve lconv numeric values. Returning C values.";
+    current_lconv->ResetNumericToC();
   }
 
-  if (!cobalt::UpdateNumericLconv(numeric_locale, current_lconv) ||
-      !cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv)) {
-    SB_LOG(WARNING) << "Failed to properly retrieve the updated lconv struct. "
-                       "Returning the C lconv.";
-    current_lconv->ResetToC();
+  bool is_c_or_posix_monetary_locale =
+      (monetary_locale == cobalt::kCLocale ||
+       monetary_locale == cobalt::kPosixLocale);
+  if (is_c_or_posix_monetary_locale) {
+    current_lconv->ResetMonetaryToC();
+  } else if (!cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv)) {
+    SB_LOG(WARNING)
+        << "Failed to retrieve lconv monetary values. Returning C values.";
+    current_lconv->ResetMonetaryToC();
   }
 
   return &(current_lconv->result);
@@ -257,21 +263,18 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
 
   std::string& langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
-    // TODO: b/466160361 - Add remaining support for D_FMT* operations.
     // Date and time formats
     case D_T_FMT:
-      return const_cast<char*>("%a %b %e %H:%M:%S %Y");
     case D_FMT:
-      return const_cast<char*>("%m/%d/%y");
     case T_FMT:
-      return const_cast<char*>("%H:%M:%S");
     case T_FMT_AMPM:
-      return const_cast<char*>("%I:%M:%S %p");
+      langinfo_buffer =
+          cobalt::GetPosixPattern(cur_locale->categories[LC_TIME], item);
+      break;
     case AM_STR:
     case PM_STR:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
-          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAmPm,
-          item - AM_STR);
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAmPm, item);
       break;
 
     // Days
@@ -283,8 +286,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case DAY_6:
     case DAY_7:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
-          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kDay,
-          item - DAY_1);
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kDay, item);
       break;
 
     // Abbreviated days
@@ -297,7 +299,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ABDAY_7:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
           cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevDay,
-          item - ABDAY_1);
+          item);
       break;
 
     // Months
@@ -314,8 +316,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case MON_11:
     case MON_12:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
-          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kMonth,
-          item - MON_1);
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kMonth, item);
       break;
 
     // Abbreviated months
@@ -333,7 +334,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ABMON_12:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(
           cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevMonth,
-          item - ABMON_1);
+          item);
       break;
     case RADIXCHAR:
     case THOUSEP:
