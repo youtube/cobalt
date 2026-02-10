@@ -117,7 +117,7 @@ public class JavaSwitches {
           "--num-raster-threads="
               + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
     }
-    
+
     // BRP settings
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
       extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
