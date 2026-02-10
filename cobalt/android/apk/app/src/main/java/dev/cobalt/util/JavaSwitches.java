@@ -59,6 +59,9 @@ public class JavaSwitches {
   /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
   public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
 
+  /** flag to enable SkiaFontCache */
+  public static final String SKIA_FONT_CACHE = "SkiaFontCache";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -122,8 +125,12 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
       extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
     }
-    if(javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
       extraCommandLineArgs.add("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
+      extraCommandLineArgs.add("--enable-features=SkiaFontCache");
     }
 
     return extraCommandLineArgs;

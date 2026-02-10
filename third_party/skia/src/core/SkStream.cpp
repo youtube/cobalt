@@ -372,7 +372,7 @@ bool SkMemoryStream::rewind() {
 }
 
 SkMemoryStream* SkMemoryStream::onDuplicate() const {
-    return new SkMemoryStream(fData);
+    return new SkMemoryStream(fPath.c_str(), fData);
 }
 
 size_t SkMemoryStream::getPosition() const {
@@ -923,10 +923,97 @@ static sk_sp<SkData> mmap_filename(const char path[]) {
     return data;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// All code related to Font mmap cache are grouped below for easy maintenance.
+///////////////////////////////////////////////////////////////////////////////
+
+#include "include/private/base/SkMutex.h"
+#include "src/core/SkTHash.h"
+
+using PathToDataMap = skia_private::THashMap<SkString, sk_sp<SkData>>;
+
+static std::atomic<bool> s_is_cache_enabled{false};
+
+static SkMutex& get_path_to_data_map_mutex() {
+    // It's Skia convention to intentionally leak static objects to ensure proper lifetime.
+    static SkMutex* mutex = new SkMutex;
+    return *mutex;
+}
+
+static PathToDataMap& get_path_to_data_map() {
+    // It's Skia convention to intentionally leak static objects to ensure proper lifetime.
+    static PathToDataMap* path_to_data_map = new PathToDataMap;
+    return *path_to_data_map;
+}
+
+static sk_sp<SkData> mmap_filename_with_cache(const char path[]) {
+    SkString pathString(path);
+    SkAutoMutexExclusive lock(get_path_to_data_map_mutex());
+    PathToDataMap& path_to_data_map = get_path_to_data_map();
+
+    if (sk_sp<SkData>* found = path_to_data_map.find(pathString)) {
+        SkDEBUGCODE(SkDebugf("Found font file %s in cache.\n", pathString.c_str()));
+        return *found;
+    }
+
+    if (auto data = mmap_filename(path)) {
+        SkDEBUGCODE(SkDebugf("Mapped font file %s and stores it in cache (size = %d).\n",
+                             pathString.c_str(), path_to_data_map.count()));
+        path_to_data_map.set(pathString, data);
+        return data;
+    }
+
+    return nullptr;
+}
+
+// static
+void SkMemoryStream::EnableMmapCache() {
+  SkASSERT(s_is_cache_enabled.is_lock_free());
+
+  SkDebugf("Enabling Skia mmap cache.\n");
+
+  s_is_cache_enabled.store(true);
+}
+
+SkMemoryStream::SkMemoryStream(const char path[], sk_sp<SkData> data)
+        : fPath(path), fData(std::move(data)) {
+    if (nullptr == fData) {
+        fData = SkData::MakeEmpty();
+    }
+    fOffset = 0;
+}
+
+SkMemoryStream::~SkMemoryStream() {
+    if (!fPath.isEmpty() && fData) {
+        SkAutoMutexExclusive lock(get_path_to_data_map_mutex());
+        PathToDataMap& path_to_data_map = get_path_to_data_map();
+
+        if (sk_sp<SkData>* found = path_to_data_map.find(fPath)) {
+            SkASSERT(fData == *found);
+
+            // Reset fData before checking unique() so unique() returns true when this is the last reference.
+            fData.reset();
+
+            if ((*found)->unique()) {
+                SkDEBUGCODE(SkDebugf("Removing font file %s from the cache (size = %d).\n",
+                                     fPath.c_str(), path_to_data_map.count()));
+                path_to_data_map.remove(fPath);
+            }
+        }
+    }
+}
+
 std::unique_ptr<SkStreamAsset> SkStream::MakeFromFile(const char path[]) {
-    auto data(mmap_filename(path));
-    if (data) {
-        return std::make_unique<SkMemoryStream>(std::move(data));
+    if (s_is_cache_enabled) {
+        auto data(mmap_filename_with_cache(path));
+        if (data) {
+            return std::make_unique<SkMemoryStream>(path, std::move(data));
+        }
+    } else {
+        auto data(mmap_filename(path));
+        if (data) {
+            return std::make_unique<SkMemoryStream>(std::move(data));
+        }
     }
 
     // If we get here, then our attempt at using mmap failed, so try normal file access.
