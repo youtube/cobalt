@@ -25,12 +25,15 @@
 #define TZZONEINFOTAIL "/zoneinfo/"
 #define isNonDigit(ch) (ch < '0' || '9' < ch)
 
+<<<<<<< HEAD
 // Follow symlinks up to a reasonable depth to avoid infinite loops.
 const int kMaxSymlinks = 8;
 
 static char gTimeZoneBuffer[PATH_MAX];
 static char* gTimeZoneBufferPtr = NULL;
 
+=======
+>>>>>>> 56b39bba96 (Implement time zone monitor for linux (#8935))
 static bool isValidOlsonID(const char* id) {
   int32_t idx = 0;
 
@@ -59,6 +62,7 @@ const char* SbTimeZoneGetName() {
   But this is production-tested solution for most versions of Linux.
   */
 
+<<<<<<< HEAD
   struct stat time_zone_stat;
   char time_zone_input_buffer[PATH_MAX];
 
@@ -112,5 +116,24 @@ const char* SbTimeZoneGetName() {
     return "";
   } else {
     return gTimeZoneBufferPtr;
+=======
+  static thread_local char s_tz_name[PATH_MAX];
+
+  char tz_path[PATH_MAX];
+  int32_t ret = (int32_t)readlink(TZDEFAULT, tz_path, sizeof(tz_path) - 1);
+  if (0 < ret) {
+    int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
+    tz_path[ret] = 0;
+    char* tzZoneInfoTailPtr = strstr(tz_path, TZZONEINFOTAIL);
+
+    if (tzZoneInfoTailPtr != NULL &&
+        isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
+      snprintf(s_tz_name, sizeof(s_tz_name), "%s",
+               tzZoneInfoTailPtr + tzZoneInfoTailLen);
+      return s_tz_name;
+    }
+>>>>>>> 56b39bba96 (Implement time zone monitor for linux (#8935))
   }
+  SB_NOTREACHED();
+  return "";
 }
