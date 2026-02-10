@@ -422,7 +422,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
         "com.youtube.widevine.l3", nullptr, StubDrmSessionUpdateRequestFunc,
         StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
     if (!drm_system_to_enforce_tunnel_mode_) {
-      *error_message = "Failed to create drm_system_to_enforce_tunnel_mode_";
+      *error_message = "Failed to create DrmSystem for tunnel mode enforcement.";
       return;
     }
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
