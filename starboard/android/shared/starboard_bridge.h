@@ -103,6 +103,8 @@ class StarboardBridge {
 
   void HideSplashScreen(JNIEnv* env) const;
 
+  void SetStartupMilestone(jint milestone) const;
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;

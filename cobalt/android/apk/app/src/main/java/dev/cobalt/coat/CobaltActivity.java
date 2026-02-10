@@ -167,6 +167,8 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
+    StartupGuard.getInstance().setStartupMilestone(1);
+
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
@@ -185,8 +187,11 @@ public abstract class CobaltActivity extends Activity {
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
+
+    StartupGuard.getInstance().setStartupMilestone(2);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
+    StartupGuard.getInstance().setStartupMilestone(3);
 
     // StarboardBridge initialization must happen right after library loading,
     // before Browser/Content module is started. It currently tracks its own JNI state
@@ -198,6 +203,8 @@ public abstract class CobaltActivity extends Activity {
       Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
       mStartDeepLink = "";
     }
+
+    StartupGuard.getInstance().setStartupMilestone(4);
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
@@ -206,6 +213,7 @@ public abstract class CobaltActivity extends Activity {
       // Warm start - Pass the deep link to the running Starboard app.
       getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
+    StartupGuard.getInstance().setStartupMilestone(7);
 
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
@@ -245,6 +253,7 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
     }
 
+    StartupGuard.getInstance().setStartupMilestone(8);
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
         .startBrowserProcessesAsync(
@@ -266,6 +275,7 @@ public abstract class CobaltActivity extends Activity {
                 initializationFailed();
               }
             });
+
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -428,6 +438,7 @@ public abstract class CobaltActivity extends Activity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
+    StartupGuard.getInstance().setStartupMilestone(9);
   }
 
   /**
@@ -478,6 +489,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -504,6 +516,8 @@ public abstract class CobaltActivity extends Activity {
     // visibility:visible event
     updateShellActivityVisible(true);
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
+
+    StartupGuard.getInstance().setStartupMilestone(11);
   }
 
   @Override
@@ -538,12 +552,14 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    StartupGuard.getInstance().setStartupMilestone(12);
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
     CobaltContentBrowserClient.dispatchFocus();
+    StartupGuard.getInstance().setStartupMilestone(13);
   }
 
   @Override
