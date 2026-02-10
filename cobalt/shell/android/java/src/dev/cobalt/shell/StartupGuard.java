@@ -3,6 +3,7 @@ package dev.cobalt.shell;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class crashes the application if scheduled and not disarmed
@@ -17,6 +18,7 @@ import android.util.Log;
 public class StartupGuard {
     private final Handler handler;
     private final Runnable crashRunnable;
+    private final AtomicInteger startupStatus = new AtomicInteger(0);
 
     private static class LazyHolder {
         private static final StartupGuard INSTANCE = new StartupGuard();
@@ -33,7 +35,7 @@ public class StartupGuard {
             @Override
             public void run() {
                 throw new RuntimeException(
-                        "Application startup may not have succeeded, crash triggered by StartupGuard.");
+                        "Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x" + Integer.toHexString(startupStatus.get()));
             }
         };
     }
@@ -44,6 +46,20 @@ public class StartupGuard {
      */
     public static StartupGuard getInstance() {
         return LazyHolder.INSTANCE;
+    }
+
+    /**
+     * Sets a milestone bit in the startup status.
+     * @param milestone The milestone to set, 0-indexed.
+     */
+    public void setStartupMilestone(int milestone) {
+        if (milestone < 0 || milestone >= 32) {
+            Log.e(TAG, "Invalid milestone: " + milestone);
+            return;
+        }
+        Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
+        int mask = 1 << milestone;
+        startupStatus.updateAndGet(current -> current | mask);
     }
 
     /**
@@ -65,7 +81,7 @@ public class StartupGuard {
     public void disarm() {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
-            Log.i(TAG, "StartupGuard cancelled crash.");
+            Log.i(TAG, "StartupGuard cancelled crash. Status: 0x" + Integer.toHexString(startupStatus.get()));
         }
     }
 }
