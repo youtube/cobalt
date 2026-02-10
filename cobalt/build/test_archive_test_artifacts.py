@@ -112,15 +112,8 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     src_deps = file_lists[1][0]
 
     # base_unittests goes to out_deps because it doesn't start with ../../
-    # rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
-    # tar_root = '.'
-    # join('.', 'base_unittests') -> 'base_unittests'
-    # relpath('base_unittests') -> 'base_unittests'
     self.assertIn('base_unittests', out_deps)
-
     # ../../cobalt/test/data/file.txt starts with ../../
-    # target_src_root_deps.add(line.strip()[6:])
-    # 'cobalt/test/data/file.txt'
     self.assertIn('cobalt/test/data/file.txt', src_deps)
 
   @mock.patch('os.path.getsize', return_value=1024)
