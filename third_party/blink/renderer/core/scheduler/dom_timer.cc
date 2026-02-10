@@ -28,7 +28,6 @@
 #include <limits>
 
 #include "base/check_deref.h"
-#include "base/logging.h"
 #include "base/message_loop/message_pump.h"
 #include "base/numerics/clamped_math.h"
 #include "base/task/single_thread_task_runner.h"
@@ -410,14 +409,7 @@ void DOMTimer::Fired() {
            (is_interval && *RepeatInterval() >= kMinimumInterval));
 
     // No access to member variables after this point, it can delete the timer.
-    base::TimeTicks start_time = base::TimeTicks::Now();
-    int id = timeout_id_;
     action_->Execute(context);
-    base::TimeDelta duration = base::TimeTicks::Now() - start_time;
-    if (duration >= base::Milliseconds(100)) {
-      LOG(WARNING) << "Slow setInterval Detected! ID: " << id
-                   << " Duration: " << duration.InMilliseconds() << "ms";
-    }
 
     DOMTimerCoordinator::From(*context).SetTimerNestingLevel(0);
 
@@ -426,17 +418,10 @@ void DOMTimer::Fired() {
 
   // Unregister the timer from ExecutionContext before executing the action
   // for one-shot timers.
-  int id = timeout_id_;
   ScheduledAction* action = action_.Release();
   DOMTimerCoordinator::From(*context).RemoveTimeoutByID(timeout_id_);
 
-  base::TimeTicks start_time = base::TimeTicks::Now();
   action->Execute(context);
-  base::TimeDelta duration = base::TimeTicks::Now() - start_time;
-  if (duration >= base::Milliseconds(100)) {
-    LOG(WARNING) << "Slow setTimeout Detected! ID: " << id
-                 << " Duration: " << duration.InMilliseconds() << "ms";
-  }
 
   // Eagerly clear out |action|'s resources.
   action->Dispose();
