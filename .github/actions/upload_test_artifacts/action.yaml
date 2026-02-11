@@ -16,6 +16,10 @@ inputs:
   test_targets_json_file:
     description: "The path to test targets json file."
     required: true
+  docker_image_name:
+    description: "The name of the docker image to build and push."
+    required: false
+    default: "avvall-service-test"
 runs:
   using: "composite"
   steps:
@@ -117,7 +121,7 @@ runs:
           cd "${GITHUB_WORKSPACE}/artifacts/"
 
           TAG="${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}"
-          IMAGE="us-west1-docker.pkg.dev/ytlr-image-hosting/integration-test-images/avvall-service-test:${TAG}"
+          IMAGE="us-west1-docker.pkg.dev/ytlr-image-hosting/integration-test-images/${{ inputs.docker_image_name }}:${TAG}"
 
           docker build -f Dockerfile -t "${IMAGE}" .
           docker push "${IMAGE}"
