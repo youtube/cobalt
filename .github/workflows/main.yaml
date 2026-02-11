@@ -460,8 +460,71 @@ jobs:
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
 
-  on-device-test:
+  docker-browsertests-image:
     needs: [initialize, build]
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_docker_browsertests_image
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Set up Cloud SDK
+        uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      - name: Parse Test Target JSON
+        id: test-target-json
+        uses: ./.github/actions/test_targets_json
+      - name: Build and Push Browser Test Docker Image
+        if: needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_on_host == 'true'
+        env:
+          TEST_TARGETS_JSON: ${{ steps.test-target-json.outputs.test_targets_json }}
+          DOCKER_IMAGE_NAME: avvall-service-test
+          REGISTRY_REGION: us-west1
+          REGISTRY_PROJECT: ytlr-image-hosting
+          REGISTRY_REPOSITORY: integration-test-images
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+          WORKFLOW: ${{ github.workflow }}
+        run: |
+          set -eux
+          # Check if cobalt_browsertests is in the targets using jq for robust parsing.
+          if echo "${TEST_TARGETS_JSON}" | jq -e '.[] | select(endswith(":cobalt_browsertests") or . == "cobalt_browsertests")' > /dev/null; then
+            echo "Found cobalt_browsertests in targets. Building Docker image..."
+
+            # Download the artifacts tarball from GCS
+            mkdir -p artifacts
+            PROJECT_NAME=$(gcloud config get-value project)
+            GCS_PATH="gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/"
+            gsutil -m cp -r "${GCS_PATH}*" artifacts/
+
+            # Dockerfile expects cobalt_browsertests_artifacts.tar.gz in the context.
+            cp cobalt/src/cobalt/testing/browser_tests/tools/Dockerfile artifacts/
+            cd artifacts/
+
+            TAG="${{ github.run_id }}-${PLATFORM}-${CONFIG}"
+            IMAGE="${REGISTRY_REGION}-docker.pkg.dev/${REGISTRY_PROJECT}/${REGISTRY_REPOSITORY}/${DOCKER_IMAGE_NAME}:${TAG}"
+
+            # Login to GAR using the service account token from metadata server.
+            TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+            curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token | docker login -u oauth2accesstoken --password-stdin "https://${REGISTRY_REGION}-docker.pkg.dev"
+
+            docker build -f Dockerfile -t "${IMAGE}" .
+            docker push "${IMAGE}"
+          else
+            echo "cobalt_browsertests not found in targets. Skipping Docker build."
+          fi
+        shell: bash
+
+  on-device-test:
+    needs: [initialize, build, docker-browsertests-image]
     if: |
       needs.initialize.outputs.test_on_device == 'true' &&
         (
@@ -505,7 +568,7 @@ jobs:
       test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
 
   e2e-test:
-    needs: [initialize, build]
+    needs: [initialize, build, docker-browsertests-image]
     # Run E2E tests for presumit.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
     if: |
@@ -541,7 +604,7 @@ jobs:
           docker_tag: ${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}
 
   yts-test:
-    needs: [initialize, build]
+    needs: [initialize, build, docker-browsertests-image]
     # Run YTS tests via presumit.
     # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
     if: |
