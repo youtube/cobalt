@@ -105,9 +105,10 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
       // The warning indicates that `--url` will be ignored.
       LOG(WARNING) << "Overriding initial URL with first argument";
       cmd_line_.AppendSwitchNative(cobalt::switches::kInitialURL, first_arg);
-      startup_url_ = std::string(first_arg);
     }
+    startup_url_ = std::string(first_arg);
   }
+  CHECK(!startup_url_.empty());
 }
 
 const base::CommandLine::StringVector CommandLinePreprocessor::argv() const {
