@@ -22,6 +22,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Surface;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
@@ -60,11 +61,9 @@ public class ExoPlayerBridge {
     private final DroppedFramesListener mDroppedFramesListener;
 
     // Duration after which an error is raised if the player doesn't release its resources.
-    private static final long PLAYER_RELEASE_TIMEOUT_MS = 300;
-    private static final int MAX_BUFFER_DURATION_MS = 5000; // 5 seconds.
-    // Ensures playback can begin before or when 500 ms of media data has been appended, as required
-    // in the YouTube specification.
-    private static final int MIN_BUFFER_DURATION_MS = 450;
+    private static final long PLAYER_RELEASE_TIMEOUT_MS = 2000; // 2 seconds.
+    private static final int MIN_BUFFER_DURATION_MS = 1000; // 1 second.
+    private static final int MAX_BUFFER_DURATION_MS = 5000; // 5 seconds
 
     private class ExoPlayerListener implements Player.Listener {
         @Override
@@ -137,8 +136,9 @@ public class ExoPlayerBridge {
      * @param enableTunnelMode Whether to enable tunnel mode.
      */
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context,
-            DefaultRenderersFactory renderersFactory, ExoPlayerMediaSource audioSource,
-            ExoPlayerMediaSource videoSource, Surface surface, boolean enableTunnelMode) {
+            DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
+            @Nullable ExoPlayerMediaSource videoSource,
+            @Nullable Surface surface, boolean enableTunnelMode) {
         this.mExoplayerHandler = new Handler(Looper.getMainLooper());
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
@@ -230,7 +230,9 @@ public class ExoPlayerBridge {
             reportError("Cannot seek with NULL or releasing ExoPlayer.");
             return;
         }
-        mExoplayerHandler.post(() -> { mPlayer.seekTo(seekToTimeUsec / 1000); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.seekTo(seekToTimeUsec / 1000);
+        });
         mSeekTimeUsec = seekToTimeUsec;
     }
 
@@ -321,7 +323,9 @@ public class ExoPlayerBridge {
             return;
         }
 
-        mExoplayerHandler.post(() -> { mPlayer.setVolume(volume); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.setVolume(volume);
+        });
     }
 
     @CalledByNative
@@ -332,7 +336,9 @@ public class ExoPlayerBridge {
             return;
         }
         mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
-        mExoplayerHandler.post(() -> { mPlayer.stop(); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.stop();
+        });
     }
 
     /**

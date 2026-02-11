@@ -99,7 +99,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
      */
     @Override
     public void discardBuffer(long positionUs, boolean toKeyframe) {
-        mStream.discardBuffer(positionUs, toKeyframe);
+        if (mStream != null) {
+            mStream.discardBuffer(positionUs, toKeyframe);
+        }
     }
 
     /**
@@ -177,7 +179,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     public void reevaluateBuffer(long positionUs) {}
 
     public void destroySampleStream() {
-        mStream.destroy();
+        if (mStream != null) {
+            mStream.destroy();
+        }
     }
 
     /**
@@ -196,6 +200,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     }
 
     public boolean canAcceptMoreData() {
+        if (mStream == null) {
+            return false;
+        }
         return mStream.canAcceptMoreData();
     }
 }

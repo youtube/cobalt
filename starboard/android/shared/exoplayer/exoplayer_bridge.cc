@@ -114,8 +114,10 @@ ExoPlayerBridge::ExoPlayerBridge(
       Java_ExoPlayerManager_createExoPlayerBridge(
           env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
           j_audio_media_source, j_video_media_source, j_output_surface,
-          (ShouldEnableTunneledPlayback(video_stream_info) &&
-           audio_stream_info.codec != kSbMediaAudioCodecNone) ||
+          (video_stream_info.codec != kSbMediaVideoCodecNone &&
+           (audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
+            audio_stream_info.codec == kSbMediaAudioCodecEac3) &&
+           ShouldEnableTunneledPlayback(video_stream_info)) ||
               kForceTunneledPlayback);
   if (!j_exoplayer_bridge) {
     init_error_msg_ = "Could not create Java ExoPlayerBridge";
@@ -129,8 +131,6 @@ ExoPlayerBridge::ExoPlayerBridge(
 }
 
 ExoPlayerBridge::~ExoPlayerBridge() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   ON_INSTANCE_RELEASED(ExoPlayerBridge);
   player_is_releasing_.store(true);
 
@@ -156,7 +156,6 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
 bool ExoPlayerBridge::Init(ErrorCB error_cb,
                            PrerolledCB prerolled_cb,
                            EndedCB ended_cb) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_CHECK(error_cb);
   SB_CHECK(prerolled_cb);
   SB_CHECK(ended_cb);
@@ -187,8 +186,6 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
 }
 
 void ExoPlayerBridge::Seek(int64_t timestamp) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -200,8 +197,6 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
                                    SbMediaType type) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   // TODO: It's possible that a video sample may contain valid
   // SbMediaColorMetadata after codec creation. When that happens,
   // we should recreate the video decoder to use the new metadata.
@@ -231,8 +226,6 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
 }
 
 void ExoPlayerBridge::WriteEOS(SbMediaType type) const {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -242,8 +235,6 @@ void ExoPlayerBridge::WriteEOS(SbMediaType type) const {
 }
 
 void ExoPlayerBridge::SetPause(bool pause) const {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -258,8 +249,6 @@ void ExoPlayerBridge::SetPause(bool pause) const {
 }
 
 void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -270,8 +259,6 @@ void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) const {
 }
 
 void ExoPlayerBridge::SetVolume(const double volume) const {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -281,8 +268,6 @@ void ExoPlayerBridge::SetVolume(const double volume) const {
 }
 
 void ExoPlayerBridge::Stop() const {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return;
   }
@@ -291,8 +276,6 @@ void ExoPlayerBridge::Stop() const {
 }
 
 ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return MediaInfo();
   }
@@ -304,8 +287,6 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
 }
 
 bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) const {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-
   if (ShouldAbortOperation()) {
     return false;
   }

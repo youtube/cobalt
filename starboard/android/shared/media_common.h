@@ -125,8 +125,8 @@ inline int GetAudioFormatSampleType(
   return 0u;
 }
 
-inline bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  auto is_identity = [](const SbMediaMasteringMetadata& metadata) {
+inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
+  auto is_sdr = [](const SbMediaMasteringMetadata& metadata) {
     static const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
     return memcmp(&metadata, &kEmptyMasteringMetadata,
                   sizeof(SbMediaMasteringMetadata)) == 0;
@@ -136,7 +136,7 @@ inline bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
          color_metadata.transfer == kSbMediaTransferIdBt709 &&
          color_metadata.matrix == kSbMediaMatrixIdBt709 &&
          color_metadata.range == kSbMediaRangeIdLimited &&
-         is_identity(color_metadata.mastering_metadata);
+         is_sdr(color_metadata.mastering_metadata);
 }
 
 inline jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {

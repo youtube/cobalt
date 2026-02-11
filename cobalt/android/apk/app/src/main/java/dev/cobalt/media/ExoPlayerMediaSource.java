@@ -32,8 +32,10 @@ import java.io.IOException;
 @UnstableApi
 public final class ExoPlayerMediaSource extends BaseMediaSource {
     private final Format mFormat;
+    // Guarded by mLock
     private ExoPlayerMediaPeriod mMediaPeriod;
     private final MediaItem mMediaItem;
+    private final Object mLock = new Object();
 
     ExoPlayerMediaSource(Format format) {
         this.mFormat = format;
@@ -74,9 +76,11 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      */
     @Override
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
-        if (mMediaPeriod == null) {
-            mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator);
-            return mMediaPeriod;
+        synchronized (mLock) {
+            if (mMediaPeriod == null) {
+                mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator);
+                return mMediaPeriod;
+            }
         }
         throw new IllegalStateException(
                 "Called MediaSource.createPeriod when the MediaPeriod already exists");
@@ -88,16 +92,18 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      */
     @Override
     public void releasePeriod(MediaPeriod mediaPeriod) {
-        if (this.mMediaPeriod != null) {
-            if (mediaPeriod != this.mMediaPeriod) {
-                throw new IllegalStateException(
-                        "Called MediaSource.releasePeriod on an unknown MediaPeriod");
+        synchronized (mLock) {
+            if (this.mMediaPeriod != null) {
+                if (mediaPeriod != this.mMediaPeriod) {
+                    throw new IllegalStateException(
+                            "Called MediaSource.releasePeriod on an unknown MediaPeriod");
+                }
+                // Ignore the passed-in MediaPeriod and call the ExoPlayerMediaPeriod directly. As
+                // there's only a single MediaPeriod, this will match the passed MediaPeriod.
+                this.mMediaPeriod.destroySampleStream();
+                this.mMediaPeriod = null;
+                return;
             }
-            // Ignore the passed-in MediaPeriod and call the ExoPlayerMediaPeriod directly. As
-            // there's only a single MediaPeriod, this will match the passed MediaPeriod.
-            this.mMediaPeriod.destroySampleStream();
-            this.mMediaPeriod = null;
-            return;
         }
         throw new IllegalStateException(
                 "Called MediaSource.releasePeriod() after period was already released");
@@ -111,14 +117,24 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      * @param isKeyFrame Whether the sample is a keyframe.
      */
     public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame);
+      synchronized (mLock) {
+        if (mMediaPeriod != null) {
+          mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame);
+        }
+      }
     }
 
     public void writeEndOfStream() {
-        mMediaPeriod.writeEndOfStream();
+        synchronized (mLock) {
+            if (mMediaPeriod != null) {
+                mMediaPeriod.writeEndOfStream();
+            }
+        }
     }
 
     public boolean canAcceptMoreData() {
-        return mMediaPeriod != null && mMediaPeriod.canAcceptMoreData();
+        synchronized (mLock) {
+            return mMediaPeriod != null && mMediaPeriod.canAcceptMoreData();
+        }
     }
 }

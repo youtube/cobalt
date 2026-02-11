@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-ppackage dev.cobalt.media;
+package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
@@ -36,6 +36,7 @@ public class ExoPlayerSampleStream implements SampleStream {
     private final SampleQueue mSampleQueue;
     private volatile boolean mEndOfStream = false;
     private final ParsableByteArray mSampleData = new ParsableByteArray();
+
     // The memory here is managed by Java rather than the native allocator, which may increase
     // memory pressure.
     // TODO: Have the SampleQueue read directly from native memory, rather than manage its own

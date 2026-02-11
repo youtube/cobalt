@@ -14,6 +14,8 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import android.content.Context;
 import android.view.Surface;
 import androidx.media3.common.ColorInfo;
@@ -40,6 +42,7 @@ import org.jni_zero.JNINamespace;
 public class ExoPlayerManager {
     private final Context mContext;
     private final DefaultRenderersFactory mRenderersFactory;
+    private static final int PASSTHROUGH_CODEC_BITRATE = 384000;
 
     /** Filters software video codecs from ExoPlayer codec selection for non-emulator devices. */
     private static final class FilteringMediaCodecSelector implements MediaCodecSelector {
@@ -52,13 +55,12 @@ public class ExoPlayerManager {
                         androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
                                 mimeType, requiresSecureDecoder, requiresTunnelingDecoder);
             } catch (androidx.media3.exoplayer.mediacodec.MediaCodecUtil.DecoderQueryException e) {
-                Log.i(dev.cobalt.media.Log.TAG,
-                        String.format("MediaCodecUtil.getDecoderInfos() error %s", e));
+                Log.i(TAG, String.format("MediaCodecUtil.getDecoderInfos() error %s", e));
                 return defaultDecoderInfos;
             }
             // Skip video decoder filtering for emulators.
             if (IsEmulator.isEmulator()) {
-                Log.i(dev.cobalt.media.Log.TAG, "Allowing all available decoders for emulator.");
+                Log.i(TAG, "Allowing all available decoders for emulator.");
                 return defaultDecoderInfos;
             }
 
@@ -71,7 +73,7 @@ public class ExoPlayerManager {
                 }
 
                 if (hardwareVideoDecoderInfos.isEmpty()) {
-                    Log.w(dev.cobalt.media.Log.TAG,
+                    Log.w(TAG,
                             "Could not find a hardware accelerated video decoder, falling back to software decoders.");
                     return defaultDecoderInfos;
                 }
@@ -105,7 +107,7 @@ public class ExoPlayerManager {
             ExoPlayerMediaSource audioSource, ExoPlayerMediaSource videoSource, Surface surface,
             boolean enableTunnelMode) {
         if (videoSource != null && (surface == null || !surface.isValid())) {
-            Log.e(dev.cobalt.media.Log.TAG, "Cannot initialize ExoPlayer with an invalid surface.");
+            Log.e(TAG, "Cannot initialize ExoPlayer with an invalid surface.");
             return null;
         }
 
@@ -122,31 +124,35 @@ public class ExoPlayerManager {
      * @return A new ExoPlayerMediaSource instance.
      */
     @CalledByNative
-    public static ExoPlayerMediaSource createAudioMediaSource(
-            String mime, byte[] audioConfigurationData, int sampleRate, int channelCount) {
-        Format.Builder builder =
-                new Format.Builder().setSampleRate(sampleRate).setChannelCount(channelCount);
+    public static ExoPlayerMediaSource createAudioMediaSource(String mime,
+            byte[] audioConfigurationData, int sampleRate, int channelCount) {
+        Format.Builder builder = new Format.Builder()
+                                         .setSampleRate(sampleRate)
+                                         .setChannelCount(channelCount)
+                                         .setSampleMimeType(mime);
 
-        if (mime.equals(MimeTypes.AUDIO_AAC)) {
-            if (audioConfigurationData != null) {
+        if (audioConfigurationData != null) {
+            if (mime.equals(MimeTypes.AUDIO_OPUS)) {
+                if (audioConfigurationData == null) {
+                    Log.e(TAG, "Opus stream is missing configuration data.");
+                    return null;
+                }
+
+                byte[][] csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
+                        sampleRate, audioConfigurationData);
+                if (csds == null) {
+                    Log.e(TAG, "Error parsing Opus config info");
+                    return null;
+                }
+                builder.setInitializationData(Arrays.asList(csds));
+            } else {
                 builder.setInitializationData(Collections.singletonList(audioConfigurationData));
             }
-        } else if (mime.equals(MimeTypes.AUDIO_OPUS)) {
-            if (audioConfigurationData == null) {
-                Log.e(dev.cobalt.media.Log.TAG, "Opus stream is missing configuration data.");
-                return null;
-            }
-
-            byte[][] csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
-                    sampleRate, audioConfigurationData);
-            if (csds == null) {
-                Log.e(dev.cobalt.media.Log.TAG, "Error parsing Opus config info");
-                return null;
-            }
-            builder.setInitializationData(Arrays.asList(csds));
         }
 
-        builder.setSampleMimeType(mime);
+        if (mime.equals(MimeTypes.AUDIO_AC3) || mime.equals(MimeTypes.AUDIO_E_AC3)) {
+            builder.setAverageBitrate(PASSTHROUGH_CODEC_BITRATE);
+        }
 
         return new ExoPlayerMediaSource(builder.build());
     }
