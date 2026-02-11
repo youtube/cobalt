@@ -97,7 +97,7 @@ void* Send(CobaltExtensionPlatformService service,
            uint64_t length,
            uint64_t* output_length,
            bool* invalid_state) {
-  SB_DCHECK(data);
+  SB_DCHECK(length == 0 || data);
   SB_DCHECK(output_length);
   SB_DCHECK(invalid_state);
 
