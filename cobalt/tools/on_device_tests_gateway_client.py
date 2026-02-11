@@ -320,7 +320,9 @@ def main() -> int:
       '--test_type',
       type=str,
       required=True,
-      choices=['unit_test', 'e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'],
+      choices=[
+          'unit_test', 'e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'
+      ],
       help='Type of test to run.',
   )
   trigger_args.add_argument(
