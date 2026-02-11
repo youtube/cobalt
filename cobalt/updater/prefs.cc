@@ -44,12 +44,18 @@ std::unique_ptr<PrefService> CreatePrefService() {
     return nullptr;
   }
   std::string app_key;
+<<<<<<< HEAD
   app.key.reserve(IM_EXT_MAX_APP_KEY_LENGTH);
   if (installation_api->GetAppKey(app_key.data(), app_key.capacity()) ==
+=======
+  app_key.resize(IM_EXT_MAX_APP_KEY_LENGTH);
+  if (installation_api->GetAppKey(app_key.data(), app_key.size()) ==
+>>>>>>> 438dbf33a3 (evergreen: Fix app_key retrieval when creating the pref store (#9022))
       IM_EXT_ERROR) {
     LOG(ERROR) << "Failed to get app key.";
     return nullptr;
   }
+  app_key.resize(strlen(app_key.c_str()));
 
   LOG(INFO) << "Updater: prefs app_key=" << app_key;
   PrefServiceFactory pref_service_factory;
