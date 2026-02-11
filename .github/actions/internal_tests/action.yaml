@@ -60,34 +60,40 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_TYPE: ${{ inputs.test_type }}
         TEST_RETRY_LEVEL: FAIL
+        TEST_TARGETS: ${{ inputs.test_targets }}
+        TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        DEVICE_FAMILY: ${{ inputs.test_device_family }}
+        DOCKER_TAG: ${{ inputs.docker_tag }}
+        PLATFORM: ${{ matrix.platform }}
       run: |
         set -x
 
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token ${GITHUB_TOKEN} \
+          --token "${GITHUB_TOKEN}" \
           trigger \
-          --test_type ${TEST_TYPE} \
-          --targets '${{ inputs.test_targets }}' \
-          --retry_level ${TEST_RETRY_LEVEL} \
-          --label ${TEST_TYPE} \
-          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
-          --label builder-${{ matrix.platform }} \
-          --label builder_url-${GITHUB_RUN_URL} \
+          --test_type "${TEST_TYPE}" \
+          --targets "${TEST_TARGETS}" \
+          --retry_level "${TEST_RETRY_LEVEL}" \
+          --label "${TEST_TYPE}" \
+          --label github_"${GITHUB_PR_NUMBER:-postsubmit}" \
+          --label builder-"${PLATFORM}" \
+          --label builder_url-"${GITHUB_RUN_URL}" \
           --label github \
-          --label ${GITHUB_EVENT_NAME} \
-          --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-          --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
-          --label branch:${GITHUB_REF_NAME} \
-          --dimensions '${{ inputs.test_dimensions }}' \
-          --artifact_name '${{ inputs.artifact_name }}' \
-          --device_family '${{ inputs.test_device_family }}' \
-          ${{ inputs.docker_tag && format('--docker_tag {0}', inputs.docker_tag) }} \
+          --label "${GITHUB_EVENT_NAME}" \
+          --label "${GITHUB_WORKFLOW}" \
+          --label actor-"${GITHUB_ACTOR}" \
+          --label actor_id-"${GITHUB_ACTOR_ID}" \
+          --label triggering_actor-"${GITHUB_TRIGGERING_ACTOR}" \
+          --label sha-"${GITHUB_SHA}" \
+          --label repository-"${GITHUB_REPO}" \
+          --label author-"${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME}" \
+          --label author_id-"${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}" \
+          --label branch:"${GITHUB_REF_NAME}" \
+          --dimensions "${TEST_DIMENSIONS}" \
+          --artifact_name "${ARTIFACT_NAME}" \
+          --device_family "${DEVICE_FAMILY}" \
+          ${DOCKER_TAG:+"--docker_tag" "$DOCKER_TAG"} \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
