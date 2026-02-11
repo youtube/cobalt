@@ -21,7 +21,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
-#include "starboard/thread.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 
@@ -61,7 +61,14 @@ PlayerWorker* PlayerWorker::CreateInstance(
 PlayerWorker::~PlayerWorker() {
   ON_INSTANCE_RELEASED(PlayerWorker);
 
-  job_thread_->ScheduleAndWait([this] { DoDestroy(); });
+  job_thread_->ScheduleAndWait([this] {
+    handler_->Stop();
+    handler_.reset();
+
+    if (!error_occurred_) {
+      UpdatePlayerState(kSbPlayerStateDestroyed);
+    }
+  });
   job_thread_->Stop();
 
   // Now the whole pipeline has been torn down and no callback will be called.
@@ -332,17 +339,6 @@ void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
 void PlayerWorker::DoSetVolume(double volume) {
   SB_CHECK(job_thread_->BelongsToCurrentThread());
   handler_->SetVolume(volume);
-}
-
-void PlayerWorker::DoDestroy() {
-  SB_CHECK(job_thread_->BelongsToCurrentThread());
-
-  handler_->Stop();
-  handler_.reset();
-
-  if (!error_occurred_) {
-    UpdatePlayerState(kSbPlayerStateDestroyed);
-  }
 }
 
 void PlayerWorker::UpdateDecoderState(SbMediaType type,

@@ -203,7 +203,6 @@ class PlayerWorker {
   void DoSetPause(bool pause);
   void DoSetPlaybackRate(double rate);
   void DoSetVolume(double volume);
-  void DoDestroy();
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
