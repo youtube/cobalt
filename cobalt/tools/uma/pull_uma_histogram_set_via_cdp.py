@@ -33,7 +33,6 @@ sys.path.append(
                  'third_party', 'websocket-client'))
 
 import websocket  # pylint: disable=wrong-import-position
-import subprocess  # pylint: disable=wrong-import-position
 
 from adb_command_runner import run_adb_command  # pylint: disable=wrong-import-position
 from devil.android import device_utils  # pylint: disable=wrong-import-position
