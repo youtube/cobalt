@@ -12,6 +12,7 @@ h5vcc_experiments_tests(async (t, mockH5vccExperiments) => {
 
 
 h5vcc_experiments_mojo_disconnection_tests(async (t) => {
+  const test_config_hash = "test_config_hash";
   return promise_rejects_exactly(t, 'Mojo connection error.',
     window.h5vcc.experiments.setLatestExperimentConfigHashData(test_config_hash));
 }, 'setLatestExperimentConfigHashData() rejects when unimplemented due to pipe closure');

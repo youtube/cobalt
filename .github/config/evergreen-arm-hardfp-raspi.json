@@ -3,6 +3,7 @@
   "platforms": [
     "evergreen-arm-hardfp-raspi"
   ],
+  "test_package": true,
   "test_on_device": true,
   "test_device_family": "raspi",
   "test_e2e": false,
