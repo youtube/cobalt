@@ -341,9 +341,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 17,
                                       1);
   histogram_tester.ExpectUniqueSample("Memory.Total.Resident", 34, 1);
-  histogram_tester.ExpectUniqueSample("Memory.Browser.Resident", 20, 1);
-  histogram_tester.ExpectUniqueSample("Memory.Renderer.Resident", 10, 1);
-  histogram_tester.ExpectUniqueSample("Memory.Gpu.Resident", 4, 1);
 }
 
 TEST_F(CobaltMetricsServiceClientTest, RecordComponentMemoryMetrics) {

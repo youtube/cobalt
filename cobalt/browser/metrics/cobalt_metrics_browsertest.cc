@@ -69,6 +69,9 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
       1u);
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
 
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
+  // Renderer, GPU) when moving to multi-process architecture.
+
   // Check Cobalt-specific component and object count histograms.
   // These might have 0 or more samples depending on the test environment
   // and which allocators are supported, but we should at least check for
@@ -104,6 +107,9 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
           .size(),
       1u);
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
+
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
+  // Renderer, GPU) when moving to multi-process architecture.
 }
 
 }  // namespace cobalt

@@ -201,20 +201,13 @@ def _get_histograms_from_file(file_path: str) -> list:
 
 def _get_chrome_guiding_metrics_for_memory() -> list:
   return [
-      'Memory.Browser.PrivateMemoryFootprint',
-      'Memory.Gpu.PrivateMemoryFootprint',
-      'Memory.Renderer.PrivateMemoryFootprint',
       'Memory.Total.PrivateMemoryFootprint',
-      'Memory.Browser.MemoryFootprint',
   ]
 
 
 def _get_cobalt_resident_memory_metrics() -> list:
   return [
       'Memory.Total.Resident',
-      'Memory.Browser.Resident',
-      'Memory.Renderer.Resident',
-      'Memory.Gpu.Resident',
   ]
 
 
