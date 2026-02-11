@@ -380,6 +380,16 @@ PulseAudioSinkType::~PulseAudioSinkType() {
     }
     pthread_join(*audio_thread_, nullptr);
   }
+
+  {
+    std::lock_guard lock(mutex_);
+    while (!sinks_.empty()) {
+      PulseAudioSink* sink = sinks_.back();
+      sinks_.pop_back();
+      delete sink;
+    }
+  }
+
   SB_DCHECK(sinks_.empty());
   if (context_) {
     pa_context_disconnect(context_);
