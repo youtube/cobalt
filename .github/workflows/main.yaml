@@ -521,7 +521,6 @@ jobs:
   yts-playback-test:
     needs: [initialize, build]
     # Run YTS Playback tests via presumit.
-    # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
     if: |
       needs.initialize.outputs.test_yts_playback == 'true' &&
         (
