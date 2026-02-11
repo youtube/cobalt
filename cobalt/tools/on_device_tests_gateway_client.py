@@ -245,7 +245,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
 
-    elif test_type in ('e2e_test', 'yts_test'):
+    elif test_type in ('e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'):
       test_target = target_data['target']
       test_attempts = target_data.get('test_attempts', '')
       if test_attempts:
@@ -253,22 +253,17 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-      params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
       files = []
-      if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
-        params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+      if test_type in ('browser_test', 'yts_wpt_test'):
+        test_type = 'e2e_test'
+        params = []
       else:
-        bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
-        files.append(f'cobalt_path={bigstore_path}')
-
-    elif test_type in ('browser_test', 'yts_wpt_test'):
-      test_type = 'e2e_test'
-      test_target = target_data['target']
-      test_attempts = target_data.get('test_attempts', '')
-      if test_attempts:
-        test_args.extend([f'test_attempts={test_attempts}'])
-      elif args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+        params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+        if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
+          params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+        else:
+          bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
+          files.append(f'cobalt_path={bigstore_path}')
 
     else:
       raise ValueError(f'Unsupported test type: {test_type}')
