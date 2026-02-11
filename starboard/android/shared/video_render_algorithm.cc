@@ -62,18 +62,6 @@ void VideoRenderAlgorithmAndroid::Render(
   SB_CHECK(frames);
   SB_CHECK(draw_frame_cb);
 
-  if (frames->size() > 0) {
-    bool is_audio_playing;
-    bool is_audio_eos_played;
-    bool is_underflow;
-    double playback_rate;
-    int64_t playback_time = media_time_provider->GetCurrentMediaTime(
-        &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
-    // SB_LOG(INFO) << __func__ << " > frames->size()=" << frames->size() << ",
-    // playback_time(msec)=" << FormatWithDigitSeparators(playback_time /
-    // 1'000);
-  }
-
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
       frames->pop_front();
@@ -90,12 +78,11 @@ void VideoRenderAlgorithmAndroid::Render(
         &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
 
     if (release_frames_after_audio_starts_) {
-      // After the first frame, stop rendering if audio isn't playing, or if
-      // audio playback hasn't advanced past the current seek_to_time (or
-      // initial time 0). This ensures video doesn't run ahead if audio is
-      // stalled or hasn't consumed frames yet.
-      if (first_frame_released_ &&
-          (!is_audio_playing || playback_time == seek_to_time_)) {
+      // Stop rendering if audio isn't playing, or if audio playback hasn't
+      // advanced past the current seek_to_time (or initial time 0). This
+      // ensures video doesn't run ahead if audio is stalled or hasn't consumed
+      // frames yet.
+      if (!is_audio_playing || playback_time == seek_to_time_) {
         break;
       }
     } else {
