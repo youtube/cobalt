@@ -1,0 +1,19 @@
+{
+  "description": "This struct overrides default key mapping (Lima M1 RDK, t4h) at runtime without rebuilding Cobalt. Use for testing or another remote.",
+  "keymappings": [
+    {
+      "description": "OK/SELECT (KEY_SELECT=353)",
+      "keycode": 353,
+      "mapped": {
+        "keycode": 28
+      }
+    },
+    {
+      "description": "Escape/Back (remote sends KEY_BACKSPACE=14)",
+      "keycode": 14,
+      "mapped": {
+        "keycode": 1
+      }
+    }
+  ]
+}
