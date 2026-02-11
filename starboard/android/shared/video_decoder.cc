@@ -398,12 +398,6 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
                    << FormatWithDigitSeparators(interval_us / 1'000)
                    << (interval_us > 100'000 ? ": WARNING: Large interval"
                                              : "");
-      // For debugging, abort immediately, if a problem is detected.
-      SB_CHECK_LT(interval_us, 500'000)
-          << " Too large interval: PTS="
-          << FormatWithDigitSeparators(frame->timestamp() / 1'000)
-          << ", interval(msec)="
-          << FormatWithDigitSeparators(interval_us / 1'000);
     }
 
     rendered_ = true;
