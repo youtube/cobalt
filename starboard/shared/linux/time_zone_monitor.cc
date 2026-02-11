@@ -130,7 +130,7 @@ void TimeZoneMonitor::Run() {
 
       if (changed) {
         SB_LOG(INFO) << "Time zone file change detected, injecting event.";
-        ::starboard::Application::Get()
+        ::starboard::shared::starboard::Application::Get()
             ->InjectDateTimeConfigurationChangedEvent();
         // Re-apply watches because tools like timedatectl replace the symlink,
         // which removes the inotify watch.
