@@ -23,7 +23,6 @@ import android.os.SystemClock;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.media3.common.C;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
@@ -33,10 +32,6 @@ import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
-import androidx.media3.exoplayer.analytics.PlayerId;
-import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
-import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
@@ -66,10 +61,9 @@ public class ExoPlayerBridge {
     private final DroppedFramesListener mDroppedFramesListener;
 
     // Duration after which an error is raised if the player doesn't release its resources.
-    private static final long PLAYER_RELEASE_TIMEOUT_MS = 300;
-    private static final int MIN_BUFFER_DURATION_MS = 450; // 5 seconds.
+    private static final long PLAYER_RELEASE_TIMEOUT_MS = 2000; // 2 seconds.
+    private static final int MIN_BUFFER_DURATION_MS = 1000; // 1 second.
     private static final int MAX_BUFFER_DURATION_MS = 5000; // 5 seconds
-
 
     private class ExoPlayerListener implements Player.Listener {
         @Override
@@ -143,7 +137,8 @@ public class ExoPlayerBridge {
      */
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context,
             DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
-            @Nullable ExoPlayerMediaSource videoSource, @Nullable ExoPlayerDrmBridge drmBridge, @Nullable Surface surface, boolean enableTunnelMode) {
+            @Nullable ExoPlayerMediaSource videoSource, @Nullable ExoPlayerDrmBridge drmBridge,
+            @Nullable Surface surface, boolean enableTunnelMode) {
         this.mExoplayerHandler = new Handler(Looper.getMainLooper());
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
@@ -167,20 +162,21 @@ public class ExoPlayerBridge {
             playbackMediaSource = mAudioMediaSource != null ? mAudioMediaSource : mVideoMediaSource;
         }
 
-        ExoPlayer.Builder builder = new ExoPlayer.Builder(context)
-            .setRenderersFactory(renderersFactory)
-            .setLoadControl(
-                new DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(MIN_BUFFER_DURATION_MS,
-                        MAX_BUFFER_DURATION_MS, MIN_BUFFER_DURATION_MS,
-                        MIN_BUFFER_DURATION_MS)
-                    .build())
-            .setLooper(mExoplayerHandler.getLooper())
-            .setTrackSelector(trackSelector)
-            .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS);
+        ExoPlayer.Builder builder =
+                new ExoPlayer.Builder(context)
+                        .setRenderersFactory(renderersFactory)
+                        .setLoadControl(
+                                new DefaultLoadControl.Builder()
+                                        .setBufferDurationsMs(MIN_BUFFER_DURATION_MS,
+                                                MAX_BUFFER_DURATION_MS, MIN_BUFFER_DURATION_MS,
+                                                MIN_BUFFER_DURATION_MS)
+                                        .build())
+                        .setLooper(mExoplayerHandler.getLooper())
+                        .setTrackSelector(trackSelector)
+                        .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS);
 
         if (drmBridge != null) {
-          builder.setMediaSourceFactory(drmBridge.getMediaSourceFactory());
+            builder.setMediaSourceFactory(drmBridge.getMediaSourceFactory());
         }
 
         mPlayer = builder.build();
@@ -240,7 +236,9 @@ public class ExoPlayerBridge {
             reportError("Cannot seek with NULL or releasing ExoPlayer.");
             return;
         }
-        mExoplayerHandler.post(() -> { mPlayer.seekTo(seekToTimeUsec / 1000); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.seekTo(seekToTimeUsec / 1000);
+        });
         mSeekTimeUsec = seekToTimeUsec;
     }
 
@@ -255,33 +253,38 @@ public class ExoPlayerBridge {
     @CalledByNative
     public void writeSample(
             byte[] samples, int size, long timestamp, boolean isKeyFrame, int type) {
-      writeEncryptedSample(samples, size, timestamp, isKeyFrame, type, 0, null, 0, 0, null, 0, null, null);
+        writeEncryptedSample(
+                samples, size, timestamp, isKeyFrame, type, 0, null, 0, 0, null, 0, null, null);
     }
 
-  /**
-   * Writes a sample to the appropriate media source.
-   * @param samples The sample data.
-   * @param size The size of the sample data.
-   * @param timestamp The timestamp of the sample in microseconds.
-   * @param isKeyFrame Whether the sample is a keyframe.
-   * @param type The type of the media source (audio or video).
-   * @param encryptionMode Signals the type of Widevine encryption.
-   * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
-   * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
-   */
-  @CalledByNative
-  public void writeEncryptedSample(
-     @NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] key, int encryptedBlocks, int clearBlocks, @Nullable byte[] initializationVector, int iv_size,
-     @Nullable int[] subsampleEncryptedBytes, @Nullable int[] subsampleClearBytes) {
-    ExoPlayerMediaSource mediaSource =
-        type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-    if (mediaSource == null || mIsReleasing) {
-      reportError(
-          String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
-              type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+    /**
+     * Writes a sample to the appropriate media source.
+     * @param samples The sample data.
+     * @param size The size of the sample data.
+     * @param timestamp The timestamp of the sample in microseconds.
+     * @param isKeyFrame Whether the sample is a keyframe.
+     * @param type The type of the media source (audio or video).
+     * @param encryptionMode Signals the type of Widevine encryption.
+     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
+     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
+     */
+    @CalledByNative
+    public void writeEncryptedSample(@NonNull byte[] samples, int size, long timestamp,
+            boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] key,
+            int encryptedBlocks, int clearBlocks, @Nullable byte[] initializationVector,
+            int ivSize, @Nullable int[] subsampleEncryptedBytes,
+            @Nullable int[] subsampleClearBytes) {
+        ExoPlayerMediaSource mediaSource =
+                type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
+        if (mediaSource == null || mIsReleasing) {
+            reportError(
+                    String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
+                            type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+        }
+        mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
+                encryptedBlocks, clearBlocks, initializationVector, ivSize,
+                subsampleEncryptedBytes, subsampleClearBytes);
     }
-    mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key, encryptedBlocks, clearBlocks, initializationVector, iv_size, subsampleEncryptedBytes, subsampleClearBytes);
-  }
 
     /**
      * Writes the end of the stream to the appropriate media source.
@@ -349,7 +352,9 @@ public class ExoPlayerBridge {
             return;
         }
 
-        mExoplayerHandler.post(() -> { mPlayer.setVolume(volume); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.setVolume(volume);
+        });
     }
 
     @CalledByNative
@@ -360,7 +365,9 @@ public class ExoPlayerBridge {
             return;
         }
         mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
-        mExoplayerHandler.post(() -> { mPlayer.stop(); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.stop();
+        });
     }
 
     /**

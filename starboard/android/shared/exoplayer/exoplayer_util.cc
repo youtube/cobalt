@@ -113,8 +113,16 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
   }
 
   bool is_passthrough;
-  ScopedJavaLocalRef<jstring> j_audio_mime = ConvertUTF8ToJavaString(
-      env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
+  ScopedJavaLocalRef<jstring> j_audio_mime;
+
+  if (stream_info.codec == kSbMediaAudioCodecAc3) {
+    j_audio_mime = ConvertUTF8ToJavaString(env, "audio/ac3");
+  } else if (stream_info.codec == kSbMediaAudioCodecEac3) {
+    j_audio_mime = ConvertUTF8ToJavaString(env, "audio/eac3");
+  } else {
+    j_audio_mime = ConvertUTF8ToJavaString(
+        env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
+  }
 
   return Java_ExoPlayerManager_createAudioMediaSource(
       env, j_audio_mime, configuration_data, sample_rate, channels,

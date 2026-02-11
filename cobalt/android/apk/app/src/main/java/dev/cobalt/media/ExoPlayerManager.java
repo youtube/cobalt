@@ -14,7 +14,6 @@
 
 package dev.cobalt.media;
 
-import static androidx.media3.common.C.CRYPTO_TYPE_FRAMEWORK;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
@@ -49,6 +48,7 @@ import org.jni_zero.JNINamespace;
 public class ExoPlayerManager {
     private final Context mContext;
     private final DefaultRenderersFactory mRenderersFactory;
+    private static final int PASSTHROUGH_CODEC_BITRATE = 384000;
 
     /** Filters software video codecs from ExoPlayer codec selection for non-emulator devices. */
     private static final class FilteringMediaCodecSelector implements MediaCodecSelector {
@@ -61,8 +61,7 @@ public class ExoPlayerManager {
                         androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
                                 mimeType, requiresSecureDecoder, requiresTunnelingDecoder);
             } catch (androidx.media3.exoplayer.mediacodec.MediaCodecUtil.DecoderQueryException e) {
-                Log.i(TAG,
-                        String.format("MediaCodecUtil.getDecoderInfos() error %s", e));
+                Log.i(TAG, String.format("MediaCodecUtil.getDecoderInfos() error %s", e));
                 return defaultDecoderInfos;
             }
             // Skip video decoder filtering for emulators.
@@ -140,39 +139,42 @@ public class ExoPlayerManager {
     public static ExoPlayerMediaSource createAudioMediaSource(String mime,
             byte[] audioConfigurationData, int sampleRate, int channelCount,
             DrmSessionManager drmSessionManager, byte[] drmInitData) {
-        Format.Builder builder =
-                new Format.Builder().setSampleRate(sampleRate).setChannelCount(channelCount);
+        Format.Builder builder = new Format.Builder()
+                                         .setSampleRate(sampleRate)
+                                         .setChannelCount(channelCount)
+                                         .setSampleMimeType(mime);
 
-        if (mime.equals(MimeTypes.AUDIO_AAC)) {
-            if (audioConfigurationData != null) {
+        if (audioConfigurationData != null) {
+            if (mime.equals(MimeTypes.AUDIO_OPUS)) {
+                if (audioConfigurationData == null) {
+                    Log.e(TAG, "Opus stream is missing configuration data.");
+                    return null;
+                }
+
+                byte[][] csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
+                        sampleRate, audioConfigurationData);
+                if (csds == null) {
+                    Log.e(TAG, "Error parsing Opus config info");
+                    return null;
+                }
+                builder.setInitializationData(Arrays.asList(csds));
+            } else {
                 builder.setInitializationData(Collections.singletonList(audioConfigurationData));
             }
-        } else if (mime.equals(MimeTypes.AUDIO_OPUS)) {
-            if (audioConfigurationData == null) {
-                Log.e(TAG, "Opus stream is missing configuration data.");
-                return null;
-            }
-
-            byte[][] csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
-                    sampleRate, audioConfigurationData);
-            if (csds == null) {
-                Log.e(TAG, "Error parsing Opus config info");
-                return null;
-            }
-            builder.setInitializationData(Arrays.asList(csds));
-        } else {
-          Log.i(TAG, String.format("Trying to create an audio format for mime %s", mime));
         }
 
-        builder.setSampleMimeType(mime);
+        if (mime.equals(MimeTypes.AUDIO_AC3) || mime.equals(MimeTypes.AUDIO_E_AC3)) {
+            builder.setAverageBitrate(PASSTHROUGH_CODEC_BITRATE);
+        }
         if (drmSessionManager != null) {
-          Log.i(TAG, "CREATED ENCRYPTED AUDIO MEDIA SOURCE");
-          builder.setCryptoType(C.CRYPTO_TYPE_FRAMEWORK);
-          String schemeMimeType = "audio/mp4";
-          if (mime.equals(MimeTypes.AUDIO_OPUS)) {
-            schemeMimeType = "audio/webm";
-          }
-          builder.setDrmInitData(new DrmInitData(new SchemeData(C.WIDEVINE_UUID, schemeMimeType, drmInitData)));
+            Log.i(TAG, "CREATED ENCRYPTED AUDIO MEDIA SOURCE");
+            builder.setCryptoType(C.CRYPTO_TYPE_FRAMEWORK);
+            String schemeMimeType = "audio/mp4";
+            if (mime.equals(MimeTypes.AUDIO_OPUS)) {
+                schemeMimeType = "audio/webm";
+            }
+            builder.setDrmInitData(
+                    new DrmInitData(new SchemeData(C.WIDEVINE_UUID, schemeMimeType, drmInitData)));
         }
         return new ExoPlayerMediaSource(builder.build(), drmSessionManager);
     }
@@ -206,15 +208,16 @@ public class ExoPlayerManager {
             builder.setColorInfo(colorInfo);
         }
 
-      if (drmSessionManager != null) {
-        Log.i(TAG, "CREATED ENCRYPTED VIDEO MEDIA SOURCE");
-        builder.setCryptoType(C.CRYPTO_TYPE_FRAMEWORK);
-        String schemeMimeType = "video/mp4";
-        if (mime.equals(MimeTypes.VIDEO_VP9)) {
-          schemeMimeType = "video/webm";
+        if (drmSessionManager != null) {
+            Log.i(TAG, "CREATED ENCRYPTED VIDEO MEDIA SOURCE");
+            builder.setCryptoType(C.CRYPTO_TYPE_FRAMEWORK);
+            String schemeMimeType = "video/mp4";
+            if (mime.equals(MimeTypes.VIDEO_VP9)) {
+                schemeMimeType = "video/webm";
+            }
+            builder.setDrmInitData(
+                    new DrmInitData(new SchemeData(C.WIDEVINE_UUID, schemeMimeType, drmInitData)));
         }
-        builder.setDrmInitData(new DrmInitData(new SchemeData(C.WIDEVINE_UUID, schemeMimeType, drmInitData)));
-      }
 
         return new ExoPlayerMediaSource(builder.build(), drmSessionManager);
     }

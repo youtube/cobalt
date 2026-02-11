@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_DRM_SYSTEM_EXOPLAYER_H_
-#define STARBOARD_ANDROID_SHARED_DRM_SYSTEM_EXOPLAYER_H_
+#ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_DRM_SYSTEM_EXOPLAYER_H_
+#define STARBOARD_ANDROID_SHARED_EXOPLAYER_DRM_SYSTEM_EXOPLAYER_H_
 
 #include <jni.h>
 
@@ -33,6 +33,19 @@
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
+
+// Must match the values returned my MediaDrm.keyRequest.getRequestType().
+// https://developer.android.com/reference/android/media/MediaDrm.KeyRequest#getRequestType().
+enum RequestType {
+  REQUEST_TYPE_UNKNOWN = -2147483648,
+  REQUEST_TYPE_INITIAL = 0,
+  REQUEST_TYPE_RENEWAL = 1,
+  REQUEST_TYPE_RELEASE = 2,
+  REQUEST_TYPE_NONE = 3,
+  REQUEST_TYPE_UPDATE = 4,
+
+  REQUEST_TYPE_MAX = REQUEST_TYPE_UPDATE,
+};
 
 class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
  public:
@@ -66,6 +79,7 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
 
   void ExecuteKeyRequest(
       JNIEnv* env,
+      const jint request_type,
       const base::android::JavaParamRef<jbyteArray>& j_session_id,
       const base::android::JavaParamRef<jbyteArray>& j_message);
   void ExecuteProvisionRequest(
@@ -103,4 +117,4 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_DRM_SYSTEM_EXOPLAYER_H_
+#endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_DRM_SYSTEM_EXOPLAYER_H_

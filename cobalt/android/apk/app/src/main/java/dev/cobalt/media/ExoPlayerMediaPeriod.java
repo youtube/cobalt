@@ -14,8 +14,6 @@
 
 package dev.cobalt.media;
 
-import static dev.cobalt.media.Log.TAG;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
@@ -32,8 +30,6 @@ import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
 import androidx.media3.extractor.TrackOutput.CryptoData;
 import java.io.IOException;
-
-import dev.cobalt.util.Log;
 
 /** Implements the ExoPlayer MediaPeriod interface to write samples to the ExoPlayerSampleStream. */
 public class ExoPlayerMediaPeriod implements MediaPeriod {
@@ -118,7 +114,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
      */
     @Override
     public void discardBuffer(long positionUs, boolean toKeyframe) {
-        mStream.discardBuffer(positionUs, toKeyframe);
+        if (mStream != null) {
+            mStream.discardBuffer(positionUs, toKeyframe);
+        }
     }
 
     /**
@@ -196,9 +194,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     public void reevaluateBuffer(long positionUs) {}
 
     public void destroySampleStream() {
-      if (mStream != null) {
-        mStream.destroy();
-      }
+        if (mStream != null) {
+            mStream.destroy();
+        }
     }
 
     /**
@@ -218,8 +216,8 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
             @Nullable int[] subsampleEncryptedBytes, @Nullable int[] subsampleClearBytes) {
         if (key != null) {
             mStream.writeSample(samples, size, timestamp, isKeyFrame,
-                    new CryptoData(encryptionMode, key, encryptedBlocks, clearBlocks), initializationVector, iv_size,
-                    subsampleEncryptedBytes, subsampleClearBytes);
+                    new CryptoData(encryptionMode, key, encryptedBlocks, clearBlocks),
+                    initializationVector, iv_size, subsampleEncryptedBytes, subsampleClearBytes);
             return;
         }
         mStream.writeSample(samples, size, timestamp, isKeyFrame);
@@ -230,9 +228,9 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     }
 
     public boolean canAcceptMoreData() {
-      if (mStream == null) {
-        return false;
-      }
+        if (mStream == null) {
+            return false;
+        }
         return mStream.canAcceptMoreData();
     }
 }

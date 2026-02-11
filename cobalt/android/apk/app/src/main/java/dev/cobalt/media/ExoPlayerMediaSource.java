@@ -25,7 +25,6 @@ import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.analytics.PlayerId;
-import androidx.media3.exoplayer.drm.DrmSessionEventListener;
 import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.BaseMediaSource;
 import androidx.media3.exoplayer.source.MediaPeriod;
@@ -50,7 +49,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     }
 
     public Format getFormat() {
-      return mFormat;
+        return mFormat;
     }
 
     @Override
@@ -145,7 +144,8 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
         synchronized (mLock) {
             if (mMediaPeriod != null) {
                 mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
-                        encryptedBlocks, clearBlocks, initializationVector, iv_size, subsampleEncryptedBytes, subsampleClearBytes);
+                        encryptedBlocks, clearBlocks, initializationVector, iv_size,
+                        subsampleEncryptedBytes, subsampleClearBytes);
             }
         }
     }

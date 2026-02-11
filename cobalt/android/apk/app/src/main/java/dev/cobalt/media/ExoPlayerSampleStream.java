@@ -34,7 +34,6 @@ import androidx.media3.extractor.TrackOutput.CryptoData;
 import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /** Queues encoded media to be retrieved by the player renderers */
 @UnstableApi
@@ -103,10 +102,12 @@ public class ExoPlayerSampleStream implements SampleStream {
             flags |= C.BUFFER_FLAG_ENCRYPTED;
             ParsableByteArray encryptionSignalByte = new ParsableByteArray(1);
             // If subsamples are present, set the 0x80 bit.
-            boolean hasSubsamples = subsampleEncryptedBytes != null && subsampleClearBytes != null && subsampleEncryptedBytes.length > 0;
+            boolean hasSubsamples = subsampleEncryptedBytes != null && subsampleClearBytes != null
+                    && subsampleEncryptedBytes.length > 0;
             encryptionSignalByte.getData()[0] = (byte) (ivSize | (hasSubsamples ? 0x80 : 0));
             encryptionSignalByte.setPosition(0);
-            mSampleQueue.sampleData(encryptionSignalByte, 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+            mSampleQueue.sampleData(
+                    encryptionSignalByte, 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
             totalSize++;
 
             ParsableByteArray ivData = new ParsableByteArray(initializationVector, ivSize);
@@ -119,7 +120,8 @@ public class ExoPlayerSampleStream implements SampleStream {
                 subsampleCountData.getData()[0] = (byte) (subsampleCount >> 8);
                 subsampleCountData.getData()[1] = (byte) (subsampleCount & 0xFF);
                 subsampleCountData.setPosition(0);
-                mSampleQueue.sampleData(subsampleCountData, 2, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+                mSampleQueue.sampleData(
+                        subsampleCountData, 2, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
                 totalSize += 2;
 
                 int subsampleDataLength = 6 * subsampleCount;
@@ -129,7 +131,8 @@ public class ExoPlayerSampleStream implements SampleStream {
                     subsampleBuffer.putInt(subsampleEncryptedBytes[i]);
                 }
                 ParsableByteArray subsampleData = new ParsableByteArray(subsampleBuffer.array());
-                mSampleQueue.sampleData(subsampleData, subsampleDataLength, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+                mSampleQueue.sampleData(subsampleData, subsampleDataLength,
+                        TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
                 totalSize += subsampleDataLength;
             }
         }

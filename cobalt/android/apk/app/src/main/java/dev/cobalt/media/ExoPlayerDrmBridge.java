@@ -19,7 +19,6 @@ import static dev.cobalt.media.Log.TAG;
 import android.content.Context;
 import android.os.Build;
 import android.util.Base64;
-import androidx.annotation.Nullable;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.ExoMediaDrm;
 import androidx.media3.exoplayer.drm.ExoMediaDrm.KeyRequest;
@@ -29,14 +28,22 @@ import androidx.media3.exoplayer.drm.MediaDrmCallbackException;
 import androidx.media3.exoplayer.drm.UnsupportedDrmException;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
+import dev.cobalt.util.Log;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import dev.cobalt.util.Log;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
+/**
+ * Manages DRM sessions for ExoPlayer and acts as a bridge between ExoPlayer's MediaDrmCallback
+ * and the native SbDrmSystem.
+ *
+ * <p>This class implements {@link MediaDrmCallback} to handle key and provisioning requests,
+ * forwarding them to the native Starboard implementation. It also owns and manages the lifecycle
+ * of the {@link DefaultDrmSessionManager} used by ExoPlayer.
+ */
 @JNINamespace("starboard")
 public class ExoPlayerDrmBridge {
     private final long mNativeDrmSystemExoplayer;
@@ -103,7 +110,7 @@ public class ExoPlayerDrmBridge {
 
             mPendingKeyRequestResponse = new CompletableFuture<>();
             ExoPlayerDrmBridgeJni.get().executeKeyRequest(
-                    mNativeDrmSystemExoplayer, request.getData(), mSessionId);
+                    mNativeDrmSystemExoplayer, request.getRequestType(), request.getData(), mSessionId);
 
             try {
                 return mPendingKeyRequestResponse.get(10, TimeUnit.SECONDS);
@@ -191,7 +198,7 @@ public class ExoPlayerDrmBridge {
      * @param response Response data.
      */
     @CalledByNative
-    void SetProvisionRequestResponse(byte[] response) {
+    void setProvisionRequestResponse(byte[] response) {
         mMediaDrmCallback.setProvisionRequestResponse(response);
     }
 
@@ -200,7 +207,7 @@ public class ExoPlayerDrmBridge {
      * @param response Response data.
      */
     @CalledByNative
-    void SetKeyRequestResponse(byte[] response) {
+    void setKeyRequestResponse(byte[] response) {
         mMediaDrmCallback.setKeyRequestResponse(response);
     }
 
@@ -208,6 +215,6 @@ public class ExoPlayerDrmBridge {
     interface Natives {
         void executeProvisionRequest(long nativeDrmSystemExoPlayer, byte[] data, byte[] sessionId);
 
-        void executeKeyRequest(long nativeDrmSystemExoPlayer, byte[] data, byte[] sessionId);
+        void executeKeyRequest(long nativeDrmSystemExoPlayer, int requestType, byte[] data, byte[] sessionId);
     }
 }

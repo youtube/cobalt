@@ -19,9 +19,10 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
+
+#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
@@ -36,9 +37,8 @@ using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
-constexpr int kWaitForInitializedTimeoutUsec = 25000000;  // 25 s.
+constexpr int kWaitForInitializedTimeoutUsec = 5000000;  // 5 s.
 constexpr char kNoUrl[] = "";
-const char kFirstSbDrmSessionId[] = "initialdrmsessionid";
 
 std::string JavaByteArrayToString(
     JNIEnv* env,
@@ -121,6 +121,9 @@ void DrmSystemExoPlayer::UpdateSession(int ticket,
       ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(key), key_size);
   Java_ExoPlayerDrmBridge_SetKeyRequestResponse(env, j_exoplayer_drm_bridge_,
                                                 j_response);
+  // TODO: Get the status when the key is set.
+  session_updated_callback_(this, context_, ticket, kSbDrmStatusSuccess, "",
+                            session_id, session_id_size);
 }
 void DrmSystemExoPlayer::CloseSession(const void* session_id_data,
                                       int session_id_size) {}
@@ -172,15 +175,27 @@ const void* DrmSystemExoPlayer::GetMetrics(int* size) {
 
 void DrmSystemExoPlayer::ExecuteKeyRequest(
     JNIEnv* env,
+    const jint request_type,
     const JavaParamRef<jbyteArray>& j_message,
     const JavaParamRef<jbyteArray>& j_session_id) {
   SB_LOG(INFO) << "CALLING EXECUTE KEY REQUEST";
+
   std::string session_id = JavaByteArrayToString(env, j_session_id);
   std::string message = JavaByteArrayToString(env, j_message);
-  update_request_callback_(this, context_, ticket_, kSbDrmStatusSuccess,
-                           kSbDrmSessionRequestTypeLicenseRequest, nullptr,
-                           session_id.data(), session_id.size(), message.data(),
-                           message.size(), kNoUrl);
+  if (request_type == REQUEST_TYPE_INITIAL) {
+    SB_LOG(INFO) << "INITIAL REQUEST";
+    update_request_callback_(this, context_, ticket_, kSbDrmStatusSuccess,
+                             kSbDrmSessionRequestTypeLicenseRequest, nullptr,
+                             session_id.data(), session_id.size(),
+                             message.data(), message.size(), kNoUrl);
+  } else if (request_type == REQUEST_TYPE_RENEWAL) {
+    SB_LOG(INFO) << "RENEWAL REQUEST";
+    // key_statuses_changed_callback_(this, context_, session_id.data(),
+    //                                session_id.size(),
+    //                                static_cast<int>(drm_key_ids.size()),
+    //                                drm_key_ids.data(),
+    //                                drm_key_statuses.data());
+  }
 }
 
 std::vector<uint8_t> DrmSystemExoPlayer::GetInitializationData() {
