@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Found here: https://chromiumdash.appspot.com/branches
+        # Found here: https://chromiumdash.appspot.com/branchess
         branch: [
           {milestone: m114, branch_num: 5735},
           {milestone: m120, branch_num: 6099},
