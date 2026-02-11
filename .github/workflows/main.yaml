@@ -538,9 +538,11 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run YTS Tests
         uses: ./.github/actions/internal_tests
         with:
