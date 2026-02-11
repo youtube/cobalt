@@ -263,7 +263,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
         else:
           bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
-          if test_type = 'yts_test':
+          if test_type == 'yts_test':
             files.append(f'build_apk={bigstore_path}')
           else:
             files.append(f'cobalt_path={bigstore_path}')
