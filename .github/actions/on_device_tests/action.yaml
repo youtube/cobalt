@@ -19,6 +19,9 @@ inputs:
   test_attempts:
     description: "Number of attempts for the tests."
     default: ""
+  docker_tag:
+    description: "Docker image tag to be used by the test lab."
+    default: ""
 
 runs:
   using: "composite"
@@ -90,6 +93,7 @@ runs:
           --label branch:${GITHUB_REF_NAME} \
           --dimensions '${{ inputs.test_dimensions }}' \
           ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
+          ${{ inputs.docker_tag && format('--docker_tag {0}', inputs.docker_tag) }} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${{ inputs.gcs_results_path }}" || {
             echo "Finished running tests..."

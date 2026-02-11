@@ -500,6 +500,7 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
+          docker_tag: ${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}
     outputs:
       test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
 
@@ -537,6 +538,7 @@ jobs:
           test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          docker_tag: ${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}
 
   yts-test:
     needs: [initialize, build]
@@ -570,6 +572,7 @@ jobs:
         with:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_test_targets }}'
+          docker_tag: ${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}
 
   yts-playback-test:
     needs: [initialize, build]
