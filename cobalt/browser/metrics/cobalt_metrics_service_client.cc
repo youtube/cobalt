@@ -267,6 +267,9 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
 
+  // Any hooks that should be called before each new log is uploaded, goes here.
+  // Chrome uses this to update memory histograms. Regardless, you must call
+  // done_callback when done else the uploader will never get invoked.
   std::move(done_callback).Run();
 
   // Reset the idle state but don't call OnApplicationNotIdleInternal to avoid
