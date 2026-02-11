@@ -80,7 +80,7 @@ runs:
 
         # Add Cobalt release artifacts for smoke tests.
         if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
-          mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
+          mv ${GITHUB_WORKSPACE}/src/out/test-package/* \
              ${GITHUB_WORKSPACE}/artifacts/
         fi
 

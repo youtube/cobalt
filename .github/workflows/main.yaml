@@ -326,16 +326,8 @@ jobs:
           # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
           # to properly calculate build id.
           fetch-depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
-<<<<<<< HEAD
       - name: Set Up Depot Tools
         uses: ./src/.github/actions/depot_tools
-=======
-          clean: false
-
-      - name: Set Up Depot Tools
-        uses: ./cobalt/src/.github/actions/depot_tools
-
->>>>>>> 9842e28648 (ci: Refactor packaging and upload artifacts for all platforms (#7858))
       - name: Build Cobalt
         id: build
         uses: ./src/.github/actions/build
@@ -348,12 +340,12 @@ jobs:
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true')
-        uses: ./cobalt/src/.github/actions/package
+        uses: ./src/.github/actions/package
         with:
           package_dir: out/test-package
 
       - name: Upload Test Artifacts
-        uses: ./cobalt/src/.github/actions/upload_test_artifacts
+        uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
