@@ -10,18 +10,22 @@ from datetime import datetime, timedelta
 import os
 import sys
 import argparse
+import threading
 
 # --- Configurable Defaults ---
 DEFAULT_APK1_PATH = "/usr/local/google/home/sideboard/Code/cobalt/src/out/android-arm_devel/apks/Cobalt.apk"
 DEFAULT_APK2_PATH = "/usr/local/google/home/sideboard/Code/cobalt-25/out/android-arm_devel/cobalt.apk"
 DEFAULT_DURATION = 60  # Seconds
 DEFAULT_OUTPUT_DIR = "/tmp/cobalt_monitoring"
-DEFAULT_YOUTUBE_URL = "https://youtube.com/tv/watch?v=UdqZ3xoaekk&absolute_experiments=9415422"
+#DEFAULT_YOUTUBE_URL = "https://youtube.com/tv/watch?v=UdqZ3xoaekk&absolute_experiments=9415422"
+DEFAULT_YOUTUBE_URL = "https://www.youtube.com/tv/playlist?list=PLH-do-y953IiystRnbK49ot5y0lfBYxSd"
 # --- End Configurable Defaults ---
 
 PACKAGE_NAME = "dev.cobalt.coat"
 POLL_INTERVAL = 5  # Seconds
 LAUNCH_ACTIVITY = "dev.cobalt.app.MainActivity"
+
+LOGCAT_STATE_REGEX = re.compile(r"StarboardRenderer::OnPlayerStatus\(\) called with (kSbPlayerState\w+)")
 
 def run_adb_command(command, check=True, suppress_output=False):
     full_command = ['adb'] + command
@@ -79,39 +83,85 @@ def monitor_cpu(pid):
         header_line = None
         header_index = -1
         cpu_index = -1
-        cpu_header = "S[%CPU]"
 
         for i, line in enumerate(lines):
-            if 'PID' in line and 'USER' in line and cpu_header in line:
+            if 'PID' in line and '%CPU' in line:
                 header_line = line
                 header_index = i
                 break
 
         if not header_line:
-            print("Error: Could not find header row in top output.")
+            print(f"Error: Could not find header row with %CPU in top output")
             return None
 
         headers = header_line.split()
         try:
-            cpu_index = headers.index(cpu_header)
+            cpu_index = headers.index('%CPU')
         except ValueError:
-            print(f"Error: Index of '{cpu_header}' not found in header: {header_line}")
-            return None
+            # Some versions of top use S[%CPU]
+            try:
+                cpu_index = headers.index('S[%CPU]')
+            except ValueError:
+                print(f"Error: '%CPU' or 'S[%CPU]' not found in header: {header_line}")
+                return None
 
         for i in range(header_index + 1, len(lines)):
             line = lines[i]
             if pid in line:
                 parts = line.split()
                 if len(parts) > cpu_index:
+                    cpu_val = parts[cpu_index]
                     try:
-                        return {'Timestamp': datetime.now(), 'CPU': float(parts[cpu_index])}
+                        return {'Timestamp': datetime.now(), 'CPU': float(cpu_val)}
                     except ValueError:
-                        print(f"Error converting CPU: {parts[cpu_index]} in line: {line}")
-                        return None
+                        # If conversion fails, it might be the status column. Try the next index.
+                        if len(parts) > cpu_index + 1:
+                            cpu_val = parts[cpu_index + 1]
+                            try:
+                                return {'Timestamp': datetime.now(), 'CPU': float(cpu_val)}
+                            except ValueError:
+                                print(f"Error converting CPU: {parts[cpu_index]} or {cpu_val} in line: {line}")
+                                return None
+                        else:
+                            print(f"Error converting CPU: {parts[cpu_index]} in line: {line} - No next column to try")
+                            return None
+                else:
+                    print(f"Error: Not enough parts in line for CPU index: {line}")
         return None
     except Exception as e:
         print(f"Error parsing top: {e}")
         return None
+
+def monitor_logcat(pid, duration_seconds, events):
+    print(f"Starting logcat monitoring for PID {pid} for {duration_seconds}s...")
+    try:
+        process = subprocess.Popen(['adb', 'logcat', '-v', 'time', '--pid', pid], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        start_time = time.time()
+        while time.time() - start_time < duration_seconds:
+            if process.stdout:
+                line = process.stdout.readline()
+                if not line:
+                    if process.poll() is not None:
+                        break
+                    continue
+
+                state_match = LOGCAT_STATE_REGEX.search(line)
+                if state_match:
+                    events.append({
+                        'Timestamp': datetime.now(),
+                        'Type': 'StateChange',
+                        'To': state_match.group(1) # Capture the kSbPlayerState
+                    })
+        if process.poll() is None:
+             process.terminate()
+             try:
+                 process.wait(timeout=5)
+             except subprocess.TimeoutExpired:
+                 process.kill()
+                 print("Logcat process killed.")
+    except Exception as e:
+        print(f"Error during logcat monitoring: {e}")
+    print("Logcat monitoring finished.")
 
 def uninstall_apk(package_name):
     print(f"Uninstalling {package_name}...")
@@ -142,11 +192,52 @@ def launch_app(package_name, youtube_url):
     print("Waiting for app to start...")
     time.sleep(10)
 
+def parse_surfaceflinger_stats(dumpsys_output, package_name):
+    janky_frames = 0
+    in_surfaceview_section = False
+    layer_regex = re.compile(r"layerName = SurfaceView\[" + re.escape(package_name))
+    histogram_regex = re.compile(r"present2present histogram is as below:")
+    bucket_regex = re.compile(r"(\d+)ms=(\d+)")
+
+    lines = dumpsys_output.splitlines()
+    for i, line in enumerate(lines):
+        if layer_regex.search(line):
+            in_surfaceview_section = True
+            continue
+
+        if in_surfaceview_section and not line.strip():
+            # End of section
+            in_surfaceview_section = False
+
+        if in_surfaceview_section and histogram_regex.search(line):
+            # Next lines are the histogram data
+            for j in range(i + 1, len(lines)):
+                hist_line = lines[j]
+                if not hist_line.strip() or "ms=" not in hist_line:
+                    break  # End of histogram
+
+                buckets = bucket_regex.findall(hist_line)
+                for time_ms, count in buckets:
+                    try:
+                        time_ms = int(time_ms)
+                        count = int(count)
+                        # Threshold for jank: > 20ms, assuming 60Hz target (16.67ms)
+                        if time_ms > 20:
+                            janky_frames += count
+                    except ValueError:
+                        continue
+            return janky_frames
+    return janky_frames # Return 0 if not found
+
 def run_test_on_apk(apk_path, package_name, duration_seconds, youtube_url):
-    mem_data, cpu_data = [], []
+    mem_data, cpu_data, events = [], [], []
     uninstall_apk(package_name)
     if not install_apk(apk_path):
-        return [], [], []
+        return None
+
+    run_adb_command(['logcat', '-c']) # Clear logcat
+    run_adb_command(['shell', 'dumpsys', 'SurfaceFlinger', '--timestats', '-clear'], check=False)
+    run_adb_command(['shell', 'dumpsys', 'SurfaceFlinger', '--timestats', '-enable'], check=False)
 
     launch_app(package_name, youtube_url)
 
@@ -159,8 +250,11 @@ def run_test_on_apk(apk_path, package_name, duration_seconds, youtube_url):
     if not cobalt_pid:
         print(f"Failed to get PID for {package_name}.")
         uninstall_apk(package_name)
-        return [], [], []
+        return None
     print(f"Cobalt PID: {cobalt_pid}")
+
+    logcat_thread = threading.Thread(target=monitor_logcat, args=(cobalt_pid, duration_seconds, events))
+    logcat_thread.start()
 
     print(f"Starting monitoring for {os.path.basename(apk_path)} for {duration_seconds}s...")
     start_time = time.time()
@@ -175,34 +269,52 @@ def run_test_on_apk(apk_path, package_name, duration_seconds, youtube_url):
         if sleep_time > 0:
             time.sleep(sleep_time)
 
+    print(f"Waiting for logcat thread to finish for {os.path.basename(apk_path)}...")
+    logcat_thread.join()
     print(f"Monitoring finished for {os.path.basename(apk_path)}.")
     run_adb_command(['shell', 'am', 'force-stop', package_name], check=False)
+
+    sf_stats_output = run_adb_command(['shell', 'dumpsys', 'SurfaceFlinger', '--timestats', '-dump'], check=False)
+    run_adb_command(['shell', 'dumpsys', 'SurfaceFlinger', '--timestats', '-disable'], check=False)
+
+    sf_janky_frames = 0
+    if sf_stats_output:
+        sf_janky_frames = parse_surfaceflinger_stats(sf_stats_output, package_name)
+        print(f"SurfaceFlinger Janky Frames: {sf_janky_frames}")
+
     uninstall_apk(package_name)
-    return mem_data, cpu_data
+    return mem_data, cpu_data, sf_janky_frames, events
 
 def plot_combined_data(data1, data2, label1, label2, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    mem_data1, cpu_data1 = data1 if data1 else ([], [])
-    mem_data2, cpu_data2 = data2 if data2 else ([], [])
+    mem_data1, cpu_data1, sf_janky1, events1 = data1 if data1 else ([], [], 0, [])
+    mem_data2, cpu_data2, sf_janky2, events2 = data2 if data2 else ([], [], 0, [])
 
     # Normalize timestamps to be relative to the start of each run
-    def normalize_time(data):
+    def normalize_time(data, start_time_override=None):
         if not data:
-            return [] # Return empty list if no data
-        start_time = data[0]['Timestamp']
+            return [], start_time_override or datetime.now()
+        start_time = start_time_override or data[0]['Timestamp']
         for item in data:
             item['RelTime'] = (item['Timestamp'] - start_time).total_seconds()
-        return data
+        return data, start_time
 
-    mem_data1 = normalize_time(mem_data1)
-    cpu_data1 = normalize_time(cpu_data1)
-    mem_data2 = normalize_time(mem_data2)
-    cpu_data2 = normalize_time(cpu_data2)
+    mem_data1, run1_start_time = normalize_time(mem_data1)
+    cpu_data1, _ = normalize_time(cpu_data1, run1_start_time)
+    events1, _ = normalize_time(events1, run1_start_time)
 
-    fig = plt.figure(figsize=(24, 24)) # Increased figure size for the new plot
-    fig.suptitle(f'Cobalt Performance Comparison: {label1} vs {label2}', fontsize=16)
+    mem_data2, run2_start_time = normalize_time(mem_data2)
+    if not mem_data2:
+        run2_start_time = run1_start_time
+    cpu_data2, _ = normalize_time(cpu_data2, run2_start_time)
+    events2, _ = normalize_time(events2, run2_start_time)
+
+    fig = plt.figure(figsize=(24, 28))
+    fig.suptitle(f'Cobalt Performance Comparison: {label1} vs {label2}\n'
+                 f'{label1} Janky Frames: {sf_janky1} | {label2} Janky Frames: {sf_janky2}', fontsize=16)
+    gs = fig.add_gridspec(3, 2) # 3 rows: mem, cpu
 
     # Determine shared Y-axis limit for memory plots
     max_pss = 0
@@ -214,74 +326,91 @@ def plot_combined_data(data1, data2, label1, label2, output_dir):
         df_mem2_temp = pd.DataFrame(mem_data2)
         if not df_mem2_temp.empty and 'PSS' in df_mem2_temp.columns:
             max_pss = max(max_pss, df_mem2_temp['PSS'].max())
-    mem_ylim = (0, max_pss * 1.1 + 1) # Add 10% padding and ensure non-zero limit
+    mem_ylim = (0, max_pss * 1.1 + 1)
 
-    labels = ['JavaHeap', 'NativeHeap', 'Stack', 'System', 'so_mmap', 'jar_mmap', 'apk_mmap',
+    mem_labels = ['JavaHeap', 'NativeHeap', 'Stack', 'System', 'so_mmap', 'jar_mmap', 'apk_mmap',
               'ttf_mmap', 'dex_mmap', 'oat_mmap', 'art_mmap', 'EGL_mtrack', 'GL_mtrack',
               'Ashmem', 'Other_dev', 'Other_mmap', 'Unknown']
 
-    # Memory Plot for APK1 (Top Left)
-    ax1 = fig.add_subplot(3, 2, 1)
-    if mem_data1:
-        df_mem1 = pd.DataFrame(mem_data1)
-        if not df_mem1.empty and 'RelTime' in df_mem1.columns:
-            columns1 = [df_mem1.get(label, 0) for label in labels]
-            ax1.stackplot(df_mem1['RelTime'], *columns1, labels=labels, alpha=0.8)
-            ax1.plot(df_mem1['RelTime'], df_mem1['PSS'], label='Total PSS', color='black', linestyle='--')
-            df_mem1.to_csv(os.path.join(output_dir, f'memory_usage_{label1}.csv'), index=False)
-    ax1.set_xlabel('Time (seconds)')
-    ax1.set_ylabel('Memory (KB)')
-    ax1.set_title(f'Memory Usage: {label1}')
-    ax1.set_ylim(mem_ylim)
-    ax1.grid(True)
+    def plot_memory(ax, mem_data, title_prefix):
+        if mem_data:
+            df_mem = pd.DataFrame(mem_data)
+            if not df_mem.empty and 'RelTime' in df_mem.columns:
+                columns = [df_mem.get(label, pd.Series([0] * len(df_mem))) for label in mem_labels]
+                ax.stackplot(df_mem['RelTime'], *columns, labels=mem_labels, alpha=0.8)
+                if 'PSS' in df_mem.columns:
+                    ax.plot(df_mem['RelTime'], df_mem['PSS'], label='Total PSS', color='black', linestyle='--')
+        ax.set_xlabel('Time (seconds)')
+        ax.set_ylabel('Memory (KB)')
+        ax.set_title(f'Memory Usage: {title_prefix}')
+        ax.set_ylim(mem_ylim)
+        ax.grid(True)
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            ax.legend(handles[::-1], labels[::-1], loc='upper left', fontsize='small')
 
-    # Memory Plot for APK2 (Top Right)
-    ax2 = fig.add_subplot(3, 2, 2)
-    if mem_data2:
-        df_mem2 = pd.DataFrame(mem_data2)
-        if not df_mem2.empty and 'RelTime' in df_mem2.columns:
-            columns2 = [df_mem2.get(label, 0) for label in labels]
-            ax2.stackplot(df_mem2['RelTime'], *columns2, labels=labels, alpha=0.8)
-            ax2.plot(df_mem2['RelTime'], df_mem2['PSS'], label='Total PSS', color='black', linestyle='--')
-            df_mem2.to_csv(os.path.join(output_dir, f'memory_usage_{label2}.csv'), index=False)
-    ax2.set_xlabel('Time (seconds)')
-    ax2.set_ylabel('Memory (KB)')
-    ax2.set_title(f'Memory Usage: {label2}')
-    ax2.set_ylim(mem_ylim)
-    ax2.grid(True)
+    ax_mem1 = fig.add_subplot(gs[0, 0])
+    plot_memory(ax_mem1, mem_data1, label1)
 
-    # Memory legend
-    handles, labels_leg = ax2.get_legend_handles_labels()
-    if handles:
-        stack_handles = handles[:len(labels)]
-        stack_labels = labels[:len(labels)]
-        other_handles = handles[len(labels):]
-        other_labels = labels_leg[len(labels):]
-        fig.legend(stack_handles[::-1] + other_handles, stack_labels[::-1] + other_labels, loc='upper right', bbox_to_anchor=(0.99, 0.95))
+    ax_mem2 = fig.add_subplot(gs[0, 1])
+    plot_memory(ax_mem2, mem_data2, label2)
 
-    # CPU Plot (Combined - Middle Row)
-    ax_cpu = fig.add_subplot(3, 1, 2)
-    if cpu_data1:
-        df_cpu1 = pd.DataFrame(cpu_data1)
-        if not df_cpu1.empty and 'RelTime' in df_cpu1.columns:
-            ax_cpu.plot(df_cpu1['RelTime'], df_cpu1['CPU'], label=f'{label1} CPU %', linestyle='-')
-            df_cpu1.to_csv(os.path.join(output_dir, f'cpu_usage_{label1}.csv'), index=False)
-    if cpu_data2:
-        df_cpu2 = pd.DataFrame(cpu_data2)
-        if not df_cpu2.empty and 'RelTime' in df_cpu2.columns:
-            ax_cpu.plot(df_cpu2['RelTime'], df_cpu2['CPU'], label=f'{label2} CPU %', linestyle='--')
-            df_cpu2.to_csv(os.path.join(output_dir, f'cpu_usage_{label2}.csv'), index=False)
-    ax_cpu.set_xlabel('Time (seconds)')
-    ax_cpu.set_ylabel('CPU Usage (%)')
-    ax_cpu.set_title('CPU Usage Comparison')
-    if (cpu_data1 and not pd.DataFrame(cpu_data1).empty) or (cpu_data2 and not pd.DataFrame(cpu_data2).empty):
-         ax_cpu.legend()
-    ax_cpu.grid(True)
+    # CPU Plots
+    def plot_cpu(ax, cpu_data, title_prefix):
+        if cpu_data:
+            df_cpu = pd.DataFrame(cpu_data)
+            if not df_cpu.empty and 'RelTime' in df_cpu.columns and 'CPU' in df_cpu.columns:
+                ax.plot(df_cpu['RelTime'], df_cpu['CPU'], label=f'CPU %', linestyle='-')
+        ax.set_xlabel('Time (seconds)')
+        ax.set_ylabel('CPU Usage (%)')
+        ax.set_title(f'CPU Usage: {title_prefix}')
+        ax.grid(True)
+        if cpu_data:
+            ax.legend(loc='upper right')
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    ax_cpu1 = fig.add_subplot(gs[1, 0])
+    plot_cpu(ax_cpu1, cpu_data1, label1)
+
+    ax_cpu2 = fig.add_subplot(gs[1, 1])
+    plot_cpu(ax_cpu2, cpu_data2, label2)
+
+    # Event markers and annotations
+    state_colors = {}
+    color_cycle = plt.cm.get_cmap('hsv', 10) # Cycle through 10 colors
+
+    def get_state_color(state):
+        if state not in state_colors:
+            state_colors[state] = color_cycle(len(state_colors) % 10)
+        return state_colors[state]
+
+    def add_event_markers(ax, events_list):
+        if not events_list: return
+        anno_offsets = [10, 30]  # Pixels above the x-axis
+        state_events = sorted([e for e in events_list if e['Type'] == 'StateChange'], key=lambda x: x['RelTime'])
+        for i, event in enumerate(state_events):
+            state = event['To']
+            display_state = state.replace("kSbPlayerState", "")
+            event_color = get_state_color(state)
+            
+            ax.axvline(x=event['RelTime'], color=event_color, linestyle=':', alpha=0.7)
+            
+            offset = anno_offsets[i % len(anno_offsets)]
+            ax.annotate(f"{display_state}",
+                        xy=(event['RelTime'], 0), xycoords=('data', 'axes fraction'),
+                        xytext=(3, offset), textcoords='offset points',
+                        ha='left', va='bottom', color=event_color, fontsize=7,
+                        rotation=45)
+
+    add_event_markers(ax_mem1, events1)
+    add_event_markers(ax_mem2, events2)
+    add_event_markers(ax_cpu1, events1)
+    add_event_markers(ax_cpu2, events2)
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     combined_filename = os.path.join(output_dir, f'comparison_{label1}_vs_{label2}.png')
     plt.savefig(combined_filename)
     print(f"Combined comparison plot saved to {combined_filename}")
+    plt.close(fig)
 
 def main(apk1_path, apk2_path, duration, output_dir, youtube_url):
     print(f"--- Running Test for APK 1: {apk1_path} ---")
@@ -290,11 +419,11 @@ def main(apk1_path, apk2_path, duration, output_dir, youtube_url):
     print(f"\n--- Running Test for APK 2: {apk2_path} ---")
     data2 = run_test_on_apk(apk2_path, PACKAGE_NAME, duration, youtube_url)
 
-    if (data1 and data1[0]) and (data2 and data2[0]):
+    if data1 or data2:
         print("\n--- Generating Comparison Plots ---")
         plot_combined_data(data1, data2, "APK1", "APK2", output_dir)
     else:
-        print("Data collection failed for one or both APKs, skipping plotting.")
+        print("Data collection failed for both APKs, skipping plotting.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor and Compare Cobalt APKs.")
