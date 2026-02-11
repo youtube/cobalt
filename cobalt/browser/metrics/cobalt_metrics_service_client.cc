@@ -40,15 +40,10 @@ namespace cobalt {
 namespace {
 
 void OnMemoryDumpDone(
-    base::OnceClosure done_callback,
     bool success,
     std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
   if (success && global_dump) {
     CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-  }
-
-  if (done_callback) {
-    std::move(done_callback).Run();
   }
 }
 
@@ -97,8 +92,7 @@ struct CobaltMetricsServiceClient::State
     auto* instrumentation =
         memory_instrumentation::MemoryInstrumentation::GetInstance();
     if (instrumentation) {
-      instrumentation->RequestGlobalDump(
-          {}, base::BindOnce(&OnMemoryDumpDone, base::OnceClosure()));
+      instrumentation->RequestGlobalDump({}, base::BindOnce(&OnMemoryDumpDone));
     }
     RecordMemoryMetricsAfterDelay();
   }
@@ -347,29 +341,6 @@ void CobaltMetricsServiceClient::SetMetricsListener(
     ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
-}
-
-void CobaltMetricsServiceClient::ScheduleRecordForTesting(
-    base::OnceClosure done_callback) {
-  state_->task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](scoped_refptr<State> state, base::OnceClosure done_callback) {
-            if (state->stop_logging) {
-              std::move(done_callback).Run();
-              return;
-            }
-            auto* instrumentation =
-                memory_instrumentation::MemoryInstrumentation::GetInstance();
-            if (instrumentation) {
-              instrumentation->RequestGlobalDump(
-                  {},
-                  base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
-            } else {
-              std::move(done_callback).Run();
-            }
-          },
-          state_, std::move(done_callback)));
 }
 
 // static

@@ -22,10 +22,6 @@ import sys
 import time
 import threading
 import requests
-<<<<<<< HEAD
-import websocket  # Need websocket-client
-=======
->>>>>>> 52f2617f34 (cobalt/metrics: Implement Memory.Total.PrivateMemoryFootprint metric (#8845))
 
 REPOSITORY_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../../'))

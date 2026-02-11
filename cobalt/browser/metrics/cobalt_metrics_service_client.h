@@ -97,14 +97,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Of note: GetStorageLimits() can also be overridden.
 
   void SetUploadInterval(base::TimeDelta interval);
-  void SetMinIdleRefreshIntervalForTesting(base::TimeDelta interval) {
-    min_idle_refresh_interval_ = interval;
-  }
   void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
-
-  // Forces a memory metrics record for testing.
-  void ScheduleRecordForTesting(base::OnceClosure done_callback);
 
   // Static method to record memory metrics.
   static void RecordMemoryMetrics(

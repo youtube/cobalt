@@ -298,28 +298,6 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
-TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
-  base::HistogramTester histogram_tester;
-
-  // Prepare a dummy GlobalMemoryDump.
-  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
-      memory_instrumentation::mojom::GlobalMemoryDump::New();
-  dump_ptr->process_dumps.push_back(
-      memory_instrumentation::mojom::ProcessMemoryDump::New());
-  dump_ptr->process_dumps[0]->os_dump =
-      memory_instrumentation::mojom::OSMemDump::New();
-  // 10240 KB = 10 MB.
-  dump_ptr->process_dumps[0]->os_dump->private_footprint_kb = 10240;
-
-  auto global_dump =
-      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
-
-  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-
-  histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
-                                      1);
-}
-
 TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;

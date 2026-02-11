@@ -188,11 +188,6 @@ test("cobalt_browsertests") {
   }
 
   sources = [
-<<<<<<< HEAD
-=======
-    # TODO(b/458665232): restore browser tests in M138.
-    "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
->>>>>>> 52f2617f34 (cobalt/metrics: Implement Memory.Total.PrivateMemoryFootprint metric (#8845))
     "content_main_runner_impl_browsertest.cc",
     "encrypted_media_browsertest.cc",
     "frame_tree_browsertest.cc",
@@ -229,14 +224,7 @@ test("cobalt_browsertests") {
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//cc/slim",
-<<<<<<< HEAD
     "//cobalt/shell:browsertests_mojom",
-=======
-    "//cobalt/browser:global_features",
-    "//cobalt/browser:metrics",
-    "//cobalt/browser:switches",
-    "//cobalt/shell:cobalt_shell_lib",
->>>>>>> 52f2617f34 (cobalt/metrics: Implement Memory.Total.PrivateMemoryFootprint metric (#8845))
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
