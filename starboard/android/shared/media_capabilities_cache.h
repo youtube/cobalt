@@ -45,6 +45,7 @@ class CodecCapability {
  public:
   CodecCapability(JNIEnv* env,
                   base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
+
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -52,6 +53,13 @@ class CodecCapability {
   bool is_secure_supported() const { return is_secure_supported_; }
   bool is_tunnel_mode_required() const { return is_tunnel_mode_required_; }
   bool is_tunnel_mode_supported() const { return is_tunnel_mode_supported_; }
+
+ protected:
+  CodecCapability(std::string name,
+                  bool is_secure_req,
+                  bool is_secure_sup,
+                  bool is_tunnel_req,
+                  bool is_tunnel_sup);
 
  private:
   CodecCapability(const CodecCapability&) = delete;
@@ -72,9 +80,23 @@ class AudioCodecCapability : public CodecCapability {
       base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
 
+  static std::unique_ptr<AudioCodecCapability> CreateForTesting(
+      std::string name,
+      bool is_secure_req,
+      bool is_secure_sup,
+      bool is_tunnel_req,
+      bool is_tunnel_sup,
+      Range supported_bitrates);
+
   bool IsBitrateSupported(int bitrate) const;
 
  private:
+  AudioCodecCapability(std::string name,
+                       bool is_secure_req,
+                       bool is_secure_sup,
+                       bool is_tunnel_req,
+                       bool is_tunnel_sup,
+                       Range supported_bitrates);
   AudioCodecCapability(const AudioCodecCapability&) = delete;
   AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
 
@@ -87,7 +109,20 @@ class VideoCodecCapability : public CodecCapability {
       JNIEnv* env,
       base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
       base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
-  ~VideoCodecCapability() override;
+  ~VideoCodecCapability() override {}
+
+  static std::unique_ptr<VideoCodecCapability> CreateForTesting(
+      std::string name,
+      bool is_secure_req,
+      bool is_secure_sup,
+      bool is_tunnel_req,
+      bool is_tunnel_sup,
+      bool is_software_decoder,
+      bool is_hdr_capable,
+      Range supported_widths,
+      Range supported_heights,
+      Range supported_bitrates,
+      Range supported_frame_rates);
 
   bool is_software_decoder() const { return is_software_decoder_; }
   bool is_hdr_capable() const { return is_hdr_capable_; }
@@ -103,6 +138,18 @@ class VideoCodecCapability : public CodecCapability {
                                      int fps) const;
 
  private:
+  VideoCodecCapability(std::string name,
+                       bool is_secure_req,
+                       bool is_secure_sup,
+                       bool is_tunnel_req,
+                       bool is_tunnel_sup,
+                       bool is_software_decoder,
+                       bool is_hdr_capable,
+                       base::android::ScopedJavaGlobalRef<jobject> j_video_cap,
+                       Range supported_widths,
+                       Range supported_heights,
+                       Range supported_bitrates,
+                       Range supported_frame_rates);
   VideoCodecCapability(const VideoCodecCapability&) = delete;
   VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
 

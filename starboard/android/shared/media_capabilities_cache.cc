@@ -208,6 +208,17 @@ CodecCapability::CodecCapability(JNIEnv* env,
       is_tunnel_mode_supported_(
           Java_CodecCapabilityInfo_isTunnelModeSupported(env, j_codec_info)) {}
 
+CodecCapability::CodecCapability(std::string name,
+                                 bool is_secure_req,
+                                 bool is_secure_sup,
+                                 bool is_tunnel_req,
+                                 bool is_tunnel_sup)
+    : name_(std::move(name)),
+      is_secure_required_(is_secure_req),
+      is_secure_supported_(is_secure_sup),
+      is_tunnel_mode_required_(is_tunnel_req),
+      is_tunnel_mode_supported_(is_tunnel_sup) {}
+
 AudioCodecCapability::AudioCodecCapability(
     JNIEnv* env,
     ScopedJavaLocalRef<jobject>& j_codec_info,
@@ -222,6 +233,32 @@ AudioCodecCapability::AudioCodecCapability(
         return supported_bitrates;
       }()) {
   SB_CHECK(j_codec_info);
+}
+
+AudioCodecCapability::AudioCodecCapability(std::string name,
+                                           bool is_secure_req,
+                                           bool is_secure_sup,
+                                           bool is_tunnel_req,
+                                           bool is_tunnel_sup,
+                                           Range supported_bitrates)
+    : CodecCapability(std::move(name),
+                      is_secure_req,
+                      is_secure_sup,
+                      is_tunnel_req,
+                      is_tunnel_sup),
+      supported_bitrates_(supported_bitrates) {}
+
+// static
+std::unique_ptr<AudioCodecCapability> AudioCodecCapability::CreateForTesting(
+    std::string name,
+    bool is_secure_req,
+    bool is_secure_sup,
+    bool is_tunnel_req,
+    bool is_tunnel_sup,
+    Range supported_bitrates) {
+  return std::unique_ptr<AudioCodecCapability>(new AudioCodecCapability(
+      std::move(name), is_secure_req, is_secure_sup, is_tunnel_req,
+      is_tunnel_sup, supported_bitrates));
 }
 
 bool AudioCodecCapability::IsBitrateSupported(int bitrate) const {
@@ -250,7 +287,55 @@ VideoCodecCapability::VideoCodecCapability(
           GetRange(env,
                    j_video_capabilities_,
                    &Java_MediaCodecUtil_getVideoFrameRateRange)) {}
-VideoCodecCapability::~VideoCodecCapability() = default;
+
+VideoCodecCapability::VideoCodecCapability(
+    std::string name,
+    bool is_secure_req,
+    bool is_secure_sup,
+    bool is_tunnel_req,
+    bool is_tunnel_sup,
+    bool is_software_decoder,
+    bool is_hdr_capable,
+    base::android::ScopedJavaGlobalRef<jobject> j_video_cap,
+    Range supported_widths,
+    Range supported_heights,
+    Range supported_bitrates,
+    Range supported_frame_rates)
+    : CodecCapability(std::move(name),
+                      is_secure_req,
+                      is_secure_sup,
+                      is_tunnel_req,
+                      is_tunnel_sup),
+      is_software_decoder_(is_software_decoder),
+      is_hdr_capable_(is_hdr_capable),
+      j_video_capabilities_(std::move(j_video_cap)),
+      supported_widths_(supported_widths),
+      supported_heights_(supported_heights),
+      supported_bitrates_(supported_bitrates),
+      supported_frame_rates_(supported_frame_rates) {}
+
+std::unique_ptr<VideoCodecCapability> VideoCodecCapability::CreateForTesting(
+    std::string name,
+    bool is_secure_req,
+    bool is_secure_sup,
+    bool is_tunnel_req,
+    bool is_tunnel_sup,
+    bool is_software_decoder,
+    bool is_hdr_capable,
+    Range supported_widths,
+    Range supported_heights,
+    Range supported_bitrates,
+    Range supported_frame_rates) {
+  // For unit testing, we do not have access to JNI objects, so we'll pass null
+  // to the ctor.
+  base::android::ScopedJavaGlobalRef<jobject> null_ref(nullptr);
+
+  return std::unique_ptr<VideoCodecCapability>(new VideoCodecCapability(
+      std::move(name), is_secure_req, is_secure_sup, is_tunnel_req,
+      is_tunnel_sup, is_software_decoder, is_hdr_capable,
+      /*j_video_capabilities=*/std::move(null_ref), supported_widths,
+      supported_heights, supported_bitrates, supported_frame_rates));
+}
 
 bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
@@ -259,14 +344,18 @@ bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
 bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
                                                          int frame_height,
                                                          int fps) const {
-  JNIEnv* env = AttachCurrentThread();
-  if (frame_width != 0 && frame_height != 0 && fps != 0) {
-    return Java_MediaCodecUtil_areSizeAndRateSupported(
-        env, j_video_capabilities_, frame_width, frame_height,
-        static_cast<jdouble>(fps));
-  } else if (frame_width != 0 && frame_height != 0) {
-    return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
-                                               frame_width, frame_height);
+  // This added check prevents crashes from an uninitialized
+  // |j_video_capabilities_| (this only happens in unit tests).
+  if (!(j_video_capabilities_.is_null())) {
+    JNIEnv* env = AttachCurrentThread();
+    if (frame_width != 0 && frame_height != 0 && fps != 0) {
+      return Java_MediaCodecUtil_areSizeAndRateSupported(
+          env, j_video_capabilities_, frame_width, frame_height,
+          static_cast<jdouble>(fps));
+    } else if (frame_width != 0 && frame_height != 0) {
+      return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
+                                                 frame_width, frame_height);
+    }
   }
   if (frame_width != 0 && !supported_widths_.Contains(frame_width)) {
     return false;
