@@ -69,7 +69,6 @@ ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
 }  // namespace
 
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
-  return true;
   MimeType mime_type(stream_info.mime);
   if (stream_info.codec == kSbMediaVideoCodecNone || !mime_type.is_valid() ||
       !mime_type.ValidateBoolParameter("tunnelmode")) {

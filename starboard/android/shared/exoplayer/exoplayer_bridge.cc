@@ -108,11 +108,10 @@ ExoPlayerBridge::ExoPlayerBridge(
     SB_LOG(ERROR) << init_error_msg_;
     return;
   }
-  j_exoplayer_manager_.Reset(j_exoplayer_manager);
 
   ScopedJavaLocalRef<jobject> j_exoplayer_bridge =
       Java_ExoPlayerManager_createExoPlayerBridge(
-          env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
+          env, j_exoplayer_manager, reinterpret_cast<jlong>(this),
           j_audio_media_source, j_video_media_source, j_output_surface,
           (video_stream_info.codec != kSbMediaVideoCodecNone &&
            (audio_stream_info.codec == kSbMediaAudioCodecAc3 ||

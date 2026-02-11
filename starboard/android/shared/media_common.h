@@ -28,6 +28,8 @@
 
 namespace starboard {
 
+const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
 constexpr jint COLOR_RANGE_FULL = 1;
@@ -126,17 +128,12 @@ inline int GetAudioFormatSampleType(
 }
 
 inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
-  auto is_sdr = [](const SbMediaMasteringMetadata& metadata) {
-    static const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-    return memcmp(&metadata, &kEmptyMasteringMetadata,
-                  sizeof(SbMediaMasteringMetadata)) == 0;
-  };
-
   return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
          color_metadata.transfer == kSbMediaTransferIdBt709 &&
          color_metadata.matrix == kSbMediaMatrixIdBt709 &&
          color_metadata.range == kSbMediaRangeIdLimited &&
-         is_sdr(color_metadata.mastering_metadata);
+          memcmp(&color_metadata, &kEmptyMasteringMetadata,
+                  sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
 inline jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {

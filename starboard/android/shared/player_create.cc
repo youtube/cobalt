@@ -202,18 +202,19 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
   }
 
-  bool should_use_exoplayer = starboard::features::FeatureList::IsEnabled(
-                                  starboard::features::kEnableExoPlayer) &&
-                              creation_param->drm_system == kSbDrmSystemInvalid;
-  if (should_use_exoplayer &&
-      creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    SB_LOG(WARNING) << "ExoPlayer does not support decode-to-texture mode, "
+  bool use_exoplayer = starboard::features::FeatureList::IsEnabled(
+      starboard::features::kEnableExoPlayer);
+  if (use_exoplayer &&
+      (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture ||
+       creation_param->drm_system != kSbDrmSystemInvalid)) {
+    SB_LOG(WARNING) << "ExoPlayer does not support decode-to-texture mode or "
+                       "encrypted playback, "
                        "defaulting to FilterBasedPlayerWorkerHandler.";
-    should_use_exoplayer = false;
+    use_exoplayer = false;
   }
 
   std::unique_ptr<PlayerWorker::Handler> handler;
-  if (should_use_exoplayer) {
+  if (use_exoplayer) {
     handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param);
   } else {
     handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
