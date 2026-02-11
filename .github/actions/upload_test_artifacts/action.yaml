@@ -107,8 +107,8 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -eux
-        # Check if cobalt_browsertests is in the targets.
-        if grep -q "cobalt_browsertests" "${TEST_TARGETS_JSON_FILE}"; then
+        # Check if cobalt_browsertests is in the targets using jq for robust parsing.
+        if jq -e '.. | strings | select(contains("cobalt_browsertests"))' "${TEST_TARGETS_JSON_FILE}" > /dev/null; then
           echo "Found cobalt_browsertests in targets. Building Docker image..."
 
           # Dockerfile expects cobalt_browsertests_artifacts.tar.gz in the context.
