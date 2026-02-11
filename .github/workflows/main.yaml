@@ -36,6 +36,7 @@ env:
     .github
     cobalt/build
     cobalt/docker
+    cobalt/testing/browser_tests/tools
     cobalt/testing/filters
     cobalt/tools
 
@@ -506,7 +507,7 @@ jobs:
             gsutil -m cp -r "${GCS_PATH}*" artifacts/
 
             # Dockerfile expects cobalt_browsertests_artifacts.tar.gz in the context.
-            cp cobalt/src/cobalt/testing/browser_tests/tools/Dockerfile artifacts/
+            cp cobalt/testing/browser_tests/tools/Dockerfile artifacts/
             cd artifacts/
 
             TAG="${{ github.run_id }}-${PLATFORM}-${CONFIG}"
