@@ -74,6 +74,8 @@ class JobThread {
     return job_queue_->RemoveJobByToken(job_token);
   }
 
+  JobQueue* job_queue() const { return job_queue_.get(); }
+
   // Remove any pending tasks and stop scheduling any more tasks.
   // This method returns only after the current running task is completed, if
   // any. This can be called when call sites want to ensure that no pending
