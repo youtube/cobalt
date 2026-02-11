@@ -141,6 +141,7 @@ if (is_ios && target_platform == "tvos") {
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
+      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
