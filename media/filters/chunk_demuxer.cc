@@ -190,7 +190,16 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
     base::TimeDelta inventory_end = GetBufferedDuration();
     base::TimeDelta read_head = stream_->GetNextBufferTimestamp();
 
+    if (type_ == VIDEO) {
+      TRACE_EVENT("media", "ChunkDemuxer::Append", "count", buffers.size());
+    }
+
     if (type_ == VIDEO && inventory_end != kNoTimestamp) {
+      for (const auto& buffer : buffers) {
+        TRACE_EVENT_INSTANT(
+            "media", "VideoFrameLifecycle:AppendedToChunkDemuxer",
+            perfetto::Flow::ProcessScoped(buffer->timestamp().InMicroseconds()));
+      }
       if (read_head != kNoTimestamp) {
         LOG(INFO) << "MSE: Supplier Produced type=VIDEO"
                   << ", count=" << buffers.size() << ", chunk="

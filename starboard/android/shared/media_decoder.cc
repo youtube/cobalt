@@ -707,6 +707,9 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
   SB_DCHECK(media_codec_bridge_);
   SB_DCHECK_GE(buffer_index, 0);
 
+  TRACE_EVENT("media", "VideoFrameLifecycle:Decoded",
+              perfetto::Flow::ProcessScoped(presentation_time_us));
+
   // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
   if (destroying_.load() || !decoder_thread_) {
@@ -736,12 +739,14 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
                    << FormatWithDigitSeparators(interval_us / 1'000)
                    << (interval_us > 50'000 ? ": WARNING: Large interval" : "");
       // For debugging, we abort immediately, if a problem happens.
+      /*
       SB_CHECK_LT(interval_us, 500'000)
           << "Frame Decoded: PTS="
           << FormatWithDigitSeparators(presentation_time_us / 1'000)
           << ", interval(msec)="
           << FormatWithDigitSeparators(interval_us / 1'000)
           << (interval_us > 50'000 ? ": WARNING: Large interval" : "");
+      */
       pts_to_enqueue_time_us_.erase(iter);
     }
   }

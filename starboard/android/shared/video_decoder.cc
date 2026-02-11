@@ -321,7 +321,8 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
-    TRACE_EVENT0("media", "VideoDecoder::DrawFrame");
+    TRACE_EVENT("media", "VideoFrameLifecycle:DrawFrame",
+                perfetto::Flow::ProcessScoped(frame->timestamp()));
     frame_count_++;
     const auto release_us = release_time_in_nanoseconds / 1'000;
     const int64_t now_us = CurrentMonotonicTime();
@@ -918,6 +919,13 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
 void MediaCodecVideoDecoder::WriteInputBuffersInternal(
     const InputBuffers& input_buffers) {
   SB_DCHECK(!input_buffers.empty());
+  TRACE_EVENT("media", "VideoDecoder::WriteInputBuffersInternal", "count",
+              input_buffers.size());
+
+  for (const auto& buffer : input_buffers) {
+    TRACE_EVENT_INSTANT("media", "VideoFrameLifecycle:InputToDecoder",
+                        perfetto::Flow::ProcessScoped(buffer->timestamp()));
+  }
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before video decoder stopped, |media_decoder_| could be null

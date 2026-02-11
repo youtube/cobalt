@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 
+#include "base/trace_event/trace_event.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/player.h"
@@ -253,6 +254,8 @@ void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
 void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
+  TRACE_EVENT("media", "PlayerWorker::DoWriteSamples", "count",
+              input_buffers.size());
 
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream ||
@@ -268,10 +271,15 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
 
   SbMediaType media_type = input_buffers.front()->sample_type();
   if (media_type == kSbMediaTypeVideo) {
+    for (const auto& buffer : input_buffers) {
+      TRACE_EVENT_INSTANT("media", "VideoFrameLifecycle:ArrivedGpuThread",
+                          perfetto::Flow::ProcessScoped(buffer->timestamp()));
+    }
     SB_LOG(INFO) << "MSE: Worker Receiving VIDEO incoming="
                  << input_buffers.size()
                  << " already_pending=" << pending_video_buffers_.size();
   }
+
   if (media_type == kSbMediaTypeAudio) {
     SB_DCHECK_NE(audio_codec_, kSbMediaAudioCodecNone);
     SB_DCHECK(pending_audio_buffers_.empty());
