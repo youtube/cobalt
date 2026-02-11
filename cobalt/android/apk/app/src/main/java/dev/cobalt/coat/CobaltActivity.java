@@ -117,6 +117,8 @@ public abstract class CobaltActivity extends Activity {
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
 
   private boolean mEnableSplashScreen;
+  private static final String URL_TOPIC_NAME = "topic";
+  private String mUrlTopic;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -186,6 +188,11 @@ public abstract class CobaltActivity extends Activity {
     }
 
     StartupGuard.getInstance().setStartupMilestone(4);
+    Uri startDeepLinkUri = Uri.parse(startDeepLink);
+    mUrlTopic = startDeepLinkUri.getQueryParameter(URL_TOPIC_NAME);
+    if (mUrlTopic == null) {
+      mUrlTopic = "";
+    }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
@@ -264,7 +271,7 @@ public abstract class CobaltActivity extends Activity {
     // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("",
+    mShellManager.launchShell("", mUrlTopic,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
