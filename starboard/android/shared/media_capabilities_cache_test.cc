@@ -30,6 +30,24 @@ using ::testing::ByMove;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 
+class MockAudioCodecCapability final : public AudioCodecCapability {
+ public:
+  MockAudioCodecCapability(const AudioCodecCapabilityData& test_data)
+      : AudioCodecCapability(test_data) {}
+};
+
+class MockVideoCodecCapability final : public VideoCodecCapability {
+ public:
+  MockVideoCodecCapability(const VideoCodecCapabilityData& test_data)
+      : VideoCodecCapability(test_data) {}
+
+  bool AreResolutionAndRateSupported(int frame_width,
+                                     int frame_height,
+                                     int fps) const override {
+    return ResolutionAndRateAreWithinBounds(frame_width, frame_height, fps);
+  }
+};
+
 class MockMediaCapabilitiesProvider : public MediaCapabilitiesProvider {
  public:
   MOCK_METHOD(bool, GetIsWidevineSupported, (), (override));
@@ -53,6 +71,22 @@ class MockMediaCapabilitiesProvider : public MediaCapabilitiesProvider {
        (std::map<std::string,
                  VideoCodecCapabilities>)&video_codec_capabilities),
       (override));
+  MOCK_METHOD(std::string,
+              FindAudioDecoder,
+              (const std::string& mime_type, int bitrate),
+              (override));
+  MOCK_METHOD(std::string,
+              FindVideoDecoder,
+              (const std::string& mime_type,
+               bool must_support_secure,
+               bool must_support_hdr,
+               bool require_software_codec,
+               bool must_support_tunnel_mode,
+               int frame_width,
+               int frame_height,
+               int bitrate,
+               int fps),
+              (override));
 };
 
 class MediaCapabilitiesCacheTest : public ::testing::Test {
