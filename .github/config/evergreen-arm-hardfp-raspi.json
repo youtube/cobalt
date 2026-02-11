@@ -6,7 +6,7 @@
   "test_package": true,
   "test_on_device": true,
   "test_device_family": "raspi",
-  "test_e2e": false,
+  "test_e2e": true,
   "test_package": true,
   "test_root_target": "//cobalt:gn_all",
   "test_attempts": "3",
