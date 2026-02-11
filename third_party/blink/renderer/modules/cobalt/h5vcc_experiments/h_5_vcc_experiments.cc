@@ -14,6 +14,7 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
 
+#include "base/metrics/field_trial_params.h"
 #include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
@@ -78,29 +79,26 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-String H5vccExperiments::getFeature(const String& feature_name) {
+ScriptPromise H5vccExperiments::getFeature(ScriptState* script_state,
+                                           const String& feature_name,
+                                           ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   EnsureReceiverIsBound();
-  h5vcc_experiments::mojom::blink::OverrideState feature_state;
-  remote_h5vcc_experiments_->GetFeature(feature_name, &feature_state);
-  switch (feature_state) {
-    case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
-      return V8OverrideState(V8OverrideState::Enum::kDEFAULT);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_ENABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kENABLED);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_DISABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kDISABLED);
-  }
-  NOTREACHED_NORETURN() << "Invalid feature OverrideState for feature "
-                        << feature_name;
+
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_experiments_->GetFeature(
+      feature_name,
+      WTF::BindOnce(&H5vccExperiments::OnGetFeature, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+  return promise;
 }
 
 const String& H5vccExperiments::getFeatureParam(
     const String& feature_param_name) {
-  EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetFeatureParam(feature_param_name,
-                                             &feature_param_value_);
+  feature_param_value_ = String::FromUTF8(base::GetFieldTrialParamValue(
+      cobalt::kCobaltExperimentName, feature_param_name.Utf8()));
   return feature_param_value_;
 }
 
@@ -215,6 +213,26 @@ void H5vccExperiments::OnSetLatestExperimentConfigHashData(
 void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
+}
+
+void H5vccExperiments::OnGetFeature(
+    ScriptPromiseResolver* resolver,
+    h5vcc_experiments::mojom::blink::OverrideState feature_state) {
+  ongoing_requests_.erase(resolver);
+  switch (feature_state) {
+    case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDEFAULT));
+      return;
+    case h5vcc_experiments::mojom::blink::OverrideState::
+        OVERRIDE_ENABLE_FEATURE:
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kENABLED));
+      return;
+    case h5vcc_experiments::mojom::blink::OverrideState::
+        OVERRIDE_DISABLE_FEATURE:
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDISABLED));
+      return;
+  }
+  NOTREACHED() << "Invalid feature OverrideState for feature";
 }
 
 void H5vccExperiments::OnConnectionError() {
