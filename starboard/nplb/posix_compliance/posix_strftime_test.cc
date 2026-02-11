@@ -46,21 +46,20 @@ class PosixStrftimeTest : public ::testing::Test {
     tm_.tm_yday = 298;
     tm_.tm_isdst = 0;
 
-    original_locale_ = setlocale(LC_TIME, nullptr);
-    ASSERT_NE(original_locale_, nullptr);
+    const char* current_locale = setlocale(LC_TIME, nullptr);
+    ASSERT_NE(current_locale, nullptr);
+    original_locale_ = current_locale;
     setlocale(LC_TIME, kClocale);
     memset(buffer_, 0, kBufferSize);
 
     locale_ = newlocale(LC_TIME_MASK, kClocale, nullptr);
     ASSERT_NE(locale_, nullptr);
 
-    // Ensure TZ is set before running the tests.
-    tzset();
     errno = 0;
   }
 
   void TearDown() override {
-    setlocale(LC_TIME, original_locale_);
+    setlocale(LC_TIME, original_locale_.c_str());
     if (locale_) {
       freelocale(locale_);
     }
@@ -68,7 +67,7 @@ class PosixStrftimeTest : public ::testing::Test {
 
   struct tm tm_;
   char buffer_[kBufferSize];
-  const char* original_locale_;
+  std::string original_locale_;
   locale_t locale_;
 };
 
@@ -89,8 +88,10 @@ TEST_F(PosixStrftimeTest, StandardSpecifiers) {
       {"%R", "10:30"},
       {"%x", "10/26/23"},
       {"%X", "10:30:00"},
+      {"%c", "Thu Oct 26 10:30:00 2023"},
       {"%C", "20"},
       {"%U", "43"},
+      {"%W", "43"},
       {"%h", "Oct"},
   };
 
@@ -114,6 +115,8 @@ TEST_F(PosixStrftimeTest, StandardSpecifiersL) {
       {"%F %T", "2023-10-26 10:30:00"},
       {"%x", "10/26/23"},
       {"%X", "10:30:00"},
+      {"%c", "Thu Oct 26 10:30:00 2023"},
+      {"%W", "43"},
   };
 
   for (const auto& test_case : kTestCases) {
@@ -302,6 +305,27 @@ TEST_F(PosixStrftimeTest, LargeYear) {
       (strcmp(buffer_, "+10005") == 0) || (strcmp(buffer_, "10005") == 0);
 
   EXPECT_TRUE(match) << "Expected +10005 or 10005, but got: " << buffer_;
+}
+
+TEST_F(PosixStrftimeTest, OptionalSpecifierL) {
+  // Test for the non-standard %l specifier.
+  // If not supported, strftime may return 0 or the literal string.
+  size_t result = strftime(buffer_, kBufferSize, "%l", &tm_);
+  if (result == 0 || strcmp(buffer_, "%l") == 0) {
+    GTEST_SKIP() << "Skipping test for unsupported specifier: %l";
+  }
+
+  tm_.tm_hour = 10;
+  strftime(buffer_, kBufferSize, "%l", &tm_);
+  EXPECT_STREQ("10", buffer_);
+
+  tm_.tm_hour = 14;
+  strftime(buffer_, kBufferSize, "%l", &tm_);
+  EXPECT_STREQ(" 2", buffer_);
+
+  tm_.tm_hour = 0;
+  strftime(buffer_, kBufferSize, "%l", &tm_);
+  EXPECT_STREQ("12", buffer_);
 }
 
 }  // namespace

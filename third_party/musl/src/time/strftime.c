@@ -14,7 +14,9 @@
 // Helper function to help automatically free any allocated strings
 // from the heap.
 void auto_free(char **ptr) {
-    if (*ptr) free(*ptr);
+	if (*ptr) {
+		free(*ptr);
+	}
 }
 #endif // BUILDFLAG(IS_STARBOARD)
 
@@ -150,14 +152,14 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 // POSIX specification for the tm struct. As a substitute, we can make use of
 // mktime() to retrieve this value.
 #if BUILDFLAG(IS_STARBOARD)
-    	time_t secs = mktime(&tm_copy);
+		time_t secs = mktime(&tm_copy);
 
-    	if (secs == (time_t)-1) {
-        	*l = 0;
-        	return "";
-    	}
+		if (secs == (time_t)-1) {
+			*l = 0;
+			return "";
+		}
 
-    	val = (unsigned long long)secs;
+		val = (unsigned long long)secs;
 #else // BUILDFLAG(IS_STARBOARD)
 		val = __tm_to_secs(tm) - tm->__tm_gmtoff;
 #endif // BUILDFLAG(IS_STARBOARD)
@@ -213,7 +215,7 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 			return "";
 		}
 // While '%z' must be supported per POSIX specification, MUSL's implementation uses
-// tm_gmtoff, which is not a part of the POSIX specification. To address this,
+// |tm_gmtoff|, which is not a part of the POSIX specification. To address this,
 // we make use of varoius *time functions to calculate the value.
 #if BUILDFLAG(IS_STARBOARD)
 		time_t local = mktime(&tm_copy);
@@ -225,8 +227,13 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 		struct tm gtm;
 		gmtime_r(&local, &gtm);
 		struct tm utc_copy = gtm;
+		// We ensure that |tm_isdst| is 0 as UTC does not observe DST.
 		utc_copy.tm_isdst = 0;
 		time_t utc = mktime(&utc_copy);
+		if (utc == (time_t)-1) {
+			*l = 0;
+			return "";
+		}
 		long offset_seconds = (long)(local - utc);
 
 		long hours = offset_seconds / 3600;
