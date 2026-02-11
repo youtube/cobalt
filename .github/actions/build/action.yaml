@@ -10,9 +10,9 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
-  sccache_gcs_key:
-    description: "The keyfile needed to access our sccache."
-    required: false
+  enable_sccache:
+    description: Use sccache for build acceleration.
+    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -21,15 +21,15 @@ runs:
           rm -rf cobalt/src/out
         shell: bash
       - name: Install sccache
-        if: inputs.sccache_gcs_key != ''
+        if: inputs.enable_sccache == 'true'
         uses: ./.github/actions/sccache
-        with:
-          sccache_gcs_key: ${{ inputs.sccache_gcs_key }}
       - name: GN gen
+        env:
+          ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
         run: |
           cd cobalt/src
           gn_flags=()
-          if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+          if [[ $ENABLE_SCCACHE == "true" ]]; then
             gn_flags+=(--no-rbe --no-check --use-sccache)
           fi
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
@@ -121,12 +121,13 @@ runs:
       - name: Ninja build
         env:
           TARGETS_JSON: ${{ inputs.targets }}
+          USE_SCCACHE: ${{ inputs.enable_sccache }}
         run: |
           set -ex
           cd cobalt/src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
-          if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+          if [[ $USE_SCCACHE == "true" ]]; then
             sccache --show-stats
           fi
         shell: bash

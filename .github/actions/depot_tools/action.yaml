@@ -68,7 +68,6 @@ runs:
         if [[ -n "${CACHE_PATH}" ]]; then
           CACHE_ARG=(--cache-dir="${CACHE_PATH}"/git-cache)
         fi
-
         gclient config \
           --name=src \
           "${CACHE_ARG[@]}" \

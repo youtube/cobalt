@@ -28,4 +28,3 @@ jobs:
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-      sccache_gcs_key: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}

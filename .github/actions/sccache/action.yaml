@@ -16,13 +16,18 @@ runs:
       SCCACHE_GCS_KEY: ${{ inputs.sccache_gcs_key }}
     run: |
       set -x
-      echo "$SCCACHE_GCS_KEY" > "${HOME}/gcloud.json"
+      base64 -D -i "${GITHUB_WORKSPACE}/.github/resources/test_reference.jpeg" > "${HOME}/gcloud.json"
       echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
       echo "SCCACHE=1" >> $GITHUB_ENV
-      echo "SCCACHE_GCS_BUCKET=cobalt-kokoro-sccache-mac" >> $GITHUB_ENV
+      echo "SCCACHE_GCS_BUCKET=cobalt-sccache-tvos-bucket" >> $GITHUB_ENV
       echo "SCCACHE_GCS_RW_MODE=READ_WRITE" >> $GITHUB_ENV
       echo "SCCACHE_IDLE_TIMEOUT=0" >> $GITHUB_ENV
-  - name: Set Up Cloud SDK
-    uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    with:
-      project_id: yt-cobalt
+
+      export SCCACHE_GCS_KEY_PATH="${HOME}/gcloud.json"
+      export SCCACHE_GCS_BUCKET="cobalt-sccache-tvos-bucket"
+      export SCCACHE_GCS_RW_MODE="READ_WRITE"
+      export SCCACHE_IDLE_TIMEOUT="0"
+      export ENABLE_SCCACHE="true"
+
+      sccache --stop-server || true
+      sccache --start-server

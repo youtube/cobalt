@@ -21,8 +21,6 @@ on:
     secrets:
       datadog_api_key:
         required: false
-      sccache_gcs_key:
-        required: false
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
@@ -218,13 +216,13 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
-      - name: Set use cache
-        id: set-use-cache
+      - name: Set enable sccache
+        id: set-enable-sccache
         shell: bash
         run: |
           set -x
-          use_cache=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.use_cache')
-          echo "use_cache=${use_cache}" >> $GITHUB_OUTPUT
+          enable_sccache=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.enable_sccache')
+          echo "enable_sccache=${enable_sccache}" >> $GITHUB_OUTPUT
       - name: Set Docker files checksum
         id: set-docker-hash
         shell: bash
@@ -254,7 +252,7 @@ jobs:
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
-      use_cache: ${{ steps.set-use-cache.outputs.use_cache }}
+      enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -390,7 +388,7 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
+          enable_sccache: ${{ needs.initialize.outputs.enable_sccache }}
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')

@@ -1,5 +1,5 @@
 {
-  "use_cache": false,
+  "enable_sccache": true,
   "build_runners": [
     "macos-latest-large"
   ],
