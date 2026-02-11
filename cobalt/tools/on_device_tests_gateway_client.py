@@ -223,8 +223,9 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
     raise ValueError(f'--targets is not in JSON format: {e}') from e
 
   for target_data in targets:
+    test_type = args.test_type
 
-    if args.test_type == 'unit_test':
+    if test_type == 'unit_test':
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
       test_target = target_data
@@ -244,7 +245,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
 
-    elif args.test_type in ('e2e_test', 'yts_test'):
+    elif test_type in ('e2e_test', 'yts_test'):
       test_target = target_data['target']
       test_attempts = target_data.get('test_attempts', '')
       if test_attempts:
@@ -260,8 +261,17 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
         files.append(f'cobalt_path={bigstore_path}')
 
+    elif test_type in ('browser_test', 'yts_wpt_test'):
+      test_type = 'e2e_test'
+      test_target = target_data['target']
+      test_attempts = target_data.get('test_attempts', '')
+      if test_attempts:
+        test_args.extend([f'test_attempts={test_attempts}'])
+      elif args.test_attempts:
+        test_args.extend([f'test_attempts={args.test_attempts}'])
+
     else:
-      raise ValueError(f'Unsupported test type: {args.test_type}')
+      raise ValueError(f'Unsupported test type: {test_type}')
 
     test_requests.append({
         'device_type': device_type,
@@ -271,7 +281,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'files': files,
         'params': params,
         'test_target': test_target,
-        'test_type': args.test_type,
+        'test_type': test_type,
     })
 
   return test_requests
@@ -315,7 +325,7 @@ def main() -> int:
       '--test_type',
       type=str,
       required=True,
-      choices=['unit_test', 'e2e_test', 'yts_test'],
+      choices=['unit_test', 'e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'],
       help='Type of test to run.',
   )
   trigger_args.add_argument(
