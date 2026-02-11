@@ -209,6 +209,8 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   if args.test_attempts:
     # Must delete existing results when retries are enabled.
     params.append('gcs_delete_before_upload=true')
+  if args.docker_tag:
+    params.append(f'docker_tag={args.docker_tag}')
   return params
 
 
@@ -382,6 +384,11 @@ def main() -> int:
       type=str,
       default='900',
       help='Timeout in seconds for the test to start.',
+  )
+  trigger_args.add_argument(
+      '--docker_tag',
+      type=str,
+      help='Docker image tag to be used by the test lab.',
   )
 
   # --- Unit Test Arguments ---
