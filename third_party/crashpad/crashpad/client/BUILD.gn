@@ -150,15 +150,11 @@ static_library("common") {
   if (crashpad_is_win) {
     sources += [ "crash_report_database_win.cc" ]
   }
-  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
+  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia || is_cobalt_hermetic_build) {
     sources += [
       "crash_report_database_generic.cc",
       "crashpad_info_note.S",
     ]
-  }
-
-   if (current_toolchain == default_toolchain && enable_cobalt_hermetic_hacks) {
-    sources += [ "cobalt/crash_report_database_hermetic_stub.cc" ]
   }
 
   public_configs = [ "..:crashpad_config" ]
