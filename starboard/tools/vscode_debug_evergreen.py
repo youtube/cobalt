@@ -92,7 +92,10 @@ class LoadEvergreenLibrary(gdb.Breakpoint):
     return False
 
 
-# Instantiate the breakpoint
-LoadEvergreenLibrary()
-print("[Evergreen Loader Hook] Initialized. "
-      "Waiting for Evergreen libraries to load...")
+try:
+  # Instantiate the breakpoint
+  LoadEvergreenLibrary()
+  print("[Evergreen Loader Hook] Initialized. "
+        "Waiting for Evergreen libraries to load...")
+except gdb.error as e:
+  print(f"[Evergreen Loader Hook] Failed to initialize breakpoint: {e}")
