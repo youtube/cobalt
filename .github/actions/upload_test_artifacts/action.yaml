@@ -99,9 +99,7 @@ runs:
         set -eu
         # Login to GAR using the service account token from metadata server.
         TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-        ACCESS_TOKEN=$(curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
-        # Avoid set -x to prevent token leakage in logs.
-        printf '%s' "${ACCESS_TOKEN}" | docker login -u oauth2accesstoken --password-stdin https://us-west1-docker.pkg.dev
+        curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token | docker login -u oauth2accesstoken --password-stdin https://us-west1-docker.pkg.dev
       shell: bash
     - name: Build and Push Browser Test Docker Image
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
