@@ -264,7 +264,6 @@ namespace {
 // Sets mandatory V8 flags.
 void SetFlags(IsolateHolder::ScriptMode mode,
               const std::string& js_command_line_flags) {
-
   if (IsolateHolder::kStrictMode == mode) {
     SetV8Flags("--use_strict");
   }

@@ -228,6 +228,9 @@ class PlayerWorker {
   InputBuffers pending_audio_buffers_;
   InputBuffers pending_video_buffers_;
   JobQueue::JobToken write_pending_sample_job_token_;
+
+  std::optional<int64_t> current_media_time_;
+  bool is_hurrying_up_ = false;
 };
 
 }  // namespace starboard

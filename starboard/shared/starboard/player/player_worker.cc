@@ -144,6 +144,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 void PlayerWorker::UpdateMediaInfo(int64_t time,
                                    int dropped_video_frames,
                                    bool is_progressing) {
+  current_media_time_ = time;
   if (player_state_ == kSbPlayerStatePresenting) {
     update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing);
   }
@@ -234,6 +235,9 @@ void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
   pending_audio_buffers_.clear();
   pending_video_buffers_.clear();
 
+  current_media_time_ = std::nullopt;
+  is_hurrying_up_ = false;
+
   Result<void> result = handler_->Seek(seek_to_time, ticket);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed seek.");
@@ -271,6 +275,63 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
 
   SbMediaType media_type = input_buffers.front()->sample_type();
   if (media_type == kSbMediaTypeVideo) {
+    if (current_media_time_.has_value()) {
+      int64_t lag = *current_media_time_ - input_buffers.front()->timestamp();
+      if (lag > 500'000) {
+        if (!is_hurrying_up_) {
+          SB_LOG(INFO) << "Enter hurry-up mode: lag(msec)=" << (lag / 1'000)
+                       << ", media_time(msec)="
+                       << (*current_media_time_ / 1'000) << ", first_pts(msec)="
+                       << (input_buffers.front()->timestamp() / 1'000);
+          is_hurrying_up_ = true;
+          TRACE_EVENT_INSTANT("media", "VideoFrameLifecycle:EnterHurryUp",
+                              "lag_ms", lag / 1'000);
+        }
+      } else if (lag > 0 && !is_hurrying_up_) {
+        SB_LOG(INFO) << "Video arrive already late: lag(msec)=" << (lag / 1'000)
+                     << ", media_time(msec)=" << (*current_media_time_ / 1'000)
+                     << ", first_pts(msec)="
+                     << (input_buffers.front()->timestamp() / 1'000)
+                     << ", last_pts(msec)="
+                     << (input_buffers.back()->timestamp() / 1'000)
+                     << ", count=" << input_buffers.size();
+      }
+    }
+
+    if (is_hurrying_up_) {
+      size_t original_size = input_buffers.size();
+      int64_t first_late_pts = input_buffers.front()->timestamp();
+      InputBuffers filtered_buffers;
+      for (auto& buffer : input_buffers) {
+        if (buffer->video_sample_info().is_key_frame) {
+          SB_LOG(INFO) << "Exit hurry-up mode: keyframe pts(msec)="
+                       << (buffer->timestamp() / 1'000);
+          is_hurrying_up_ = false;
+          TRACE_EVENT_INSTANT("media", "VideoFrameLifecycle:ExitHurryUp",
+                              "pts_ms", buffer->timestamp() / 1'000);
+        }
+        if (!is_hurrying_up_) {
+          filtered_buffers.push_back(buffer);
+        } else {
+          TRACE_EVENT_INSTANT(
+              "media", "VideoFrameLifecycle:Discarded",
+              perfetto::Flow::ProcessScoped(buffer->timestamp()));
+        }
+      }
+
+      if (filtered_buffers.size() < original_size) {
+        SB_LOG(INFO) << "Hurry-up mode: discarded_count="
+                     << (original_size - filtered_buffers.size())
+                     << ", start_pts(msec)=" << (first_late_pts / 1'000);
+      }
+
+      if (filtered_buffers.empty()) {
+        UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
+        return;
+      }
+      input_buffers = std::move(filtered_buffers);
+    }
+
     for (const auto& buffer : input_buffers) {
       TRACE_EVENT_INSTANT("media", "VideoFrameLifecycle:ArrivedGpuThread",
                           perfetto::Flow::ProcessScoped(buffer->timestamp()));
