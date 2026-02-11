@@ -477,15 +477,6 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   PendingInput pending_input;
   bool input_buffer_already_written = false;
 
-  int64_t now_us = CurrentMonotonicTime();
-  if (last_input_time_us_ && now_us - *last_input_time_us_ > 500'000) {
-    SB_LOG(WARNING) << "TTFF: Large gap in decoder input intake ("
-                    << GetDecoderName(media_type_)
-                    << "): " << (now_us - *last_input_time_us_) / 1'000
-                    << " msec";
-  }
-  last_input_time_us_ = now_us;
-
   if (pending_input_to_retry_) {
     dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
     SB_DCHECK_GE(dequeue_input_result.index, 0);
@@ -808,7 +799,6 @@ bool MediaCodecDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
-    last_input_time_us_ = std::nullopt;
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};

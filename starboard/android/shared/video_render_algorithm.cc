@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <list>
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/android/jni_headers/VideoFrameReleaseTimeHelper_jni.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
@@ -139,11 +140,14 @@ void VideoRenderAlgorithmAndroid::Render(
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
     if (early_us < kBufferTooLateThreshold) {
+      TRACE_EVENT_INSTANT(
+          "media", "VideoFrameLifecycle:DropAtRenderer",
+          perfetto::Flow::ProcessScoped(frames->front()->timestamp()));
       SB_LOG(INFO)
           << "Dropping frame: PTS="
           << FormatWithDigitSeparators(frames->front()->timestamp() / 1'000)
-          << ", early_us=" << FormatWithDigitSeparators(early_us / 1'000)
-          << ", threshold="
+          << ", lead(msec)=" << FormatWithDigitSeparators(early_us / 1'000)
+          << ", min-lead-threshold(msec)="
           << FormatWithDigitSeparators(kBufferTooLateThreshold / 1'000);
       frames->pop_front();
       ++dropped_frames_;

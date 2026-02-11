@@ -35,6 +35,7 @@ import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
 import dev.cobalt.util.DisplayUtil;
+import dev.cobalt.util.Log;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 
@@ -121,6 +122,9 @@ public final class VideoFrameReleaseTimeHelper {
     }
     if (playbackRate != mLastPlaybackRate) {
       // Resync if playback rate has changed.
+      if (mHaveSync) {
+        Log.i("starboard", "VideoFrameReleaseTimeHelper lost sync: playback rate changed");
+      }
       mHaveSync = false;
       mLastPlaybackRate = playbackRate;
     }
@@ -147,6 +151,7 @@ public final class VideoFrameReleaseTimeHelper {
         // Project the adjusted frame time forward using the average.
         long candidateAdjustedFrameTimeNs = mAdjustedLastFrameTimeNs + averageFrameDurationNs;
         if (isDriftTooLarge(candidateAdjustedFrameTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
+          Log.i("starboard", "VideoFrameReleaseTimeHelper lost sync: drift too large");
           mHaveSync = false;
         } else {
           adjustedFrameTimeNs = candidateAdjustedFrameTimeNs;
@@ -159,6 +164,7 @@ public final class VideoFrameReleaseTimeHelper {
         // We're synced but haven't waited the required number of frames to apply an adjustment.
         // Check drift anyway.
         if (isDriftTooLarge(framePresentationTimeNs, unadjustedReleaseTimeNs, playbackRate)) {
+          Log.i("starboard", "VideoFrameReleaseTimeHelper lost sync: drift too large (pre-adjustment)");
           mHaveSync = false;
         }
       }
@@ -188,7 +194,7 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   protected void onSynced() {
-    // Do nothing.
+    Log.i("starboard", "VideoFrameReleaseTimeHelper synchronized");
   }
 
   private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {

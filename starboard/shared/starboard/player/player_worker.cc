@@ -277,7 +277,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   if (media_type == kSbMediaTypeVideo) {
     if (current_media_time_.has_value()) {
       int64_t lag = *current_media_time_ - input_buffers.front()->timestamp();
-      if (lag > 500'000) {
+      if (lag > 200'000) {
         if (!is_hurrying_up_) {
           SB_LOG(INFO) << "Enter hurry-up mode: lag(msec)=" << (lag / 1'000)
                        << ", media_time(msec)="
@@ -314,7 +314,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
           filtered_buffers.push_back(buffer);
         } else {
           TRACE_EVENT_INSTANT(
-              "media", "VideoFrameLifecycle:Discarded",
+              "media", "VideoFrameLifecycle:DropBeforeDecoder",
               perfetto::Flow::ProcessScoped(buffer->timestamp()));
         }
       }

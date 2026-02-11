@@ -390,14 +390,21 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
       latency_logged_ = true;
     }
 
-    if (prev_release_us > 0) {
+    int64_t lead_us = release_us - now_us;
+    constexpr int64_t kSafeLeadUs = 5'000;
+    if (prev_release_us == 0) {
+      SB_LOG(INFO) << "Frame Rendered: PTS="
+                   << FormatWithDigitSeparators(frame->timestamp() / 1'000)
+                   << ", lead(msec)=" << (lead_us / 1'000)
+                   << (lead_us < kSafeLeadUs ? ", WARNING" : "");
+    } else {
       const int64_t interval_us = release_us - prev_release_us;
       SB_LOG(INFO) << "Frame Rendered: PTS="
                    << FormatWithDigitSeparators(frame->timestamp() / 1'000)
                    << ", interval(msec)="
                    << FormatWithDigitSeparators(interval_us / 1'000)
-                   << (interval_us > 100'000 ? ": WARNING: Large interval"
-                                             : "");
+                   << ", lead(msec)=" << (lead_us / 1'000)
+                   << (lead_us < kSafeLeadUs ? ", WARNING" : "");
     }
 
     rendered_ = true;
