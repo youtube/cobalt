@@ -213,9 +213,14 @@ class MediaCodecBridge {
   void SetPlaybackRate(double playback_rate);
   bool Restart();
   jint Flush();
+<<<<<<< HEAD
   void Stop();
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
+=======
+  std::optional<FrameSize> GetOutputSize();
+  std::optional<AudioOutputFormatResult> GetAudioOutputFormat();
+>>>>>>> 068887ec58 (media: Refactor MediaCodecBridge::release  (#8916))
 
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
