@@ -140,6 +140,24 @@ public abstract class CobaltActivity extends Activity {
     return ai.metaData;
   }
 
+  static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
+    if (metaData == null) {
+      return commandLineArgs;
+    }
+
+    List<String> args = new ArrayList<>();
+    if (commandLineArgs != null) {
+      args.addAll(Arrays.asList(commandLineArgs));
+    }
+
+    boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
+    if (!enableSplashScreen) {
+      args.add("--disable-splash-screen");
+    }
+
+    return args.toArray(new String[0]);
+  }
+
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     StartupGuard.getInstance().setStartupMilestone(1);
@@ -153,6 +171,8 @@ public abstract class CobaltActivity extends Activity {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
 
+      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
+
       List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
 
       if (commandLineArgs != null) {
@@ -165,8 +185,6 @@ public abstract class CobaltActivity extends Activity {
               VersionInfo.isOfficialBuild(), extraCommandLineArgs.toArray(new String[0])));
     }
     mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
-    Bundle metaData = getActivityMetaData();
-    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
 
@@ -283,10 +301,8 @@ public abstract class CobaltActivity extends Activity {
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
-            if (mEnableSplashScreen) {
-              // Load splash screen.
-              mShellManager.getActiveShell().loadSplashScreenWebContents();
-            }
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
