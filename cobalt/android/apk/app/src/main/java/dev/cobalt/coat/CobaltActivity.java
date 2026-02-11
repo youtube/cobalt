@@ -129,13 +129,8 @@ public abstract class CobaltActivity extends Activity {
   }
 
   @VisibleForTesting
-  static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
+  static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
     if (metaData == null) {
-      return commandLineArgs;
-    }
-
-    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
-    if (TextUtils.isEmpty(enableFeatures)) {
       return commandLineArgs;
     }
 
@@ -143,6 +138,17 @@ public abstract class CobaltActivity extends Activity {
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
+
+    boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
+    if (!enableSplashScreen) {
+      args.add("--disable-splash-screen");
+    }
+
+    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
+    if (TextUtils.isEmpty(enableFeatures)) {
+      return args.toArray(new String[0]);
+    }
+
     // CommandLineOverrideHelper will merge this with other --enable-features flags
     // It also accepts semi-colon-separated list of features.
     // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
@@ -160,15 +166,13 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
-      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
+      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
     mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
-    Bundle metaData = getActivityMetaData();
-    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
@@ -277,10 +281,8 @@ public abstract class CobaltActivity extends Activity {
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
-            if (mEnableSplashScreen) {
-              // Load splash screen.
-              mShellManager.getActiveShell().loadSplashScreenWebContents();
-            }
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
