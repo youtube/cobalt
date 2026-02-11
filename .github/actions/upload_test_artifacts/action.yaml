@@ -16,22 +16,6 @@ inputs:
   test_targets_json_file:
     description: "The path to test targets json file."
     required: true
-  docker_image_name:
-    description: "The name of the docker image to build and push."
-    required: false
-    default: "avvall-service-test"
-  registry_region:
-    description: "The GCP region for the artifact registry."
-    required: false
-    default: "us-west1"
-  registry_project:
-    description: "The GCP project name for the artifact registry."
-    required: false
-    default: "ytlr-image-hosting"
-  registry_repository:
-    description: "The artifact registry repository name."
-    required: false
-    default: "integration-test-images"
 runs:
   using: "composite"
   steps:
@@ -108,44 +92,4 @@ runs:
 
         gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
-      shell: bash
-    - name: Login to GAR
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
-      env:
-        REGISTRY_REGION: ${{ inputs.registry_region }}
-      run: |
-        set -eu
-        # Login to GAR using the service account token from metadata server.
-        TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-        curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token | docker login -u oauth2accesstoken --password-stdin "https://${REGISTRY_REGION}-docker.pkg.dev"
-      shell: bash
-    - name: Build and Push Browser Test Docker Image
-      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
-      env:
-        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
-        DOCKER_IMAGE_NAME: ${{ inputs.docker_image_name }}
-        REGISTRY_REGION: ${{ inputs.registry_region }}
-        REGISTRY_PROJECT: ${{ inputs.registry_project }}
-        REGISTRY_REPOSITORY: ${{ inputs.registry_repository }}
-        PLATFORM: ${{ matrix.platform }}
-        CONFIG: ${{ matrix.config }}
-      run: |
-        set -eux
-        # Check if cobalt_browsertests is in the targets using jq for robust parsing.
-        if jq -e '.. | strings | select(endswith(":cobalt_browsertests") or . == "cobalt_browsertests")' "${TEST_TARGETS_JSON_FILE}" > /dev/null; then
-          echo "Found cobalt_browsertests in targets. Building Docker image..."
-
-          # Dockerfile expects cobalt_browsertests_artifacts.tar.gz in the context.
-          # archive_test_artifacts.py creates it in the artifacts directory.
-          cp "${GITHUB_WORKSPACE}/cobalt/src/cobalt/testing/browser_tests/tools/Dockerfile" "${GITHUB_WORKSPACE}/artifacts/"
-          cd "${GITHUB_WORKSPACE}/artifacts/"
-
-          TAG="${{ github.run_id }}-${PLATFORM}-${CONFIG}"
-          IMAGE="${REGISTRY_REGION}-docker.pkg.dev/${REGISTRY_PROJECT}/${REGISTRY_REPOSITORY}/${DOCKER_IMAGE_NAME}:${TAG}"
-
-          docker build -f Dockerfile -t "${IMAGE}" .
-          docker push "${IMAGE}"
-        else
-          echo "cobalt_browsertests not found in targets. Skipping Docker build."
-        fi
       shell: bash
