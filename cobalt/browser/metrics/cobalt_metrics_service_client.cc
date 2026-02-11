@@ -40,16 +40,6 @@
 
 namespace cobalt {
 
-namespace {
-
-void OnMemoryDumpDone(
-    scoped_refptr<CobaltMetricsServiceClient::State> state,
-    base::OnceClosure done_callback,
-    bool success,
-    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump);
-
-}  // namespace
-
 struct CobaltMetricsServiceClient::State
     : public base::RefCountedThreadSafe<CobaltMetricsServiceClient::State> {
   State() = default;
@@ -105,8 +95,19 @@ struct CobaltMetricsServiceClient::State
       instrumentation->RequestGlobalDump(
           {"v8", "blink_gc", "malloc", "partition_alloc", "skia", "gpu",
            "media", "blink_objects"},
-          base::BindOnce(&OnMemoryDumpDone, base::RetainedRef(this),
-                         base::OnceClosure()));
+          base::BindOnce(
+              [](scoped_refptr<State> state, base::OnceClosure done_callback,
+                 bool success,
+                 std::unique_ptr<memory_instrumentation::GlobalMemoryDump>
+                     global_dump) {
+                if (success && global_dump) {
+                  state->RecordMemoryMetrics(global_dump.get());
+                }
+                if (done_callback) {
+                  std::move(done_callback).Run();
+                }
+              },
+              base::RetainedRef(this), base::OnceClosure()));
     }
     RecordMemoryMetricsAfterDelay();
   }
@@ -115,28 +116,6 @@ struct CobaltMetricsServiceClient::State
   friend class base::RefCountedThreadSafe<State>;
   ~State() = default;
 };
-
-namespace {
-
-void OnMemoryDumpDone(
-    scoped_refptr<CobaltMetricsServiceClient::State> state,
-    base::OnceClosure done_callback,
-    bool success,
-    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
-  if (success && global_dump) {
-    if (state) {
-      state->RecordMemoryMetrics(global_dump.get());
-    } else {
-      CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-    }
-  }
-
-  if (done_callback) {
-    std::move(done_callback).Run();
-  }
-}
-
-}  // namespace
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
@@ -395,8 +374,20 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
               instrumentation->RequestGlobalDump(
                   {"v8", "blink_gc", "malloc", "partition_alloc", "skia", "gpu",
                    "media", "blink_objects"},
-                  base::BindOnce(&OnMemoryDumpDone, state,
-                                 std::move(done_callback)));
+                  base::BindOnce(
+                      [](scoped_refptr<State> state,
+                         base::OnceClosure done_callback, bool success,
+                         std::unique_ptr<
+                             memory_instrumentation::GlobalMemoryDump>
+                             global_dump) {
+                        if (success && global_dump) {
+                          state->RecordMemoryMetrics(global_dump.get());
+                        }
+                        if (done_callback) {
+                          std::move(done_callback).Run();
+                        }
+                      },
+                      state, std::move(done_callback)));
             } else {
               std::move(done_callback).Run();
             }
