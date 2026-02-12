@@ -18,11 +18,6 @@ namespace ui {
 KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
   switch (keycode) {
     // Cobalt keycode mappings
-<<<<<<< HEAD
-    case AKEYCODE_CAPTIONS:
-      return KEY_SUBTITLES;
-=======
->>>>>>> b870fd7deb (ui/events/keycodes: remapping cobalt-specific keycode values (#9067))
     case AKEYCODE_SEARCH:
       return VKEY_BROWSER_SEARCH;
     case AKEYCODE_BACK:
