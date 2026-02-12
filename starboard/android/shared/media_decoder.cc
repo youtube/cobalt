@@ -726,18 +726,11 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     if (iter != pts_to_enqueue_time_us_.end()) {
       SB_LOG(INFO) << "Frame Decoded: PTS="
                    << FormatWithDigitSeparators(presentation_time_us / 1'000)
-                   << ", interval(msec)="
+                   << ", elapsed-from-enqueue(msec)="
+                   << FormatWithDigitSeparators((now_us - iter->second) / 1'000)
+                   << ", elapsed-from-last-decoded(msec)="
                    << FormatWithDigitSeparators(interval_us / 1'000)
                    << (interval_us > 50'000 ? ": WARNING: Large interval" : "");
-      // For debugging, we abort immediately, if a problem happens.
-      /*
-      SB_CHECK_LT(interval_us, 500'000)
-          << "Frame Decoded: PTS="
-          << FormatWithDigitSeparators(presentation_time_us / 1'000)
-          << ", interval(msec)="
-          << FormatWithDigitSeparators(interval_us / 1'000)
-          << (interval_us > 50'000 ? ": WARNING: Large interval" : "");
-      */
       pts_to_enqueue_time_us_.erase(iter);
     }
   }

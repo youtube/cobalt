@@ -564,17 +564,11 @@ size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
   if (tunnel_mode_audio_session_id_ != -1) {
     return 0;
   }
-  if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
-    return kNonInitialPrerollFrameCount;
-  }
   return number_of_preroll_frames_;
 }
 
 int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
-  if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
-    return std::numeric_limits<int64_t>::max();
-  }
-  return kInitialPrerollTimeout;
+  return std::numeric_limits<int64_t>::max();
 }
 
 void MediaCodecVideoDecoder::WriteInputBuffers(
@@ -1036,7 +1030,6 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
 void MediaCodecVideoDecoder::RefreshOutputFormat(
     MediaCodecBridge* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
-  SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
   std::lock_guard lock(decode_target_mutex_);
   std::optional<FrameSize> output_size = media_codec_bridge->GetOutputSize();
@@ -1048,6 +1041,8 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
     // this call to fail and is not equipped to handle a null optional.
     output_size = FrameSize();
   }
+  SB_LOG(INFO) << "Output format changed, trying to dequeue again: output_size="
+               << *output_size;
 
   // Record the latest dimensions of the decoded input.
   frame_sizes_.push_back(*output_size);
@@ -1072,6 +1067,8 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
           ->GetMaxOutputVideoBuffers(output_format_.value());
   if (max_output_buffers > 0 &&
       max_output_buffers < kInitialPrerollFrameCount) {
+    SB_LOG(INFO) << "Lowering number_of_preroll_frames_ to "
+                 << max_output_buffers;
     number_of_preroll_frames_ = max_output_buffers;
   }
 }

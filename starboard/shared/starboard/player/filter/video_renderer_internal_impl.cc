@@ -154,6 +154,9 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
+  SB_LOG(INFO) << __func__ << " > seek_to(msec)="
+               << FormatWithDigitSeparators(seek_to_time / 1'000);
+
   if (first_input_written_) {
     decoder_->Reset();
     first_input_written_ = false;
