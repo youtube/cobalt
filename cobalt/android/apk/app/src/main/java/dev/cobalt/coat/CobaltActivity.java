@@ -770,6 +770,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public long getAppStartTimestamp() {
+     Log.i(TAG, "getAppStartTimestamp in Cobaltactivity:" + timeInNanoseconds);
     return timeInNanoseconds;
   }
 

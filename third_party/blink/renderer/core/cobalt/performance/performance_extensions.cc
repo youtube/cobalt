@@ -14,10 +14,15 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "build/build_config.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
+
+#include "starboard/common/log.h"  // nogncheck
 
 namespace blink {
 
@@ -55,13 +60,28 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
 
 ScriptPromise PerformanceExtensions::getAppStartupTime(
     ScriptState* script_state,
-    const Performance&,
+    const Performance& performance_obj,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   int64_t startup_time = 0;
+  int64_t startup_timestamp = 0;
   BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
+  BindRemotePerformance(script_state)->GetAppStartupTimestamp(&startup_timestamp);
+
+  LOG(INFO) << "startup_time: " << startup_time;
+  LOG(INFO) << "startup_timestamp: " << startup_timestamp;
   ScriptPromise promise = resolver->Promise();
+
+
+  base::TimeTicks time_origin = performance_obj.GetTimeOriginInternal();
+  LOG(INFO) << "time_origin: " << time_origin.ToInternalValue();
+  base::TimeTicks startup_time_ticks =
+      base::TimeTicks::FromInternalValue(startup_timestamp);
+  LOG(INFO) << "startup_time_ticks: " << startup_time_ticks;
+
+  base::TimeDelta startup_delta = startup_time_ticks - time_origin;
+  LOG(INFO) << "startup_delta: " << startup_delta.InMillisecondsF() << " ms";
   resolver->Resolve(startup_time);
   return promise;
 }

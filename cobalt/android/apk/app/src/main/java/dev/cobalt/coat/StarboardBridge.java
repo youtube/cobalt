@@ -732,12 +732,14 @@ public class StarboardBridge {
   // Returns the saved app start timestamp.
   @CalledByNative
   protected long getAppStartTimestamp() {
+    Log.i(TAG, String.format("getAppStartDuration mAppStartTimestamp %s.", mAppStartTimestamp));
     return mAppStartTimestamp;
   }
 
   // Returns the saved app start timestamp.
   @CalledByNative
   protected long getAppStartDuration() {
+    Log.i(TAG, String.format("getAppStartDuration mAppStartDuration %s.", mAppStartDuration));
     return mAppStartDuration;
   }
 
