@@ -248,19 +248,6 @@ AudioCodecCapability::AudioCodecCapability(std::string name,
                       is_tunnel_sup),
       supported_bitrates_(supported_bitrates) {}
 
-// static
-std::unique_ptr<AudioCodecCapability> AudioCodecCapability::CreateForTesting(
-    std::string name,
-    bool is_secure_req,
-    bool is_secure_sup,
-    bool is_tunnel_req,
-    bool is_tunnel_sup,
-    Range supported_bitrates) {
-  return std::unique_ptr<AudioCodecCapability>(new AudioCodecCapability(
-      std::move(name), is_secure_req, is_secure_sup, is_tunnel_req,
-      is_tunnel_sup, supported_bitrates));
-}
-
 bool AudioCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
 }
@@ -314,29 +301,6 @@ VideoCodecCapability::VideoCodecCapability(
       supported_bitrates_(supported_bitrates),
       supported_frame_rates_(supported_frame_rates) {}
 
-std::unique_ptr<VideoCodecCapability> VideoCodecCapability::CreateForTesting(
-    std::string name,
-    bool is_secure_req,
-    bool is_secure_sup,
-    bool is_tunnel_req,
-    bool is_tunnel_sup,
-    bool is_software_decoder,
-    bool is_hdr_capable,
-    Range supported_widths,
-    Range supported_heights,
-    Range supported_bitrates,
-    Range supported_frame_rates) {
-  // For unit testing, we do not have access to JNI objects, so we'll pass null
-  // to the ctor.
-  base::android::ScopedJavaGlobalRef<jobject> null_ref(nullptr);
-
-  return std::unique_ptr<VideoCodecCapability>(new VideoCodecCapability(
-      std::move(name), is_secure_req, is_secure_sup, is_tunnel_req,
-      is_tunnel_sup, is_software_decoder, is_hdr_capable,
-      /*j_video_capabilities=*/std::move(null_ref), supported_widths,
-      supported_heights, supported_bitrates, supported_frame_rates));
-}
-
 bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
 }
@@ -344,8 +308,6 @@ bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
 bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
                                                          int frame_height,
                                                          int fps) const {
-  // This added check prevents crashes from an uninitialized
-  // |j_video_capabilities_| (this only happens in unit tests).
   if (!(j_video_capabilities_.is_null())) {
     JNIEnv* env = AttachCurrentThread();
     if (frame_width != 0 && frame_height != 0 && fps != 0) {
@@ -372,12 +334,6 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 // static
 SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
                             MediaCapabilitiesCache::GetInstance)
-
-std::unique_ptr<MediaCapabilitiesCache> MediaCapabilitiesCache::CreateForTest(
-    std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider) {
-  return std::unique_ptr<MediaCapabilitiesCache>(
-      new MediaCapabilitiesCache(std::move(media_capabilities_provider)));
-}
 
 MediaCapabilitiesCache::MediaCapabilitiesCache()
     : MediaCapabilitiesCache(

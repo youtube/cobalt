@@ -45,7 +45,6 @@ class CodecCapability {
  public:
   CodecCapability(JNIEnv* env,
                   base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
-
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -80,23 +79,17 @@ class AudioCodecCapability : public CodecCapability {
       base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
 
-  static std::unique_ptr<AudioCodecCapability> CreateForTesting(
-      std::string name,
-      bool is_secure_req,
-      bool is_secure_sup,
-      bool is_tunnel_req,
-      bool is_tunnel_sup,
-      Range supported_bitrates);
-
   bool IsBitrateSupported(int bitrate) const;
 
- private:
+ protected:
   AudioCodecCapability(std::string name,
                        bool is_secure_req,
                        bool is_secure_sup,
                        bool is_tunnel_req,
                        bool is_tunnel_sup,
                        Range supported_bitrates);
+
+ private:
   AudioCodecCapability(const AudioCodecCapability&) = delete;
   AudioCodecCapability& operator=(const AudioCodecCapability&) = delete;
 
@@ -111,19 +104,6 @@ class VideoCodecCapability : public CodecCapability {
       base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
   ~VideoCodecCapability() override {}
 
-  static std::unique_ptr<VideoCodecCapability> CreateForTesting(
-      std::string name,
-      bool is_secure_req,
-      bool is_secure_sup,
-      bool is_tunnel_req,
-      bool is_tunnel_sup,
-      bool is_software_decoder,
-      bool is_hdr_capable,
-      Range supported_widths,
-      Range supported_heights,
-      Range supported_bitrates,
-      Range supported_frame_rates);
-
   bool is_software_decoder() const { return is_software_decoder_; }
   bool is_hdr_capable() const { return is_hdr_capable_; }
 
@@ -137,7 +117,7 @@ class VideoCodecCapability : public CodecCapability {
                                      int frame_height,
                                      int fps) const;
 
- private:
+ protected:
   VideoCodecCapability(std::string name,
                        bool is_secure_req,
                        bool is_secure_sup,
@@ -150,6 +130,8 @@ class VideoCodecCapability : public CodecCapability {
                        Range supported_heights,
                        Range supported_bitrates,
                        Range supported_frame_rates);
+
+ private:
   VideoCodecCapability(const VideoCodecCapability&) = delete;
   VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
 
@@ -186,9 +168,6 @@ class MediaCapabilitiesProvider {
 class MediaCapabilitiesCache {
  public:
   static MediaCapabilitiesCache* GetInstance();
-
-  static std::unique_ptr<MediaCapabilitiesCache> CreateForTest(
-      std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider);
 
   ~MediaCapabilitiesCache() = default;
   bool IsWidevineSupported();
@@ -228,10 +207,12 @@ class MediaCapabilitiesCache {
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void ClearCache() { capabilities_is_dirty_ = true; }
 
- private:
-  MediaCapabilitiesCache();
+ protected:
   MediaCapabilitiesCache(
       std::unique_ptr<MediaCapabilitiesProvider> media_capabilities_provider);
+
+ private:
+  MediaCapabilitiesCache();
 
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
