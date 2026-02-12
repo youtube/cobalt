@@ -68,7 +68,6 @@ const char* SbTimeZoneGetName() {
                tzZoneInfoTailPtr + tzZoneInfoTailLen);
       return s_tz_name;
     }
->>>>>>> 56b39bba96 (Implement time zone monitor for linux (#8935))
   }
   SB_NOTREACHED();
   return "";
