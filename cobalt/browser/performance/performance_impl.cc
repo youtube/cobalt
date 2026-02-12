@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 
+#include "base/logging.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
@@ -59,6 +60,8 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   auto startup_duration = starboard_bridge->GetAppStartDuration(env);
+  LOG(INFO) << "starboard_bridge->GetAppStartDuration(env) "
+            << startup_duration;
 #elif BUILDFLAG(IS_STARBOARD)
   // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
   NOTIMPLEMENTED();
@@ -67,6 +70,16 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
 #error Unsupported platform.
 #endif
   std::move(callback).Run(startup_duration);
+}
+
+void PerformanceImpl::GetAppStartupTimestamp(
+    GetAppStartupTimestampCallback callback) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  auto startup_timestamp = starboard_bridge->GetAppStartTimestamp(env);
+  LOG(INFO) << "startup_timestamp: "
+            << startup_timestamp;
+  std::move(callback).Run(startup_timestamp);
 }
 
 }  // namespace performance

@@ -35,6 +35,9 @@ class CORE_EXPORT PerformanceExtensions final {
   static ScriptPromise getAppStartupTime(ScriptState*,
                                          const Performance&,
                                          ExceptionState&);
+  static ScriptPromise getAppStartupTimestamp(ScriptState*,
+                                              const Performance&,
+                                              ExceptionState&);
 };
 
 }  // namespace blink

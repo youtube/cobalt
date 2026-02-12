@@ -175,12 +175,12 @@ void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
   j_starboard_bridge_.Reset(env, obj);
 }
 
-long StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
+int64_t StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_getAppStartTimestamp(env, j_starboard_bridge_);
 }
 
-long StarboardBridge::GetAppStartDuration(JNIEnv* env) {
+int64_t StarboardBridge::GetAppStartDuration(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_getAppStartDuration(env, j_starboard_bridge_);
 }
