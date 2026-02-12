@@ -59,6 +59,9 @@ public class JavaSwitches {
   /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
   public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
 
+  /** flag to enable AndroidOverlay for SbPlayer */
+  public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -122,8 +125,13 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
       extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
     }
-    if(javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
       extraCommandLineArgs.add("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
+      extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
+      extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
     }
 
     return extraCommandLineArgs;
