@@ -14,7 +14,7 @@ runs:
         PACKAGE_DIR: ${{ inputs.package_dir }}
       run: |
         set -x
-        cd src
+        cd src/
 
         # Determine the correct build platform directory name.
         # This maps to the platform package.json files under cobalt/build.
@@ -27,6 +27,7 @@ runs:
         fi
 
         cobalt/build/packager.py \
+          --print_contents \
           --name=${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
           --json_path=cobalt/build/${BUILD_PLATFORM}/package.json \
           --out_dir=out/${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
