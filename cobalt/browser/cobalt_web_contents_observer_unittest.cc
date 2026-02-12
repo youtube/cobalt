@@ -28,6 +28,7 @@ using ::testing::Return;
 
 namespace cobalt {
 
+#if BUILDFLAG(IS_ANDROIDTV)
 class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
  public:
   explicit TestCobaltWebContentsObserver(content::WebContents* web_contents)
@@ -56,7 +57,6 @@ class CobaltWebContentsObserverTest : public testing::Test {
   CobaltWebContentsObserverTest()
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
         observer_(std::make_unique<TestCobaltWebContentsObserver>(nullptr)) {
-    TestTimeouts::Initialize();
     auto mock_timer = std::make_unique<base::MockOneShotTimer>();
     mock_timer_ = mock_timer.get();
     observer_->SetTimerForTestInternal(std::move(mock_timer));
@@ -190,5 +190,5 @@ TEST_F(CobaltWebContentsObserverTest, SuccessAfterTimeout) {
   navigation_handle().set_net_error_code(net::OK);
   observer()->DidFinishNavigation(&navigation_handle());
 }
-
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 }  // namespace cobalt

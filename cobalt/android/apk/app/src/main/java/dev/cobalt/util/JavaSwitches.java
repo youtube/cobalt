@@ -24,6 +24,7 @@ import java.util.Map;
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
+  public static final String DISABLE_STORAGE_MIGRATION = "DisableStorageMigration";
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
   public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
       "EnableLowEndDeviceModeNoSimulatedMemory";
@@ -59,9 +60,12 @@ public class JavaSwitches {
   /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
   public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
 
+  /** flag to enable AndroidOverlay for SbPlayer */
+  public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
+
   /** flag to enable SkiaFontCache */
   public static final String SKIA_FONT_CACHE = "SkiaFontCache";
-
+  
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -111,6 +115,9 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--disable-splash-screen");
     }
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_STORAGE_MIGRATION)) {
+      extraCommandLineArgs.add("--disable-storage-migration");
+    }
     if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--force-image-splash-screen");
     }
@@ -120,13 +127,18 @@ public class JavaSwitches {
           "--num-raster-threads="
               + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
     }
-    
+
     // BRP settings
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
       extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
     }
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
       extraCommandLineArgs.add("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
+      extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
+      extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {

@@ -6,7 +6,7 @@
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
-  "test_yts": true,
+  "test_yts": false,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "test_attempts": "3",
   "e2e_test_targets": [

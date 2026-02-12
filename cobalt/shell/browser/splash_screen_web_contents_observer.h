@@ -34,6 +34,11 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
 
   void WebContentsDestroyed() override;
 
+  void DidStartNavigation(NavigationHandle* navigation_handle) override;
+  void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void DidStartLoading() override;
+  void DidStopLoading() override;
+
  private:
   void LoadProgressChanged(double progress) override;
 

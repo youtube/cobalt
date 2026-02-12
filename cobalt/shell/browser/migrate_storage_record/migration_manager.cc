@@ -241,6 +241,12 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
+    LOG(INFO) << "Storage migration disabled via switch.";
+    return;
+  }
+
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {

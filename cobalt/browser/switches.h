@@ -41,6 +41,9 @@ constexpr char kWindowSize[] = "window-size";
 // Sets the interval for memory metrics collection in seconds.
 constexpr char kMemoryMetricsInterval[] = "memory-metrics-interval";
 
+// If this switch is present, the storage migration will be disabled.
+constexpr char kDisableStorageMigration[] = "disable-storage-migration";
+
 }  // namespace switches
 }  // namespace cobalt
 

@@ -31,6 +31,7 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -41,6 +42,9 @@
 namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(17);
+#endif
   SetupMetrics();
 #if BUILDFLAG(IS_ANDROIDTV)
   base::android::MemoryPressureListenerAndroid::Initialize(
