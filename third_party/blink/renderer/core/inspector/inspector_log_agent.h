@@ -36,6 +36,8 @@ class CORE_EXPORT InspectorLogAgent
   // Called from InspectorInstrumentation.
   void ConsoleMessageAdded(ConsoleMessage*);
 
+  void LogFromBase(int severity, const String& message);
+
   // Protocol methods.
   protocol::Response enable() override;
   protocol::Response disable() override;
