@@ -265,6 +265,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
           if test_type == 'yts_test':
             files.append(f'build_apk={bigstore_path}')
+            params.append('app=dev.cobalt.coat')
           else:
             files.append(f'cobalt_path={bigstore_path}')
 
