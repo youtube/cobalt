@@ -278,7 +278,11 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
 // with update check.
 #endif
     apps.push_back(MakeProtocolApp(
+#if BUILDFLAG(IS_STARBOARD)
+        app_id, current_version, crx_component->ap, crx_component->brand,
+#else
         app_id, crx_component->version, crx_component->ap, crx_component->brand,
+<<<<<<< HEAD
         active_ids.find(app_id) != active_ids.end()
             ? metadata->GetInstallId(app_id)
             : "",
@@ -295,6 +299,18 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
             crx_component->target_version_prefix,
             crx_component->rollback_allowed,
             crx_component->same_version_update_allowed),
+=======
+#endif
+        config_->GetLang(), metadata_->GetInstallDate(app_id), install_source,
+        crx_component->install_location, crx_component->fingerprint,
+        crx_component->installer_attributes, metadata_->GetCohort(app_id),
+        metadata_->GetCohortHint(app_id), metadata_->GetCohortName(app_id),
+        crx_component->channel, crx_component->disabled_reasons,
+        MakeProtocolUpdateCheck(!crx_component->updates_enabled,
+                                crx_component->target_version_prefix,
+                                crx_component->rollback_allowed,
+                                crx_component->same_version_update_allowed),
+>>>>>>> 10ee5b7e4a (Fix version sent with update check (#9063))
         [](const std::string& install_data_index)
             -> std::vector<protocol_request::Data> {
           if (install_data_index.empty()) {
