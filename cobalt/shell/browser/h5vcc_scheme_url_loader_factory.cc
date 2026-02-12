@@ -238,7 +238,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LOG(WARNING) << "Resource not found: " << resource_key;
     }
 
-    if (is_cacheable_type && browser_context_) {
+    if (is_cacheable_type && browser_context_ &&
+        resource_map.find(key) != resource_map.end()) {
       ReadSplashCache(key);
       return;
     }
