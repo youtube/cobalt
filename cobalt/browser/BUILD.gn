@@ -42,7 +42,10 @@ source_set("browser") {
     ]
   }
 
-  public_deps = [ "//content/public/browser" ]
+  public_deps = [
+    "//cobalt/browser/h5vcc_metrics",
+    "//content/public/browser",
+  ]
 
   deps = [
     ":command_line_logger",
@@ -58,7 +61,6 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
-    "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",

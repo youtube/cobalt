@@ -15,8 +15,12 @@
 #ifndef COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 #define COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 
+<<<<<<< HEAD
 #include "base/metrics/histogram_samples.h"
 #include "base/threading/thread_checker.h"
+=======
+#include "cobalt/browser/h5vcc_metrics/histogram_fetcher.h"
+>>>>>>> 2236909282 (cobalt: Refactor histogram fetching process for unit tests (#8833))
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -27,7 +31,6 @@ class RenderFrameHost;
 
 namespace h5vcc_metrics {
 
-// Implements the H5vccMetrics Mojo interface and extends
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class H5vccMetricsImpl : public content::DocumentService<mojom::H5vccMetrics> {
@@ -54,9 +57,7 @@ class H5vccMetricsImpl : public content::DocumentService<mojom::H5vccMetrics> {
   H5vccMetricsImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccMetrics> receiver);
 
-  // Stores the last snapshot of histogram samples.
-  std::map<std::string, std::unique_ptr<base::HistogramSamples>>
-      last_histogram_samples_;
+  HistogramFetcher histogram_fetcher_;
 
   THREAD_CHECKER(thread_checker_);
 };

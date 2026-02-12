@@ -81,6 +81,7 @@ void H5vccMetricsImpl::SetMetricEventInterval(
 }
 
 void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
+<<<<<<< HEAD
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Synchronously fetch subprocess histograms that live in shared memory.
   // This is the only mechanism available to embedders like Cobalt, as the
@@ -144,6 +145,14 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
                         base::Base64UrlEncodePolicy::INCLUDE_PADDING,
                         &base64_encoded_proto);
   std::move(callback).Run(base64_encoded_proto);
+=======
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* manager_client =
+      cobalt::GlobalFeatures::GetInstance()->metrics_services_manager_client();
+  std::move(callback).Run(histogram_fetcher_.FetchHistograms(
+      manager_client->GetMetricsStateManager(),
+      manager_client->metrics_service_client()));
+>>>>>>> 2236909282 (cobalt: Refactor histogram fetching process for unit tests (#8833))
 }
 
 }  // namespace h5vcc_metrics
