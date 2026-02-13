@@ -258,6 +258,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'sprintf',
     'srand',
     'statvfs',
+    'strftime_l',
     'symlink',
     'sysconf',
     'uname',

@@ -218,6 +218,7 @@ test("nplb") {
       "posix_compliance/posix_socketpair_test.cc",
       "posix_compliance/posix_stat_test.cc",
       "posix_compliance/posix_stdio_test.cc",
+      "posix_compliance/posix_strftime_test.cc",
       "posix_compliance/posix_string_compare_no_case_n_test.cc",
       "posix_compliance/posix_string_compare_no_case_test.cc",
       "posix_compliance/posix_string_format_test.cc",
