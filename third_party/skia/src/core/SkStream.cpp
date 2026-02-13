@@ -1004,6 +1004,10 @@ SkMemoryStream::~SkMemoryStream() {
 }
 
 std::unique_ptr<SkStreamAsset> SkStream::MakeFromFile(const char path[]) {
+    if (!path) {
+        return nullptr;
+    }
+
     if (s_is_cache_enabled) {
         auto data(mmap_filename_with_cache(path));
         if (data) {
