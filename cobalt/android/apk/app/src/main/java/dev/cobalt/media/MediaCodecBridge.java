@@ -840,7 +840,6 @@ class MediaCodecBridge {
       // the surface.
       Log.w(TAG, "Failed to release MediaCodec", e);
     }
-    mMediaCodec.set(null);
   }
 
   @CalledByNative
