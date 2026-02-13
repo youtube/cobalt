@@ -25,7 +25,8 @@ bool is_fallback_to_alsa = false;
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  PulseAudioPlatformInitialize();
+  // For testing, force-enabled ALSA.
+  // PulseAudioPlatformInitialize();
   if (GetPrimaryType()) {
     SB_LOG(INFO) << "Use PulseAudio";
   } else {

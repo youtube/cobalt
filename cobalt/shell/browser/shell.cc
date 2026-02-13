@@ -142,6 +142,7 @@ base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
              std::unique_ptr<WebContents> splash_screen_web_contents,
              bool should_set_delegate,
+             bool is_visible,
              bool skip_for_testing)
     : WebContentsObserver(web_contents.get()),
       web_contents_(std::move(web_contents)),
@@ -185,6 +186,10 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
         splash_screen_web_contents_delegate_.get());
   }
 
+  if (!is_visible) {
+    web_contents_->WasHidden();
+  }
+
   if (shell_created_callback_) {
     std::move(shell_created_callback_).Run(this);
   }
@@ -211,6 +216,41 @@ Shell::~Shell() {
 // static
 ShellPlatformDelegate* Shell::GetPlatform() {
   return g_platform;
+}
+
+// static
+void Shell::OnBlur() {
+  g_platform->OnBlur();
+}
+
+// static
+void Shell::OnFocus() {
+  g_platform->OnFocus();
+}
+
+// static
+void Shell::OnConceal() {
+  g_platform->OnConceal();
+}
+
+// static
+void Shell::OnReveal() {
+  g_platform->OnReveal();
+}
+
+// static
+void Shell::OnFreeze() {
+  g_platform->OnFreeze();
+}
+
+// static
+void Shell::OnUnfreeze() {
+  g_platform->OnUnfreeze();
+}
+
+// static
+void Shell::OnStop() {
+  g_platform->OnStop();
 }
 
 void Shell::FinishShellInitialization(Shell* shell) {
@@ -247,10 +287,11 @@ Shell* Shell::CreateShell(
     std::unique_ptr<WebContents> web_contents,
     std::unique_ptr<WebContents> splash_screen_web_contents,
     const gfx::Size& initial_size,
-    bool should_set_delegate) {
+    bool should_set_delegate,
+    bool is_visible) {
   Shell* shell =
       new Shell(std::move(web_contents), std::move(splash_screen_web_contents),
-                should_set_delegate);
+                should_set_delegate, is_visible);
   GetPlatform()->CreatePlatformWindow(shell, initial_size);
   FinishShellInitialization(shell);
   return shell;
@@ -307,8 +348,9 @@ void Shell::Shutdown() {
 
   DevToolsAgentHost::DetachAllClients();
 
-  while (!Shell::windows().empty()) {
-    Shell::windows().back()->Close();
+  while (!windows_.empty()) {
+    Shell* shell = windows_.back();
+    shell->Close();
   }
 
   delete g_platform;
@@ -318,15 +360,6 @@ void Shell::Shutdown() {
        it.Advance()) {
     it.GetCurrentValue()->DisableRefCounts();
   }
-  auto& quit_loop = GetMainMessageLoopQuitClosure();
-  if (quit_loop) {
-    std::move(quit_loop).Run();
-  }
-
-#if !BUILDFLAG(IS_STARBOARD)
-  // Pump the message loop to allow window teardown tasks to run.
-  base::RunLoop().RunUntilIdle();
-#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {
@@ -343,6 +376,10 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents) {
   WebContents::CreateParams create_params(browser_context, site_instance);
+  bool is_visible = GetPlatform()->IsVisible();
+  if (!is_visible) {
+    create_params.initially_hidden = true;
+  }
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
@@ -356,13 +393,17 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
     // ShellBrowserMainParts::InitializeMessageLoopContext().
     WebContents::CreateParams splash_screen_create_params(browser_context,
                                                           nullptr);
+    if (!is_visible) {
+      splash_screen_create_params.initially_hidden = true;
+    }
     splash_screen_create_params.main_frame_name = kCobaltSplashMainFrameName;
     splash_screen_web_contents =
         WebContents::Create(splash_screen_create_params);
   }
-  Shell* shell = CreateShell(
-      std::move(web_contents), std::move(splash_screen_web_contents),
-      AdjustWindowSize(initial_size), true /* should_set_delegate */);
+  Shell* shell = CreateShell(std::move(web_contents),
+                             std::move(splash_screen_web_contents),
+                             AdjustWindowSize(initial_size),
+                             true /* should_set_delegate */, is_visible);
 
   if (!url.is_empty()) {
     shell->LoadURL(url);
@@ -539,7 +580,8 @@ void Shell::AddNewContents(WebContents* source,
   CreateShell(
       std::move(new_contents), nullptr /* splash_screen_web_contents */,
       AdjustWindowSize(window_features.bounds.size()),
-      !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */);
+      !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */,
+      true /* is_visible */);
 }
 
 void Shell::GoBackOrForward(int offset) {
@@ -1009,7 +1051,9 @@ void Shell::SwitchToMainWebContents() {
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
-      web_contents_->WasShown();
+      if (GetPlatform()->IsVisible()) {
+        web_contents_->WasShown();
+      }
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }

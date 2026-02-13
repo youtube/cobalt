@@ -292,7 +292,8 @@ bool AlsaAudioSink::PlaybackLoop() {
   double playback_rate = 1.0;
   for (;;) {
     int delayed_frame = AlsaGetBufferedFrames(playback_handle_);
-    if (std::unique_lock lock(mutex_, std::try_to_lock); lock.owns_lock()) {
+    {
+      std::lock_guard lock(mutex_);
       if (destroying_) {
         SB_DLOG(INFO) << "AlsaAudioSink exits playback loop : destroying";
         break;
@@ -406,14 +407,6 @@ class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
 
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
   }
 };
 

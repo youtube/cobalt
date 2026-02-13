@@ -49,7 +49,7 @@ class SiteInstance;
 class WebContents;
 class RenderFrameHost;
 
-// This represents one window of the Content Shell, i.e. all the UI including
+// This represents one window of Cobalt, i.e. all the UI including
 // buttons and url bar, as well as the web content area.
 class Shell : public WebContentsDelegate, public WebContentsObserver {
  public:
@@ -92,6 +92,14 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static void Shutdown();  // Idempotent, can be called twice.
 
   static ShellPlatformDelegate* GetPlatform();
+
+  static void OnBlur();
+  static void OnFocus();
+  static void OnConceal();
+  static void OnReveal();
+  static void OnFreeze();
+  static void OnUnfreeze();
+  static void OnStop();
 
   static Shell* CreateNewWindow(
       BrowserContext* browser_context,
@@ -228,6 +236,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   Shell(std::unique_ptr<WebContents> web_contents,
         std::unique_ptr<WebContents> splash_screen_web_contents,
         bool should_set_delegate,
+        bool is_visible,
         bool skip_for_testing = false);
 
   // Helper to create a new Shell given a newly created WebContents.
@@ -235,7 +244,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       std::unique_ptr<WebContents> web_contents,
       std::unique_ptr<WebContents> splash_screen_web_contents,
       const gfx::Size& initial_size,
-      bool should_set_delegate);
+      bool should_set_delegate,
+      bool is_visible);
 
   // Adjust the size when Blink sends 0 for width and/or height.
   // This happens when Blink requests a default-sized window.

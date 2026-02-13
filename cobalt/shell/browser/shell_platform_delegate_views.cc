@@ -17,15 +17,17 @@
 #include <algorithm>
 #include <memory>
 
-#include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/context_factory.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/env.h"
@@ -37,6 +39,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
+#include "ui/compositor/compositor.h"
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
 #include "ui/views/background.h"
@@ -62,6 +65,7 @@ struct ShellPlatformDelegate::ShellData {
   gfx::Size content_size;
   // Self-owned Widget, destroyed through CloseNow().
   raw_ptr<views::Widget> window_widget = nullptr;
+  std::unique_ptr<Shell> shell;
 };
 
 struct ShellPlatformDelegate::PlatformData {
@@ -82,7 +86,9 @@ class ShellView : public views::BoxLayoutView,
 
   enum UIControl { BACK_BUTTON, FORWARD_BUTTON, STOP_BUTTON };
 
-  explicit ShellView(Shell* shell) : shell_(shell) { InitShellWindow(); }
+  explicit ShellView(std::unique_ptr<Shell> shell) : shell_(std::move(shell)) {
+    InitShellWindow();
+  }
   ShellView(const ShellView&) = delete;
   ShellView& operator=(const ShellView&) = delete;
   ~ShellView() override = default;
@@ -128,6 +134,8 @@ class ShellView : public views::BoxLayoutView,
                                         : views::Button::STATE_DISABLED);
     }
   }
+
+  Shell* ReleaseShell() { return shell_.release(); }
 
  private:
   // Initialize the UI control contained in shell window
@@ -329,40 +337,120 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
 
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  if (!shell_data.window_widget) {
+    LOG(INFO) << "Creating new window widget";
+    auto delegate = std::make_unique<views::WidgetDelegate>();
+    // Pass the existing shell to the new ShellView.
+    delegate->SetContentsView(
+        std::make_unique<ShellView>(std::move(shell_data.shell)));
+    delegate->SetHasWindowSizeControls(true);
+    delegate->SetOwnedByWidget(true);
+
+    shell_data.window_widget = new views::Widget();
+    views::Widget::InitParams params;
+    params.bounds = gfx::Rect(shell_data.content_size);
+    params.delegate = delegate.release();
+    params.wm_class_class = "chromium-content_shell";
+    params.wm_class_name = params.wm_class_class;
+    shell_data.window_widget->Init(std::move(params));
+
+    SetContents(shell);
+  }
+
+  if (!IsConcealed()) {
+    shell_data.window_widget->Show();
+  }
+}
+
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
+  LOG(INFO) << "ShellPlatformDelegateViews::CreatePlatformWindow";
   DCHECK(!base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.content_size = initial_size;
+  shell_data.shell = base::WrapUnique(shell);
 
-  auto delegate = std::make_unique<views::WidgetDelegate>();
-  delegate->SetContentsView(std::make_unique<ShellView>(shell));
-  delegate->SetHasWindowSizeControls(true);
-  delegate->SetOwnedByWidget(true);
+  if (IsConcealed()) {
+    LOG(INFO)
+        << "ShellPlatformDelegateViews::CreatePlatformWindow: Application "
+           "is concealed or frozen. Deferring window creation.";
+    return;
+  }
 
-  shell_data.window_widget = new views::Widget();
-  views::Widget::InitParams params;
-  params.bounds = gfx::Rect(initial_size);
-  params.delegate = delegate.release();
-  params.wm_class_class = "chromium-content_shell";
-  params.wm_class_name = params.wm_class_class;
-  shell_data.window_widget->Init(std::move(params));
-
+  RevealShell(shell);
   // |window_widget| is made visible in PlatformSetContents(), so that the
   // platform-window size does not need to change due to layout again.
 }
 
 gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
+
   ShellData& shell_data = shell_data_map_[shell];
+
+  if (!shell_data.window_widget) {
+    return nullptr;
+  }
 
   return shell_data.window_widget->GetNativeWindow();
 }
 
+void ShellPlatformDelegate::DoBlur() {
+  // Empty.
+}
+
+void ShellPlatformDelegate::DoFocus() {
+  // Empty.
+}
+
+void ShellPlatformDelegate::DoConceal() {
+  std::vector<Shell*> windows = Shell::windows();
+  for (auto* shell : windows) {
+    if (!base::Contains(shell_data_map_, shell)) {
+      continue;
+    }
+    ShellData& shell_data = shell_data_map_[shell];
+    if (shell_data.window_widget) {
+      shell->web_contents()->GetController().GetBackForwardCache().Flush();
+      // We need to release the Shell from the ShellView because ShellView owns
+      // it but we want to keep the Shell alive while the window is concealed.
+      shell_data.shell = base::WrapUnique(
+          ShellViewForWidget(shell_data.window_widget)->ReleaseShell());
+      shell_data.window_widget->CloseNow();
+      shell_data.window_widget = nullptr;
+    }
+  }
+}
+
+void ShellPlatformDelegate::DoReveal() {
+  std::vector<Shell*> windows = Shell::windows();
+  for (auto* shell : windows) {
+    RevealShell(shell);
+  }
+}
+
+void ShellPlatformDelegate::DoFreeze() {
+  // Empty.
+}
+
+void ShellPlatformDelegate::DoUnfreeze() {
+  // Empty.
+}
+
+void ShellPlatformDelegate::DoStop() {
+  // Empty.
+}
+
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+  // Ensure we don't double-delete the shell if it's owned by ShellData.
+  shell_data.shell.release();
   shell_data_map_.erase(shell);
 }
 
@@ -370,15 +458,23 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (IsConcealed() && !shell_data.window_widget) {
+    LOG(INFO) << "ShellPlatformDelegateViews::SetContents: Concealed or "
+                 "frozen, skipping window show.";
+    return;
+  }
+
   ShellViewForWidget(shell_data.window_widget)
       ->SetWebContents(shell->web_contents(), shell_data.content_size);
-  shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
-  shell_data.window_widget->Show();
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+
+  if (IsConcealed() && !shell_data.window_widget) {
+    return;
+  }
 
   ShellViewForWidget(shell_data.window_widget)
       ->SetWebContents(shell->splash_screen_web_contents(),
@@ -406,6 +502,10 @@ void ShellPlatformDelegate::EnableUIControl(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (!shell_data.window_widget) {
+    return;
+  }
+
   auto* view = ShellViewForWidget(shell_data.window_widget);
   if (control == BACK_BUTTON) {
     view->EnableUIControl(ShellView::BACK_BUTTON, is_enabled);
@@ -424,6 +524,10 @@ void ShellPlatformDelegate::SetAddressBarURL(Shell* shell, const GURL& url) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (!shell_data.window_widget) {
+    return;
+  }
+
   ShellViewForWidget(shell_data.window_widget)->SetAddressBarURL(url);
 }
 
@@ -434,6 +538,10 @@ void ShellPlatformDelegate::SetTitle(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (!shell_data.window_widget) {
+    return;
+  }
+
   shell_data.window_widget->widget_delegate()->SetTitle(title);
 }
 
@@ -443,8 +551,14 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  shell_data.window_widget->CloseNow();
-  return true;  // The CloseNow() will do the destruction of Shell.
+  if (shell_data.window_widget) {
+    shell->web_contents()->GetController().GetBackForwardCache().Flush();
+    shell_data.window_widget->CloseNow();
+    return true;  // The CloseNow() will do the destruction of Shell.
+  }
+
+  shell_data.shell.reset();
+  return true;
 }
 
 }  // namespace content

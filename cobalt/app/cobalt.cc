@@ -23,6 +23,7 @@
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
@@ -35,6 +36,7 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
@@ -52,21 +54,30 @@ using ui::PlatformEventSourceStarboard;
 
 namespace {
 
+static base::AtExitManager* g_exit_manager = nullptr;
+static cobalt::CobaltMainDelegate* g_content_main_delegate = nullptr;
+static ui::PlatformEventSourceStarboard* g_platform_event_source = nullptr;
+
 content::ContentMainRunner* GetContentMainRunner() {
   static base::NoDestructor<std::unique_ptr<content::ContentMainRunner>> runner{
       content::ContentMainRunner::Create()};
+  if (!g_exit_manager) {
+    return nullptr;
+  }
   return runner->get();
 }
-
-static base::AtExitManager* g_exit_manager = nullptr;
-static cobalt::CobaltMainDelegate* g_content_main_delegate = nullptr;
-static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
 
 }  // namespace
 
 int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
-  // content::ContentMainParams params(g_content_main_delegate.Get().get());
-  content::ContentMainParams params(g_content_main_delegate);
+  if (g_exit_manager) {
+    return 0;
+  }
+
+  LOG(INFO) << "InitCobalt called with " << argc << " args:";
+  for (int i = 0; i < argc; ++i) {
+    LOG(INFO) << "Arg " << i << ": " << argv[i];
+  }
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // Preprocess the raw command line arguments with the defaults expected by
@@ -86,6 +97,34 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
   }
   LOG(INFO) << "Parsed command line string:" << ss.str();
 
+  g_exit_manager = new base::AtExitManager();
+  g_content_main_delegate = new cobalt::CobaltMainDelegate();
+  g_platform_event_source = new PlatformEventSourceStarboard();
+
+  base::AtExitManager::RegisterTask(base::BindOnce([]() {
+    delete g_platform_event_source;
+    g_platform_event_source = nullptr;
+  }));
+
+  base::AtExitManager::RegisterTask(base::BindOnce([]() {
+    delete g_content_main_delegate;
+    g_content_main_delegate = nullptr;
+  }));
+
+  base::AtExitManager::RegisterTask(base::BindOnce([]() {
+    if (GetContentMainRunner()) {
+      GetContentMainRunner()->Shutdown();
+    }
+  }));
+
+  base::AtExitManager::RegisterTask(base::BindOnce([]() {
+    if (g_content_main_delegate) {
+      g_content_main_delegate->Shutdown();
+    }
+  }));
+
+  content::ContentMainParams params(g_content_main_delegate);
+
   if (initial_deep_link) {
     auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
     manager->set_deep_link(initial_deep_link);
@@ -102,67 +141,103 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
     params.argv = args.data();
   }
 
+#if BUILDFLAG(USE_EVERGREEN)
+  // Log Loader App Metrics.
+  cobalt::browser::RecordLoaderAppMetrics();
+#endif
+
   return RunContentProcess(std::move(params), GetContentMainRunner());
 }
 
+void FinalizeCobalt() {
+  if (!g_exit_manager) {
+    return;
+  }
+
+  delete g_exit_manager;
+  g_exit_manager = nullptr;
+}
+
 void SbEventHandle(const SbEvent* event) {
+  if (!g_exit_manager && event->type != kSbEventTypeStart &&
+      event->type != kSbEventTypePreload) {
+    // Treat as an implicit preload if an event is received before a start or
+    // preload. This should never happen, but we handle it here as a failsafe.
+    LOG(WARNING) << "SbEventHandle: Received event " << event->type
+                 << " before initialization. Treating as implicit preload.";
+    SbEvent start_event = {kSbEventTypePreload, 0, nullptr};
+    SbEventHandle(&start_event);
+  }
+
   switch (event->type) {
+    case kSbEventTypeStart: {
+      if (g_exit_manager) {
+        content::Shell::OnFocus();
+        break;
+      }
+      ABSL_FALLTHROUGH_INTENDED;
+    }
     case kSbEventTypePreload: {
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
       init_musl();
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-      g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
-      g_platform_event_source = new PlatformEventSourceStarboard();
-      InitCobalt(data->argument_count,
-                 const_cast<const char**>(data->argument_values), data->link);
-
-      break;
-    }
-    case kSbEventTypeStart: {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-      init_musl();
-#endif
-      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-      g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
-      g_platform_event_source = new PlatformEventSourceStarboard();
-      InitCobalt(data->argument_count,
-                 const_cast<const char**>(data->argument_values), data->link);
-
-#if BUILDFLAG(USE_EVERGREEN)
-      // Log Loader App Metrics.
-      cobalt::browser::RecordLoaderAppMetrics();
-#endif
+      if (data) {
+        InitCobalt(data->argument_count,
+                   const_cast<const char**>(data->argument_values), data->link);
+      } else {
+        // Handle implicit preloads where no event data was provided by using
+        // the command-line parameters already initialized for the process.
+        LOG(WARNING) << "SbEventHandle: Implicit preload using "
+                        "command-line parameters.";
+        if (base::CommandLine::InitializedForCurrentProcess()) {
+          const auto& argv = base::CommandLine::ForCurrentProcess()->argv();
+          std::vector<const char*> argv_ptrs;
+          for (const auto& arg : argv) {
+            argv_ptrs.push_back(arg.c_str());
+          }
+          InitCobalt(argv_ptrs.size(), argv_ptrs.data(), nullptr);
+        } else {
+          InitCobalt(0, nullptr, nullptr);
+        }
+      }
+      if (event->type == kSbEventTypePreload) {
+        content::Shell::OnUnfreeze();
+      } else {
+        content::Shell::OnFocus();
+      }
       break;
     }
     case kSbEventTypeStop: {
+      if (!g_exit_manager) {
+        break;
+      }
+
+      content::Shell::OnStop();
       content::Shell::Shutdown();
-
-      g_content_main_delegate->Shutdown();
-
-      GetContentMainRunner()->Shutdown();
-
-      delete g_content_main_delegate;
-      g_content_main_delegate = nullptr;
-
-      delete g_platform_event_source;
-      g_platform_event_source = nullptr;
-
-      delete g_exit_manager;
-      g_exit_manager = nullptr;
       break;
     }
     case kSbEventTypeBlur:
+      content::Shell::OnBlur();
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleFocusEvent(event);
+      break;
     case kSbEventTypeFocus:
+      content::Shell::OnFocus();
       CHECK(g_platform_event_source);
       g_platform_event_source->HandleFocusEvent(event);
       break;
     case kSbEventTypeConceal:
+      content::Shell::OnConceal();
+      break;
     case kSbEventTypeReveal:
+      content::Shell::OnReveal();
+      break;
     case kSbEventTypeFreeze:
+      content::Shell::OnFreeze();
+      break;
     case kSbEventTypeUnfreeze:
+      content::Shell::OnUnfreeze();
       break;
     case kSbEventTypeInput:
       CHECK(g_platform_event_source);
@@ -213,6 +288,9 @@ void SbEventHandle(const SbEvent* event) {
 
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 int main(int argc, char** argv) {
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
+  int result = SbRunStarboardMain(argc, argv, SbEventHandle);
+  FinalizeCobalt();
+  CHECK(!g_exit_manager);
+  return result;
 }
 #endif
