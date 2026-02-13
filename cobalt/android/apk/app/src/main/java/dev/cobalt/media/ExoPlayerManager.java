@@ -44,11 +44,17 @@ public class ExoPlayerManager {
     private final DefaultRenderersFactory mRenderersFactory;
     private static final int PASSTHROUGH_CODEC_BITRATE = 384000;
 
-    /** Filters software video codecs from ExoPlayer codec selection for non-emulator devices. */
+    /** Filters software video codecs from ExoPlayer codec selection for non-emulator devices, as well as enforces passthrough only AC3 and EAC3 support. */
     private static final class FilteringMediaCodecSelector implements MediaCodecSelector {
         @Override
         public List<MediaCodecInfo> getDecoderInfos(
                 String mimeType, boolean requiresSecureDecoder, boolean requiresTunnelingDecoder) {
+            // Ignore on-device AC3/EAC3 decoders as we only support passthrough.
+            if (MimeTypes.AUDIO_AC3.equals(mimeType)
+                    || MimeTypes.AUDIO_E_AC3.equals(mimeType)
+                    || MimeTypes.AUDIO_E_AC3_JOC.equals(mimeType)) {
+                return Collections.emptyList();
+            }
             List<MediaCodecInfo> defaultDecoderInfos = null;
             try {
                 defaultDecoderInfos =
