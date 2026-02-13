@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 
