@@ -188,6 +188,7 @@ test("cobalt_browsertests") {
   }
 
   sources = [
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
     "encrypted_media_browsertest.cc",
     "frame_tree_browsertest.cc",
