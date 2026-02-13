@@ -52,7 +52,6 @@ struct SbAudioSinkPrivate {
         ErrorFunc error_func,
         void* context) = 0;
     virtual bool IsValid(SbAudioSink audio_sink) = 0;
-    virtual void Destroy(SbAudioSink audio_sink) = 0;
   };
 
   virtual ~SbAudioSinkPrivate() {}

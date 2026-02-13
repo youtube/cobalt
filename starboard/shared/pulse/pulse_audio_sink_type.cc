@@ -139,7 +139,6 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
-  void Destroy(SbAudioSink audio_sink) override;
 
   bool Initialize();
 
@@ -195,6 +194,8 @@ PulseAudioSink::PulseAudioSink(
 }
 
 PulseAudioSink::~PulseAudioSink() {
+  // TODO: Add safe-detach logic.
+  // https://source.corp.google.com/h/github/youtube/cobalt/+/main:starboard/shared/pulse/pulse_audio_sink_type.cc;l=426-431;drc=dec4e65550fe1950b5dc63b4cf454680c4b101aa
   if (stream_) {
     type_->DestroyStream(stream_);
   }
@@ -412,26 +413,6 @@ SbAudioSink PulseAudioSinkType::Create(
   std::lock_guard lock(mutex_);
   sinks_.push_back(audio_sink);
   return audio_sink;
-}
-
-void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
-  if (audio_sink == kSbAudioSinkInvalid) {
-    return;
-  }
-  if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-    SB_LOG(WARNING) << "audio_sink is invalid.";
-    return;
-  }
-  PulseAudioSink* pulse_audio_sink = static_cast<PulseAudioSink*>(audio_sink);
-  {
-    {
-      std::lock_guard lock(mutex_);
-      auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
-      SB_DCHECK(it != sinks_.end());
-      sinks_.erase(it);
-    }
-    delete audio_sink;
-  }
 }
 
 bool PulseAudioSinkType::Initialize() {
