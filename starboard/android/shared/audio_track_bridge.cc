@@ -107,7 +107,7 @@ std::unique_ptr<AudioTrackBridge> AudioTrackBridge::Create(
   }
 
   if (j_audio_data.is_null()) {
-    SB_LOG(ERROR) << "Failed to allocate |j_audio_data_|";
+    SB_LOG(ERROR) << "Failed to allocate |j_audio_data|";
     return nullptr;
   }
 
