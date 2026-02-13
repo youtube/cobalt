@@ -1,0 +1,5 @@
+# b/427294038
+-CorePerftest.*
+-MessagePipePerfTest.*
+-MojoBindingsPerftest.*
+-MojoE2EPerftest.*

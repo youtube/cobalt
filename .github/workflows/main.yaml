@@ -632,10 +632,9 @@ jobs:
           # Get first entry in test filters file.
           test_filter=""
           test_target="${{ steps.extract-target-name.outputs.test_target }}"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
-          if [ -f ${test_filter_json_dir} ]; then
-            test_filter="$(jq -cr '.failing_tests[0]' ${test_filter_json_dir})"
-            if [ "${test_filter}" = '*' ]; then
+          test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}.${test_target}.filter"
+          if [ -f "${test_filter_file}" ]; then
+            if grep -q -E "^-\*$" "${test_filter_file}"; then
               echo "${test_target} was skipped due to test filter."
               echo "skipped=true" >> $GITHUB_OUTPUT
             else

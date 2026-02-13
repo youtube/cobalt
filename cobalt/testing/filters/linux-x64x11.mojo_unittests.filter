@@ -1,0 +1,13 @@
+# TODO: Add on-host tests and results upload (#4266)
+-ValidationIntegrationTest.Receiver
+-ValidationIntegrationTest.Remote
+-ValidationTest.AssociatedConformace
+-ValidationTest.BoundsCheck
+-ValidationTest.Conformance
+-ValidationTest.ResponseBoundsCheck
+
+# TODO: [Rebase m138] Filter failing tests (#7539)
+-DirectReceiverTest.*
+-MessagePipeTest.DataPipeConsumerHandlePingPong
+-MessagePipeTest.DataPipeProducerHandlePingPong
+-ValidationTest.ResponseConformance

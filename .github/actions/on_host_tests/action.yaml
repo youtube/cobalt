@@ -67,36 +67,33 @@ runs:
 
           echo "Running tests for suite: ${test_binary}"
 
-          test_filter="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
-          if [ -f ${test_filter_json_dir} ]; then
-            test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
-          fi
-
-          echo "Test filter evaluated to: ${test_filter}"
           xml_path="${test_output}/${test_binary}_result.xml"
           log_path="${test_output}/${test_binary}_log.txt"
+
+          test_filter_arg=""
+          test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}.${test_binary}.filter"
+          if [ -f ${test_filter_file} ]; then
+            test_filter_arg="--test-launcher-filter-file=${test_filter_file}"
+            echo "Using filter file: ${test_filter_file}"
+          fi
+
           # TODO: Investigate test_runner.py
 
           ENTRYPOINT=./"${test_binary_path}"
 
-          if [ "${test_filter}" == "-*" ]; then
-            echo "Skipped due to test filter." >  ${log_path}
-          else
-            export GTEST_TOTAL_SHARDS=${{ inputs.num_gtest_shards }}
-            export GTEST_SHARD_INDEX=${{ matrix.shard }}
-            /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                stdbuf -i0 -o0 -e0 $ENTRYPOINT \
-                --single-process-tests \
-                --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
-              failed_suites="${failed_suites} ${test_binary}"
-            }
+          export GTEST_TOTAL_SHARDS=${{ inputs.num_gtest_shards }}
+          export GTEST_SHARD_INDEX=${{ matrix.shard }}
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+              stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+              --single-process-tests \
+              --gtest_output="xml:${xml_path}" \
+              ${test_filter_arg} 2>&1 | tee ${log_path} || {
+            failed_suites="${failed_suites} ${test_binary}"
+          }
 
-            if [[ ! -f ${xml_path} ]]; then
-              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-            fi
+          if [[ ! -f ${xml_path} ]]; then
+            # Test binary crashed. Generate a fake JUnit XML report with the last run test.
+            python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
           fi
         done
         echo "Finished running tests..."

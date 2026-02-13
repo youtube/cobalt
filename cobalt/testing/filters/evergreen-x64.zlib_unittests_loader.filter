@@ -1,0 +1,8 @@
+# TODO: [Rebase m138] Filters for viz_unittest and zlib_unittests (#7665)
+-ZipTest.*
+-ZlibTest.ZipExtraFieldSize
+-ZlibTest.ZipFilenameCommentSize
+
+# b/427294038
+-CompressionUtilsTest.*
+-ZipReaderTest.*

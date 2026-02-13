@@ -32,6 +32,13 @@ runs:
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+
+          # Copy filter file if exists
+          target_name=$(basename "${target}")
+          filter_file="cobalt/testing/filters/${{ matrix.platform }}.${target_name}.filter"
+          if [ -f "${filter_file}" ]; then
+            cp "${filter_file}" "${GITHUB_WORKSPACE}/artifacts/"
+          fi
         done
       shell: bash
     - name: Archive Test Dependencies

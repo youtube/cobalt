@@ -1,0 +1,9 @@
+# TODO: Route _exit() to exit() (#6492)
+-ForkDetect.Test
+
+# b/461598808
+-All/PerAEADTest.TestVector/AES_128_CCM_BLUETOOTH
+-All/PerAEADTest.TestVector/AES_128_EAX
+-All/PerAEADTest.TestVectorScatterGather/AES_128_EAX
+-RandTest.Fork
+-X509Test.DirHashThreads

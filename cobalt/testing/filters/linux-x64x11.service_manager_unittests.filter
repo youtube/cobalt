@@ -1,0 +1,6 @@
+# TODO: [Rebase m138] Filter failing tests (#7539)
+-BackgroundServiceManagerTest.Basic
+-ConnectTest.*
+-LifecycleTest.*
+-ServiceManagerTest.*
+-ShutdownTest.*

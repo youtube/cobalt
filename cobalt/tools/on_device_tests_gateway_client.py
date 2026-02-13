@@ -147,51 +147,69 @@ def _get_test_args_and_dimensions(
   return test_args, device_type, device_pool
 
 
-def _get_gtest_filter(filter_json_dir: str, target_name: str) -> str:
+def _get_gtest_filter(filter_dir: str, platform: str, target_name: str) -> str:
   """Retrieves gtest filters for a given target.
 
   Args:
-      filter_json_dir: Directory containing filter JSON files.
+      filter_dir: Directory containing filter files.
+      platform: The platform name.
       target_name: The name of the gtest target.
 
   Returns:
       A string containing the gtest filters.
   """
-  gtest_filter = '*'
-  filter_json_file = os.path.join(filter_json_dir, f'{target_name}_filter.json')
-  if os.path.exists(filter_json_file):
-    with open(filter_json_file, 'r', encoding='utf-8') as f:
-      filter_data = json.load(f)
-      failing_tests = ':'.join(filter_data.get('failing_tests', []))
-      if failing_tests:
-        gtest_filter = '-' + failing_tests
-  return gtest_filter
+  filter_file = os.path.join(filter_dir, f'{platform}.{target_name}.filter')
+  if not os.path.exists(filter_file):
+    return '*'
+
+  exclusion_list = []
+  with open(filter_file, 'r', encoding='utf-8') as f:
+    for line in f:
+      line = line.strip()
+      if not line or line.startswith('#'):
+        continue
+      if line.startswith('-'):
+        exclusion_list.append(line[1:])
+      # TODO: Handle positive filters if needed.
+
+  if not exclusion_list:
+    return '*'
+
+  return '-' + ':'.join(exclusion_list)
 
 
-def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
+def _unit_test_files(args: argparse.Namespace, target_name: str,
+                     filter_file: Optional[str] = None) -> List[str]:
   """Builds the list of files for a unit test request."""
   is_modular_raspi = 'builder-raspi-2-modular' in args.label
 
   # TODO: b/432536319 - Use flag to determine file ending.
 
+  files = []
   if args.device_family == 'android':
-    return [
+    files = [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'build_apk={args.gcs_archive_path}/{target_name}-debug.apk',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   elif is_modular_raspi and args.device_family == 'raspi':
-    return [
+    files = [
         f'bin={args.gcs_archive_path}/{target_name}',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   elif args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
-    return [
+    files = [
         f'bin={args.gcs_archive_path}/{target_name}.py',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   else:
     raise ValueError(f'Unsupported device family: {args.device_family}')
+
+  if filter_file:
+    filter_filename = os.path.basename(filter_file)
+    files.append(f'filter_file={args.gcs_archive_path}/{filter_filename}')
+
+  return files
 
 
 def _unit_test_params(args: argparse.Namespace, target_name: str,
@@ -229,19 +247,28 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         raise ValueError('Dimensions not specified: device_type, device_pool')
       test_target = target_data
       target_name = test_target.split(':')[-1]
-      gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
-      if gtest_filter == '-*':
-        print(f'Skipping {target_name} due to test filter.')
-        continue
+      filter_file = _get_filter_file(args.filter_dir, args.platform,
+                                     target_name)
+      if filter_file:
+         # TODO: Verify if checking for skip is needed here.
+         # The new approach passes the file to the runner.
+         pass
+
       if args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
-      command_line_args = ' '.join([
+
+      cmd_flags = [
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
-          f'--gtest_filter={gtest_filter}',
-      ])
+      ]
+      if filter_file:
+        filter_filename = os.path.basename(filter_file)
+        cmd_flags.append(
+            f'--test-launcher-filter-file={dir_on_device}/{filter_filename}')
+
+      command_line_args = ' '.join(cmd_flags)
       test_cmd_args = [f'command_line_args={command_line_args}']
-      files = _unit_test_files(args, target_name)
+      files = _unit_test_files(args, target_name, filter_file)
       params = _unit_test_params(args, target_name, dir_on_device)
 
     elif args.test_type in ('e2e_test', 'yts_test'):
@@ -373,12 +400,16 @@ def main() -> int:
       help='Timeout in seconds for the test to start.',
   )
 
-  # --- Unit Test Arguments ---
   unit_test_group = trigger_parser.add_argument_group('Unit Test Arguments')
   unit_test_group.add_argument(
-      '--filter_json_dir',
+      '--platform',
       type=str,
-      help='Directory containing filter JSON files for test selection.',
+      help='Platform name for filter selection.',
+  )
+  unit_test_group.add_argument(
+      '--filter_dir',
+      type=str,
+      help='Directory containing filter files for test selection.',
   )
   unit_test_group.add_argument(
       '-a',
@@ -430,8 +461,10 @@ def main() -> int:
       raise ValueError('--gcs_archive_path is required for unit_test')
     if not args.gcs_result_path:
       raise ValueError('--gcs_result_path is required for unit_test')
-    if not args.filter_json_dir:
-      raise ValueError('--filter_json_dir is required for unit_test')
+    if not args.filter_dir:
+      raise ValueError('--filter_dir is required for unit_test')
+    if not args.platform:
+      raise ValueError('--platform is required for unit_test')
 
   test_requests = _process_test_requests(args)
   client = OnDeviceTestsGatewayClient()

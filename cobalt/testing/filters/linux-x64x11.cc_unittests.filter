@@ -1,0 +1,34 @@
+# TODO: [Ozone] Disable all non-starboard backends (#4987)
+-All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRadius/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRect/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRounded/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.BackdropFilterRotated/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.BackdropFilterRotated/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.BlurFilterWithClip/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.ImageFilterScaled/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.ImageRenderSurfaceScaled/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.RotatedDropShadowFilter/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.RotatedFilter/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.TranslatedFilter/SkiaGL
+-All/LayerTreeHostFiltersPixelTest.ZoomFilter/SkiaGL
+-All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy*
+-All/LayerTreeHostScrollbarsPixelTest.HugeTransformScale/SkiaGL
+
+# TODO: [Ozone] Remove angle_use_x11 flag (#5238)
+-All/BackdropFilterInvertTest.HiDpi/SkiaGL
+-All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy*
+-All/LayerTreeHostTilesTestRasterColorSpace.GenericRGB/SkiaGL_GPU
+-All/LayerTreeHostTilesTestRasterColorSpace.GenericRGB/SkiaGL_OneCopy
+-OopPixelTest.DrawImageWithSourceColorSpace
+-P/OopClearPixelTest.*
+-P/OopTextBlobPixelTest.*
+-P/OopYUVToRGBPixelTest.*
+
+# b/412648662
+-*LayerTreeHost*
+-B/LayerTreeHostBlendingPixelTest.*
+-P/OopPathPixelTest.*
+
+# b/418842688
+-All/BackdropFilter*
+-MixedFilterZoomAndOffsetTest.*
