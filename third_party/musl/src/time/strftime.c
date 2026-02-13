@@ -152,6 +152,7 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 // POSIX specification for the tm struct. As a substitute, we can make use of
 // mktime() to retrieve this value.
 #if BUILDFLAG(IS_STARBOARD)
+	{
 		time_t secs = mktime(&tm_copy);
 
 		if (secs == (time_t)-1) {
@@ -165,6 +166,9 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 #endif // BUILDFLAG(IS_STARBOARD)
 		width = 1;
 		goto number;
+#if BUILDFLAG(IS_STARBOARD)
+	}
+#endif
 	case 'S':
 		val = tm->tm_sec;
 		goto number;
@@ -210,6 +214,9 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 		width = 4;
 		goto number;
 	case 'z':
+#if BUILDFLAG(IS_STARBOARD)
+	{
+#endif // BUILDFLAG(IS_STARBOARD)
 		if (tm->tm_isdst < 0) {
 			*l = 0;
 			return "";
@@ -240,10 +247,11 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 		long minutes = labs(offset_seconds % 3600) / 60;
 
 		*l = snprintf(*s, sizeof *s, "%+03ld%02ld", hours, minutes);
-#else // BUILDFLAG(IS_STARBOARD)
+		return *s;
+	}
+#endif // BUILDFLAG(IS_STARBOARD)
 		*l = snprintf(*s, sizeof *s, "%+.4ld",
 			tm->__tm_gmtoff/3600*100 + tm->__tm_gmtoff%3600/60);
-#endif // BUILDFLAG(IS_STARBOARD)
 		return *s;
 	case 'Z':
 		if (tm->tm_isdst < 0) {
