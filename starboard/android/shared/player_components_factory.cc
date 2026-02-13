@@ -85,7 +85,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   audio_frame_storage_type, frame_buffers,
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, false, /* is_web_audio */
+                  tunnel_mode_audio_session_id, /*is_web_audio=*/false,
                   context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
@@ -156,8 +156,11 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 }  // namespace
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
-  const int kAudioSinkFramesAlignment = 256;
-  const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+  static constexpr int kAudioSinkFramesAlignment = 256;
+  static constexpr int kDefaultAudioSinkMinFramesPerAppend = 1024;
+  static_assert(kDefaultAudioSinkMinFramesPerAppend %
+                    kAudioSinkFramesAlignment ==
+                0);
 
   static int AlignUp(int value, int alignment) {
     return (value + alignment - 1) / alignment * alignment;
@@ -177,7 +180,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
         return Failure("Invalid audio mime type.");
       }
-      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
+      if (!audio_mime_type.GetParamBoolValue("audiopassthrough",
+                                             /*default_value=*/true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
         return Failure("Passthrough disabled by mime attribute.");
@@ -209,12 +213,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     std::unique_ptr<VideoRenderer> video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      constexpr int kTunnelModeAudioSessionId = -1;
-      constexpr bool kForceSecurePipelineUnderTunnelMode = false;
-
       auto video_decoder = CreateVideoDecoder(
-          creation_parameters, kTunnelModeAudioSessionId,
-          kForceSecurePipelineUnderTunnelMode, max_video_input_size);
+          creation_parameters, /*tunnel_mode_audio_session_id=*/-1,
+          /*force_secure_pipeline_under_tunnel_mode=*/false,
+          max_video_input_size);
       if (video_decoder) {
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
@@ -263,14 +265,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      enable_tunnel_mode =
-          video_mime_type.GetParamBoolValue("tunnelmode", false);
+      enable_tunnel_mode = video_mime_type.GetParamBoolValue(
+          "tunnelmode", /*default_value=*/false);
 
       SB_LOG(INFO) << "Tunnel mode is "
                    << (enable_tunnel_mode ? "enabled. " : "disabled. ")
                    << "Video mime parameter \"tunnelmode\" value: "
-                   << video_mime_type.GetParamStringValue("tunnelmode",
-                                                          "<not provided>")
+                   << video_mime_type.GetParamStringValue(
+                          "tunnelmode", /*default_value=*/"<not provided>")
                    << ".";
     } else {
       SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
@@ -415,8 +417,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                               int* min_frames_per_append) const override {
     SB_CHECK(max_cached_frames);
     SB_CHECK(min_frames_per_append);
-    SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
-              0);
     *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
 
     // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
@@ -460,8 +460,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
       if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
-        force_reset_surface =
-            video_mime_type.GetParamBoolValue("forceresetsurface", true);
+        force_reset_surface = video_mime_type.GetParamBoolValue(
+            "forceresetsurface", /*default_value=*/true);
       }
     }
 
@@ -534,15 +534,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool is_encrypted = !!j_media_crypto;
     if (MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-            mime, is_encrypted, false, true, 0, 0, 0, 0)) {
+            mime, is_encrypted,
+            /*must_support_hdr=*/false, /*must_support_tunnel_mode=*/true,
+            /*frame_width=*/0, /*frame_height=*/0, /*bitrate=*/0, /*fps=*/0)) {
       return true;
     }
 
     if (kForceSecurePipelineInTunnelModeWhenRequired && !is_encrypted) {
-      const bool kIsEncrypted = true;
       auto support_tunnel_mode_under_secure_pipeline =
           MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-              mime, kIsEncrypted, false, true, 0, 0, 0, 0);
+              mime, /*must_support_secure=*/true,
+              /*must_support_hdr=*/false, /*must_support_tunnel_mode=*/true,
+              /*frame_width=*/0, /*frame_height=*/0, /*bitrate=*/0, /*fps=*/0);
       if (support_tunnel_mode_under_secure_pipeline) {
         *force_secure_pipeline_under_tunnel_mode = true;
         return true;
@@ -589,7 +592,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.audio_stream_info().number_of_channels);
     uint16_t* frame_buffers[] = {frame_buffer.data()};
     audio_sink->Start(
-        0, creation_parameters.audio_stream_info().number_of_channels,
+        /*media_start_time=*/0,
+        creation_parameters.audio_stream_info().number_of_channels,
         creation_parameters.audio_stream_info().samples_per_second,
         kSbMediaAudioSampleTypeInt16Deprecated,
         kSbMediaAudioFrameStorageTypeInterleaved,
