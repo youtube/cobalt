@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
@@ -204,6 +205,7 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
     base::TimeDelta append_window_start,
     base::TimeDelta append_window_end,
     base::TimeDelta* timestamp_offset) {
+  TRACE_EVENT0("media", "SourceBufferState::RunSegmentParserLoop");
   DCHECK(!new_configs_possible_);
   new_configs_possible_ = true;
   DCHECK(timestamp_offset);
@@ -219,8 +221,12 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
 
   // TODO(wolenetz): Curry and pass a NewBuffersCB here bound with append window
   // and timestamp offset pointer. See http://crbug.com/351454.
-  StreamParser::ParseStatus result =
-      stream_parser_->Parse(kMaxPendingBytesPerParseOverride);
+  StreamParser::ParseStatus result;
+  {
+    TRACE_EVENT1("media", "SourceBufferState::Parse", "bytes",
+                 kMaxPendingBytesPerParseOverride);
+    result = stream_parser_->Parse(kMaxPendingBytesPerParseOverride);
+  }
 
   if (result == StreamParser::ParseStatus::kFailed) {
     MEDIA_LOG(ERROR, media_log_)
