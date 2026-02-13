@@ -19,6 +19,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/features.h"
@@ -73,10 +74,6 @@ class PlayerComponentsImpl : public PlayerComponents {
   std::unique_ptr<AudioRendererPcm> audio_renderer_;
   std::unique_ptr<VideoRendererImpl> video_renderer_;
 };
-
-int AlignUp(int value, int alignment) {
-  return (value + alignment - 1) / alignment * alignment;
-}
 
 }  // namespace
 

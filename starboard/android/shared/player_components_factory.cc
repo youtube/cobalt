@@ -32,6 +32,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
@@ -158,10 +159,6 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
-
-  static int AlignUp(int value, int alignment) {
-    return (value + alignment - 1) / alignment * alignment;
-  }
 
   NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
       const CreationParameters& creation_parameters) override {
