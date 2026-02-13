@@ -803,16 +803,12 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-<<<<<<< HEAD
+
   // It is required to reset mNativeMediaCodecBridge when the native media_codec_bridge object is
   // destroyed.
   @SuppressWarnings("unused")
   @UsedByNative
   private void resetNativeMediaCodecBridge() {
-=======
-  @CalledByNative
-  public void release() {
->>>>>>> 068887ec58 (media: Refactor MediaCodecBridge::release  (#8916))
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
