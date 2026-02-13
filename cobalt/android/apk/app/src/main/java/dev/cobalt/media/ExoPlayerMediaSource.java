@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SinglePeriodTimeline;
 import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /** Writes encoded media from the native app to the SampleStream */
 @UnstableApi
@@ -116,7 +117,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
      */
-    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
+    public void writeSample(ByteBuffer samples, int size, long timestamp, boolean isKeyFrame) {
       synchronized (mLock) {
         if (mMediaPeriod != null) {
           mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame);

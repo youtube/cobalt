@@ -19,7 +19,7 @@ import static dev.cobalt.media.Log.TAG;
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
-import androidx.media3.common.util.ParsableByteArray;
+import androidx.media3.common.DataReader;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
@@ -28,6 +28,7 @@ import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
 import dev.cobalt.util.Log;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /** Queues encoded media to be retrieved by the player renderers */
 @UnstableApi
@@ -35,7 +36,30 @@ public class ExoPlayerSampleStream implements SampleStream {
     // The player maintains a copy of each sample in the SampleQueue to read asynchronously.
     private final SampleQueue mSampleQueue;
     private volatile boolean mEndOfStream = false;
-    private final ParsableByteArray mSampleData = new ParsableByteArray();
+
+    /**
+     * An implementation of {@link DataReader} that reads data from a {@link ByteBuffer}.
+     * This allows ExoPlayer's {@link SampleQueue} to read media samples directly from
+     * memory-backed buffers (including DirectByteBuffers from native code) without
+     * requiring an intermediate byte array at the bridge level.
+     */
+    private static class ByteBufferDataReader implements DataReader {
+        private final ByteBuffer mBuffer;
+
+        public ByteBufferDataReader(ByteBuffer buffer) {
+            mBuffer = buffer;
+        }
+
+        @Override
+        public int read(@NonNull byte[] buffer, int offset, int length) {
+            if (!mBuffer.hasRemaining()) {
+                return C.RESULT_END_OF_INPUT;
+            }
+            int readLength = Math.min(length, mBuffer.remaining());
+            mBuffer.get(buffer, offset, readLength);
+            return readLength;
+        }
+    }
 
     // The memory here is managed by Java rather than the native allocator, which may increase
     // memory pressure.
@@ -63,15 +87,26 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
      */
-    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        mSampleData.reset(samples, size);
+    public void writeSample(ByteBuffer samples, int size, long timestamp, boolean isKeyFrame) {
         int flags = 0;
         if (isKeyFrame) {
             flags |= C.BUFFER_FLAG_KEY_FRAME;
         }
 
-        // TODO: Optimize by avoiding an extra sample copy here.
-        mSampleQueue.sampleData(mSampleData, size);
+        try {
+            ByteBufferDataReader dataReader = new ByteBufferDataReader(samples);
+            int bytesWritten = 0;
+            while (bytesWritten < size) {
+                int result = mSampleQueue.sampleData(dataReader, size - bytesWritten, true);
+                if (result == C.RESULT_END_OF_INPUT) {
+                    throw new IOException("Unexpected end of input from ByteBuffer");
+                }
+                bytesWritten += result;
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to write sample data to SampleQueue", e);
+            return;
+        }
         mSampleQueue.sampleMetadata(timestamp, flags, size, 0, null);
     }
 

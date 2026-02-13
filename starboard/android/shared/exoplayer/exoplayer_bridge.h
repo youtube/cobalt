@@ -86,7 +86,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void ReportError(const std::string& msg) const;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
-  base::android::ScopedJavaGlobalRef<jbyteArray> j_sample_data_;
 
   std::atomic_bool player_is_releasing_ = false;
 

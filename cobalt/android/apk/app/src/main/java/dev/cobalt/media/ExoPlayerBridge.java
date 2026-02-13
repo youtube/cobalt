@@ -36,6 +36,7 @@ import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import dev.cobalt.util.Log;
+import java.nio.ByteBuffer;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -246,7 +247,7 @@ public class ExoPlayerBridge {
      */
     @CalledByNative
     public void writeSample(
-            byte[] samples, int size, long timestamp, boolean isKeyFrame, int type) {
+            ByteBuffer samples, int size, long timestamp, boolean isKeyFrame, int type) {
         ExoPlayerMediaSource mediaSource =
                 type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
         if (mediaSource == null || mIsReleasing) {

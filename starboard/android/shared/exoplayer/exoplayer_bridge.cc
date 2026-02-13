@@ -25,6 +25,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
@@ -52,7 +53,6 @@ using base::android::ScopedJavaLocalRef;
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
 constexpr int kWaitForInitializedTimeoutUsec = 250'000;  // 250 ms.
-constexpr int kMaxSampleBufferSize = 6 * 1024 * 1024;    // 6 MB.
 constexpr int kADTSHeaderSize = 7;
 constexpr bool kForceTunneledPlayback = false;
 
@@ -125,8 +125,6 @@ ExoPlayerBridge::ExoPlayerBridge(
   }
 
   j_exoplayer_bridge_.Reset(j_exoplayer_bridge);
-  j_sample_data_.Reset(env, env->NewByteArray(kMaxSampleBufferSize));
-  SB_CHECK(j_sample_data_) << "Failed to allocate |j_sample_data_|.";
 }
 
 ExoPlayerBridge::~ExoPlayerBridge() {
@@ -212,14 +210,12 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
     int offset = GetSampleOffset(type, input_buffer);
     int size = input_buffer->size() - offset;
 
-    env->SetByteArrayRegion(
-        static_cast<jbyteArray>(j_sample_data_.obj()), 0, size,
-        reinterpret_cast<const jbyte*>(input_buffer->data() + offset));
-    ScopedJavaLocalRef<jbyteArray> sample_data_local_ref(
-        env, static_cast<jbyteArray>(env->NewLocalRef(j_sample_data_.obj())));
+    ScopedJavaLocalRef<jobject> sample_byte_buffer(
+        env, env->NewDirectByteBuffer(
+                 const_cast<uint8_t*>(input_buffer->data() + offset), size));
 
     Java_ExoPlayerBridge_writeSample(
-        env, j_exoplayer_bridge_, sample_data_local_ref, size,
+        env, j_exoplayer_bridge_, sample_byte_buffer, size,
         input_buffer->timestamp(), is_key_frame, type);
   }
 }

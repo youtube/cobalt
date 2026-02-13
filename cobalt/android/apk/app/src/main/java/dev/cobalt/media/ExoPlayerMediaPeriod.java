@@ -26,6 +26,7 @@ import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /** Implements the ExoPlayer MediaPeriod interface to write samples to the ExoPlayerSampleStream. */
 public class ExoPlayerMediaPeriod implements MediaPeriod {
@@ -191,7 +192,7 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
      */
-    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
+    public void writeSample(ByteBuffer samples, int size, long timestamp, boolean isKeyFrame) {
         mStream.writeSample(samples, size, timestamp, isKeyFrame);
     }
 
