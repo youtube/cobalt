@@ -81,6 +81,8 @@ class PulseAudioSink : public SbAudioSinkImpl {
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
 
+  void Detach();
+
   bool Initialize(pa_context* context);
   bool WriteFrameIfNecessary(pa_context* context);
 
@@ -98,7 +100,7 @@ class PulseAudioSink : public SbAudioSinkImpl {
   void Play();
   void Pause();
 
-  PulseAudioSinkType* const type_;
+  PulseAudioSinkType* type_;
   const int channels_;
   const int sampling_frequency_hz_;
   const SbMediaAudioSampleType sample_type_;
@@ -139,7 +141,8 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
-  void Destroy(SbAudioSink audio_sink) override;
+
+  void RemoveSink(PulseAudioSink* sink);
 
   bool Initialize();
 
@@ -195,8 +198,11 @@ PulseAudioSink::PulseAudioSink(
 }
 
 PulseAudioSink::~PulseAudioSink() {
-  if (stream_) {
-    type_->DestroyStream(stream_);
+  if (type_) {
+    type_->RemoveSink(this);
+    if (stream_) {
+      type_->DestroyStream(stream_);
+    }
   }
 }
 
@@ -216,6 +222,10 @@ void PulseAudioSink::SetVolume(double volume) {
   if (volume_.exchange(volume) != volume) {
     volume_updated_.store(true);
   }
+}
+
+void PulseAudioSink::Detach() {
+  type_ = nullptr;
 }
 
 bool PulseAudioSink::Initialize(pa_context* context) {
@@ -380,6 +390,15 @@ PulseAudioSinkType::~PulseAudioSinkType() {
     }
     pthread_join(*audio_thread_, nullptr);
   }
+
+  {
+    std::lock_guard lock(mutex_);
+    for (PulseAudioSink* sink : sinks_) {
+      sink->Detach();
+    }
+    sinks_.clear();
+  }
+
   SB_DCHECK(sinks_.empty());
   if (context_) {
     pa_context_disconnect(context_);
@@ -414,23 +433,11 @@ SbAudioSink PulseAudioSinkType::Create(
   return audio_sink;
 }
 
-void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
-  if (audio_sink == kSbAudioSinkInvalid) {
-    return;
-  }
-  if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-    SB_LOG(WARNING) << "audio_sink is invalid.";
-    return;
-  }
-  PulseAudioSink* pulse_audio_sink = static_cast<PulseAudioSink*>(audio_sink);
-  {
-    {
-      std::lock_guard lock(mutex_);
-      auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
-      SB_DCHECK(it != sinks_.end());
-      sinks_.erase(it);
-    }
-    delete audio_sink;
+void PulseAudioSinkType::RemoveSink(PulseAudioSink* sink) {
+  std::lock_guard lock(mutex_);
+  auto it = std::find(sinks_.begin(), sinks_.end(), sink);
+  if (it != sinks_.end()) {
+    sinks_.erase(it);
   }
 }
 
