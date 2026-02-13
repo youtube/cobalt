@@ -27,6 +27,7 @@ namespace nplb {
 namespace {
 
 const char* kClocale = "C";
+const char* kEnglishLocale = "en_US";
 const char* kTZEnv = "TZ";
 const char* kUTC0 = "UTC0";
 
@@ -119,12 +120,21 @@ TEST_F(PosixStrftimeTest, StandardSpecifiersL) {
       {"%W", "43"},
   };
 
+  // Set global locale to something other than the C locale.
+  std::string old_global_locale = setlocale(LC_TIME, nullptr);
+  if (!setlocale(LC_TIME, kEnglishLocale)) {
+    GTEST_SKIP() << "Skipping test: " << kEnglishLocale
+                 << " locale not supported.";
+  }
+
   for (const auto& test_case : kTestCases) {
     size_t result =
         strftime_l(buffer_, kBufferSize, test_case.format, &tm_, locale_);
     EXPECT_GT(result, 0U) << "Format: " << test_case.format;
     EXPECT_STREQ(test_case.expected, buffer_) << "Format: " << test_case.format;
   }
+
+  setlocale(LC_TIME, old_global_locale.c_str());
 }
 
 TEST_F(PosixStrftimeTest, SpecialCharacterSpecifiers) {
@@ -220,12 +230,21 @@ TEST_F(PosixStrftimeTest, AMPMSpecifier) {
 }
 
 TEST_F(PosixStrftimeTest, AMPMSpecifierL) {
+  // Set global locale to something other than the C locale.
+  std::string old_global_locale = setlocale(LC_TIME, nullptr);
+  if (!setlocale(LC_TIME, kEnglishLocale)) {
+    GTEST_SKIP() << "Skipping test: " << kEnglishLocale
+                 << " locale not supported.";
+  }
+
   strftime_l(buffer_, kBufferSize, "%p", &tm_, locale_);
   EXPECT_STREQ("AM", buffer_);
 
   tm_.tm_hour = 14;
   strftime_l(buffer_, kBufferSize, "%p", &tm_, locale_);
   EXPECT_STREQ("PM", buffer_);
+
+  setlocale(LC_TIME, old_global_locale.c_str());
 }
 
 TEST_F(PosixStrftimeTest, ISOWeekStandard) {
@@ -283,6 +302,12 @@ TEST_F(PosixStrftimeTest, BufferHandling) {
 
 TEST_F(PosixStrftimeTest, BufferHandlingL) {
   const char* format = "%Y-%m-%d";  // Result: "2023-10-26" (10 chars)
+  // Set global locale to something other than the C locale.
+  std::string old_global_locale = setlocale(LC_TIME, nullptr);
+  if (!setlocale(LC_TIME, kEnglishLocale)) {
+    GTEST_SKIP() << "Skipping test: " << kEnglishLocale
+                 << " locale not supported.";
+  }
 
   size_t result = strftime_l(buffer_, 10, format, &tm_, locale_);
   EXPECT_EQ(result, 0U);
@@ -293,6 +318,8 @@ TEST_F(PosixStrftimeTest, BufferHandlingL) {
 
   result = strftime_l(buffer_, 0, format, &tm_, locale_);
   EXPECT_EQ(result, 0U);
+
+  setlocale(LC_TIME, old_global_locale.c_str());
 }
 
 TEST_F(PosixStrftimeTest, LargeYear) {
