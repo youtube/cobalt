@@ -220,7 +220,8 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
   // the format "iOS Simulator (MODEL)" rather than just "MODEL".
   // Strip the prefix here, set_model() will remove the parentheses.
   constexpr std::string_view kIOSSimulatorPrefix = "iOS Simulator ";
-  formatted_model.erase(0, kIOSSimulatorPrefix.size());
+  base::ReplaceFirstSubstringAfterOffset(&formatted_model, 0,
+                                         kIOSSimulatorPrefix, "");
 #endif
   // The model name as returned by the platform looks like "14,1", which needs
   // to be turned into "14-1" for it to be accepted.
