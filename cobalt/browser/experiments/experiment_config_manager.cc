@@ -127,21 +127,31 @@ ExperimentConfigManager::ExperimentConfigManager(
 }
 
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
-  // First, determine the config type based on the crash streak.
   DCHECK(metrics_local_state_);
+  DCHECK(experiment_config_);
   DCHECK(!called_store_safe_config_);
+
+  const base::Value::Dict& finch_params =
+      experiment_config_->GetDict(kFinchParameters);
+  const int crash_streak_empty_config_threshold =
+      finch_params.FindInt(kCrashStreakEmptyConfigThreshold)
+          .value_or(kDefaultCrashStreakEmptyConfigThreshold);
+  const int crash_streak_safe_config_threshold =
+      finch_params.FindInt(kCrashStreakSafeConfigThreshold)
+          .value_or(kDefaultCrashStreakSafeConfigThreshold);
+
   int num_crashes = metrics_local_state_->GetInteger(
       variations::prefs::kVariationsCrashStreak);
-  static_assert(
-      kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
-      "Threshold to use an empty experiment config should be larger "
-      "than to use the safe one.");
-  if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
+  static_assert(kDefaultCrashStreakEmptyConfigThreshold >
+                    kDefaultCrashStreakSafeConfigThreshold,
+                "Threshold to use an empty experiment config should be larger "
+                "than to use the safe one.");
+  if (num_crashes >= crash_streak_empty_config_threshold) {
     return ExperimentConfigType::kEmptyConfig;
   }
 
   ExperimentConfigType config_type;
-  if (num_crashes >= kCrashStreakSafeConfigThreshold) {
+  if (num_crashes >= crash_streak_safe_config_threshold) {
     config_type = ExperimentConfigType::kSafeConfig;
   } else {
     config_type = ExperimentConfigType::kRegularConfig;
