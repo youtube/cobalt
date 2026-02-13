@@ -521,16 +521,7 @@ jint MediaCodecBridge::Flush() {
   return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
 }
 
-<<<<<<< HEAD
-void MediaCodecBridge::Stop() {
-  JniEnvExt::Get()->CallVoidMethodOrAbort(j_media_codec_bridge_.obj(), "stop",
-                                          "()V");
-}
-
 FrameSize MediaCodecBridge::GetOutputSize() {
-=======
-std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
->>>>>>> 068887ec58 (media: Refactor MediaCodecBridge::release  (#8916))
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_get_output_format_result(
       Java_GetOutputFormatResult_Constructor(env));
