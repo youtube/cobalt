@@ -67,11 +67,14 @@ class H5vccSchemeURLLoaderFactory final
       const GeneratedResourceMap* resource_map_test);
   static void SetSplashDomainForTesting(
       const std::optional<std::string>& domain);
+  static void SetSplashContentSizeForTesting(const std::optional<int>& size);
 
  private:
   static const GeneratedResourceMap* resource_map_test_;
   std::string splash_domain_;
+  uint64_t splash_content_size_limit_;
   static std::optional<std::string> global_splash_domain_test_;
+  static std::optional<int> global_splash_content_size_test_;
   BrowserContext* browser_context_;
 };
 

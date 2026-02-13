@@ -164,7 +164,7 @@ CobaltContentBrowserClient::CobaltContentBrowserClient()
                           base::OnTaskRunnerDeleter>(
               nullptr,
               base::OnTaskRunnerDeleter(nullptr))) {
-  DETACH_FROM_THREAD(thread_checker_);
+  COBALT_DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
   ui::PlatformWindowStarboard::SetWindowCreatedCallback(
@@ -188,7 +188,7 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
@@ -224,7 +224,7 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROID)
   return base::android::GetDefaultLocaleString();
 #else
@@ -233,7 +233,7 @@ std::string CobaltContentBrowserClient::GetApplicationLocale() {
 }
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(OFFICIAL_BUILD)
   const auto custom_ua = embedder_support::GetUserAgentFromCommandLine();
   if (custom_ua.has_value()) {
@@ -244,7 +244,7 @@ std::string CobaltContentBrowserClient::GetUserAgent() {
 }
 
 blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgentMetadata();
 }
 
@@ -252,7 +252,7 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
     content::WebContents* web_contents,
     content::SiteInstance& main_frame_site,
     blink::web_pref::WebPreferences* prefs) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
@@ -342,7 +342,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (web_contents->GetPrimaryMainFrame() &&
       web_contents->GetPrimaryMainFrame()->GetFrameName() ==
           content::kCobaltSplashMainFrameName) {
@@ -358,7 +358,7 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PopulateCobaltFrameBinders(render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);

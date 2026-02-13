@@ -15,6 +15,7 @@
 #include "starboard/android/shared/platform_service.h"
 
 #include <memory>
+#include <vector>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
@@ -38,6 +39,7 @@ typedef struct CobaltExtensionPlatformServicePrivate {
     if (cobalt_service) {
       JNIEnv* env = base::android::AttachCurrentThread();
       env->DeleteGlobalRef(cobalt_service);
+      cobalt_service = nullptr;
     }
   }
 } CobaltExtensionPlatformServicePrivate;
@@ -64,13 +66,9 @@ CobaltExtensionPlatformService Open(void* context,
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate(
           {context, receive_callback, name});
-  // TODO: b/450024477 - Plumb the Activity through the platform service API.
-  // Passing a null Activity is a temporary workaround to avoid breaking the
-  // build during the JNI migration, since the Activity is not available in
-  // this context.
   auto cobalt_service =
       starboard::StarboardBridge::GetInstance()->OpenCobaltService(
-          env, /*activity=*/nullptr, reinterpret_cast<jlong>(service), name);
+          env, reinterpret_cast<jlong>(service), name);
   if (!cobalt_service) {
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
@@ -80,9 +78,15 @@ CobaltExtensionPlatformService Open(void* context,
 }
 
 void Close(CobaltExtensionPlatformService service) {
+  if (!service || !service->cobalt_service) {
+    return;
+  }
+
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_CobaltService_onClose(env, base::android::ScopedJavaLocalRef<jobject>(
-                                      env, service->cobalt_service));
+  auto j_cobalt_service =
+      base::android::JavaParamRef<jobject>(env, service->cobalt_service);
+  Java_CobaltService_onClose(env, j_cobalt_service);
+
   starboard::StarboardBridge::GetInstance()->CloseCobaltService(env,
                                                                 service->name);
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
@@ -93,19 +97,17 @@ void* Send(CobaltExtensionPlatformService service,
            uint64_t length,
            uint64_t* output_length,
            bool* invalid_state) {
-  SB_DCHECK(data);
+  SB_DCHECK(length == 0 || data);
   SB_DCHECK(output_length);
   SB_DCHECK(invalid_state);
 
   JNIEnv* env = base::android::AttachCurrentThread();
+  auto j_cobalt_service =
+      base::android::JavaParamRef<jobject>(env, service->cobalt_service);
   auto j_data = base::android::ToJavaByteArray(
       env, reinterpret_cast<const uint8_t*>(data), length);
-
-  auto j_response = Java_CobaltService_receiveFromClient(
-      env,
-      base::android::ScopedJavaLocalRef<jobject>(env, service->cobalt_service),
-      j_data);
-
+  auto j_response =
+      Java_CobaltService_receiveFromClient(env, j_cobalt_service, j_data);
   if (j_response.is_null()) {
     *invalid_state = true;
     *output_length = 0;
@@ -136,6 +138,31 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 const void* GetPlatformServiceApiAndroid() {
   return &kPlatformServiceApi;
+}
+
+void JNI_CobaltService_NativeSendToClient(
+    JNIEnv* env,
+    jlong nativeService,
+    const base::android::JavaParamRef<jbyteArray>& j_data) {
+  auto* service =
+      reinterpret_cast<CobaltExtensionPlatformServicePrivate*>(nativeService);
+
+  if (!service) {
+    SB_LOG(ERROR) << "NativeSendToClient called with null service pointer.";
+    return;
+  }
+
+  if (!service->receive_callback) {
+    SB_LOG(ERROR) << "Service " << service->name << " has no receive callback.";
+    return;
+  }
+
+  // Convert Java byte array to a C++ vector.
+  std::vector<uint8_t> data;
+  base::android::JavaByteArrayToByteVector(env, j_data, &data);
+
+  // Pass the data back to the Cobalt/Starboard layer.
+  service->receive_callback(service->context, data.data(), data.size());
 }
 
 }  // namespace starboard

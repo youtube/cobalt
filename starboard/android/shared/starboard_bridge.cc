@@ -174,6 +174,15 @@ jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
 #endif
 }
 
+jboolean JNI_StarboardBridge_IsDevelopmentBuild(JNIEnv* env) {
+// OFFICIAL_BUILD is set for Cobalt QA and Gold releases
+#if defined(OFFICIAL_BUILD)
+  return false;
+#else
+  return true;
+#endif
+}
+
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code
@@ -227,6 +236,11 @@ void StarboardBridge::RaisePlatformError(JNIEnv* env,
   SB_DCHECK(env);
   Java_StarboardBridge_raisePlatformError(env, j_starboard_bridge_, errorType,
                                           data);
+}
+
+bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_isPlatformErrorShowing(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::RequestSuspend(JNIEnv* env) {
@@ -372,12 +386,11 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
 
 base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
     JNIEnv* env,
-    const base::android::JavaRef<jobject>& activity,
     jlong native_service,
     const char* service_name) {
   SB_CHECK(env);
   return Java_StarboardBridge_openCobaltService(
-      env, j_starboard_bridge_, activity, native_service,
+      env, j_starboard_bridge_, native_service,
       ConvertUTF8ToJavaString(env, service_name));
 }
 

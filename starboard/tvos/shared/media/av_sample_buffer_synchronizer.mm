@@ -18,7 +18,7 @@
 
 namespace starboard {
 
-AVSBSynchronizer::AVSBSynchronizer() {
+AVSBSynchronizer::AVSBSynchronizer(JobQueue* job_queue) : JobOwner(job_queue) {
   @autoreleasepool {
     synchronizer_ = [[AVSampleBufferRenderSynchronizer alloc] init];
   }  // @autoreleasepool

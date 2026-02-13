@@ -18,6 +18,7 @@
 
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
@@ -57,10 +58,55 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     ContentBrowserTest::TearDown();
   }
 
-  std::string CheckVideoDimension(bool is_type_supported) {
+  std::string CheckImageDimension() {
+    // Mock MediaSource.isTypeSupported for static image fallback
+    return R"(
+      MediaSource.isTypeSupported = () => false;
+      (async () => {
+        return await new Promise((resolve) => {
+          const checkImage = () => {
+            try {
+              const placeholder = document.getElementById('placeholder');
+              if (!placeholder) {
+                return resolve('No placeholder element found');
+              }
+
+              // check if image is displayed
+              const style = window.getComputedStyle(placeholder);
+              const bgImage = style.backgroundImage;
+              if (bgImage === 'none') {
+                return resolve('No image is displayed');
+              }
+              if (parseFloat(style.opacity) < 1) {
+                return resolve('Image does not have 100% opacity');
+              }
+
+              // check image dimension
+              const url = bgImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+              const image = new Image();
+              image.onload = () => resolve('Dimensions: ' + image.naturalWidth + 'x' + image.naturalHeight);
+              image.onerror = () => resolve('Image load error');
+              image.src = url;
+            } catch (e) {
+              return resolve('Exception: ' + e.toString());
+            }
+          }
+
+          // use checkImage as callback to avoid setting timeout
+          playSplashAnimation(null, checkImage);
+        });
+      })();
+    )";
+  }
+
+  std::string CheckVideoDimension(bool is_4k_supported) {
     // Mock MediaSource.isTypeSupported for high/low spec device.
     return base::StringPrintf(R"(
       MediaSource.isTypeSupported = function(mime) {
+        // Bypass fallback for static image
+        if (!mime.includes('width=3840') || !mime.includes('height=2160')) {
+          return true;
+        }
         return %s;
       };
       playSplashAnimation();
@@ -84,11 +130,30 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
         }
       })();
     )",
-                              is_type_supported ? "true" : "false");
+                              is_4k_supported ? "true" : "false");
   }
 
-  void VerifySplashVideoFromCache(const std::string& cache_name,
-                                  const std::string& query_param) {
+ private:
+  std::unique_ptr<GeneratedResourceMap> test_resource_map;
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+const char kSafeSplashHtml[] = "<html><body>Safe</body></html>";
+const char kBuiltinSplash[] = "BUILTIN_SPLASH";
+
+class H5vccSchemeURLLoaderFactoryCacheBrowserTest
+    : public H5vccSchemeURLLoaderFactoryBrowserTest {
+ public:
+  // Verifies that the splash video is correctly loaded from the cache.
+  // |cache_name|: The name of the cache storage to use.
+  // |query_param|: URL query parameters to append to the fetch request.
+  // |content|: The content to store in the cache.
+  // |expected_content|: The expected content to be retrieved.
+  void VerifySplashVideoFromCacheWithContent(
+      const std::string& cache_name,
+      const std::string& query_param,
+      const std::string& content,
+      const std::string& expected_content) {
     ASSERT_TRUE(embedded_test_server()->Start());
     H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
         embedded_test_server()->base_url().spec());
@@ -97,11 +162,8 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     // hence bypass the MediaSource in the splash.html.
     auto test_resource_map = std::make_unique<GeneratedResourceMap>();
     LoaderEmbeddedResources::GenerateMap(*test_resource_map);
-    const char kSafeSplashHtml[] = "<html><body>Safe</body></html>";
-    FileContents safe_contents = {
-        reinterpret_cast<const unsigned char*>(kSafeSplashHtml),
-        sizeof(kSafeSplashHtml) - 1};
-    (*test_resource_map)["splash.html"] = safe_contents;
+    (*test_resource_map)["splash.html"] = safe_contents_;
+    (*test_resource_map)["splash.webm"] = builtin_contents_;
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
         test_resource_map.get());
 
@@ -111,11 +173,13 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     EXPECT_TRUE(NavigateToURL(shell(), setup_url));
 
     // Put a video into the cache.
-    std::string script = base::StringPrintf(R"(
+    std::string script =
+        base::StringPrintf(R"(
       (async () => {
         try {
           const cache = await caches.open('%s');
-          const response = new Response('aaabbbccc');
+          const blob = new Blob(['%s'], {type: 'video/webm'});
+          const response = new Response(blob);
           await cache.put('splash.webm', response);
           return 'Success';
         } catch (e) {
@@ -123,7 +187,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
         }
       })();
     )",
-                                            cache_name.c_str());
+                           cache_name.c_str(), content.c_str());
     EXPECT_EQ("Success", EvalJs(shell(), script));
 
     // 2. Fetch via h5vcc-embedded scheme.
@@ -149,11 +213,23 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     )",
                                                   fetch_url.c_str());
 
-    EXPECT_EQ("aaabbbccc", EvalJs(shell(), fetch_script));
+    std::string result = EvalJs(shell(), fetch_script).ExtractString();
+    EXPECT_EQ(expected_content, result);
   }
 
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
+  void VerifySplashVideoFromCache(const std::string& cache_name,
+                                  const std::string& query_param) {
+    VerifySplashVideoFromCacheWithContent(cache_name, query_param, "aaabbbccc",
+                                          "aaabbbccc");
+  }
+
+ protected:
+  FileContents safe_contents_ = {
+      reinterpret_cast<const unsigned char*>(kSafeSplashHtml),
+      sizeof(kSafeSplashHtml) - 1};
+  FileContents builtin_contents_ = {
+      reinterpret_cast<const unsigned char*>(kBuiltinSplash),
+      sizeof(kBuiltinSplash) - 1};
 };
 
 // TODO(478334656): Support Media source for Android's
@@ -194,18 +270,42 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   EXPECT_EQ("Dimensions: 853x480", EvalJs(shell(), CheckVideoDimension(false)));
 }
 
-// If not specified, use cache "default".
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_LoadStaticImageFallback DISABLED_LoadStaticImageFallback
+#else
+#define MAYBE_LoadStaticImageFallback LoadStaticImageFallback
+#endif
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       MAYBE_LoadStaticImageFallback) {
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // verify fall back for static image when device does not support VP9
+  EXPECT_EQ("Dimensions: 1920x1080", EvalJs(shell(), CheckImageDimension()));
+}
+
+// If not specified, use cache "default".
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoFromDefaultCache) {
   VerifySplashVideoFromCache("default", "");
 }
 
-IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoFromOtherCache) {
   VerifySplashVideoFromCache(
       "other",
       // If cache hit, fallback should have no impact here.
       "?cache=other&fallback=splash_480.webm");
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       SplashContentTooLarge) {
+  // Default kMaxSplashContentSize is too large for test fixtures.
+  // Set a smaller size for testing.
+  H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(150);
+  std::string large_content(151, 'x');
+  VerifySplashVideoFromCacheWithContent("default", "", large_content,
+                                        "BUILTIN_SPLASH");
 }
 
 }  // namespace content

@@ -155,6 +155,7 @@ class SplashScreenTest : public testing::Test {
     Shell* shell =
         new Shell(std::move(web_contents), std::move(splash_contents),
                   /*should_set_delegate=*/false,
+                  /*topic*/ "",
                   /*skip_for_testing=*/true);
     platform_->CreatePlatformWindow(shell, gfx::Size());
     Shell::FinishShellInitialization(shell);

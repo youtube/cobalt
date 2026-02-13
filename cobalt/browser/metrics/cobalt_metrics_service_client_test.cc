@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -40,6 +41,8 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -297,21 +300,40 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
+  base::HistogramTester histogram_tester;
+
+  // Prepare a dummy GlobalMemoryDump.
+  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+      memory_instrumentation::mojom::GlobalMemoryDump::New();
+
+  // Browser process dump
+  auto browser_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  browser_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::BROWSER;
+  browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+  browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
+  browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
+  dump_ptr->process_dumps.push_back(std::move(browser_dump));
+
+  auto global_dump =
+      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+
+  histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
+                                      1);
+  histogram_tester.ExpectUniqueSample("Memory.Total.Resident", 20, 1);
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
+  // Renderer, GPU) when moving to multi-process architecture.
+}
+
 TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;
 
   EXPECT_CALL(done_callback_mock, Run());
-  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
   client_->CollectFinalMetricsForLog(done_callback_mock.Get());
-  // Most ideally, we could assert that the "real" OnApplicationIdle was
-  // called. However, this is impossible without modifying MetricsService itself
-  // which we really don't want to do. There is no real virtual method in
-  // MetricsService that seems to indicate OnApplicationNotIdle was called.
-  // The second best we can do within these constraints is to assert our
-  // internal method is called, which should call OnApplicationNotIdle() in the
-  // real impl.
-  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
 }
 
 TEST_F(CobaltMetricsServiceClientTest, GetMetricsServerUrlReturnsPlaceholder) {

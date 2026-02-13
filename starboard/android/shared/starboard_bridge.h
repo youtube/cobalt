@@ -48,6 +48,8 @@ class StarboardBridge {
 
   void RaisePlatformError(JNIEnv* env, jint errorType, jlong data);
 
+  bool IsPlatformErrorShowing(JNIEnv* env);
+
   void RequestSuspend(JNIEnv* env);
 
   base::android::ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
@@ -95,7 +97,6 @@ class StarboardBridge {
 
   base::android::ScopedJavaLocalRef<jobject> OpenCobaltService(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& activity,
       jlong native_service,
       const char* service_name);
   void CloseCobaltService(JNIEnv* env, const char* service_name);
