@@ -32,10 +32,6 @@ int AlignUp(int value, int alignment) {
 }  // namespace
 
 void SbAudioSinkDeleter::operator()(SbAudioSink sink) const {
-  if (!SbAudioSinkIsValid(sink)) {
-    return;
-  }
-
   SbAudioSinkDestroy(sink);
 }
 
