@@ -211,8 +211,7 @@ class VideoFrameImpl : public VideoFrame {
 const int64_t kInitialPrerollTimeout = 250'000;                  // 250ms
 const int64_t kNeedMoreInputCheckIntervalInTunnelMode = 50'000;  // 50ms
 
-const int kInitialPrerollFrameCount = 8;
-const int kNonInitialPrerollFrameCount = 1;
+const int kInitialPrerollFrameCount = 4;
 
 const int kSeekingPrerollPendingWorkSizeInTunnelMode =
     16 + kInitialPrerollFrameCount;
