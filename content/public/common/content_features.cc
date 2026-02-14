@@ -1526,11 +1526,17 @@ bool IsVideoCaptureServiceEnabledForBrowserProcess() {
          VideoCaptureServiceConfiguration::kEnabledForBrowserProcess;
 }
 
+<<<<<<< HEAD
 bool IsPushSubscriptionChangeEventEnabled() {
   return base::FeatureList::IsEnabled(
              features::kPushSubscriptionChangeEventOnInvalidation) ||
          base::FeatureList::IsEnabled(
              features::kPushSubscriptionChangeEventOnResubscribe);
 }
+=======
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kSkiaFontCache, "SkiaFontCache", base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> 35a9a6f134 (skia: Add Skia font file data cache (#9031))
 
 }  // namespace features

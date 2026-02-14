@@ -9,6 +9,9 @@
 #include <limits>
 #include <map>
 #include <memory>
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+#endif  // BUILDFLAG(IS_COBALT)
 #include <string>
 #include <string_view>
 #include <utility>
@@ -164,6 +167,14 @@
 #include "third_party/blink/public/web/web_view.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkGraphics.h"
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/skia/include/core/SkStream.h"
+#endif  // BUILDFLAG(IS_COBALT)
+#include "ui/base/layout.h"
+#include "ui/base/ui_base_features.h"
+>>>>>>> 35a9a6f134 (skia: Add Skia font file data cache (#9031))
 #include "ui/base/ui_base_switches.h"
 #include "ui/base/ui_base_switches_util.h"
 #include "ui/display/display_switches.h"
@@ -671,8 +682,23 @@ void RenderThreadImpl::Init() {
   variations_observer_ = std::make_unique<VariationsRenderThreadObserver>();
   AddObserver(variations_observer_.get());
 
+#if BUILDFLAG(IS_COBALT)
+  base::ThreadPool::PostTask(
+      FROM_HERE,
+      base::BindOnce([] {
+          if (base::FeatureList::IsEnabled(features::kSkiaFontCache)) {
+            SkMemoryStream::EnableMmapCache();
+          }
+          SkFontMgr::RefDefault();
+      }));
+#else // BUILDFLAG(IS_COBALT)
   base::ThreadPool::PostTask(FROM_HERE,
+<<<<<<< HEAD
                              base::BindOnce([] { skia::DefaultFontMgr(); }));
+=======
+                             base::BindOnce([] { SkFontMgr::RefDefault(); }));
+#endif // BUILDFLAG(IS_COBALT)
+>>>>>>> 35a9a6f134 (skia: Add Skia font file data cache (#9031))
 
   UpdateForegroundCrashKey(
       /*foreground=*/!blink::kLaunchingProcessIsBackgrounded);
