@@ -283,7 +283,12 @@ void VideoRendererImpl::OnDecoderStatus(
       }
     }
 
-    if (number_of_frames_.load() >=
+    // Check seeking_ first to avoid an unnecessary call to
+    // GetPrerollFrameCount() during steady-state playback. The final
+    // exchange(false) acts as an atomic latch to ensure prerolled_cb_ is
+    // scheduled exactly once.
+    if (seeking_.load() &&
+        number_of_frames_.load() >=
             static_cast<int32_t>(decoder_->GetPrerollFrameCount()) &&
         seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
