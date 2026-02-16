@@ -31,6 +31,10 @@ int AlignUp(int value, int alignment) {
 }
 }  // namespace
 
+void SbAudioSinkDeleter::operator()(SbAudioSink sink) const {
+  SbAudioSinkDestroy(sink);
+}
+
 void CobaltAudioRendererSink::Initialize(const AudioParameters& params,
                                          RenderCallback* callback) {
   LOG(INFO) << "CobaltAudioRendererSink::Initialize - called with following "
@@ -78,17 +82,17 @@ void CobaltAudioRendererSink::Start() {
   }
 
   output_frame_buffers_[0] = output_frame_buffer_.get();
-  audio_sink_ = SbAudioSinkCreate(
+  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
       params_.channels(), nearest_supported_sample_rate_, output_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
       frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-      &CobaltAudioRendererSink::ConsumeFramesFunc, this);
-  DCHECK(SbAudioSinkIsValid(audio_sink_));
+      &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
+  CHECK(audio_sink_);
 }
 
 void CobaltAudioRendererSink::Stop() {
   is_eos_reached_.store(true);
-  SbAudioSinkDestroy(audio_sink_);
+  audio_sink_.reset();
   callback_ = nullptr;
 }
 
@@ -101,22 +105,22 @@ void CobaltAudioRendererSink::Pause() {
 }
 
 void CobaltAudioRendererSink::Flush() {
-  if (!SbAudioSinkIsValid(audio_sink_)) {
+  if (!audio_sink_) {
     return;
   }
   // TODO(b/390468794) consolidate this recreation as it duplicates code from
   // Stop() and Start()
-  SbAudioSinkDestroy(audio_sink_);
+  audio_sink_.reset();
   frames_rendered_ = 0;
   frames_consumed_ = 0;
-  audio_sink_ = SbAudioSinkCreate(
+  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
       params_.channels(),
       SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()),
       output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
       &output_frame_buffers_[0], frames_per_channel_,
       &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-      &CobaltAudioRendererSink::ConsumeFramesFunc, this);
-  DCHECK(SbAudioSinkIsValid(audio_sink_));
+      &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
+  CHECK(audio_sink_);
 }
 
 bool CobaltAudioRendererSink::SetVolume(double volume) {
