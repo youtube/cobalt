@@ -292,8 +292,7 @@ bool AlsaAudioSink::PlaybackLoop() {
   double playback_rate = 1.0;
   for (;;) {
     int delayed_frame = AlsaGetBufferedFrames(playback_handle_);
-    {
-      std::lock_guard lock(mutex_);
+    if (std::unique_lock lock(mutex_, std::try_to_lock); lock.owns_lock()) {
       if (destroying_) {
         SB_DLOG(INFO) << "AlsaAudioSink exits playback loop : destroying";
         break;
