@@ -413,9 +413,9 @@ PulseAudioSinkType::~PulseAudioSinkType() {
       sink->Detach();
     }
     sinks_.clear();
+    SB_DCHECK(sinks_.empty());
   }
 
-  SB_DCHECK(sinks_.empty());
   if (context_) {
     pa_context_disconnect(context_);
     pa_context_unref(context_);
@@ -440,12 +440,21 @@ SbAudioSink PulseAudioSinkType::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
       context);
+
+  {
+    std::lock_guard<std::mutex> lock(g_instance_mutex);
+    if (destroying_) {
+      delete audio_sink;
+      return kSbAudioSinkInvalid;
+    }
+    sinks_.push_back(audio_sink);
+  }
+
   if (!audio_sink->Initialize(context_)) {
+    RemoveSink(audio_sink);
     delete audio_sink;
     return kSbAudioSinkInvalid;
   }
-  std::lock_guard<std::mutex> lock(g_instance_mutex);
-  sinks_.push_back(audio_sink);
   return audio_sink;
 }
 
