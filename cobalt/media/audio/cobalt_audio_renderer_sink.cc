@@ -31,10 +31,6 @@ int AlignUp(int value, int alignment) {
 }
 }  // namespace
 
-void SbAudioSinkDeleter::operator()(SbAudioSink sink) const {
-  SbAudioSinkDestroy(sink);
-}
-
 void CobaltAudioRendererSink::Initialize(const AudioParameters& params,
                                          RenderCallback* callback) {
   LOG(INFO) << "CobaltAudioRendererSink::Initialize - called with following "
