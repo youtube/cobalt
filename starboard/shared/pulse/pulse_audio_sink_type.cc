@@ -441,17 +441,22 @@ SbAudioSink PulseAudioSinkType::Create(
       frames_per_channel, update_source_status_func, consume_frames_func,
       context);
 
+  bool should_delete = false;
   {
     std::lock_guard<std::mutex> lock(g_instance_mutex);
     if (destroying_) {
-      delete audio_sink;
-      return kSbAudioSinkInvalid;
+      should_delete = true;
+    } else {
+      sinks_.push_back(audio_sink);
     }
-    sinks_.push_back(audio_sink);
+  }
+
+  if (should_delete) {
+    delete audio_sink;
+    return kSbAudioSinkInvalid;
   }
 
   if (!audio_sink->Initialize(context_)) {
-    RemoveSink(audio_sink);
     delete audio_sink;
     return kSbAudioSinkInvalid;
   }
