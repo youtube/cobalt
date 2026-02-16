@@ -497,7 +497,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
           start_media_time, is_web_audio, context);
       if (!continuous_sink->IsAudioTrackValid()) {
         SB_LOG(ERROR) << "Failed to create ContinuousAudioTrackSink";
-        Destroy(continuous_sink);
+        SbAudioSinkDestroy(continuous_sink);
         return kSbAudioSinkInvalid;
       }
       return continuous_sink;
@@ -515,7 +515,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";
-    Destroy(audio_sink);
+    SbAudioSinkDestroy(audio_sink);
     return kSbAudioSinkInvalid;
   }
   return audio_sink;

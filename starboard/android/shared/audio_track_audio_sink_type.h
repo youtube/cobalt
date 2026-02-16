@@ -73,16 +73,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
-  void Destroy(SbAudioSink audio_sink) override {
-    // TODO(b/330793785): Use audio_sink.flush() instead of re-creating a new
-    // audio_sink.
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-  }
-
   void TestMinRequiredFrames();
 
  private:

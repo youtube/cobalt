@@ -60,14 +60,6 @@ class GStreamerAudioSinkType : public SbAudioSinkPrivate::Type {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
-  void Destroy(SbAudioSink audio_sink) override {
-    if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-      SB_LOG(WARNING) << "audio_sink is invalid.";
-      return;
-    }
-    delete audio_sink;
-  }
-
   static GStreamerAudioSinkType* CreateInstance();
   static void DestroyInstance(GStreamerAudioSinkType* instance);
 
