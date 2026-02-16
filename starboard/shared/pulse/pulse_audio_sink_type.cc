@@ -162,6 +162,7 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
+  // PulseAudioSinkType does not own the PulseAudioSink instances.
   std::vector<PulseAudioSink*> sinks_;  // Guarded by |mutex_|.
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
