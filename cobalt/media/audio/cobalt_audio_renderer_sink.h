@@ -28,7 +28,7 @@ namespace media {
 // Custom deleter for Starboard Audio Sink.
 struct SbAudioSinkDeleter {
   using pointer = SbAudioSink;
-  void operator()(SbAudioSink sink) const;
+  void operator()(SbAudioSink sink) const { SbAudioSinkDestroy(sink); }
 };
 
 class MEDIA_EXPORT CobaltAudioRendererSink final : public AudioRendererSink {
