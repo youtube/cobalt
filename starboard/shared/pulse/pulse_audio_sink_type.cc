@@ -61,10 +61,22 @@ const size_t kFramesPerRequest = 512;
 // The size of the audio buffer Pulse allocates internally.
 const size_t kPulseBufferSizeInFrames = 8192;
 
+// Mutex to synchronize all PulseAudioSink and PulseAudioSinkType instances.
+// This is necessary because PulseAudioSinkType may be destroyed while
+// PulseAudioSink instances are still active, particularly during shutdown.
+static std::mutex g_instance_mutex;
+
 class PulseAudioSinkType;
 
 class PulseAudioSink : public SbAudioSinkImpl {
  public:
+  class PassKey {
+   private:
+    friend class PulseAudioSink;
+    friend class PulseAudioSinkType;
+    PassKey() = default;
+  };
+
   PulseAudioSink(PulseAudioSinkType* type,
                  int channels,
                  int sampling_frequency_hz,
@@ -154,6 +166,9 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
                              void* userdata);
   void DestroyStream(pa_stream* stream);
 
+  void RemoveSinkLocked(PulseAudioSink::PassKey, PulseAudioSink* sink);
+  void DestroyStreamLocked(PulseAudioSink::PassKey, pa_stream* stream);
+
  private:
   PulseAudioSinkType(const PulseAudioSinkType&) = delete;
   PulseAudioSinkType& operator=(const PulseAudioSinkType&) = delete;
@@ -163,12 +178,11 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   void AudioThreadFunc();
 
   // PulseAudioSinkType does not own the PulseAudioSink instances.
-  std::vector<PulseAudioSink*> sinks_;  // Guarded by |mutex_|.
+  std::vector<PulseAudioSink*> sinks_;  // Guarded by |g_instance_mutex|.
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
-  std::mutex mutex_;
   std::optional<pthread_t> audio_thread_;
-  bool destroying_ = false;  // Guarded by |mutex_|.
+  bool destroying_ = false;  // Guarded by |g_instance_mutex|.
 };
 
 PulseAudioSink::PulseAudioSink(
@@ -199,10 +213,11 @@ PulseAudioSink::PulseAudioSink(
 }
 
 PulseAudioSink::~PulseAudioSink() {
+  std::lock_guard<std::mutex> lock(g_instance_mutex);
   if (type_) {
-    type_->RemoveSink(this);
+    type_->RemoveSinkLocked(PassKey(), this);
     if (stream_) {
-      type_->DestroyStream(stream_);
+      type_->DestroyStreamLocked(PassKey(), stream_);
     }
   }
 }
@@ -386,14 +401,14 @@ PulseAudioSinkType::PulseAudioSinkType() {}
 PulseAudioSinkType::~PulseAudioSinkType() {
   if (audio_thread_) {
     {
-      std::lock_guard lock(mutex_);
+      std::lock_guard<std::mutex> lock(g_instance_mutex);
       destroying_ = true;
     }
     pthread_join(*audio_thread_, nullptr);
   }
 
   {
-    std::lock_guard lock(mutex_);
+    std::lock_guard<std::mutex> lock(g_instance_mutex);
     for (PulseAudioSink* sink : sinks_) {
       sink->Detach();
     }
@@ -429,13 +444,18 @@ SbAudioSink PulseAudioSinkType::Create(
     delete audio_sink;
     return kSbAudioSinkInvalid;
   }
-  std::lock_guard lock(mutex_);
+  std::lock_guard<std::mutex> lock(g_instance_mutex);
   sinks_.push_back(audio_sink);
   return audio_sink;
 }
 
 void PulseAudioSinkType::RemoveSink(PulseAudioSink* sink) {
-  std::lock_guard lock(mutex_);
+  std::lock_guard<std::mutex> lock(g_instance_mutex);
+  RemoveSinkLocked(PulseAudioSink::PassKey(), sink);
+}
+
+void PulseAudioSinkType::RemoveSinkLocked(PulseAudioSink::PassKey,
+                                          PulseAudioSink* sink) {
   auto it = std::find(sinks_.begin(), sinks_.end(), sink);
   if (it != sinks_.end()) {
     sinks_.erase(it);
@@ -518,7 +538,7 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
     channel_map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
   }
 
-  std::lock_guard lock(mutex_);
+  std::lock_guard<std::mutex> lock(g_instance_mutex);
 
   pa_stream* stream =
       pa_stream_new(context_, "cobalt_stream", sample_spec,
@@ -538,7 +558,12 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
 }
 
 void PulseAudioSinkType::DestroyStream(pa_stream* stream) {
-  std::lock_guard lock(mutex_);
+  std::lock_guard<std::mutex> lock(g_instance_mutex);
+  DestroyStreamLocked(PulseAudioSink::PassKey(), stream);
+}
+
+void PulseAudioSinkType::DestroyStreamLocked(PulseAudioSink::PassKey,
+                                             pa_stream* stream) {
   pa_stream_set_write_callback(stream, NULL, NULL);
   pa_stream_disconnect(stream);
   pa_stream_unref(stream);
@@ -576,7 +601,7 @@ void PulseAudioSinkType::AudioThreadFunc() {
       bool has_running_sink = false;
       {
         // TODO: The scope of the lock is too wide.
-        std::lock_guard lock(mutex_);
+        std::lock_guard<std::mutex> lock(g_instance_mutex);
         if (destroying_) {
           break;
         }
