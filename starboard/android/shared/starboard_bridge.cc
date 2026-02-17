@@ -378,6 +378,12 @@ std::string StarboardBridge::GetBuildFingerprint(JNIEnv* env) const {
       env, Java_StarboardBridge_getBuildFingerprint(env, j_starboard_bridge_));
 }
 
+int64_t StarboardBridge::GetUsedGPUMemory(JNIEnv* env) {
+  SB_DCHECK(env);
+  return static_cast<int64_t>(
+      Java_StarboardBridge_getUsedGPUMemory(env, j_starboard_bridge_));
+}
+
 int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
   SB_DCHECK(env);
   return static_cast<int64_t>(

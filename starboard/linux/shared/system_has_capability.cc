@@ -23,7 +23,7 @@ bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
     case kSbSystemCapabilityReversedEnterAndBack:
       return false;
     case kSbSystemCapabilityCanQueryGPUMemoryStats:
-      return false;
+      return true;
   }
 
   SB_DLOG(WARNING) << "Unrecognized capability: " << capability_id;

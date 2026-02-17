@@ -36,6 +36,10 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
+#endif
+
 // Symbol with virtual address of the start of ELF header of the current binary.
 extern char __ehdr_start;
 
@@ -344,6 +348,15 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
       base::saturated_cast<uint32_t>(info->resident_set_bytes / 1024);
   dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
+
+#if BUILDFLAG(IS_STARBOARD)
+  if (handle == base::kNullProcessHandle ||
+      handle == base::GetCurrentProcessHandle()) {
+    dump->gpu_memory_kb =
+        base::saturated_cast<uint32_t>(SbSystemGetUsedGPUMemory() / 1024);
+  }
+#endif
+
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
     dump->mappings_count = CountMappings(handle);
   }

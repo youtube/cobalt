@@ -10,6 +10,7 @@
 #include "base/time/time.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
+#include "cobalt/renderer/rasterizer_memory_dump_provider.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
@@ -159,6 +160,9 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+
+  // Ensure RasterizerMemoryDumpProvider is initialized and registered.
+  RasterizerMemoryDumpProvider::GetInstance();
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {

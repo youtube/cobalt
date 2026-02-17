@@ -14,10 +14,14 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 
+#include "base/json/json_writer.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
+#include "base/trace_event/memory_dump_request_args.h"
+#include "base/values.h"
 #include "build/build_config.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -72,6 +76,88 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
 #error Unsupported platform.
 #endif
   std::move(callback).Run(startup_duration);
+}
+
+void PerformanceImpl::RequestGlobalMemoryDump(
+    RequestGlobalMemoryDumpCallback callback) {
+  auto* instrumentation =
+      memory_instrumentation::MemoryInstrumentation::GetInstance();
+  if (!instrumentation) {
+    std::move(callback).Run(false, "");
+    return;
+  }
+
+  instrumentation->GetCoordinator()->RequestGlobalMemoryDump(
+      base::trace_event::MemoryDumpType::kExplicitlyTriggered,
+      base::trace_event::MemoryDumpLevelOfDetail::kDetailed,
+      base::trace_event::MemoryDumpDeterminism::kNone, {},
+      base::BindOnce(
+          [](RequestGlobalMemoryDumpCallback callback, bool success,
+             memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
+            if (!success || !dump) {
+              std::move(callback).Run(false, "");
+              return;
+            }
+
+            base::Value::Dict root;
+            base::Value::List process_dumps;
+            for (const auto& process_dump : dump->process_dumps) {
+              base::Value::Dict process_dict;
+              process_dict.Set("pid", static_cast<int>(process_dump->pid));
+              process_dict.Set("process_type",
+                               static_cast<int>(process_dump->process_type));
+
+              base::Value::Dict os_dump;
+              os_dump.Set(
+                  "resident_set_kb",
+                  static_cast<int>(process_dump->os_dump->resident_set_kb));
+              os_dump.Set(
+                  "gpu_memory_kb",
+                  static_cast<int>(process_dump->os_dump->gpu_memory_kb));
+              os_dump.Set("private_footprint_kb",
+                          static_cast<int>(
+                              process_dump->os_dump->private_footprint_kb));
+              os_dump.Set(
+                  "shared_footprint_kb",
+                  static_cast<int>(process_dump->os_dump->shared_footprint_kb));
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+              os_dump.Set(
+                  "private_footprint_swap_kb",
+                  static_cast<int>(
+                      process_dump->os_dump->private_footprint_swap_kb));
+              os_dump.Set("pss_kb",
+                          static_cast<int>(process_dump->os_dump->pss_kb));
+              os_dump.Set("swap_pss_kb",
+                          static_cast<int>(process_dump->os_dump->swap_pss_kb));
+#endif
+              process_dict.Set("os_dump", std::move(os_dump));
+
+              if (!process_dump->chrome_allocator_dumps.empty()) {
+                base::Value::Dict chrome_allocators;
+                for (const auto& entry : process_dump->chrome_allocator_dumps) {
+                  base::Value::Dict allocator_dict;
+                  for (const auto& numeric : entry.second->numeric_entries) {
+                    allocator_dict.Set(numeric.first,
+                                       static_cast<double>(numeric.second));
+                  }
+                  chrome_allocators.Set(entry.first, std::move(allocator_dict));
+                }
+                process_dict.Set("chrome_allocator_dumps",
+                                 std::move(chrome_allocators));
+              }
+
+              process_dumps.Append(std::move(process_dict));
+            }
+            root.Set("process_dumps", std::move(process_dumps));
+
+            std::string json;
+            if (base::JSONWriter::Write(root, &json)) {
+              std::move(callback).Run(true, json);
+            } else {
+              std::move(callback).Run(false, "");
+            }
+          },
+          std::move(callback)));
 }
 
 }  // namespace performance

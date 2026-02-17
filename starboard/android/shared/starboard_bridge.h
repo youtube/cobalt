@@ -93,6 +93,8 @@ class StarboardBridge {
 
   std::string GetBuildFingerprint(JNIEnv* env) const;
 
+  int64_t GetUsedGPUMemory(JNIEnv* env);
+
   int64_t GetPlayServicesVersion(JNIEnv* env) const;
 
   base::android::ScopedJavaLocalRef<jobject> OpenCobaltService(

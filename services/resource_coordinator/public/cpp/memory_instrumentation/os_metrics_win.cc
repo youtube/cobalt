@@ -21,6 +21,10 @@
 #include "base/win/pe_image.h"
 #include "base/win/win_util.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
+#endif
+
 namespace memory_instrumentation {
 
 namespace {
@@ -51,6 +55,15 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->platform_private_footprint->private_bytes = info->private_bytes;
   dump->resident_set_kb =
       base::saturated_cast<uint32_t>(info->resident_set_bytes / 1024);
+
+#if BUILDFLAG(IS_STARBOARD)
+  if (handle == base::kNullProcessHandle ||
+      handle == base::GetCurrentProcessHandle()) {
+    dump->gpu_memory_kb =
+        base::saturated_cast<uint32_t>(SbSystemGetUsedGPUMemory() / 1024);
+  }
+#endif
+
   return true;
 }
 

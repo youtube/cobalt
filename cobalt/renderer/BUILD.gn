@@ -20,9 +20,12 @@ source_set("renderer") {
     "cobalt_content_renderer_client.h",
     "cobalt_render_frame_observer.cc",
     "cobalt_render_frame_observer.h",
+    "rasterizer_memory_dump_provider.cc",
+    "rasterizer_memory_dump_provider.h",
   ]
 
   deps = [
+    "//base",
     "//cobalt/browser:switches",
     "//cobalt/media/audio:webaudio",
     "//cobalt/media/service/mojom",

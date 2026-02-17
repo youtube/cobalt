@@ -21,6 +21,10 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
+#endif
+
 #if BUILDFLAG(IS_IOS)
 #include "base/ios/sim_header_shims.h"
 #else
@@ -258,6 +262,15 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->platform_private_footprint->compressed_bytes = info->compressed_bytes;
   dump->resident_set_kb =
       base::saturated_cast<uint32_t>(info->resident_set_bytes / 1024);
+
+#if BUILDFLAG(IS_STARBOARD)
+  if (handle == base::kNullProcessHandle ||
+      handle == base::GetCurrentProcessHandle()) {
+    dump->gpu_memory_kb =
+        base::saturated_cast<uint32_t>(SbSystemGetUsedGPUMemory() / 1024);
+  }
+#endif
+
   return true;
 }
 

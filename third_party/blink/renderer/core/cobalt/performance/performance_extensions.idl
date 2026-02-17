@@ -13,4 +13,8 @@
     // Returns the application startup duration in microseconds (us).
     [CallWith=ScriptState, RaisesException]
     Promise<long long> getAppStartupTime();
+
+    // Triggers a global memory dump and returns it as a JSON string.
+    [CallWith=ScriptState]
+    Promise<DOMString> requestGlobalMemoryDump();
 };

@@ -367,6 +367,11 @@ class SbPlayerBridge {
   bool pending_audio_eos_buffer_ = false;
   bool pending_video_eos_buffer_ = false;
 
+  size_t estimated_decoded_frames_size_ = 0;
+  size_t current_reported_decoded_frames_size_ = 0;
+
+  void UpdateDecodedFramesReporting();
+
 #if COBALT_MEDIA_ENABLE_CVAL
   CValStats* cval_stats_;
   std::string pipeline_identifier_;

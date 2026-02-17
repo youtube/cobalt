@@ -160,6 +160,7 @@ struct RawOSMemDump {
   // crbug.com/957978 reaches to a conclusion.
   uint32 peak_resident_set_kb = 0;
   bool is_peak_rss_resettable = false;
+  uint32 gpu_memory_kb = 0;
   PlatformPrivateFootprint platform_private_footprint;
   array<VmRegion> memory_maps;
 
@@ -193,6 +194,8 @@ struct OSMemDump {
   // Indicates whether the above peak_resident_set_kb is the peak from the start
   // of the process or from the previous memory dump.
   bool is_peak_rss_resettable = false;
+
+  uint32 gpu_memory_kb = 0;
 
   // This is roughly private, anonymous, non-discardable, resident or swapped
   // memory in kilobytes. For more details, see https://goo.gl/3kPb9S.

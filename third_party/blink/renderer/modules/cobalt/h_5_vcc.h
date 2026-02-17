@@ -32,6 +32,7 @@ class H5vccMetrics;
 class H5vccSystem;
 class H5vccRuntime;
 class H5vccStorage;
+class Performance;
 class ScriptState;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
@@ -58,6 +59,8 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   H5vccRuntime* runtime() { return runtime_; }
 
   H5vccStorage* storage() { return storage_; }
+
+  Performance* performance();
 
   void Trace(Visitor*) const override;
 

@@ -12,19 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("performance") {
+source_set("media") {
   sources = [
-    "performance_impl.cc",
-    "performance_impl.h",
+    "media_memory_dump_provider.cc",
+    "media_memory_dump_provider.h",
   ]
-
-  deps = [
-    "//base",
-    "//cobalt/browser/performance/public/mojom",
-    "//content/public/browser",
-    "//mojo/public/cpp/bindings",
-    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
-    "//starboard:starboard_group",
-    "//starboard/common",
-  ]
+  deps = [ "//base" ]
 }

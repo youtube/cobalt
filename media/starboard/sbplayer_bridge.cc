@@ -32,6 +32,7 @@
 #if COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
 #include "cobalt/media/base/format_support_query_metrics.h"
 #endif  // COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
+#include "cobalt/media/media_memory_dump_provider.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/common/once.h"
@@ -244,7 +245,21 @@ SbPlayerBridge::~SbPlayerBridge() {
 #if COBALT_MEDIA_ENABLE_CVAL
     cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+    player_ = kSbPlayerInvalid;
   }
+
+  for (auto& pair : decoding_buffers_) {
+    if (pair.second.type == kSbMediaTypeVideo) {
+      cobalt::media::MediaMemoryDumpProvider::GetInstance()
+          ->DecrementVideoBufferSize(pair.second.buffer->size());
+    } else {
+      cobalt::media::MediaMemoryDumpProvider::GetInstance()
+          ->DecrementAudioBufferSize(pair.second.buffer->size());
+    }
+  }
+  decoding_buffers_.clear();
+
+  UpdateDecodedFramesReporting();
 }
 
 void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
@@ -284,6 +299,17 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
   video_stream_info_.mime = video_mime_type_.c_str();
   video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
   LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
+
+  if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
+    // Estimate decoded frames size: width * height * 1.5 bytes per frame,
+    // assuming 16 frames in the DPB.
+    estimated_decoded_frames_size_ = video_stream_info_.frame_width *
+                                     video_stream_info_.frame_height * 3 / 2 *
+                                     16;
+  } else {
+    estimated_decoded_frames_size_ = 0;
+  }
+  UpdateDecodedFramesReporting();
 }
 
 void SbPlayerBridge::WriteBuffers(
@@ -553,6 +579,7 @@ void SbPlayerBridge::Suspend() {
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 
   player_ = kSbPlayerInvalid;
+  UpdateDecodedFramesReporting();
 }
 
 void SbPlayerBridge::Resume(SbWindow window) {
@@ -647,6 +674,8 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
       &SbPlayerBridge::PlayerErrorCB, this);
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   DCHECK(SbPlayerIsValid(player_));
+
+  UpdateDecodedFramesReporting();
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
@@ -753,6 +782,8 @@ void SbPlayerBridge::CreatePlayer() {
 
   is_creating_player_ = false;
 
+  UpdateDecodedFramesReporting();
+
   if (!SbPlayerIsValid(player_)) {
     return;
   }
@@ -849,7 +880,15 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     if (auto [iter, inserted] = decoding_buffers_.try_emplace(
             buffer->data(), buffer, /*usage_count=*/1, sample_type);
-        !inserted) {
+        inserted) {
+      if (sample_type == kSbMediaTypeVideo) {
+        cobalt::media::MediaMemoryDumpProvider::GetInstance()
+            ->IncrementVideoBufferSize(buffer->size());
+      } else {
+        cobalt::media::MediaMemoryDumpProvider::GetInstance()
+            ->IncrementAudioBufferSize(buffer->size());
+      }
+    } else {
       ++iter->second.usage_count;
     }
 
@@ -975,6 +1014,25 @@ void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
   if (out_info->video_bytes_decoded) {
     *out_info->video_bytes_decoded = cached_video_bytes_decoded_;
   }
+}
+
+void SbPlayerBridge::UpdateDecodedFramesReporting() {
+  size_t target_size = 0;
+  if (SbPlayerIsValid(player_) &&
+      video_stream_info_.codec != kSbMediaVideoCodecNone) {
+    target_size = estimated_decoded_frames_size_;
+  }
+
+  if (target_size > current_reported_decoded_frames_size_) {
+    cobalt::media::MediaMemoryDumpProvider::GetInstance()
+        ->IncrementDecodedFramesSize(target_size -
+                                     current_reported_decoded_frames_size_);
+  } else if (target_size < current_reported_decoded_frames_size_) {
+    cobalt::media::MediaMemoryDumpProvider::GetInstance()
+        ->DecrementDecodedFramesSize(current_reported_decoded_frames_size_ -
+                                     target_size);
+  }
+  current_reported_decoded_frames_size_ = target_size;
 }
 
 void SbPlayerBridge::UpdateBounds() {
@@ -1134,6 +1192,13 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   --decoding_buffer.usage_count;
   DCHECK_GE(decoding_buffer.usage_count, 0);
   if (decoding_buffer.usage_count == 0) {
+    if (decoding_buffer.type == kSbMediaTypeVideo) {
+      cobalt::media::MediaMemoryDumpProvider::GetInstance()
+          ->DecrementVideoBufferSize(decoding_buffer.buffer->size());
+    } else {
+      cobalt::media::MediaMemoryDumpProvider::GetInstance()
+          ->DecrementAudioBufferSize(decoding_buffer.buffer->size());
+    }
     decoding_buffers_.erase(iter);
   }
 }

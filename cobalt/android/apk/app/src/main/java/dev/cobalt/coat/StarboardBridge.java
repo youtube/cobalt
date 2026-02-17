@@ -744,6 +744,23 @@ public class StarboardBridge {
     }
   }
 
+  @CalledByNative
+  public long getUsedGPUMemory() {
+    android.os.Debug.MemoryInfo memoryInfo = new android.os.Debug.MemoryInfo();
+    android.os.Debug.getMemoryInfo(memoryInfo);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      String graphicsStr = memoryInfo.getMemoryStat("summary.graphics");
+      if (graphicsStr != null) {
+        try {
+          return Long.parseLong(graphicsStr) * 1024;
+        } catch (NumberFormatException e) {
+          // ignore
+        }
+      }
+    }
+    return 0;
+  }
+
   /** A wrapper of the android.util.Size class to be used by JNI. */
   public static class Size {
     private final int mWidth;

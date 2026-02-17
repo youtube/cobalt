@@ -15,6 +15,8 @@
 #include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"
 
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/timing/dom_window_performance.h"
+#include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/modules/cobalt/crash_log/crash_log.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/h_5_vcc_accessibility.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
@@ -47,6 +49,10 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       system_(MakeGarbageCollected<H5vccSystem>(window)),
       runtime_(MakeGarbageCollected<H5vccRuntime>(window)),
       storage_(MakeGarbageCollected<H5vccStorage>(window)) {}
+
+Performance* H5vcc::performance() {
+  return DOMWindowPerformance::performance(*GetSupplementable());
+}
 
 void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(crash_log_);

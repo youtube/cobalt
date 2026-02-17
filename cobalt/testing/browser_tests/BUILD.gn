@@ -209,6 +209,7 @@ test("cobalt_browsertests") {
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "//cobalt/browser/performance/performance_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
     #"encrypted_media_browsertest.cc",

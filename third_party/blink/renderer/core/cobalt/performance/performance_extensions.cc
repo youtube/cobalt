@@ -14,11 +14,14 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include <string>
+
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
@@ -64,6 +67,30 @@ ScriptPromise<IDLLongLong> PerformanceExtensions::getAppStartupTime(
   BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
   ScriptPromise<IDLLongLong> promise = resolver->Promise();
   resolver->Resolve(startup_time);
+  return promise;
+}
+
+ScriptPromise<IDLString> PerformanceExtensions::requestGlobalMemoryDump(
+    ScriptState* script_state,
+    const Performance&) {
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(script_state);
+  auto promise = resolver->Promise();
+
+  auto remote = BindRemotePerformance(script_state);
+  auto* remote_ptr = remote.get();
+  remote_ptr->RequestGlobalMemoryDump(base::BindOnce(
+      [](mojo::Remote<performance::mojom::CobaltPerformance> /*remote*/,
+         ScriptPromiseResolver<IDLString>* resolver, bool success,
+         const std::string& json_dump) {
+        if (success) {
+          resolver->Resolve(String::FromUTF8(json_dump));
+        } else {
+          resolver->Reject();
+        }
+      },
+      std::move(remote), WrapPersistent(resolver)));
+
   return promise;
 }
 

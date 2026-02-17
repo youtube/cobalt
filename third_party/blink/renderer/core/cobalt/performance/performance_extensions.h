@@ -35,6 +35,8 @@ class CORE_EXPORT PerformanceExtensions final {
   static ScriptPromise<IDLLongLong> getAppStartupTime(ScriptState*,
                                                       const Performance&,
                                                       ExceptionState&);
+  static ScriptPromise<IDLString> requestGlobalMemoryDump(ScriptState*,
+                                                          const Performance&);
 };
 
 }  // namespace blink

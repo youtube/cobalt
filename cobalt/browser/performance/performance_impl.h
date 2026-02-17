@@ -42,6 +42,8 @@ class PerformanceImpl
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
   void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
   void GetAppStartupTime(GetAppStartupTimeCallback) override;
+  void RequestGlobalMemoryDump(
+      RequestGlobalMemoryDumpCallback callback) override;
 
  private:
   PerformanceImpl(content::RenderFrameHost& render_frame_host,

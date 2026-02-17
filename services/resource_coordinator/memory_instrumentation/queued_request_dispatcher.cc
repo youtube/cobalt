@@ -81,6 +81,7 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
   os_dump->resident_set_kb = internal_os_dump.resident_set_kb;
   os_dump->peak_resident_set_kb = internal_os_dump.peak_resident_set_kb;
   os_dump->is_peak_rss_resettable = internal_os_dump.is_peak_rss_resettable;
+  os_dump->gpu_memory_kb = internal_os_dump.gpu_memory_kb;
   os_dump->private_footprint_kb =
       CalculatePrivateFootprintKb(internal_os_dump, shared_resident_kb);
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
