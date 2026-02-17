@@ -235,7 +235,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       resource_key = std::move(fallback);
     }
 
-    if (ExistsInResourceMap(resource_key)) {
+    if (ExistsInResourceMap(resource_map, resource_key)) {
       FileContents file_contents = resource_map[resource_key];
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
@@ -244,7 +244,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     // Only attempt to read files defined in the resource map from cache.
-    if (supports_splash_caching && ExistsInResourceMap(key)) {
+    if (supports_splash_caching && ExistsInResourceMap(resource_map, key)) {
       ReadSplashCache(key);
       return;
     }
@@ -363,7 +363,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     SendResponse();
   }
 
-  bool ExistsInResourceMap(const std::string& key) {
+  bool ExistsInResourceMap(const GeneratedResourceMap& resource_map,
+                           const std::string& key) {
     return resource_map.find(key) != resource_map.end();
   }
 
