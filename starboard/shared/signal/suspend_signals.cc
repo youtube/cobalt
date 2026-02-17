@@ -36,7 +36,7 @@ namespace signal {
 namespace {
 
 const std::initializer_list<int> kAllSignals = {SIGUSR1, SIGUSR2, SIGCONT,
-                                                SIGTSTP, SIGPWR};
+                                                SIGRTMIN, SIGTSTP, SIGPWR};
 
 int SignalMask(std::initializer_list<int> signal_ids, int action) {
   sigset_t mask;
@@ -145,7 +145,7 @@ void InstallSuspendSignalHandlers() {
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html
   SignalMask(kAllSignals, SIG_BLOCK);
 
-  SetSignalHandler(SIGUSR1, &Conceal);
+  SetSignalHandler(SIGRTMIN, &Conceal);
   SetSignalHandler(SIGUSR2, &LowMemory);
   SetSignalHandler(SIGCONT, &Focus);
   SetSignalHandler(SIGTSTP, &Freeze);
@@ -157,7 +157,7 @@ void UninstallSuspendSignalHandlers() {
 #if !defined(MSG_NOSIGNAL)
   SetSignalHandler(SIGPIPE, SIG_DFL);
 #endif
-  SetSignalHandler(SIGUSR1, SIG_DFL);
+  SetSignalHandler(SIGRTMIN, SIG_DFL);
   SetSignalHandler(SIGUSR2, SIG_DFL);
   SetSignalHandler(SIGCONT, SIG_DFL);
   SetSignalHandler(SIGPWR, SIG_DFL);

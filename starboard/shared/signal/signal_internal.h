@@ -58,6 +58,8 @@ inline const char* GetSignalName(int signal_id) {
       return "SIGUSR1";
     case SIGUSR2:
       return "SIGUSR2";
+    case SIGRTMIN:
+      return "SIGRTMIN";
     default:
       return "UNKNOWN";
   }
