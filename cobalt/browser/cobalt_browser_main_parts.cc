@@ -55,7 +55,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     client->SetUserAgentCrashAnnotation();
   } else {
     LOG(ERROR) << "CobaltContentBrowserClient::Get() returned NULL in "
-                  "PreMainMessageLoopRun!";;
+                  "PreMainMessageLoopRun!";
     DCHECK(false);
   }
 

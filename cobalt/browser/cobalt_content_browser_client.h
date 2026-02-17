@@ -145,7 +145,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   void SetUserAgentCrashAnnotation();
-#endif  // #if !BUILDFLAG(IS_ANDROIDTV)
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
  private:
   void CreateVideoGeometrySetterService();
