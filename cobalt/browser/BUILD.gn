@@ -134,6 +134,19 @@ source_set("global_features") {
   ]
 }
 
+if (is_androidtv) {
+  source_set("hang_watcher_delegate") {
+    sources = [
+      "hang_watcher_delegate_impl.cc",
+      "hang_watcher_delegate_impl.h",
+    ]
+    deps = [
+      ":global_features",
+      "//base",
+    ]
+  }
+}
+
 source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
@@ -146,6 +159,7 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
+    ":switches",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/metrics_services_manager",
@@ -153,6 +167,7 @@ source_set("metrics") {
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
     "//third_party/metrics_proto",
     "//url",
   ]

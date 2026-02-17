@@ -168,51 +168,9 @@ group("cobalt_shell_lib_deps") {
       public_deps += [ "//starboard/android/shared:starboard_platform" ]
     }
   }
-}
 
-source_set("browsertests_sources") {
-  testonly = true
-  sources = [
-    "common/main_frame_counter_test_impl.cc",
-    "common/main_frame_counter_test_impl.h",
-    "common/power_monitor_test_impl.cc",
-    "common/power_monitor_test_impl.h",
-    "common/shell_test_switches.cc",
-    "common/shell_test_switches.h",
-    "renderer/render_frame_test_helper.cc",
-    "renderer/render_frame_test_helper.h",
-    "renderer/shell_render_frame_observer.cc",
-    "renderer/shell_render_frame_observer.h",
-    "utility/shell_content_utility_client.cc",
-    "utility/shell_content_utility_client.h",
-  ]
-
-  public_deps = [
-    ":browsertests_mojom",
-    ":shell_controller_mojom",
-    "//components/custom_handlers:test_support",
-    "//components/metrics:test_support",
-    "//components/services/storage/test_api",
-    "//content/common:main_frame_counter",
-    "//content/public/child",
-    "//content/public/common",
-    "//content/public/renderer",
-    "//content/public/utility",
-    "//content/test:content_test_mojo_bindings",
-    "//content/test:test_support",
-    "//services/test/echo:lib",
-    "//services/test/echo/public/mojom",
-  ]
-
-  if (use_aura) {
-    public_deps += [ "//ui/aura:test_support" ]
-
-    if (shell_use_toolkit_views) {
-      public_deps += [
-        "//ui/views:test_support",
-        "//ui/wm:test_support",
-      ]
-    }
+  if (is_androidtv) {
+    public_deps += [ "//cobalt/browser:hang_watcher_delegate" ]
   }
 }
 
@@ -269,8 +227,6 @@ static_library("cobalt_shell_lib") {
     "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
-    "gpu/shell_content_gpu_client.cc",
-    "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
@@ -305,13 +261,6 @@ static_library("cobalt_shell_lib") {
     "CONTENT_SHELL_VERSION=\"1.0.0\"",
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
   ]
-
-  # TODO(b/440376024): run_browser_tests and RUN_BROWSER_TESTS gate all test logic which should not be in
-  # an official build, including not only browser tests but also web tests or render tests.
-  if (run_browser_tests) {
-    defines += [ "RUN_BROWSER_TESTS=1" ]
-    public_deps += [ ":browsertests_sources" ]
-  }
 
   if (shell_use_toolkit_views) {
     # All cobalt_shell code should use this define instead of TOOLKIT_VIEWS,
@@ -518,6 +467,7 @@ action("embed_loader_resources_as_header_files") {
   sources = [
     "embedded_resources/loader_embedded_resources/splash.html",
 
+    # TODO(b/481826565): hide code path for internal files
     # Default splash video, 1920x1080. Copied from
     # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash.webm.
     "embedded_resources/loader_embedded_resources/splash.webm",
@@ -525,6 +475,22 @@ action("embed_loader_resources_as_header_files") {
     # For low spec TV, 853x480. Copied from
     # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/splash_480p.webm.
     "embedded_resources/loader_embedded_resources/splash_480.webm",
+
+    # Music splash video, 1920x1080. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/music_splash.webm.
+    "embedded_resources/loader_embedded_resources/music_splash.webm",
+
+    # For low spec TV, 853x480. Copied from
+    # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/music_splash_480p.webm.
+    "embedded_resources/loader_embedded_resources/music_splash_480.webm",
+
+    # For devices that do not support VP9. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash_video_placeholder.png.
+    "embedded_resources/loader_embedded_resources/splash.png",
+
+    # For devices that do not support VP9. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/music_splash_video_placeholder.png.
+    "embedded_resources/loader_embedded_resources/music_splash.png",
   ]
 
   args = [

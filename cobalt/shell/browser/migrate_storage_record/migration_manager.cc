@@ -243,6 +243,12 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
+    LOG(INFO) << "Storage migration disabled via switch.";
+    return;
+  }
+
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
@@ -348,10 +354,9 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
+        base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false,
-        absl::optional<net::CookiePartitionKey>(),
+        net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
   }
   return cookies;

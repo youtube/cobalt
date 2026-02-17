@@ -15,6 +15,7 @@
                 "gen/licenses_cobalt.txt",
                 "icudtl.dat",
                 "lib.unstripped/libchrobalt.so",
+                "libchrome_crashpad_handler.so",
                 "libchrobalt.so",
                 "libstarboard_jni_state.so",
                 "obj/components/metrics/metrics_java.javac.jar",
@@ -46,6 +47,7 @@
                 "lib.java/components/variations/android/variations_java.jar",
                 "lib.java/components/variations/proto/proto_java.jar",
                 "lib.java/components/variations/variations_java.jar",
+                "obj/components/crash/android/java.processed.jar",
                 "lib.java/components/version_info/android/version_constants_java.jar",
                 "lib.java/components/viz/service/service_java.jar",
                 "lib.java/content/public/android/content_full_java.jar",
@@ -216,6 +218,10 @@
                     "to_file": "lib/libchrobalt.so"
                 },
                 {
+                    "from_file": "libchrome_crashpad_handler.so",
+                    "to_file": "lib/libchrome_crashpad_handler.so"
+                },
+                {
                     "from_file": "libstarboard_jni_state.so",
                     "to_file": "lib/libstarboard_jni_state.so"
                 },
@@ -334,6 +340,10 @@
                 {
                     "from_file": "lib.java/components/variations/variations_java.jar",
                     "to_file": "jar/components_variations_variations_java.jar"
+                },
+                {
+                    "from_file": "obj/components/crash/android/java.processed.jar",
+                    "to_file": "jar/components_crash_android_java.jar"
                 },
                 {
                     "from_file": "lib.java/components/version_info/android/version_constants_java.jar",

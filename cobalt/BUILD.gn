@@ -53,6 +53,7 @@ if (!is_android) {
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
+      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
@@ -78,6 +79,8 @@ source_set("common") {
   testonly = true
 
   sources = [
+    "app/cobalt_crash_reporter_client.cc",
+    "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
   ]
@@ -142,6 +145,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/cobalt_secure_navigation_throttle_unittest.cc",
+    "//cobalt/browser/cobalt_web_contents_observer_unittest.cc",
     "//cobalt/browser/command_line_logger_unittest.cc",
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",

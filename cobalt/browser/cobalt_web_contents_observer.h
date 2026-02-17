@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
+#include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "content/public/browser/web_contents_observer.h"
 
 #include "components/js_injection/browser/js_communication_host.h"
@@ -35,6 +37,22 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       delete;
 
   ~CobaltWebContentsObserver() override;
+
+#if BUILDFLAG(IS_ANDROIDTV)
+ public:
+  void DidStartNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  virtual void RaisePlatformError();
+
+ protected:
+  void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
+
+ private:
+  std::unique_ptr<base::OneShotTimer> timeout_timer_;
+  base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 };
 
 }  // namespace cobalt

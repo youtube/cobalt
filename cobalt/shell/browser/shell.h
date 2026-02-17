@@ -98,7 +98,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       const GURL& url,
       const scoped_refptr<SiteInstance>& site_instance,
       const gfx::Size& initial_size,
-      const bool create_splash_screen_web_contents = false);
+      const bool create_splash_screen_web_contents = false,
+      const std::string& topic = "");
 
   // Returns the Shell object corresponding to the given WebContents.
   static Shell* FromWebContents(WebContents* web_contents);
@@ -225,6 +226,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   Shell(std::unique_ptr<WebContents> web_contents,
         std::unique_ptr<WebContents> splash_screen_web_contents,
         bool should_set_delegate,
+        const std::string& topic = "",
         bool skip_for_testing = false);
 
   // Helper to create a new Shell given a newly created WebContents.
@@ -232,7 +234,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       std::unique_ptr<WebContents> web_contents,
       std::unique_ptr<WebContents> splash_screen_web_contents,
       const gfx::Size& initial_size,
-      bool should_set_delegate);
+      bool should_set_delegate,
+      const std::string& topic = "");
 
   // Adjust the size when Blink sends 0 for width and/or height.
   // This happens when Blink requests a default-sized window.
@@ -253,7 +256,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
   void PrimaryMainDocumentElementAvailable() override;
+  void DidFinishLoad(RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
+  void DidStartNavigation(NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void DidStartLoading() override;
   void DidStopLoading() override;
 
   void RegisterInjectedJavaScript();
@@ -267,6 +274,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   std::unique_ptr<WebContents> web_contents_;
   std::unique_ptr<WebContents> splash_screen_web_contents_;
   State splash_state_;
+  const std::string splash_topic_;
   bool skip_for_testing_;
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;

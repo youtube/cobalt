@@ -14,6 +14,12 @@
 
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
+#include "content/public/browser/navigation_handle.h"
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
+
 namespace content {
 
 SplashScreenWebContentsObserver::SplashScreenWebContentsObserver(
@@ -32,6 +38,36 @@ void SplashScreenWebContentsObserver::LoadProgressChanged(double progress) {
   if (progress >= 1.0 && on_load_complete_) {
     std::move(on_load_complete_).Run();
   }
+}
+
+void SplashScreenWebContentsObserver::DidStartNavigation(
+    NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(24);
+  }
+#endif
+}
+
+void SplashScreenWebContentsObserver::DidFinishNavigation(
+    NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(25);
+  }
+#endif
+}
+
+void SplashScreenWebContentsObserver::DidStartLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(23);
+#endif
+}
+
+void SplashScreenWebContentsObserver::DidStopLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(28);
+#endif
 }
 
 }  // namespace content

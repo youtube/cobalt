@@ -1,0 +1,33 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_filegroup", "split_srcs_and_hdrs")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+GRADIENT_FILES = [
+    "SkGradientShader.cpp",
+    "SkGradientShaderBase.cpp",
+    "SkGradientShaderBase.h",
+    "SkLinearGradient.cpp",
+    "SkLinearGradient.h",
+    "SkRadialGradient.cpp",
+    "SkSweepGradient.cpp",
+    "SkTwoPointConicalGradient.cpp",
+]
+
+split_srcs_and_hdrs(
+    name = "gradient",
+    files = GRADIENT_FILES,
+)
+
+skia_filegroup(
+    name = "srcs",
+    srcs = [":gradient_srcs"],
+    visibility = ["//src/shaders:__pkg__"],
+)
+
+skia_filegroup(
+    name = "private_hdrs",
+    srcs = [":gradient_hdrs"],
+    visibility = ["//src/shaders:__pkg__"],
+)

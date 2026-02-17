@@ -21,21 +21,27 @@ namespace cobalt {
 constexpr char kCobaltExperimentName[] = "CobaltExperiment";
 constexpr char kCobaltGroupName[] = "CobaltGroup";
 // Apply empty config if crash streak exceeds this threshold.
-constexpr int kCrashStreakEmptyConfigThreshold = 4;
+constexpr char kCrashStreakEmptyConfigThreshold[] =
+    "crash_streak_empty_config_threshold";
+constexpr int kDefaultCrashStreakEmptyConfigThreshold = 4;
 // Apply safe config if crash streak exceeds this threshold.
-constexpr int kCrashStreakSafeConfigThreshold = 3;
+constexpr char kCrashStreakSafeConfigThreshold[] =
+    "crash_streak_safe_config_threshold";
+constexpr int kDefaultCrashStreakSafeConfigThreshold = 3;
 constexpr char kExperimentConfig[] = "experiment_config";
 constexpr char kExperimentConfigActiveConfigData[] =
     "experiment_config.active_config_data";
 constexpr char kExperimentConfigFeatures[] = "experiment_config.features";
 constexpr char kExperimentConfigFeatureParams[] =
     "experiment_config.feature_params";
+constexpr char kExperimentConfigMinVersion[] = "experiment_config.min_version";
 constexpr char kFinchParameters[] = "finch_parameters";
 constexpr char kLatestConfigHash[] = "latest_config_hash";
 constexpr char kSafeConfig[] = "safe_config";
 constexpr char kSafeConfigActiveConfigData[] = "safe_config.active_config_data";
 constexpr char kSafeConfigFeatures[] = "safe_config.features";
 constexpr char kSafeConfigFeatureParams[] = "safe_config.feature_params";
+constexpr char kSafeConfigMinVersion[] = "safe_config.min_version";
 
 }  // namespace cobalt
 

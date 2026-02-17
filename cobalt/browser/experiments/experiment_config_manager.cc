@@ -14,11 +14,16 @@
 
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 
+#include <vector>
+
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/version.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
 
@@ -80,6 +85,38 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
 
 }  // namespace
 
+ExperimentConfigManager::VersionComparisonResult
+ExperimentConfigManager::CompareVersions(const std::string& version1,
+                                         const std::string& version2) {
+  auto parse_version = [](const std::string& v_str, int* major,
+                          int* minor) -> bool {
+    std::vector<std::string> parts = base::SplitString(
+        v_str, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (parts.size() != 3) {
+      return false;
+    }
+    return base::StringToInt(parts[0], major) &&
+           base::StringToInt(parts[2], minor);
+  };
+
+  int v1_major, v1_minor, v2_major, v2_minor;
+  if (!parse_version(version1, &v1_major, &v1_minor) ||
+      !parse_version(version2, &v2_major, &v2_minor)) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.VersionComparisonIsValid", false);
+    return VersionComparisonResult::kInvalidFormat;
+  }
+  UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.VersionComparisonIsValid", true);
+
+  if (v1_major != v2_major) {
+    return v1_major > v2_major ? VersionComparisonResult::kGreaterThan
+                               : VersionComparisonResult::kLessThanOrEqual;
+  }
+
+  // Major versions are equal, compare minor versions.
+  return v1_minor > v2_minor ? VersionComparisonResult::kGreaterThan
+                             : VersionComparisonResult::kLessThanOrEqual;
+}
+
 ExperimentConfigManager::ExperimentConfigManager(
     PrefService* experiment_config,
     PrefService* metrics_local_state)
@@ -90,21 +127,31 @@ ExperimentConfigManager::ExperimentConfigManager(
 }
 
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
-  // First, determine the config type based on the crash streak.
   DCHECK(metrics_local_state_);
+  DCHECK(experiment_config_);
   DCHECK(!called_store_safe_config_);
+
+  const base::Value::Dict& finch_params =
+      experiment_config_->GetDict(kFinchParameters);
+  const int crash_streak_empty_config_threshold =
+      finch_params.FindInt(kCrashStreakEmptyConfigThreshold)
+          .value_or(kDefaultCrashStreakEmptyConfigThreshold);
+  const int crash_streak_safe_config_threshold =
+      finch_params.FindInt(kCrashStreakSafeConfigThreshold)
+          .value_or(kDefaultCrashStreakSafeConfigThreshold);
+
   int num_crashes = metrics_local_state_->GetInteger(
       variations::prefs::kVariationsCrashStreak);
-  static_assert(
-      kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
-      "Threshold to use an empty experiment config should be larger "
-      "than to use the safe one.");
-  if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
+  static_assert(kDefaultCrashStreakEmptyConfigThreshold >
+                    kDefaultCrashStreakSafeConfigThreshold,
+                "Threshold to use an empty experiment config should be larger "
+                "than to use the safe one.");
+  if (num_crashes >= crash_streak_empty_config_threshold) {
     return ExperimentConfigType::kEmptyConfig;
   }
 
   ExperimentConfigType config_type;
-  if (num_crashes >= kCrashStreakSafeConfigThreshold) {
+  if (num_crashes >= crash_streak_safe_config_threshold) {
     config_type = ExperimentConfigType::kSafeConfig;
   } else {
     config_type = ExperimentConfigType::kRegularConfig;
@@ -126,6 +173,22 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
     return ExperimentConfigType::kEmptyConfig;
   }
+
+  // Check if a rollback happened. If so, apply the empty config.
+  std::string recorded_cobalt_version =
+      use_safe_config
+          ? experiment_config_->GetString(kSafeConfigMinVersion)
+          : experiment_config_->GetString(kExperimentConfigMinVersion);
+
+  // Min version prefs are added later than other prefs, so it might be missing
+  // for some users.
+  if (!recorded_cobalt_version.empty() &&
+      CompareVersions(recorded_cobalt_version, COBALT_VERSION) ==
+          VersionComparisonResult::kGreaterThan) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.RollbackDetected", true);
+    return ExperimentConfigType::kEmptyConfig;
+  }
+
   return config_type;
 }
 
@@ -154,6 +217,9 @@ void ExperimentConfigManager::StoreSafeConfig() {
   experiment_config_->SetString(
       kSafeConfigActiveConfigData,
       experiment_config_->GetString(kExperimentConfigActiveConfigData));
+  experiment_config_->SetString(
+      kSafeConfigMinVersion,
+      experiment_config_->GetString(kExperimentConfigMinVersion));
   experiment_config_->CommitPendingWrite();
   called_store_safe_config_ = true;
 }

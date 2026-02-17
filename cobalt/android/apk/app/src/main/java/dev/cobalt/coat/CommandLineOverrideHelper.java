@@ -60,9 +60,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--user-level-memory-pressure-signal-params");
         // Disable rescaling Webpage.
         paramOverrides.add("--force-device-scale-factor=1");
-        // Force CobaltActivity to use AndroidOverlay instead
-        // of VideoSurfaceView.
-        paramOverrides.add("--CobaltUsingAndroidOverlay");
 
         return paramOverrides;
     }
@@ -88,8 +85,6 @@ public final class CommandLineOverrideHelper {
         // It is important to use a feature override instead of the
         // rendering switch, to make sure certain devices are excluded.
         paramOverrides.add("DefaultPassthroughCommandDecoder");
-        // Using AndroidOverlay for punch-out video mode.
-        paramOverrides.add("CobaltUsingAndroidOverlay");
 
         return paramOverrides;
     }

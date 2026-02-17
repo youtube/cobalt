@@ -62,6 +62,26 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Finch.RollbackDetected" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records when a rollback is detected and prevented. This happens when the
+    cobalt version recorded for a previous Finch config is greater than the
+    current version of the Cobalt binary.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.VersionComparisonIsValid" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the version strings in the Finch config are valid and can be
+    parsed correctly. A false value indicates a malformed version string was
+    received.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>

@@ -75,6 +75,7 @@ public class StarboardBridge {
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
+  private PlatformError mPlatformError;
 
   private final Context appContext;
   private final Holder<Activity> activityHolder;
@@ -179,6 +180,8 @@ public class StarboardBridge {
     void setYoutubeCertificationScope(String certScope);
 
     boolean isReleaseBuild();
+
+    boolean isDevelopmentBuild();
   }
 
   protected void onActivityStart(Activity activity) {
@@ -307,13 +310,26 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-    PlatformError error = new PlatformError(activityHolder, errorType, data);
-    error.raise();
+    mPlatformError = new PlatformError(activityHolder, errorType, data);
+    mPlatformError.raise();
+  }
+
+  @CalledByNative
+  public boolean isPlatformErrorShowing() {
+    if (mPlatformError != null) {
+      return mPlatformError.isShowing();
+    }
+    return false;
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
   public static boolean isReleaseBuild() {
     return StarboardBridgeJni.get().isReleaseBuild();
+  }
+
+  /** Returns true if the native code is compiled for development (i.e. 'devel' build). */
+  public static boolean isDevelopmentBuild() {
+    return StarboardBridgeJni.get().isDevelopmentBuild();
   }
 
   protected Holder<Activity> getActivityHolder() {
@@ -791,5 +807,10 @@ public class StarboardBridge {
   @CalledByNative
   protected void hideSplashScreen() {
     StartupGuard.getInstance().disarm();
+  }
+
+  @CalledByNative
+  protected void setStartupMilestone(int milestone) {
+    StartupGuard.getInstance().setStartupMilestone(milestone);
   }
 }

@@ -75,6 +75,8 @@ class GlobalFeatures {
   const absl::flat_hash_map<std::string, SettingValue>& GetSettings() const;
   void SetSettings(const std::string& key, const SettingValue& value);
 
+  std::optional<SettingValue> GetSetting(const std::string& key) const;
+
   // Explicitly shuts down the metrics service. This is to ensure the
   // CobaltMetricsServiceClient destructor is called, which logs a clean
   // shutdown. The specific shutdown order here is required to nullify

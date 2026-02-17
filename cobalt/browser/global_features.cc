@@ -113,6 +113,16 @@ void GlobalFeatures::SetSettings(const std::string& key,
   }();
 }
 
+std::optional<GlobalFeatures::SettingValue> GlobalFeatures::GetSetting(
+    const std::string& key) const {
+  base::AutoLock auto_lock(lock_);
+  auto it = settings_.find(key);
+  if (it != settings_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
 void GlobalFeatures::CreateExperimentConfig() {
   DCHECK(!experiment_config_);
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
@@ -195,12 +205,14 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
                                std::string());
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
+  registry->RegisterStringPref(kExperimentConfigMinVersion, std::string());
   registry->RegisterDictionaryPref(kFinchParameters);
   registry->RegisterStringPref(kLatestConfigHash, std::string());
   registry->RegisterDictionaryPref(kSafeConfig);
   registry->RegisterStringPref(kSafeConfigActiveConfigData, std::string());
   registry->RegisterDictionaryPref(kSafeConfigFeatures);
   registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
+  registry->RegisterStringPref(kSafeConfigMinVersion, std::string());
   registry->RegisterTimePref(variations::prefs::kVariationsLastFetchTime,
                              base::Time(), PrefRegistry::LOSSY_PREF);
 }

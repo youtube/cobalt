@@ -14,12 +14,87 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "base/functional/bind.h"
+#include "base/logging.h"
+#include "base/timer/timer.h"
+#include "content/public/browser/navigation_handle.h"
+#include "net/base/net_errors.h"
+#include "starboard/android/shared/starboard_bridge.h"
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROIDTV)
+namespace {
+const int kNavigationTimeoutSeconds = 30;
+const int kJniErrorTypeConnectionError = 0;
+}  // namespace
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
-    : content::WebContentsObserver(web_contents) {}
+    : content::WebContentsObserver(web_contents) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  timeout_timer_ = std::make_unique<base::OneShotTimer>();
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+}
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+
+#if BUILDFLAG(IS_ANDROIDTV)
+void CobaltWebContentsObserver::SetTimerForTestInternal(
+    std::unique_ptr<base::OneShotTimer> timer) {
+  timeout_timer_ = std::move(timer);
+}
+
+void CobaltWebContentsObserver::DidStartNavigation(
+    content::NavigationHandle* handle) {
+  if (!handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
+              << " not in primary mainframe, returning";
+    return;
+  }
+
+  // Start a navigation timer with a timeout callback to raise a
+  // network error dialog
+  timeout_timer_->Stop();
+  timeout_timer_->Start(
+      FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
+      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+                     weak_factory_.GetWeakPtr()));
+}
+
+// Opting for WebContentsObserver::DidFinishNavigation() over
+// WebContentsObserver::PrimaryPageChanged as the network check can't
+// assume HasCommitted() is true. Doing so would not catch network
+// errors that are thrown before a navigation commits such as
+// net::ERR_CONNECTION_TIMED_OUT and net::ERR_NAME_NOT_RESOLVED.
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+
+  timeout_timer_->Stop();
+  const auto net_error_code = navigation_handle->GetNetErrorCode();
+  if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
+    LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
+              << net::ErrorToString(net_error_code);
+    RaisePlatformError();
+  }
+}
+
+void CobaltWebContentsObserver::RaisePlatformError() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  auto* starboard_bridge = starboard::android::shared::StarboardBridge::GetInstance();
+
+  // Don't raise a new platform error if one is already showing
+  if (starboard_bridge->IsPlatformErrorShowing(env)) {
+    return;
+  }
+  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
+}
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt

@@ -182,14 +182,24 @@ const T* GetSettingValue(
 
 constexpr int kMaxFramesInDecoderLimit = 10'000;
 constexpr int kMaxVideoDecoderPollIntervalMs = 60'000;  // 1 minute.
+// Experiment framework uses 0 as the sentinel value for unset.
+// e.g.)
+// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
+constexpr int kH5vccUnsetSentinel = 0;
 
 std::optional<int> ProcessRangedIntH5vccSetting(
     const std::map<std::string, H5vccSettingValue>& settings,
     const char* key,
     int min_val,
-    int max_val) {
+    int max_val,
+    int unset_sentinel) {
   auto* val = GetSettingValue<int64_t>(settings, key);
   if (!val) {
+    return std::nullopt;
+  }
+  if (*val == unset_sentinel) {
+    LOG(INFO) << "Value for " << key << " matches unset sentinel (" << *val
+              << "); falling back to system default.";
     return std::nullopt;
   }
   if (*val < min_val || max_val < *val) {
@@ -218,14 +228,14 @@ ParsedH5vccSettings ProcessH5vccSettings(
   }
 
   parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder, 1,
-      kMaxFramesInDecoderLimit);
+      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder,
+      /*min_val=*/1, kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
   parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, 1,
-      kMaxFramesInDecoderLimit);
+      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, /*min_val=*/1,
+      kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, 1,
-      kMaxVideoDecoderPollIntervalMs);
+      settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
+      kMaxVideoDecoderPollIntervalMs, kH5vccUnsetSentinel);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);

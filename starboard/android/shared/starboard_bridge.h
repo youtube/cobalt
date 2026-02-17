@@ -51,6 +51,8 @@ class StarboardBridge {
 
   void RaisePlatformError(JNIEnv* env, jint errorType, jlong data);
 
+  bool IsPlatformErrorShowing(JNIEnv* env);
+
   void RequestSuspend(JNIEnv* env);
 
   ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
@@ -69,6 +71,8 @@ class StarboardBridge {
   void CloseAllCobaltService(JNIEnv* env) const;
 
   void HideSplashScreen(JNIEnv* env) const;
+
+  void SetStartupMilestone(jint milestone) const;
 
  private:
   StarboardBridge() = default;

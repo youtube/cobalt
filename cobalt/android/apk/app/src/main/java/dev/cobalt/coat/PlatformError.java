@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -106,6 +107,22 @@ public class PlatformError
         return;
     }
     mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
+
+    // When the user presses the back button, suspend the app without dismissing the dialog
+    mDialog.setOnKeyListener(
+        (dialog, keyCode, event) -> {
+          if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
+              && event.getAction() == KeyEvent.ACTION_DOWN) {
+            CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+            if (cobaltActivity != null) {
+              cobaltActivity.getStarboardBridge().requestSuspend();
+            }
+            // Consume the event and do not dismiss the dialog.
+            return true;
+          }
+          return false;
+        });
+
     mDialog.show();
   }
 
@@ -139,20 +156,11 @@ public class PlatformError
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
-          if (cobaltActivity != null) {
-            WebContents webContents = cobaltActivity.getActiveWebContents();
-            if (webContents != null) {
-              webContents.getNavigationController().reload(true);
-            }
-            else {
-              Log.e(TAG, "WebContents is null and not available to reload the application.");
-            }
-            cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
-          }
           mDialog.dismiss();
+          reloadWebContents(cobaltActivity);
           break;
         case DISMISS_BUTTON:
-          mResponse = POSITIVE;
+          mResponse = NEGATIVE;
           mDialog.dismiss();
           break;
         default: // fall out
@@ -163,10 +171,6 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     mDialog = null;
-      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
-      if (cobaltActivity != null && mResponse == CANCELLED) {
-        cobaltActivity.getStarboardBridge().requestSuspend();
-      }
   }
 
   /** Informs Starboard when the error is dismissed. */
@@ -175,4 +179,17 @@ public class PlatformError
   }
 
   private native void nativeSendResponse(@PlatformError.Response int response, long data);
+
+  /** Reloads the web contents if available */
+  private void reloadWebContents(CobaltActivity cobaltActivity) {
+    if (cobaltActivity != null) {
+      WebContents webContents = cobaltActivity.getActiveWebContents();
+      if (webContents != null) {
+        webContents.getNavigationController().reload(true);
+      } else {
+        Log.e(TAG, "WebContents is null and not available to reload the application.");
+      }
+    }
+  }
+
 }

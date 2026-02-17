@@ -18,6 +18,9 @@
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/hang_watcher_delegate_impl.h"
+#endif
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "components/memory_system/initializer.h"
@@ -27,6 +30,14 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/app/cobalt_crash_reporter_client.h"
+#include "components/crash/core/app/crashpad.h"
+#endif
 
 namespace cobalt {
 
@@ -36,6 +47,9 @@ CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
 absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(14);
+#endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -68,6 +82,9 @@ CobaltMainDelegate::CreateContentUtilityClient() {
 
 absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(15);
+#endif
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -77,6 +94,11 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
   }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  // This delegate is for reading the flag value.
+  cobalt::browser::CobaltHangWatcherDelegate::Initialize();
+#endif
 
   InitializeHangWatcher();
 
@@ -103,6 +125,9 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(16);
+#endif
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
     return std::move(main_function_params);
@@ -128,6 +153,19 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   // to the |ui_task| for browser tests.
   return 0;
 }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+void CobaltMainDelegate::PreSandboxStartup() {
+  std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
+  CobaltCrashReporterClient::Create();
+  crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+  crash_reporter::SetUploadConsent(true);
+
+  content::ShellMainDelegate::PreSandboxStartup();
+}
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void CobaltMainDelegate::Shutdown() {
   main_runner_->Shutdown();
