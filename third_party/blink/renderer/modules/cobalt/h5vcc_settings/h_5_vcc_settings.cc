@@ -40,6 +40,8 @@ constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
 constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
+constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
+    "Media.ExperimentalMaxPendingBytesPerParse";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
 constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
@@ -165,7 +167,8 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
         ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
         resolver->Resolve();
       } else {
-        LOG(WARNING) << kMediaIncrementalParseLookAhead << " cannot be disabled.";
+        LOG(WARNING) << kMediaIncrementalParseLookAhead
+                     << " cannot be disabled.";
         resolver->Reject(V8ThrowException::CreateTypeError(
             script_state->GetIsolate(),
             kMediaIncrementalParseLookAhead + String(" cannot be disabled.")));
@@ -174,10 +177,31 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       LOG(WARNING) << "The value for '" << kMediaIncrementalParseLookAhead
                    << "' must be a number.";
       resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(),
-          String("The value for '") + kMediaIncrementalParseLookAhead +
-              "' must be a number."));
+          script_state->GetIsolate(), String("The value for '") +
+                                          kMediaIncrementalParseLookAhead +
+                                          "' must be a number."));
     }
+    return promise;
+  }
+
+  if (name == kMediaExperimentalMaxPendingBytesPerParse) {
+    if (value->IsLong()) {
+      int experimental_value = value->GetAsLong();
+      if (experimental_value > 0) {
+        LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
+                  << " to " << experimental_value << " bytes.";
+        ::media::StreamParser::SetMaxPendingBytesPerParse(experimental_value);
+        resolver->Resolve();
+        return promise;
+      }
+    }
+
+    LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
+                 << " must be set to a positive integer";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(),
+        kMediaExperimentalMaxPendingBytesPerParse +
+            String(" must be a positive integer.")));
     return promise;
   }
 

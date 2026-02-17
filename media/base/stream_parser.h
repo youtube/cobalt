@@ -22,6 +22,8 @@
 #include "media/base/media_export.h"
 #include "media/media_buildflags.h"
 
+#include "build/build_config.h"
+
 namespace media {
 
 class MediaLog;
@@ -71,7 +73,15 @@ class MEDIA_EXPORT StreamParser {
   // This value may change in future updates as platform capabilities have
   // generally improved.
   // TODO(crbug.com/1379177): Tune this experimentally.
-  static constexpr int kMaxPendingBytesPerParse = 128 * 1024;  // 128KiB
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  static std::atomic<int> kMaxPendingBytesPerParse;
+  // Overrides the maximum number of bytes that a single call to Parse() will
+  // inspect from the pending buffer.
+  static void SetMaxPendingBytesPerParse(int max_bytes);
+#else
+  static constexpr int kMaxPendingBytesPerParse = 128 * 1024; // 128KiB
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Stream parameters passed in InitCB.
   struct MEDIA_EXPORT InitParameters {

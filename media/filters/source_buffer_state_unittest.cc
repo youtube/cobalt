@@ -129,7 +129,11 @@ class SourceBufferStateTest : public ::testing::Test {
                 AppendToParseBuffer(stream_data, data_size))
         .WillOnce(Return(true));
     EXPECT_CALL(*mock_stream_parser_,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                Parse(StreamParser::kMaxPendingBytesPerParse.load()))
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
                 Parse(StreamParser::kMaxPendingBytesPerParse))
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
         .WillOnce(DoAll(
             InvokeWithoutArgs([&] {
               new_configs_result =
