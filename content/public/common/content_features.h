@@ -368,6 +368,12 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebRtcPipeWireCapturer);
 CONTENT_EXPORT bool IsVideoCaptureServiceEnabledForOutOfProcess();
 CONTENT_EXPORT bool IsVideoCaptureServiceEnabledForBrowserProcess();
 
+#if BUILDFLAG(IS_COBALT)
+// To enable the skia font cache, so multiple read-only mappings to the same
+// file are consolidated.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkiaFontCache);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace features
 
 #endif  // CONTENT_PUBLIC_COMMON_CONTENT_FEATURES_H_

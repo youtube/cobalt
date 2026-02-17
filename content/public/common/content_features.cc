@@ -1641,4 +1641,8 @@ bool IsVideoCaptureServiceEnabledForBrowserProcess() {
          VideoCaptureServiceConfiguration::kEnabledForBrowserProcess;
 }
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kSkiaFontCache, "SkiaFontCache", base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace features

@@ -63,6 +63,9 @@ public class JavaSwitches {
   /** flag to enable AndroidOverlay for SbPlayer */
   public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
 
+  /** flag to enable SkiaFontCache */
+  public static final String SKIA_FONT_CACHE = "SkiaFontCache";
+  
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -136,6 +139,10 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
       extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
       extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
+      extraCommandLineArgs.add("--enable-features=SkiaFontCache");
     }
 
     return extraCommandLineArgs;

@@ -255,9 +255,23 @@ enum KeyboardCode {
   VKEY_DICTATE = 0xEE,
   // All applications - this also triggers the launcher in Chrome OS.
   VKEY_ALL_APPLICATIONS = 0xEF,
+
+  // Custom Cobalt Key Events
 #if BUILDFLAG(IS_COBALT)
-  // Toggle subtitles
-  KEY_SUBTITLES = 0x1CC,
+  // Key codes from the DTV Application Software Environment,
+  //   http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf
+  VKEY_RED = 0x193,
+  VKEY_GREEN = 0x194,
+  VKEY_YELLOW = 0x195,
+  VKEY_BLUE = 0x196,
+
+  VKEY_CHANNEL_UP = 0x1AB,
+  VKEY_CHANNEL_DOWN = 0x1AC,
+  VKEY_SUBTITLES = 0x1CC,
+
+  VKEY_INFO = 0x1C9,
+  VKEY_GUIDE = 0x1CA,
+  VKEY_MEDIA_AUDIO_TRACK = 0x3001,
 #endif  // BUILDFLAG(IS_COBALT)
 };
 

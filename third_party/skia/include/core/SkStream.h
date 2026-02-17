@@ -11,6 +11,7 @@
 #include "include/core/SkData.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkScalar.h"
+#include "include/core/SkString.h"
 #include "include/core/SkTypes.h"
 #include "include/private/base/SkCPUTypes.h"
 #include "include/private/base/SkTo.h"
@@ -381,6 +382,12 @@ public:
     /** Creates the stream to read from the specified data */
     SkMemoryStream(sk_sp<SkData> data);
 
+    /** Creates the stream to read from the specified data mapped from the file specified by path */
+    SkMemoryStream(const char path[], sk_sp<SkData> data);
+
+    /** When the mmap cache is enabled, unmap the data if the object holds the last reference */
+    ~SkMemoryStream() override;
+
     /** Returns a stream with a copy of the input data. */
     static std::unique_ptr<SkMemoryStream> MakeCopy(const void* data, size_t length);
 
@@ -389,6 +396,9 @@ public:
 
     /** Returns a stream with a shared reference to the input data. */
     static std::unique_ptr<SkMemoryStream> Make(sk_sp<SkData> data);
+
+    /** Enabled the mmap cache so multiple read only mappings of the same file are consolidated. */
+    static void EnableMmapCache();
 
     /** Resets the stream to the specified data and length,
         just like the constructor.
@@ -434,6 +444,9 @@ public:
 private:
     SkMemoryStream* onDuplicate() const override;
     SkMemoryStream* onFork() const override;
+
+    /** Serves as the key in the cache when the mmap cache is enabled */
+    const SkString  fPath;
 
     sk_sp<SkData>   fData;
     size_t          fOffset;
