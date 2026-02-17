@@ -508,6 +508,12 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
              "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt supports batched write.
+BASE_FEATURE(kCobaltEnableBatchedWrite,
+             "CobaltEnableBatchedWrite",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kMaxSamplesPerWrite{&kCobaltEnableBatchedWrite,
+                                                  "max_samples_per_write", 1};
 // When disabled, Cobalt rejects progressive video formats.
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
