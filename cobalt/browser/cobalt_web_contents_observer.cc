@@ -34,26 +34,32 @@ const int kJniErrorTypeConnectionError = 0;
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
-    : content::WebContentsObserver(web_contents) {}
+    : content::WebContentsObserver(web_contents) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  timeout_timer_ = std::make_unique<base::OneShotTimer>();
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+}
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
 #if BUILDFLAG(IS_ANDROIDTV)
+void CobaltWebContentsObserver::SetTimerForTestInternal(
+    std::unique_ptr<base::OneShotTimer> timer) {
+  timeout_timer_ = std::move(timer);
+}
+
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
-  LOG(INFO) << "DidStartNavigation to: " << handle->GetURL();
   if (!handle->IsInPrimaryMainFrame()) {
     LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
               << " not in primary mainframe, returning";
     return;
   }
-  LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
-            << " in primary mainframe";
 
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
-  timeout_timer_.Stop();
-  timeout_timer_.Start(
+  timeout_timer_->Stop();
+  timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
       base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
                      weak_factory_.GetWeakPtr()));
@@ -70,7 +76,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     return;
   }
 
-  timeout_timer_.Stop();
+  timeout_timer_->Stop();
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "

@@ -39,7 +39,6 @@ import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
-import dev.cobalt.coat.javabridge.H5vccPlatformService;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
@@ -106,6 +105,8 @@ public abstract class CobaltActivity extends Activity {
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
 
   private boolean mEnableSplashScreen;
+  private static final String URL_TOPIC_NAME = "topic";
+  private String mUrlTopic;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -128,13 +129,8 @@ public abstract class CobaltActivity extends Activity {
   }
 
   @VisibleForTesting
-  static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
+  static String[] appendArgsFromMetaData(Bundle metaData, String[] commandLineArgs) {
     if (metaData == null) {
-      return commandLineArgs;
-    }
-
-    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
-    if (TextUtils.isEmpty(enableFeatures)) {
       return commandLineArgs;
     }
 
@@ -142,6 +138,17 @@ public abstract class CobaltActivity extends Activity {
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
+
+    boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
+    if (!enableSplashScreen) {
+      args.add("--disable-splash-screen");
+    }
+
+    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
+    if (TextUtils.isEmpty(enableFeatures)) {
+      return args.toArray(new String[0]);
+    }
+
     // CommandLineOverrideHelper will merge this with other --enable-features flags
     // It also accepts semi-colon-separated list of features.
     // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
@@ -159,15 +166,13 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
-      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
+      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
     mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
-    Bundle metaData = getActivityMetaData();
-    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
@@ -183,6 +188,11 @@ public abstract class CobaltActivity extends Activity {
     if (startDeepLink == null) {
       Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
       startDeepLink = "";
+    }
+    Uri startDeepLinkUri = Uri.parse(startDeepLink);
+    mUrlTopic = startDeepLinkUri.getQueryParameter(URL_TOPIC_NAME);
+    if (mUrlTopic == null) {
+      mUrlTopic = "";
     }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
@@ -259,6 +269,7 @@ public abstract class CobaltActivity extends Activity {
     // that the webContents are correctly created not null.
     mShellManager.launchShell(
         "",
+        mUrlTopic,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -270,10 +281,8 @@ public abstract class CobaltActivity extends Activity {
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
-            if (mEnableSplashScreen) {
-              // Load splash screen.
-              mShellManager.getActiveShell().loadSplashScreenWebContents();
-            }
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
@@ -416,7 +425,6 @@ public abstract class CobaltActivity extends Activity {
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
-    mJavaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
     mJavaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.

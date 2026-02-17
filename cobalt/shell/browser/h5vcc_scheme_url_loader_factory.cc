@@ -55,6 +55,7 @@ using switches::kMaxSplashContentSize;
 
 namespace {
 const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
+const char kMimeTypeImagePng[] = "image/png";
 const char kMimeTypeTextHtml[] = "text/html";
 const char kMimeTypeTextPlain[] = "text/plain";
 const char kMimeTypeVideoWebM[] = "video/webm";
@@ -210,13 +211,21 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LoaderEmbeddedResources::GenerateMap(resource_map);
     }
 
-    // Specify the built-in video if the cache is unavailable.
-    // Only for webm.
-    // TODO(458074360): Add fallback to static image if the device does
-    // not support VP9.
+    // For html file, return from embedded resources.
+    if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
+      mime_type_ = kMimeTypeTextHtml;
+    } else if (base::EndsWith(key, ".png", base::CompareCase::SENSITIVE)) {
+      mime_type_ = kMimeTypeImagePng;
+    } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
+      mime_type_ = kMimeTypeVideoWebM;
+    }
+    bool is_cacheable_type =
+        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
+
+    // Specify the built-in video/png if the cache is unavailable.
     std::string fallback;
     if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
-        (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE))) {
+        is_cacheable_type) {
       LOG(INFO) << "Fallback splash: " << fallback;
       resource_key = std::move(fallback);
     }
@@ -225,17 +234,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       FileContents file_contents = resource_map[resource_key];
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
+    } else {
+      LOG(WARNING) << "Resource not found: " << resource_key;
     }
 
-    // For html file, return from embedded resources.
-    if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
-      mime_type_ = kMimeTypeTextHtml;
-    } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
-      mime_type_ = kMimeTypeVideoWebM;
-      if (browser_context_) {
-        ReadSplashCache(key);
-        return;
-      }
+    if (is_cacheable_type && browser_context_) {
+      ReadSplashCache(key);
+      return;
     }
     if (content_.empty()) {
       SendNotFoundResponse(key);

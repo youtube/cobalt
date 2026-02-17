@@ -118,11 +118,11 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
       local_state_(local_state),
       metrics_state_manager_(state_manager),
       upload_interval_(kStandardUploadIntervalMinutes) {
-  DETACH_FROM_THREAD(thread_checker_);
+  COBALT_DETACH_FROM_THREAD(thread_checker_);
 }
 
 void CobaltMetricsServiceClient::Initialize() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
                                                   this, local_state_.get());
@@ -133,7 +133,7 @@ void CobaltMetricsServiceClient::Initialize() {
 }
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   state_ = base::MakeRefCounted<State>();
   state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   state_->task_runner->PostTask(
@@ -195,20 +195,20 @@ std::unique_ptr<CobaltMetricsServiceClient> CobaltMetricsServiceClient::Create(
 
 variations::SyntheticTrialRegistry*
 CobaltMetricsServiceClient::GetSyntheticTrialRegistry() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   return synthetic_trial_registry_.get();
 }
 
 metrics::MetricsService* CobaltMetricsServiceClient::GetMetricsService() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   return metrics_service_.get();
 }
 
 void CobaltMetricsServiceClient::SetMetricsClientId(
     const std::string& client_id) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // ClientId is unnecessary within Cobalt. We expect the web client responsible
   // for uploading these to have its own concept of device/client identifiers.
@@ -225,14 +225,14 @@ int32_t CobaltMetricsServiceClient::GetProduct() {
 std::string CobaltMetricsServiceClient::GetApplicationLocale() {
   // The locale will be populated by the web client, so return value is
   // inconsequential.
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   return "en-US";
 }
 
 const network_time::NetworkTimeTracker*
 CobaltMetricsServiceClient::GetNetworkTimeTracker() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // TODO(b/372559349): Figure out whether we need to return a real object.
   // The NetworkTimeTracker used to provide higher-quality wall clock times than
@@ -242,7 +242,7 @@ CobaltMetricsServiceClient::GetNetworkTimeTracker() {
 }
 
 bool CobaltMetricsServiceClient::GetBrand(std::string* brand_code) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // "false" means no brand code available. We set the brand when uploading
   // via GEL.
@@ -250,20 +250,20 @@ bool CobaltMetricsServiceClient::GetBrand(std::string* brand_code) {
 }
 
 metrics::SystemProfileProto::Channel CobaltMetricsServiceClient::GetChannel() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // Return value here is unused in downstream logging.
   return metrics::SystemProfileProto::CHANNEL_UNKNOWN;
 }
 
 bool CobaltMetricsServiceClient::IsExtendedStableChannel() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   return false;  // Not supported on Cobalt.
 }
 
 std::string CobaltMetricsServiceClient::GetVersionString() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // E.g. 134.0.6998.19.
   return base::Version().GetString();
@@ -271,7 +271,7 @@ std::string CobaltMetricsServiceClient::GetVersionString() {
 
 void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
     base::OnceClosure done_callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
 
   std::move(done_callback).Run();
@@ -290,7 +290,7 @@ void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {
 }
 
 GURL CobaltMetricsServiceClient::GetMetricsServerUrl() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // Chrome keeps the actual URL in an internal file, likely to avoid abuse.
   // This below is made up, and in any case likely not to be used (it ends up in
@@ -300,7 +300,7 @@ GURL CobaltMetricsServiceClient::GetMetricsServerUrl() {
 }
 
 GURL CobaltMetricsServiceClient::GetInsecureMetricsServerUrl() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // This is made up and not used. See GetMetricsServerUrl() for more details.
   return GURL("https://youtube.com/tv/uma");
@@ -313,7 +313,7 @@ CobaltMetricsServiceClient::CreateUploader(
     std::string_view mime_type,
     metrics::MetricsLogUploader::MetricServiceType service_type,
     const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // Uploader should already be initialized early in construction.
   CHECK(log_uploader_);
@@ -327,7 +327,7 @@ CobaltMetricsServiceClient::CreateLogUploaderInternal() {
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   return upload_interval_;
 }
@@ -346,7 +346,7 @@ CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
 
 void CobaltMetricsServiceClient::SetMetricsListener(
     ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
 
@@ -377,14 +377,24 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
 void CobaltMetricsServiceClient::RecordMemoryMetrics(
     memory_instrumentation::GlobalMemoryDump* global_dump) {
   uint64_t total_private_footprint_kb = 0;
+  uint64_t total_resident_kb = 0;
+
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
+  // Renderer, GPU) when moving to multi-process architecture.
   for (const auto& process_dump : global_dump->process_dumps()) {
     total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+    total_resident_kb += process_dump.os_dump().resident_set_kb;
   }
 
   if (total_private_footprint_kb > 0) {
     uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
     MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
                                 total_private_footprint_mb);
+  }
+
+  if (total_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.Resident",
+                                total_resident_kb / 1024);
   }
 }
 

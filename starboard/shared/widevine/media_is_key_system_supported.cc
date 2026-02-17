@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/get_home_directory.h"
+// clang-format off
+#include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
 
-#include "starboard/system.h"
+#include "starboard/media.h"
+#include "starboard/shared/widevine/drm_system_widevine.h"
 
 namespace starboard {
-namespace shared {
-namespace starboard {
 
-bool GetHomeDirectory(char* out_path, int path_size) {
-  return SbSystemGetPath(kSbSystemPathCacheDirectory, out_path, path_size);
+bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                               SbMediaAudioCodec audio_codec,
+                               const char* key_system) {
+  return DrmSystemWidevine::IsKeySystemSupported(key_system);
 }
 
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard

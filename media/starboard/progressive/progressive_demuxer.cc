@@ -375,8 +375,8 @@ void ProgressiveDemuxer::AllocateBuffer() {
       return;
     }
 
-    scoped_refptr<DecoderBuffer> decoder_buffer(
-        new DecoderBuffer(requested_au_->GetMaxSize()));
+    scoped_refptr<DecoderBuffer> decoder_buffer =
+        base::MakeRefCounted<media::DecoderBuffer>(requested_au_->GetMaxSize());
     DCHECK(decoder_buffer);
     decoder_buffer->set_is_key_frame(requested_au_->IsKeyframe());
     Download(decoder_buffer);

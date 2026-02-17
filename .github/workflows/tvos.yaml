@@ -28,21 +28,29 @@ jobs:
       DEPOT_TOOLS_METRICS: 0
       IS_CI: 1
     steps:
-      - name: Checkout
+      - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: .github
+      - name: Checkout
+        uses: ./.github/actions/checkout
+        with:
+          ref: ${{ github.sha }}
+          path: cobalt/src
+          fetch_depth: 1
+          use_cache: false
       - name: Read build config
         id: build-config
         run: |
           cd .github/config
           CONFIG_JSON=$(jq -cr '.' ${{ matrix.platform }}.json)
           echo "config_json=$CONFIG_JSON" >> "$GITHUB_OUTPUT"
-      - name: Setup depot_tools
+      - name: Set Up Depot Tools
         uses: ./.github/actions/depot_tools
         with:
-          clear_cache: 'false'
-          use_cache: 'false'
+          use_cache: false
       - name: Build
         uses: ./.github/actions/build
         with:

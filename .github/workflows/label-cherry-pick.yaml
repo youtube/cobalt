@@ -66,8 +66,9 @@ jobs:
         timeout-minutes: 30
         with:
           ref: ${{ matrix.target_branch }}
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
+          filter: blob:none
 
       - name: Setup Git
         run: |

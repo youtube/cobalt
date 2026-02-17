@@ -36,7 +36,10 @@ source_set("browser") {
     ]
   }
 
-  public_deps = [ "//content/public/browser" ]
+  public_deps = [
+    "//cobalt/browser/h5vcc_metrics",
+    "//content/public/browser",
+  ]
 
   deps = [
     ":command_line_logger",
@@ -51,8 +54,9 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
-    "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_platform_service",
+    "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
     "//cobalt/browser/h5vcc_storage",
@@ -82,13 +86,7 @@ source_set("browser") {
       "//components/variations:variations_associated_data",
     ]
   } else {
-    deps += [
-      "//cobalt/browser/crash_annotator",
-      "//cobalt/browser/h5vcc_platform_service",
-
-      # TODO: b/403638702 - androidtv will also need this dep.
-      "//cobalt/browser/h5vcc_platform_service/public/mojom",
-    ]
+    deps += [ "//cobalt/browser/crash_annotator" ]
   }
 
   if (is_starboard) {

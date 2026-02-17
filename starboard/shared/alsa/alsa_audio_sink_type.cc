@@ -134,7 +134,7 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   int sampling_frequency_hz_;
   SbMediaAudioSampleType sample_type_;
 
-  std::unique_ptr<JobThread> audio_out_thread_;
+  const std::unique_ptr<JobThread> audio_out_thread_;
   std::mutex mutex_;
   std::condition_variable creation_signal_;
   bool audio_thread_created_ = false;  // Guarded by |mutex_|.
@@ -171,6 +171,8 @@ AlsaAudioSink::AlsaAudioSink(
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
+      audio_out_thread_(
+          JobThread::Create("alsa_audio_out", kSbThreadPriorityRealTime)),
       time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
                     2),
       destroying_(false),
@@ -183,13 +185,12 @@ AlsaAudioSink::AlsaAudioSink(
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
+  SB_CHECK(audio_out_thread_);
 
   memset(silence_frames_, 0,
          channels * kFramesPerRequest * GetSampleSize(sample_type));
 
   std::unique_lock lock(mutex_);
-  audio_out_thread_ =
-      std::make_unique<JobThread>("alsa_audio_out", kSbThreadPriorityRealTime);
   audio_out_thread_->Schedule([this] { ProcessAudio(); });
   creation_signal_.wait(lock, [this] { return audio_thread_created_; });
 }
@@ -199,7 +200,7 @@ AlsaAudioSink::~AlsaAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  audio_out_thread_.reset();
+  audio_out_thread_->Stop();
 
   delete[] static_cast<uint8_t*>(silence_frames_);
 }

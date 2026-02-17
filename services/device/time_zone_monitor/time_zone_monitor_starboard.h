@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// clang-format off
-#include "starboard/shared/starboard/media/media_support_internal.h"
-// clang-format on
+#ifndef SERVICES_DEVICE_TIME_ZONE_MONITOR_TIME_ZONE_MONITOR_STARBOARD_H_
+#define SERVICES_DEVICE_TIME_ZONE_MONITOR_TIME_ZONE_MONITOR_STARBOARD_H_
 
-#include "starboard/media.h"
-#include "starboard/shared/widevine/drm_system_widevine.h"
+namespace device {
 
-namespace starboard {
+void NotifyTimeZoneChangeStarboard();
 
-bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                      SbMediaAudioCodec audio_codec,
-                      const char* key_system) {
-  return DrmSystemWidevine::IsKeySystemSupported(key_system);
-}
+}  // namespace device
 
-}  // namespace starboard
+#endif  // SERVICES_DEVICE_TIME_ZONE_MONITOR_TIME_ZONE_MONITOR_STARBOARD_H_

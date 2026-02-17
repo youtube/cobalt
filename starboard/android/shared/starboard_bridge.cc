@@ -386,12 +386,11 @@ int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
 
 base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
     JNIEnv* env,
-    const base::android::JavaRef<jobject>& activity,
     jlong native_service,
     const char* service_name) {
   SB_CHECK(env);
   return Java_StarboardBridge_openCobaltService(
-      env, j_starboard_bridge_, activity, native_service,
+      env, j_starboard_bridge_, native_service,
       ConvertUTF8ToJavaString(env, service_name));
 }
 
