@@ -70,6 +70,7 @@ class H5vccSchemeURLLoaderFactory final
   static void SetSplashContentSizeForTesting(const std::optional<int>& size);
 
  private:
+  GeneratedResourceMap resource_map_;
   static const GeneratedResourceMap* resource_map_test_;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
