@@ -50,6 +50,8 @@ static_library("common") {
     "fixed_no_free_allocator.cc",
     "fixed_no_free_allocator.h",
     "flat_map.h",
+    "gles_tracker.cc",
+    "gles_tracker.h",
     "locked_ptr.h",
     "log.cc",
     "media.cc",

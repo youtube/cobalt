@@ -45,6 +45,7 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
       target_(GL_TEXTURE_2D) {
   gl_handle_ =
       texture_source_data->ConvertToTexture(graphics_context_, bgra_supported);
+  LOG(WARNING) << "TextureEGL::TextureEGL (ConvertToTexture)" << gl_handle_;
 }
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
@@ -57,6 +58,7 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
       target_(GL_TEXTURE_2D) {
   gl_handle_ = data->CreateTexture(graphics_context_, offset, size, format,
                                    pitch_in_bytes, bgra_supported);
+  LOG(WARNING) << "TextureEGL::TextureEGL (CreateTexture)" << gl_handle_;
 }
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
@@ -97,6 +99,8 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                              pbuffer_target->GetSurface(), EGL_BACK_BUFFER));
 
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+    LOG(WARNING) << "TextureEGL::TextureEGL (render_target, has surface)"
+                 << gl_handle_;
   } else {
     // This is a FramebufferRenderTargetEGL. Wrap its color texture attachment.
     const FramebufferRenderTargetEGL* framebuffer_target =
@@ -110,6 +114,8 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
 
     // Do not destroy the wrapped texture. Let the render target do that.
     delete_function_ = base::Bind(&DoNothing);
+    LOG(WARNING) << "TextureEGL::TextureEGL (render_target, no surface)"
+                 << gl_handle_;
   }
 }
 

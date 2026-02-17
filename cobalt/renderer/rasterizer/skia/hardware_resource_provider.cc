@@ -157,6 +157,7 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
   }
 #endif
 
+  LOG(WARNING) << "HardwareResourceProvider::CreateImage HardwareFrontendImage";
   // Construct a frontend image from this data, which internally will send
   // a message to the rasterizer thread passing along the image data where the
   // backend texture will be constructed, and associated with this frontend
@@ -309,6 +310,8 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
         cobalt_context_, gl_handle, math::Size(plane.width, plane.height),
         gl_format, plane.gl_texture_target,
         base::BindOnce(&DoNothing, decode_target_ref)));
+    LOG(WARNING) << "HardwareResourceProvider::CreateImageFromSbDecodeTarget: "
+                 << texture->gl_handle();
 
     // If the decode target is specified as UYVY format, then we need to pass
     // this in as supplementary data, as the |texture| object only knows that
@@ -318,6 +321,8 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
       alternate_rgba_format = AlternateRgbaFormat_UYVY;
     }
 
+    LOG(WARNING) << "HardwareResourceProvider::CreateImageFromSbDecodeTarget "
+                    "HardwareFrontendImage";
     planes.push_back(base::WrapRefCounted(new HardwareFrontendImage(
         std::move(texture), alpha_format, cobalt_context_, gr_context_,
         std::move(content_region), rasterizer_task_runner_,
@@ -327,6 +332,8 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
   if (planes_per_format == 1) {
     return planes[0];
   } else {
+    LOG(WARNING) << "HardwareResourceProvider::CreateImageFromSbDecodeTarget "
+                    "HardwareMultiPlaneImage";
     return new HardwareMultiPlaneImage(
         DecodeTargetFormatToRenderTreeMultiPlaneFormat(info.format), planes);
   }
@@ -570,6 +577,8 @@ scoped_refptr<render_tree::Mesh> HardwareResourceProvider::CreateMesh(
 
 scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
     const scoped_refptr<render_tree::Node>& root) {
+  LOG(WARNING)
+      << "HardwareResourceProvider::DrawOffscreenImage HardwareFrontendImage";
   return base::WrapRefCounted(new HardwareFrontendImage(
       root, submit_offscreen_callback_, cobalt_context_, gr_context_,
       rasterizer_task_runner_));
