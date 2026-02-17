@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/base64.h"
+#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -235,7 +236,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       resource_key = std::move(fallback);
     }
 
-    if (ExistsInResourceMap(resource_map, resource_key)) {
+    if (base::Contains(resource_map, resource_key)) {
       FileContents file_contents = resource_map[resource_key];
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
@@ -244,7 +245,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     // Only attempt to read files defined in the resource map from cache.
-    if (supports_splash_caching && ExistsInResourceMap(resource_map, key)) {
+    if (supports_splash_caching && base::Contains(resource_map, key)) {
       ReadSplashCache(key);
       return;
     }
@@ -361,11 +362,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     LOG(ERROR) << message;
     DisconnectCacheStorage();
     SendResponse();
-  }
-
-  bool ExistsInResourceMap(const GeneratedResourceMap& resource_map,
-                           const std::string& key) {
-    return resource_map.find(key) != resource_map.end();
   }
 
   void SendResponse(int http_status = net::HTTP_OK) {
