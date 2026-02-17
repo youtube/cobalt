@@ -342,7 +342,7 @@ group("make_modules_generated") {
   ]
 
   if (is_cobalt) {
-    public_deps += [ "//cobalt/browser/h5vcc_platform_service/public/mojom:mojom_blink" ]
+    public_deps += [ "//cobalt/browser/h5vcc_platform_service/public/mojom:mojom_blink_headers" ]
   }
 }
 
