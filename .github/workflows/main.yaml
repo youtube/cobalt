@@ -54,7 +54,7 @@ jobs:
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     if: |
       github.event.action != 'labeled' ||
-      (github.event.pull_request.merged == false && github.event.label.name == 'runtest')
+      (github.event.pull_request.merged == false && github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test')
     timeout-minutes: 10
     steps:
       - name: Restore CI Essentials
@@ -155,6 +155,13 @@ jobs:
           set -x
           test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
+      - name: Set YTS Playback tests
+        id: set-test-yts-playback
+        shell: bash
+        run: |
+          set -x
+          test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
+          echo "test_yts_playback=${test_yts_playback}" >> $GITHUB_OUTPUT
       - name: Set web tests
         id: set-web-tests
         shell: bash
@@ -183,6 +190,13 @@ jobs:
           set -x
           yts_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_test_targets // []')
           echo "yts_test_targets=${yts_test_targets}" >> $GITHUB_OUTPUT
+      - name: Set YTS Playback test targets
+        id: set-yts-playback-test-targets
+        shell: bash
+        run: |
+          set -x
+          yts_playback_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_playback_test_targets // []')
+          echo "yts_playback_test_targets=${yts_playback_test_targets}" >> $GITHUB_OUTPUT
       - name: Set E2E test targets
         id: set-e2e-test-targets
         shell: bash
@@ -237,10 +251,12 @@ jobs:
       test_package: ${{ steps.set-test-package.outputs.test_package }}
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
       test_yts: ${{ steps.set-test-yts.outputs.test_yts }}
+      test_yts_playback: ${{ steps.set-test-yts.outputs.test_yts_playback }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
+      yts_playback_test_targets: ${{ steps.set-yts-playback-test-targets.outputs.yts_playback_test_targets }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
@@ -476,9 +492,7 @@ jobs:
     if: |
       needs.initialize.outputs.test_yts == 'true' &&
         (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test') 
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_tests
@@ -502,6 +516,35 @@ jobs:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_test_targets }}'
 
+  yts-playback-test:
+    needs: [initialize, build]
+    # Run YTS Playback tests via presumit.
+    # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
+    if: |
+      needs.initialize.outputs.test_yts_playback == 'true' &&
+        (
+          github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test') 
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_yts_playback_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+      - name: Run YTS Tests
+        uses: ./.github/actions/internal_tests
+        with:
+          test_type: 'yts_test'
+          test_targets: '${{ needs.initialize.outputs.yts_playback_test_targets }}'
+  
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
     if: needs.initialize.outputs.test_on_host == 'true'
