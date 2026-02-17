@@ -113,7 +113,7 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
 
   // Spin until the accept happens (or we get impatient).
   *server_socket = AcceptBySpinning(listen_socket, kTimeoutUsec);
-  SB_DCHECK(SbSocketIsValid(*server_socket));
+  SB_CHECK(SbSocketIsValid(*server_socket));
 
   result = SbSocketDestroy(listen_socket);
   SB_DCHECK(result);
