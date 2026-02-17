@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 
-{env}
+{pre_run}
 command = [
     os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
     '--evergreen_content=.', '--evergreen_library={library}.so'
@@ -25,6 +25,7 @@ except subprocess.CalledProcessError:
 except Exception as e:
     print("An unexpected error occurred: " + str(e), file=sys.stderr)
     sys.exit(1)
+{post_run}
 """
 
 
@@ -32,11 +33,14 @@ def generate():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output', type=str, required=True)
   parser.add_argument('--library', type=str, required=True)
-  parser.add_argument('--env', type=str, default='')
+  parser.add_argument('--pre-run', type=str, default='')
+  parser.add_argument('--post-run', type=str, default='')
   args = parser.parse_args()
 
   with open(args.output, 'w', encoding='utf-8') as f:
-    f.write(TEMPLATE.format(library=args.library, env=args.env))
+    f.write(
+        TEMPLATE.format(
+            library=args.library, pre_run=args.pre_run, post_run=args.post_run))
   current_permissions = stat.S_IMODE(os.stat(args.output).st_mode)
   new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
   os.chmod(args.output, new_permissions)

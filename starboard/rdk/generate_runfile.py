@@ -20,35 +20,15 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import starboard.build.util.generate_runfile
 
-RDK_ENV = """
-os.environ.update({
-    'XDG_RUNTIME_DIR': '/run',
-    'WAYLAND_DISPLAY': 'wayland-0',
-    'LD_PRELOAD': '/usr/lib/libwesteros_gl.so.0.0.0',
-    'WESTEROS_GL_USE_BEST_MODE': '1',
-    'WESTEROS_GL_MAX_MODE': '3840x2160',
-    'WESTEROS_GL_GRAPHICS_MAX_SIZE': '1920x1080',
-    'WESTEROS_GL_USE_AMLOGIC_AVSYNC': '1',
-    'WESTEROS_GL_REFRESH_PRIORITY': 'F,80',
-    'WESTEROS_SINK_AMLOGIC_USE_DMABUF': '1',
-    'WESTEROS_SINK_USE_FREERUN': '1',
-    'WESTEROS_SINK_USE_ESSRMGR': '1',
-    'WESTEROS_GL_USE_REFRESH_LOCK': '1',
-    'WESTEROS_GL_USE_UEVENT_HOTPLUG': '1',
-    'RDKSHELL_KEYMAP_FILE': '/etc/rdkshell_keymapping.json',
-    'ESSOS_NO_EVENT_LOOP_THROTTLE': '1',
-    'AVPK_SKIP_HDMI_VALIDATION': '1',
-})
+_RDK_PRE_RUN = """
+subprocess.run(['rdkDisplay', 'create'])
+"""
 
-subprocess.run(['systemctl', 'stop', 'wpeframework'], check=False)
-subprocess.run('echo 0 > /sys/module/drm/parameters/vblankoffdelay', shell=True, check=False)
-subprocess.run('echo 1 > /sys/module/aml_drm/parameters/video_axis_zoom', shell=True, check=False)
-if subprocess.run(['pgrep', 'westeros-init'], capture_output=True).returncode != 0:
-    subprocess.Popen(['/usr/bin/westeros-init'])
-import time
-time.sleep(2)
+_RDK_POST_RUN = """
+subprocess.run(['rdkDisplay', 'remove'])
 """
 
 if __name__ == '__main__':
-  sys.argv.extend(['--env', RDK_ENV])
+  sys.argv.extend(['--pre-run', _RDK_PRE_RUN])
+  sys.argv.extend(['--post-run', _RDK_POST_RUN])
   starboard.build.util.generate_runfile.generate()
