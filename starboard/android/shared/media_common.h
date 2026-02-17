@@ -15,9 +15,13 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 
+#include <jni.h>
+
+#include <algorithm>
 #include <cstring>
 #include <optional>
 
+#include "base/android/jni_array.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -25,6 +29,70 @@
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 
 namespace starboard {
+
+struct DrmSubsampleData {
+  base::android::ScopedJavaLocalRef<jintArray> clear_bytes;
+  base::android::ScopedJavaLocalRef<jintArray> encrypted_bytes;
+  int32_t subsample_count;
+};
+
+inline DrmSubsampleData GetDrmSubsampleData(
+    JNIEnv* env,
+    const SbDrmSampleInfo& drm_sample_info,
+    int offset = 0) {
+  int32_t subsample_count = drm_sample_info.subsample_count;
+  std::unique_ptr<jint[]> clear_bytes(new jint[subsample_count]);
+  std::unique_ptr<jint[]> encrypted_bytes(new jint[subsample_count]);
+
+  for (int i = 0; i < subsample_count; ++i) {
+    int32_t clear = drm_sample_info.subsample_mapping[i].clear_byte_count;
+    int32_t encrypted =
+        drm_sample_info.subsample_mapping[i].encrypted_byte_count;
+
+    // Apply offset to the first subsample
+    if (i == 0 && offset > 0) {
+      if (clear >= offset) {
+        clear -= offset;
+      } else {
+        // Logic to handle cases where offset > clear header (e.g. consume into
+        // encrypted)
+        int32_t remaining_offset = offset - clear;
+        clear = 0;
+        encrypted = std::max(0, encrypted - remaining_offset);
+      }
+    }
+    clear_bytes[i] = clear;
+    encrypted_bytes[i] = encrypted;
+  }
+
+  return {
+      base::android::ToJavaIntArray(
+          env, base::span<const jint>(clear_bytes.get(),
+                                      static_cast<size_t>(subsample_count))),
+      base::android::ToJavaIntArray(
+          env, base::span<const jint>(encrypted_bytes.get(),
+                                      static_cast<size_t>(subsample_count))),
+      subsample_count};
+}
+
+// See
+// https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
+constexpr jint COLOR_RANGE_FULL = 1;
+constexpr jint COLOR_RANGE_LIMITED = 2;
+// Not defined in MediaFormat. Represents unspecified color ID range.
+constexpr jint COLOR_RANGE_UNSPECIFIED = 0;
+
+constexpr jint COLOR_STANDARD_BT2020 = 6;
+constexpr jint COLOR_STANDARD_BT709 = 1;
+
+constexpr jint COLOR_TRANSFER_HLG = 7;
+constexpr jint COLOR_TRANSFER_SDR_VIDEO = 3;
+constexpr jint COLOR_TRANSFER_ST2084 = 6;
+
+// A special value to represent that no mapping between an SbMedia* HDR
+// metadata value and Android HDR metadata value is possible.  This value
+// implies that HDR playback should not be attempted.
+constexpr jint COLOR_VALUE_UNKNOWN = -1;
 
 inline bool IsWidevineL1(const char* key_system) {
   return strcmp(key_system, "com.widevine") == 0 ||
@@ -102,6 +170,57 @@ inline int GetAudioFormatSampleType(
   }
   SB_NOTREACHED();
   return 0u;
+}
+
+inline bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
+  auto is_identity = [](const SbMediaMasteringMetadata& metadata) {
+    static const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+    return memcmp(&metadata, &kEmptyMasteringMetadata,
+                  sizeof(SbMediaMasteringMetadata)) == 0;
+  };
+
+  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
+         color_metadata.transfer == kSbMediaTransferIdBt709 &&
+         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
+         color_metadata.range == kSbMediaRangeIdLimited &&
+         is_identity(color_metadata.mastering_metadata);
+}
+
+inline jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
+  switch (primary_id) {
+    case kSbMediaPrimaryIdBt709:
+      return COLOR_STANDARD_BT709;
+    case kSbMediaPrimaryIdBt2020:
+      return COLOR_STANDARD_BT2020;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+inline jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
+  switch (transfer_id) {
+    case kSbMediaTransferIdBt709:
+      return COLOR_TRANSFER_SDR_VIDEO;
+    case kSbMediaTransferIdSmpteSt2084:
+      return COLOR_TRANSFER_ST2084;
+    case kSbMediaTransferIdAribStdB67:
+      return COLOR_TRANSFER_HLG;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+inline jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
+  switch (range_id) {
+    case kSbMediaRangeIdLimited:
+      return COLOR_RANGE_LIMITED;
+    case kSbMediaRangeIdFull:
+      return COLOR_RANGE_FULL;
+    case kSbMediaRangeIdUnspecified:
+      return COLOR_RANGE_UNSPECIFIED;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
 }
 
 }  // namespace starboard

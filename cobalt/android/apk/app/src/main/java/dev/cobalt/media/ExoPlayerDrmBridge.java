@@ -1,0 +1,220 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package dev.cobalt.media;
+
+import static dev.cobalt.media.Log.TAG;
+
+import android.content.Context;
+import android.os.Build;
+import android.util.Base64;
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
+import androidx.media3.exoplayer.drm.ExoMediaDrm;
+import androidx.media3.exoplayer.drm.ExoMediaDrm.KeyRequest;
+import androidx.media3.exoplayer.drm.ExoMediaDrm.ProvisionRequest;
+import androidx.media3.exoplayer.drm.MediaDrmCallback;
+import androidx.media3.exoplayer.drm.MediaDrmCallbackException;
+import androidx.media3.exoplayer.drm.UnsupportedDrmException;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.source.MediaSource;
+import dev.cobalt.util.Log;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+/**
+ * Manages DRM sessions for ExoPlayer and acts as a bridge between ExoPlayer's MediaDrmCallback
+ * and the native SbDrmSystem.
+ *
+ * <p>This class implements {@link MediaDrmCallback} to handle key and provisioning requests,
+ * forwarding them to the native Starboard implementation. It also owns and manages the lifecycle
+ * of the {@link DefaultDrmSessionManager} used by ExoPlayer.
+ */
+@JNINamespace("starboard")
+public class ExoPlayerDrmBridge {
+    private final long mNativeDrmSystemExoplayer;
+    private final NativeMediaDrmCallback mMediaDrmCallback;
+    private final DefaultDrmSessionManager mDrmSessionManager;
+    private final MediaSource.Factory mMediaSourceFactory;
+    private ExoMediaDrmWrapper mMediaDrm;
+    private byte[] mSessionId;
+
+  private static final UUID WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+
+    private final class NativeMediaDrmCallback implements MediaDrmCallback {
+        private CompletableFuture<byte[]> mPendingProvisionRequestResponse;
+        private CompletableFuture<byte[]> mPendingKeyRequestResponse;
+
+        /**
+         * Executes a provisioning request.
+         *
+         * @param uuid The UUID of the content protection scheme.
+         * @param request The provisioning request.
+         * @return The response data.
+         * @throws MediaDrmCallbackException If an error occurs.
+         */
+        @Override
+        public byte[] executeProvisionRequest(UUID uuid, ProvisionRequest request)
+                throws MediaDrmCallbackException {
+            Log.i(TAG, "Called executeProvisionRequest()");
+
+            if (mMediaDrm != null) {
+              mSessionId = mMediaDrm.getSessionId();
+            }
+
+            mPendingProvisionRequestResponse = new CompletableFuture<>();
+            ExoPlayerDrmBridgeJni.get().executeProvisionRequest(
+                    mNativeDrmSystemExoplayer, request.getData(), mSessionId);
+
+            try {
+                return mPendingProvisionRequestResponse.get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        /**
+         * Executes a key request.
+         *
+         * @param uuid The UUID of the content protection scheme.
+         * @param request The key request.
+         * @return The response data.
+         * @throws MediaDrmCallbackException If an error occurs.
+         */
+        @Override
+        public byte[] executeKeyRequest(UUID uuid, KeyRequest request)
+                throws MediaDrmCallbackException {
+            Log.i(TAG, "Called executeKeyRequest()");
+
+          if (mMediaDrm != null) {
+            mSessionId = mMediaDrm.getSessionId();
+          }
+
+          if (mSessionId == null) {
+            Log.e(TAG, "Key request fired but mSessionId is still null!");
+          }
+
+            mPendingKeyRequestResponse = new CompletableFuture<>();
+            ExoPlayerDrmBridgeJni.get().executeKeyRequest(
+                    mNativeDrmSystemExoplayer, request.getRequestType(), request.getData(), mSessionId);
+
+            try {
+                return mPendingKeyRequestResponse.get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public void setProvisionRequestResponse(byte[] response) {
+            if (mPendingProvisionRequestResponse == null) {
+              Log.e(TAG, "Recieved NULL provision request response.");
+              return;
+            }
+          mPendingProvisionRequestResponse.complete(response);
+        }
+
+        public void setKeyRequestResponse(byte[] response) {
+          if (mPendingKeyRequestResponse == null) {
+            Log.e(TAG, "Recieved NULL key request response.");
+            return;
+          }
+          mPendingKeyRequestResponse.complete(response);
+        }
+    }
+
+    private class MediaDrmProvider implements ExoMediaDrm.Provider {
+        @Override
+        public ExoMediaDrm acquireExoMediaDrm(UUID uuid) {
+            try {
+                mMediaDrm = new ExoMediaDrmWrapper(uuid);
+                return mMediaDrm;
+            } catch (UnsupportedDrmException e) {
+                Log.e(TAG,
+                        String.format(
+                                "Could not create mediaDrm instance, error: %s", e));
+                throw new RuntimeException("Failed to instantiate MediaDrm", e);
+            }
+        }
+    }
+
+    public ExoPlayerDrmBridge(Context context, long nativeDrmSystem) {
+        mNativeDrmSystemExoplayer = nativeDrmSystem;
+        mMediaDrmCallback = new NativeMediaDrmCallback();
+        mDrmSessionManager =
+                new DefaultDrmSessionManager.Builder()
+                        .setUuidAndExoMediaDrmProvider(WIDEVINE_UUID, new MediaDrmProvider())
+                        .build(mMediaDrmCallback);
+        mMediaSourceFactory = new DefaultMediaSourceFactory(context).setDrmSessionManagerProvider(
+                mediaItem -> mDrmSessionManager);
+    }
+
+    public MediaSource.Factory getMediaSourceFactory() {
+        return mMediaSourceFactory;
+    }
+
+    @CalledByNative
+    public DefaultDrmSessionManager getDrmSessionManager() {
+        return mDrmSessionManager;
+    }
+
+    @CalledByNative
+    public void release() {
+        if (mDrmSessionManager != null) {
+          mDrmSessionManager.release();
+        }
+    }
+
+    @CalledByNative
+    byte[] getMetricsInBase64() {
+        if (Build.VERSION.SDK_INT < 28) {
+            return null;
+        }
+        byte[] metrics;
+        try {
+            metrics = mMediaDrm.getPropertyByteArray("metrics");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to retrieve DRM Metrics.");
+            return null;
+        }
+        return Base64.encode(metrics, Base64.NO_PADDING | Base64.NO_WRAP | Base64.URL_SAFE);
+    }
+
+    /**
+     * Passes a provision request response to the drm callback.
+     * @param response Response data.
+     */
+    @CalledByNative
+    void setProvisionRequestResponse(byte[] response) {
+        mMediaDrmCallback.setProvisionRequestResponse(response);
+    }
+
+    /**
+     * Passes a key request response to the drm callback.
+     * @param response Response data.
+     */
+    @CalledByNative
+    void setKeyRequestResponse(byte[] response) {
+        mMediaDrmCallback.setKeyRequestResponse(response);
+    }
+
+    @NativeMethods
+    interface Natives {
+        void executeProvisionRequest(long nativeDrmSystemExoPlayer, byte[] data, byte[] sessionId);
+
+        void executeKeyRequest(long nativeDrmSystemExoPlayer, int requestType, byte[] data, byte[] sessionId);
+    }
+}
