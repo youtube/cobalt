@@ -220,14 +220,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       mime_type_ = kMimeTypeVideoWebM;
     }
 
-    bool is_cacheable_type =
+    const bool supports_splash_caching =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
         browser_context_;
 
     // Specify the built-in video/png if the cache is unavailable.
     std::string fallback;
     if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
-        is_cacheable_type) {
+        supports_splash_caching) {
       LOG(INFO) << "Fallback splash: " << fallback;
       resource_key = std::move(fallback);
     }
@@ -241,7 +241,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     // Only attempt to read files defined in the resource map from cache.
-    if (is_cacheable_type && ExistsInResourceMap(key)) {
+    if (supports_splash_caching && ExistsInResourceMap(key)) {
       ReadSplashCache(key);
       return;
     }
