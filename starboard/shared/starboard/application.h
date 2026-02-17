@@ -157,8 +157,10 @@ class Application {
     int error_level;
   };
 
+  bool m_blocking = true;
 #if SB_API_VERSION >= 15
-  explicit Application(SbEventHandleCallback sb_event_handle_callback);
+  explicit Application(SbEventHandleCallback sb_event_handle_callback,
+                       bool blocking = true);
 #else
   Application();
 #endif  // SB_API_VERSION >= 15
@@ -300,6 +302,10 @@ class Application {
     ScopedLock lock(callbacks_lock_);
     teardown_callbacks_.push_back(callback);
   }
+
+  int RunLoop_Part0();
+  bool RunLoop_Part1();
+  int RunLoop_Part2();
 
  protected:
   // Initializes any systems that need initialization before application

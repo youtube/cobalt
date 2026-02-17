@@ -39,7 +39,8 @@ namespace x11 {
 class ApplicationX11 : public shared::starboard::QueueApplication {
  public:
 #if SB_API_VERSION >= 15
-  explicit ApplicationX11(SbEventHandleCallback sb_event_handle_callback);
+  explicit ApplicationX11(SbEventHandleCallback sb_event_handle_callback,
+                          bool blocking = true); // Leave blocking by default
 #else
   ApplicationX11();
 #endif  // SB_API_VERSION >= 15
