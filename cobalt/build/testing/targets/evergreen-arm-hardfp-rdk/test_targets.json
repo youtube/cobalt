@@ -1,9 +1,19 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "test_targets": [
-    "starboard/nplb:nplb_loader"
+    "crypto:crypto_unittests_loader",
+    "skia:skia_unittests_loader",
+    "starboard/nplb:nplb_loader",
+    "third_party/abseil-cpp:absl_hardening_tests_loader",
+    "ui/events:events_unittests_loader",
+    "ui/ozone:ozone_unittests_loader"
   ],
   "executables": [
-    "out/evergreen-arm-hardfp-rdk_devel/nplb_loader.py"
+    "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/skia_unittests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/nplb_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/absl_hardening_tests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/events_unittests_loader.py",
+    "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py"
   ]
 }
