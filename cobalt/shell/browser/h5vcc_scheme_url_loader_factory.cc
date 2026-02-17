@@ -219,8 +219,10 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeVideoWebM;
     }
+
     bool is_cacheable_type =
-        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
+        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
+        browser_context_;
 
     // Specify the built-in video/png if the cache is unavailable.
     std::string fallback;
@@ -230,7 +232,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       resource_key = std::move(fallback);
     }
 
-    if (resource_map.find(resource_key) != resource_map.end()) {
+    if (ExistsInResourceMap(resource_key)) {
       FileContents file_contents = resource_map[resource_key];
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
@@ -238,8 +240,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LOG(WARNING) << "Resource not found: " << resource_key;
     }
 
-    if (is_cacheable_type && browser_context_ &&
-        resource_map.find(key) != resource_map.end()) {
+    // Only attempt to read files defined in the resource map from cache.
+    if (is_cacheable_type && ExistsInResourceMap(key)) {
       ReadSplashCache(key);
       return;
     }
@@ -356,6 +358,10 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     LOG(ERROR) << message;
     DisconnectCacheStorage();
     SendResponse();
+  }
+
+  bool ExistsInResourceMap(const std::string& key) {
+    return resource_map.find(key) != resource_map.end();
   }
 
   void SendResponse(int http_status = net::HTTP_OK) {
