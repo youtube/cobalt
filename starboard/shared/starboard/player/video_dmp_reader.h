@@ -138,6 +138,8 @@ class VideoDmpReader {
     size_t audio_access_units_size = 0;
     int64_t audio_bitrate = 0;
     int audio_duration = 0;
+    std::optional<uint8_t> iamf_primary_profile;
+    std::optional<uint8_t> iamf_additional_profile;
 
     SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
     size_t video_access_units_size = 0;
@@ -159,6 +161,7 @@ class VideoDmpReader {
   VideoDmpReader(const VideoDmpReader&) = delete;
   VideoDmpReader& operator=(const VideoDmpReader&) = delete;
 
+  void ParseIamfConfigOBU();
   void ParseHeader(uint32_t* dmp_writer_version);
   bool ParseOneRecord();
   void Parse();
