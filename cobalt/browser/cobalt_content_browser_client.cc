@@ -76,6 +76,9 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
+#else  // BUILDFLAG(IS_ANDROID)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace cobalt {
@@ -95,6 +98,11 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+// This value is expected by offline data processing and should not be changed.
+constexpr const char kUserAgentAnnotationKey[] = "user_agent_string";
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 void BindPlatformWindowProviderService(
     uint64_t window_handle,
@@ -592,5 +600,30 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();
 }
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+// TODO: b/411198914 - Consider making this implementation platform-agnostic by
+// using the mojom::CrashAnnotator interface.
+void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
+  std::string user_agent_string = GetUserAgent();
+  if (user_agent_string.empty()) {
+    LOG(ERROR) << "Not setting the user agent annotation because the string is "
+               << "empty";
+    return;
+  }
+
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2) {
+    crash_handler_extension->SetString(kUserAgentAnnotationKey,
+                                       user_agent_string.c_str());
+  } else {
+    LOG(ERROR) << "The plaform does not implement (the required version of) "
+               << "the CrashHandler Starboard extension; not setting the user "
+               << "agent annotation";
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt
