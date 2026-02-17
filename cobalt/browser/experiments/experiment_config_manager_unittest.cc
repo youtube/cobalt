@@ -400,8 +400,6 @@ TEST_F(ExperimentConfigManagerTest,
             ExperimentConfigType::kRegularConfig);
 }
 
-<<<<<<< HEAD
-=======
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyOnRegularConfigRollback) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
@@ -633,5 +631,4 @@ TEST_F(ExperimentConfigManagerTest,
             ExperimentConfigType::kEmptyConfig);
 }
 
->>>>>>> 80600053f7 (Make safe config threshold server side configurable. (#8362))
 }  // namespace cobalt
