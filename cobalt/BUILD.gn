@@ -263,6 +263,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/media/media_memory_dump_provider_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
   ]
 
@@ -292,6 +293,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
+    "//cobalt/media:media",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/metrics:test_support",

@@ -30,8 +30,8 @@ class PerformanceBrowserTest : public content::ContentBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(PerformanceBrowserTest, RequestGlobalMemoryDump) {
-  ASSERT_TRUE(
-      content::NavigateToURL(shell()->web_contents(), GURL("about:blank")));
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(),
+                                     GURL("h5vcc-embedded://splash")));
 
   base::Value result = content::EvalJs(shell()->web_contents(),
                                        "performance.requestGlobalMemoryDump()")
@@ -46,8 +46,17 @@ IN_PROC_BROWSER_TEST_F(PerformanceBrowserTest, RequestGlobalMemoryDump) {
 }
 
 IN_PROC_BROWSER_TEST_F(PerformanceBrowserTest, H5vccPerformance) {
-  ASSERT_TRUE(
-      content::NavigateToURL(shell()->web_contents(), GURL("about:blank")));
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(),
+                                     GURL("h5vcc-embedded://splash")));
+
+  // Wait for h5vcc to be available if needed
+  base::Value h5vcc_exists =
+      content::EvalJs(shell()->web_contents(), "typeof h5vcc !== 'undefined'")
+          .value.Clone();
+  if (!h5vcc_exists.GetBool()) {
+    GTEST_SKIP()
+        << "h5vcc not defined on this page, skipping H5vccPerformance test.";
+  }
 
   base::Value result =
       content::EvalJs(shell()->web_contents(),

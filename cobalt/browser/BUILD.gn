@@ -15,10 +15,44 @@
 import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
-source_set("browser") {
+source_set("interface_binders") {
   sources = [
     "cobalt_browser_interface_binders.cc",
     "cobalt_browser_interface_binders.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/browser/crash_annotator/public/mojom",
+    "//cobalt/browser/h5vcc_accessibility",
+    "//cobalt/browser/h5vcc_accessibility/public/mojom",
+    "//cobalt/browser/h5vcc_experiments",
+    "//cobalt/browser/h5vcc_experiments/public/mojom",
+    "//cobalt/browser/h5vcc_metrics",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_platform_service",
+    "//cobalt/browser/h5vcc_platform_service/public/mojom",
+    "//cobalt/browser/h5vcc_runtime",
+    "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//cobalt/browser/h5vcc_storage",
+    "//cobalt/browser/h5vcc_storage/public/mojom",
+    "//cobalt/browser/h5vcc_system",
+    "//cobalt/browser/h5vcc_system/public/mojom",
+    "//cobalt/browser/performance",
+    "//cobalt/browser/performance/public/mojom",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+
+  if (is_androidtv) {
+    deps += [ "//services/service_manager/public/cpp" ]
+  } else {
+    deps += [ "//cobalt/browser/crash_annotator" ]
+  }
+}
+
+source_set("browser") {
+  sources = [
     "cobalt_browser_main_parts.cc",
     "cobalt_browser_main_parts.h",
     "cobalt_content_browser_client.cc",
@@ -45,24 +79,11 @@ source_set("browser") {
     ":command_line_logger",
     ":features",
     ":global_features",
+    ":interface_binders",
     ":metrics",
     "//cobalt/browser:switches",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
-    "//cobalt/browser/crash_annotator/public/mojom",
-    "//cobalt/browser/h5vcc_accessibility",
-    "//cobalt/browser/h5vcc_accessibility/public/mojom",
-    "//cobalt/browser/h5vcc_experiments",
-    "//cobalt/browser/h5vcc_experiments/public/mojom",
-    "//cobalt/browser/h5vcc_metrics/public/mojom",
-    "//cobalt/browser/h5vcc_platform_service",
-    "//cobalt/browser/h5vcc_platform_service/public/mojom",
-    "//cobalt/browser/h5vcc_runtime",
-    "//cobalt/browser/h5vcc_runtime/public/mojom",
-    "//cobalt/browser/h5vcc_storage",
-    "//cobalt/browser/h5vcc_storage/public/mojom",
-    "//cobalt/browser/h5vcc_system",
-    "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
@@ -86,8 +107,6 @@ source_set("browser") {
       "//cobalt/android:jni_headers",
       "//components/variations:variations_associated_data",
     ]
-  } else {
-    deps += [ "//cobalt/browser/crash_annotator" ]
   }
 
   if (is_starboard) {

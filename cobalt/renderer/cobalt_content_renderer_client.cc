@@ -162,7 +162,7 @@ void CobaltContentRendererClient::RenderThreadStarted() {
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 
   // Ensure RasterizerMemoryDumpProvider is initialized and registered.
-  RasterizerMemoryDumpProvider::GetInstance();
+  renderer::RasterizerMemoryDumpProvider::GetInstance();
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {

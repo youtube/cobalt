@@ -14,6 +14,8 @@
 
 #include "cobalt/media/media_memory_dump_provider.h"
 
+#include <mutex>
+
 #include "base/no_destructor.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/process_memory_dump.h"
@@ -23,12 +25,11 @@ namespace media {
 
 MediaMemoryDumpProvider* MediaMemoryDumpProvider::GetInstance() {
   static base::NoDestructor<MediaMemoryDumpProvider> instance;
-  static bool registered = false;
-  if (!registered) {
+  static std::once_flag registration_flag;
+  std::call_once(registration_flag, []() {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
-        instance.get(), "CobaltMedia", nullptr);
-    registered = true;
-  }
+        MediaMemoryDumpProvider::GetInstance(), "CobaltMedia", nullptr);
+  });
   return instance.get();
 }
 

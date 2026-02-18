@@ -50,7 +50,10 @@ source_set("renderer") {
 
 test("cobalt_renderer_unittests") {
   testonly = true
-  sources = [ "cobalt_render_frame_observer_unittest.cc" ]
+  sources = [
+    "cobalt_render_frame_observer_unittest.cc",
+    "rasterizer_memory_dump_provider_unittest.cc",
+  ]
   deps = [
     ":renderer",
     "//base/test:run_all_unittests",

@@ -39,6 +39,7 @@
 #include "base/threading/sequence_local_storage_slot.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
@@ -465,6 +466,7 @@ ShellContentBrowserClient::RunSecondaryMediaService() {
 void ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<RenderFrameHost*>* map) {
+  cobalt::PopulateCobaltFrameBinders(render_frame_host, map);
   PerformanceManagerRegistry::GetInstance()
       ->GetBinders()
       .ExposeInterfacesToRenderFrame(map);

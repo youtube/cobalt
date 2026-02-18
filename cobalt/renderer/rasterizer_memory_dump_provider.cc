@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/rasterizer_memory_dump_provider.h"
 
+#include <mutex>
+
 #include "base/no_destructor.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/trace_event/memory_dump_manager.h"
@@ -25,12 +27,11 @@ namespace renderer {
 
 RasterizerMemoryDumpProvider* RasterizerMemoryDumpProvider::GetInstance() {
   static base::NoDestructor<RasterizerMemoryDumpProvider> instance;
-  static bool registered = false;
-  if (!registered) {
+  static std::once_flag registration_flag;
+  std::call_once(registration_flag, []() {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
-        instance.get(), "Rasterizer", nullptr);
-    registered = true;
-  }
+        RasterizerMemoryDumpProvider::GetInstance(), "Rasterizer", nullptr);
+  });
   return instance.get();
 }
 
@@ -40,13 +41,10 @@ RasterizerMemoryDumpProvider::~RasterizerMemoryDumpProvider() = default;
 bool RasterizerMemoryDumpProvider::OnMemoryDump(
     const base::trace_event::MemoryDumpArgs& args,
     base::trace_event::ProcessMemoryDump* pmd) {
+  // Use the cached resource cache size. We don't query gr_context_ directly
+  // here because OnMemoryDump can be called from a background thread and
+  // GrDirectContext is not thread-safe.
   size_t cache_size = resource_cache_size_.load();
-  if (gr_context_) {
-    int resource_count;
-    size_t resource_bytes;
-    gr_context_->getResourceCacheUsage(&resource_count, &resource_bytes);
-    cache_size = resource_bytes;
-  }
 
   auto* dump =
       pmd->CreateAllocatorDump("cobalt/renderer/rasterizer/resource_cache");

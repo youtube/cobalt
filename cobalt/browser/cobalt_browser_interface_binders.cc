@@ -15,7 +15,6 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
-#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
@@ -31,8 +30,6 @@
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
-#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
-#include "cobalt/media/service/platform_window_provider_service.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"
@@ -48,18 +45,6 @@ namespace cobalt {
 
 namespace {
 
-void BindPlatformWindowProvider(
-    content::RenderFrameHost* rfh,
-    mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver) {
-#if BUILDFLAG(IS_STARBOARD)
-  if (auto* client = CobaltContentBrowserClient::Get()) {
-    client->AddPendingWindowReceiver(std::move(receiver));
-  }
-#endif
-}
-
-}  // namespace
-
 #if BUILDFLAG(IS_ANDROIDTV)
 template <typename Interface>
 void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
@@ -67,6 +52,8 @@ void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
   render_frame_host->GetJavaInterfaces()->GetInterface(std::move(receiver));
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+}  // namespace
 
 void PopulateCobaltFrameBinders(
     content::RenderFrameHost* render_frame_host,
@@ -94,8 +81,6 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&performance::PerformanceImpl::Create));
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
-  binder_map->Add<media::mojom::PlatformWindowProvider>(
-      base::BindRepeating(&BindPlatformWindowProvider));
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
       base::BindRepeating(&h5vcc_platform_service::
                               H5vccPlatformServiceManagerImpl::GetOrCreate));

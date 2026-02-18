@@ -34,32 +34,29 @@ int64_t GetDmaBufUsage() {
     return 0;
   }
 
-  const int kBufferSize = 32 * 1024;
-  std::vector<char> buffer(kBufferSize);
-  int bytes_read = file.ReadAll(buffer.data(), kBufferSize - 1);
-  if (bytes_read <= 0) {
+  std::string content;
+  const int kChunkSize = 16 * 1024;
+  std::vector<char> buffer(kChunkSize);
+  int bytes_read;
+  while ((bytes_read = file.Read(buffer.data(), kChunkSize)) > 0) {
+    content.append(buffer.data(), bytes_read);
+  }
+
+  if (content.empty()) {
     return 0;
   }
-  buffer[bytes_read] = '\0';
 
   int64_t total_size = 0;
-  char* line = buffer.data();
-  char* next_line = nullptr;
   pid_t my_pid = getpid();
   char pid_str[32];
   snprintf(pid_str, sizeof(pid_str), "pid: %d", my_pid);
 
+  std::vector<std::string> lines = starboard::SplitString(content, '\n');
   int64_t current_buf_size = 0;
-  while (line && *line) {
-    next_line = strchr(line, '
-');
-    if (next_line) {
-      *next_line = '\0';
-      next_line++;
-    }
 
+  for (const std::string& line : lines) {
     // Look for "size: <number>"
-    const char* size_ptr = strstr(line, "size: ");
+    const char* size_ptr = strstr(line.c_str(), "size: ");
     if (size_ptr) {
       current_buf_size = 0;
       size_ptr += 6;
@@ -71,16 +68,12 @@ int64_t GetDmaBufUsage() {
 
     // If we find our PID in the "Attached Processes" section (which follows the
     // size line), we add the current_buf_size to total.
-    // Note: This is a simplistic parser and might need refinement for different
-    // kernel versions.
-    if (strstr(line, pid_str)) {
+    if (strstr(line.c_str(), pid_str)) {
       total_size += current_buf_size;
       // Reset current_buf_size so we don't count it multiple times if multiple
       // threads/PIDs are listed (though we only care about our PID).
       current_buf_size = 0;
     }
-
-    line = next_line;
   }
 
   return total_size;

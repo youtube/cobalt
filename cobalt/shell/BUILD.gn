@@ -64,6 +64,7 @@ group("cobalt_shell_lib_deps") {
     "//base",
     "//base:base_static",
     "//cc/base",
+    "//cobalt/browser:interface_binders",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",

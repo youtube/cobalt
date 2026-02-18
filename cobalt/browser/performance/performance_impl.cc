@@ -73,7 +73,8 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   NOTIMPLEMENTED();
   int64_t startup_duration = 0;
 #else
-#error Unsupported platform.
+  NOTIMPLEMENTED();
+  int64_t startup_duration = 0;
 #endif
   std::move(callback).Run(startup_duration);
 }

@@ -37,7 +37,7 @@ component("memory_instrumentation") {
 
   defines = [ "IS_RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION_IMPL" ]
 
-  deps = []
+  deps = [ "//starboard:starboard_headers_only" ]
   if (is_win) {
     deps += [ "//base/win:pe_image" ]
   }

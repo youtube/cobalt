@@ -77,12 +77,17 @@ ScriptPromise<IDLString> PerformanceExtensions::requestGlobalMemoryDump(
       MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(script_state);
   auto promise = resolver->Promise();
 
-  auto remote = BindRemotePerformance(script_state);
-  auto* remote_ptr = remote.get();
+  mojo::Remote<performance::mojom::CobaltPerformance> remote =
+      BindRemotePerformance(script_state);
+  performance::mojom::CobaltPerformance* remote_ptr = remote.get();
   remote_ptr->RequestGlobalMemoryDump(base::BindOnce(
       [](mojo::Remote<performance::mojom::CobaltPerformance> /*remote*/,
          ScriptPromiseResolver<IDLString>* resolver, bool success,
          const std::string& json_dump) {
+        if (!resolver->GetExecutionContext() ||
+            resolver->GetExecutionContext()->IsContextDestroyed()) {
+          return;
+        }
         if (success) {
           resolver->Resolve(String::FromUTF8(json_dump));
         } else {

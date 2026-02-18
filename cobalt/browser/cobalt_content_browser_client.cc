@@ -40,6 +40,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
@@ -103,6 +104,16 @@ void BindPlatformWindowProviderService(
           base::BindRepeating([](uint64_t handle) { return handle; },
                               window_handle)),
       std::move(receiver));
+}
+
+void BindPlatformWindowProvider(
+    content::RenderFrameHost* rfh,
+    mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver) {
+#if BUILDFLAG(IS_STARBOARD)
+  if (auto* client = CobaltContentBrowserClient::Get()) {
+    client->AddPendingWindowReceiver(std::move(receiver));
+  }
+#endif
 }
 
 }  // namespace
@@ -360,6 +371,8 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PopulateCobaltFrameBinders(render_frame_host, map);
+  map->Add<media::mojom::PlatformWindowProvider>(
+      base::BindRepeating(&BindPlatformWindowProvider));
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
