@@ -196,8 +196,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         browser_context_(browser_context),
         splash_domain_(splash_domain),
         splash_content_size_limit_(splash_content_size_limit),
-        mime_type_(kMimeTypeApplicationOctetStream),
-        resource_map_(resource_map) {
+        mime_type_(kMimeTypeApplicationOctetStream) {
     client_.set_disconnect_handler(
         base::BindOnce(&H5vccSchemeURLLoader::OnClientDisconnected,
                        weak_factory_.GetWeakPtr()));
@@ -228,8 +227,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       resource_key = std::move(fallback);
     }
 
-    if (base::Contains(resource_map_, resource_key)) {
-      FileContents file_contents = resource_map_.at(resource_key);
+    if (base::Contains(resource_map, resource_key)) {
+      FileContents file_contents = resource_map.at(resource_key);
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
     } else {
@@ -237,7 +236,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     // Only attempt to read files defined in the resource map from cache.
-    if (supports_splash_caching && base::Contains(resource_map_, key)) {
+    if (supports_splash_caching && base::Contains(resource_map, key)) {
       ReadSplashCache(key);
       return;
     }
@@ -429,7 +428,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
   std::string content_;
   std::unique_ptr<BlobReader> blob_reader_;
-  const GeneratedResourceMap resource_map_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
