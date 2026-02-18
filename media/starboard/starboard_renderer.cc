@@ -124,11 +124,7 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-    bool enable_flush_during_seek,
-    bool enable_reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -144,11 +140,7 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      enable_flush_during_seek_(enable_flush_during_seek),
-      enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      experimental_features_(experimental_features),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -163,12 +155,7 @@ StarboardRenderer::StarboardRenderer(
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
             << base::GetQuotedJSONString(max_video_capabilities_)
-            << ", initial_max_frames_in_decoder="
-            << initial_max_frames_in_decoder_.value_or(-1)
-            << ", max_pending_input_frames="
-            << max_pending_input_frames_.value_or(-1)
-            << ", video_decoder_poll_interval_ms="
-            << video_decoder_poll_interval_ms_.value_or(-1);
+            << ", experimental_features=" << experimental_features_;
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -624,9 +611,11 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
-        initial_max_frames_in_decoder_, max_pending_input_frames_,
-        video_decoder_poll_interval_ms_
+        -1, experimental_features_.enable_flush_during_seek,
+        experimental_features_.enable_reset_audio_decoder,
+        experimental_features_.initial_max_frames_in_decoder,
+        experimental_features_.max_pending_input_frames,
+        experimental_features_.video_decoder_poll_interval_ms
 #if BUILDFLAG(IS_ANDROID)
         ,
         // TODO: b/475294958 - Revisit platform-specific codes above starboard.

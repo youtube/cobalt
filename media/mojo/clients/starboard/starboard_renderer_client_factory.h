@@ -73,11 +73,7 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
-  const bool enable_flush_during_seek_;
-  const bool enable_reset_audio_decoder_;
-  const std::optional<int> initial_max_frames_in_decoder_;
-  const std::optional<int> max_pending_input_frames_;
-  const std::optional<int> video_decoder_poll_interval_ms_;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   const gfx::Size viewport_size_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
 };
