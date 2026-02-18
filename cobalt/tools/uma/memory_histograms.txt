@@ -178,6 +178,7 @@ Memory.Experimental.Browser2.Skia
 Memory.Experimental.Browser2.Skia.PurgeableSize
 Memory.Experimental.Browser2.Skia.SkGlyphCache
 Memory.Experimental.Browser2.Skia.SkResourceCache
+Memory.Experimental.Browser2.FontCaches
 Memory.Experimental.Browser2.Sync
 Memory.Experimental.Browser2.V8
 Memory.Experimental.Browser2.V8.AllocatedObjects
@@ -520,6 +521,7 @@ Memory.Experimental.Gpu2.Skia
 Memory.Experimental.Gpu2.Skia.PurgeableSize
 Memory.Experimental.Gpu2.Skia.SkGlyphCache
 Memory.Experimental.Gpu2.Skia.SkResourceCache
+Memory.Experimental.Gpu2.FontCaches
 Memory.Experimental.Gpu2.Sync
 Memory.Experimental.Gpu2.V8
 Memory.Experimental.Gpu2.V8.AllocatedObjects
@@ -824,6 +826,7 @@ Memory.Experimental.Renderer2.Skia
 Memory.Experimental.Renderer2.Skia.PurgeableSize
 Memory.Experimental.Renderer2.Skia.SkGlyphCache
 Memory.Experimental.Renderer2.Skia.SkResourceCache
+Memory.Experimental.Renderer2.FontCaches
 Memory.Experimental.Renderer2.Sync
 Memory.Experimental.Renderer2.V8
 Memory.Experimental.Renderer2.V8.AllocatedObjects
