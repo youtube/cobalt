@@ -139,6 +139,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
           receiver);
   uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
 
+#if !BUILDFLAG(IS_ANDROIDTV)
+  void SetUserAgentCrashAnnotation();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
  private:
   void CreateVideoGeometrySetterService();
   void OnSbWindowCreated(SbWindow window);
