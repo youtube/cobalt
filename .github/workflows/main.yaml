@@ -886,7 +886,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.browsertest.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
+        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.browsertest.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || '[]') }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
