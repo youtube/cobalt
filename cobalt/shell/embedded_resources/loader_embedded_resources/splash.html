@@ -9,6 +9,16 @@
         height: 100%;
         width: 100%;
       }
+      .placeholder {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-size: cover;
+        background-position: center;
+        opacity: 0;
+      }
     </style>
   </head>
   <body>
@@ -31,10 +41,14 @@
           return;
         }
 
-        videoEl.addEventListener('ended', () => {
-          maybeDestroyVideoInstance();
+        const onSplashEnd = () => {
           onAnimationEnd && onAnimationEnd();
           window.close();
+        }
+
+        videoEl.addEventListener('ended', () => {
+          maybeDestroyVideoInstance();
+          onSplashEnd();
         });
 
         const showPlaceholderImage = () => {
@@ -43,14 +57,46 @@
             placeholderEl.style.opacity = '100%';
           }
         };
-        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage);
+        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage, /*afterImageLoad=*/ onSplashEnd);
       }
 
       /**
-       * Plays the splash animation video in the given video element.
-       * @param afterVideoStart Callback function when the video starts playing.
+       * Displays static splash screen for devices that don't support VP9
+       * @param urlParams URL parameters containing cache configuration
        */
-      function playSplashAnimation(afterVideoStart) {
+      function handleStaticImageFallback(urlParams, afterImageLoad) {
+        const placeholderEl = getPlaceholderEl();
+        if (!placeholderEl) {
+          return;
+        }
+
+        fetch('h5vcc-embedded://splash.png?' + urlParams.toString())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.blob();
+        })
+        .then(imageBlob => {
+          const imageUrl = URL.createObjectURL(imageBlob);
+          placeholderEl.style.backgroundImage = `url(${imageUrl})`;
+          placeholderEl.style.opacity = '100%';
+          // set timeout to align with timeout for splash video
+          setTimeout(() => {
+              afterImageLoad && afterImageLoad();
+            }, 1000);
+        })
+        .catch(error => {
+          console.error('Failed to fetch splash image:', error);
+        });
+        return;
+      }
+
+      /**
+       * Plays the splash video based on resolution the device support
+       * @param urlParams URL parameters containing cache and fallback configuration
+       */
+      function handleVideo(urlParams, afterVideoStart) {
         const videoEl = getVideoEl();
         if (!videoEl) {
           return;
@@ -58,20 +104,12 @@
         const mediaSource = new MediaSource();
         mediaSource.addEventListener('sourceopen', async () => {
           const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
-          const params = new URLSearchParams(window.location.search);
-          if (!params.has('cache')) {
-            params.append('cache', 'default');
-          }
-          // The default splash video is splash.webm. If it does not exist in
-          // the given cache, "fallback" parameter specifies which built-in video
-          // to use.
-          // TODO(458074360): fallback to static image if the device does not support VP9.
           if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) {
-            params.append('fallback', 'splash_480.webm');
+            urlParams.append('fallback', 'splash_480.webm');
           }
           try {
             const response = await fetch(
-                'h5vcc-embedded://splash.webm?' + params.toString());
+                'h5vcc-embedded://splash.webm?' + urlParams.toString());
             if (!response.ok) {
               throw new Error('Network response was not ok');
             }
@@ -88,8 +126,28 @@
             console.error('Failed to fetch splash video:', error);
           }
         }, {once: true});
-
         videoEl.src = objectUrlFromSafeSource(mediaSource).toString();
+      }
+
+      /**
+       * Plays the splash animation depending on device type.
+       * @param afterVideoStart Callback function when the video starts playing.
+       * @param afterImageLoad Callback function for static image.
+       */
+      function playSplashAnimation(afterVideoStart, afterImageLoad) {
+        const params = new URLSearchParams(window.location.search);
+        // The default splash video is splash.webm. If it does not exist in
+        // the given cache, "fallback" parameter specifies which built-in video
+        // to use.
+        if (!params.has('cache')) {
+          params.append('cache', 'default');
+        }
+
+        if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
+          return handleStaticImageFallback(params, afterImageLoad);
+        }
+
+        return handleVideo(params, afterVideoStart);
       }
 
       animate(() => console.log('splash animation completed!'));
