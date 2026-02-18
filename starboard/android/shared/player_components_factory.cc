@@ -196,6 +196,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.flush_decoder_during_reset();
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
+        !creation_parameters.video_mime().empty()) {
+      MimeType video_mime_type(creation_parameters.video_mime());
+      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+        enable_flush_during_seek =
+            enable_flush_during_seek ||
+            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+      }
+    }
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -264,8 +273,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MimeType video_mime_type(video_mime);
     if (!video_mime.empty()) {
       if (!video_mime_type.is_valid() ||
+<<<<<<< HEAD
           !video_mime_type.ValidateBoolParameter("tunnelmode")) {
         return Failure("Invalid video MIME: '" + std::string(video_mime) + "'");
+=======
+          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
+          !video_mime_type.ValidateBoolParameter("enableflushduringseek") ||
+          !video_mime_type.ValidateBoolParameter("enableresetaudiodecoder")) {
+        *error_message =
+            "Invalid video MIME: '" + std::string(video_mime) + "'";
+        return false;
+>>>>>>> 81243fde6f (android: Add MIME attributes for player flush and reset (#9124))
       }
     }
 
@@ -317,18 +335,40 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
+<<<<<<< HEAD
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         creation_parameters.reset_audio_decoder();
+=======
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceResetAudioDecoder) ||
+        creation_parameters.reset_audio_decoder() ||
+        video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
+>>>>>>> 81243fde6f (android: Add MIME attributes for player flush and reset (#9124))
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
-        << "`kForceResetAudioDecoder` is set to true, force resetting"
-        << " audio decoder during Reset().";
+        << "`enable_reset_audio_decoder` is set to true, force resetting"
+        << " audio decoder during Reset(). Video mime parameter "
+        << "\"enableresetaudiodecoder\" value: "
+        << video_mime_type.GetParamStringValue("enableresetaudiodecoder",
+                                               "<not provided>")
+        << ".";
 
     bool enable_flush_during_seek =
+<<<<<<< HEAD
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.flush_decoder_during_reset();
+=======
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset() ||
+        video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+>>>>>>> 81243fde6f (android: Add MIME attributes for player flush and reset (#9124))
     SB_LOG_IF(INFO, enable_flush_during_seek)
-        << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
-        << " audio decoder during Reset().";
+        << "`enable_flush_during_seek` is set to true, force flushing"
+        << " audio decoder during Reset(). Video mime parameter "
+        << "\"enableflushduringseek\" value: "
+        << video_mime_type.GetParamStringValue("enableflushduringseek",
+                                               "<not provided>")
+        << ".";
 
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
@@ -492,6 +532,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
         force_reset_surface =
             video_mime_type.GetParamBoolValue("forceresetsurface", true);
+      }
+      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+        enable_flush_during_seek =
+            enable_flush_during_seek ||
+            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
       }
     }
 
