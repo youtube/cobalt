@@ -74,7 +74,7 @@ done
 
 # Helper to check JS state
 function check_js {
-  CDP_PORT=$PORT vpython3 cobalt/tools/cdp_js_helper.py "$1"
+  vpython3 cobalt/tools/cdp_js_helper.py --port $PORT "$1"
 }
 
 log "Verifying initial preloaded state..."
