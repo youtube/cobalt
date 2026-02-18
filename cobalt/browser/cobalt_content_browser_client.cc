@@ -21,17 +21,10 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-<<<<<<< HEAD
-#include "base/i18n/rtl.h"
-#include "base/metrics/field_trial_params.h"
-=======
-#include "base/functional/callback.h"
 #include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
->>>>>>> 203785b00a (Add test Finch features. (#8630))
 #include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
