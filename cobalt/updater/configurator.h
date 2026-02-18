@@ -65,7 +65,8 @@ namespace updater {
 class Configurator : public update_client::Configurator {
  public:
   explicit Configurator(
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      const std::string& user_agent);
 
   // Configurator for update_client::Configurator.
   base::TimeDelta InitialDelay() const override;

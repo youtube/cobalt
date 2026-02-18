@@ -69,7 +69,8 @@ namespace cobalt {
 namespace updater {
 
 Configurator::Configurator(
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent)
     : pref_service_(CreatePrefService()),
       persisted_data_(
           std::make_unique<update_client::PersistedData>(pref_service_.get(),
@@ -82,6 +83,7 @@ Configurator::Configurator(
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()),
       is_forced_update_(0),
+      user_agent_string_(user_agent),
       min_free_space_bytes_(48 * 1024 * 1024),  // 48MB
       allow_self_signed_packages_(false),
       require_network_encryption_(true) {
