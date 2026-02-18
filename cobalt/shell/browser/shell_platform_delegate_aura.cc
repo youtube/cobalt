@@ -58,10 +58,10 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 
   shell_data.initial_size_ = initial_size;
 
-  if (!IsVisible()) {
-    shell_data.window = nullptr;
-  } else {
+  if (IsVisible()) {
     CreatePlatformWindowInternal(shell, initial_size);
+  } else {
+    shell_data.window = nullptr;
   }
 }
 
