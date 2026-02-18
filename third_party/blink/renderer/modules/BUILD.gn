@@ -312,6 +312,10 @@ group("make_modules_generated") {
     "//ui/accessibility:ax_enums_mojo_blink_headers",
     "//ui/display/mojom:mojom_blink_headers",
   ]
+
+  if (is_cobalt) {
+    public_deps += [ "//cobalt/browser/h5vcc_platform_service/public/mojom:mojom_blink_headers" ]
+  }
 }
 
 # generate_event_interfaces ----------------------------------------------------
