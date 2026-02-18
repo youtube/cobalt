@@ -233,6 +233,7 @@ test("cobalt_browsertests") {
     "//components/discardable_memory/common",
     "//components/discardable_memory/service",
     "//components/favicon/content",
+    "//components/metrics_services_manager",
     "//components/network_session_configurator/common",
     "//components/payments/mojom",
     "//components/performance_manager",

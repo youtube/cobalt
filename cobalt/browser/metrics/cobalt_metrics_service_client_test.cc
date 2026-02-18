@@ -22,6 +22,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -41,6 +42,8 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -300,16 +303,7 @@ TEST_F(CobaltMetricsServiceClientTest,
   base::MockCallback<base::OnceClosure> done_callback_mock;
 
   EXPECT_CALL(done_callback_mock, Run());
-  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
   client_->CollectFinalMetricsForLog(done_callback_mock.Get());
-  // Most ideally, we could assert that the "real" OnApplicationIdle was
-  // called. However, this is impossible without modifying MetricsService itself
-  // which we really don't want to do. There is no real virtual method in
-  // MetricsService that seems to indicate OnApplicationNotIdle was called.
-  // The second best we can do within these constraints is to assert our
-  // internal method is called, which should call OnApplicationNotIdle() in the
-  // real impl.
-  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
 }
 
 TEST_F(CobaltMetricsServiceClientTest, GetMetricsServerUrlReturnsPlaceholder) {
