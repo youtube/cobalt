@@ -77,6 +77,22 @@ ScriptPromise ProcessDecoderBufferSettings(ScriptState* script_state,
     return promise;
   }
 
+  if (name == "DecoderBuffer.EnableInPlaceReuseAllocatorBase") {
+    bool enable = (value->GetAsLong() != 0);
+    if (enable) {
+      LOG(INFO) << "Enabling " << name << ".";
+      ::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase();
+      resolver->Resolve();
+      return promise;
+    }
+
+    LOG(WARNING) << name << " cannot be disabled.";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), name + " cannot be disabled."));
+
+    return promise;
+  }
+
   LOG(WARNING) << name << " isn't a supported setting.";
   // An unknown setting leads to TypeError.
   resolver->Reject(V8ThrowException::CreateTypeError(

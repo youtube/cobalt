@@ -112,6 +112,7 @@ class MEDIA_EXPORT DecoderBuffer
 
     virtual void SetAllocateOnDemand(bool enabled) = 0;
     virtual void EnableMediaBufferPoolStrategy() = 0;
+    virtual void EnableInPlaceReuseAllocatorBase() = 0;
 
    protected:
     ~Allocator() {}
@@ -119,6 +120,7 @@ class MEDIA_EXPORT DecoderBuffer
 
   static void EnableAllocateOnDemand(bool enabled);
   static void EnableMediaBufferPoolStrategy();
+  static void EnableInPlaceReuseAllocatorBase();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.
