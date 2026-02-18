@@ -185,6 +185,8 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDuration);
 MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal;
 MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote;
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableBatchedWrite);
+MEDIA_EXPORT extern const base::FeatureParam<int> kMaxSamplesPerWrite;
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltReportBufferingStateDuringFlush);
 #if BUILDFLAG(IS_ANDROID)
