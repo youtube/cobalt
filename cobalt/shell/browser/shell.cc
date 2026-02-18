@@ -358,9 +358,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const std::string& topic) {
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
-  if (!is_visible) {
-    create_params.initially_hidden = true;
-  }
+  create_params.initially_hidden = !is_visible;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
