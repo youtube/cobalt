@@ -77,7 +77,7 @@ it enters the application layer.
     the application is not yet visible.
 7.  **Revelation:** When `kSbEventTypeReveal` is received, `Shell::OnReveal()` is
     triggered. This calls `ShellPlatformDelegate::RevealShell`, which creates
-     the deferred window resources and calls `WasShown()` on the `WebContents`,
+    the deferred window resources and calls `WasShown()` on the `WebContents`,
     triggering the `visibilitychange` event for the web application.
 
 ### Unit Testing
