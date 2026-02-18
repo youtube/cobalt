@@ -10,6 +10,7 @@
   "num_gtest_shards": 10,
   "targets": [
     "cobalt:gn_all",
+    "cobalt/testing/browser_tests:cobalt_browsertests_runner",
     "chromedriver",
     "dump_syms",
     "minidump_stackwalk"

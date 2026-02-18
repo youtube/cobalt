@@ -109,7 +109,8 @@
     "device_pool": "maneki"
   },
   "targets": [
-    "cobalt:gn_all"
+    "cobalt:gn_all",
+    "cobalt/testing/browser_tests:cobalt_browsertests"
   ],
   "includes": [
     {
