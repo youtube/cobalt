@@ -126,10 +126,7 @@ StarboardRenderer::StarboardRenderer(
     const std::string& max_video_capabilities,
     bool enable_flush_during_seek,
     bool enable_reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
-    std::optional<int> max_samples_per_write,
+    const StarboardExperimentalFeatures& features,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -147,14 +144,14 @@ StarboardRenderer::StarboardRenderer(
       max_video_capabilities_(max_video_capabilities),
       enable_flush_during_seek_(enable_flush_during_seek),
       enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      initial_max_frames_in_decoder_(features.initial_max_frames_in_decoder),
+      max_pending_input_frames_(features.max_pending_input_frames),
+      video_decoder_poll_interval_ms_(features.video_decoder_poll_interval_ms),
       viewport_size_(viewport_size),
 #if BUILDFLAG(IS_ANDROID)
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb)),
 #endif  // BUILDFLAG(IS_ANDROID)
-      max_samples_per_write_(max_samples_per_write.value_or(
+      max_samples_per_write_(features.max_samples_per_write.value_or(
           base::FeatureList::IsEnabled(media::kCobaltEnableBatchedWrite)
               ? media::kMaxSamplesPerWrite.Get()
               : 1)) {

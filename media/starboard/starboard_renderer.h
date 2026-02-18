@@ -32,6 +32,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
@@ -60,10 +61,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const std::string& max_video_capabilities,
                     bool enable_flush_during_seek,
                     bool enable_reset_audio_decoder,
-                    std::optional<int> initial_max_frames_in_decoder,
-                    std::optional<int> max_pending_input_frames,
-                    std::optional<int> video_decoder_poll_interval_ms,
-                    std::optional<int> max_samples_per_write,
+                    const StarboardExperimentalFeatures& features,
                     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,

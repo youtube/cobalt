@@ -25,6 +25,13 @@
 
 namespace media {
 
+struct MEDIA_EXPORT StarboardExperimentalFeatures {
+  std::optional<int> initial_max_frames_in_decoder;
+  std::optional<int> max_pending_input_frames;
+  std::optional<int> video_decoder_poll_interval_ms;
+  std::optional<int> max_samples_per_write;
+};
+
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
   StarboardRendererConfig();
@@ -34,10 +41,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
                           const std::string& max_video_capabilities,
                           const bool enable_flush_during_seek,
                           const bool enable_reset_audio_decoder,
-                          std::optional<int> initial_max_frames_in_decoder,
-                          std::optional<int> max_pending_input_frames,
-                          std::optional<int> video_decoder_poll_interval_ms,
-                          std::optional<int> max_samples_per_write,
+                          const StarboardExperimentalFeatures& features,
                           const gfx::Size& viewport_size);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
@@ -48,10 +52,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   std::string max_video_capabilities;
   bool enable_flush_during_seek;
   bool enable_reset_audio_decoder;
-  std::optional<int> initial_max_frames_in_decoder;
-  std::optional<int> max_pending_input_frames;
-  std::optional<int> video_decoder_poll_interval_ms;
-  std::optional<int> max_samples_per_write;
+  StarboardExperimentalFeatures features;
   gfx::Size viewport_size;
 };
 
