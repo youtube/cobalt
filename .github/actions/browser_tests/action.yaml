@@ -1,0 +1,148 @@
+name: Browser Tests
+description: Runs browser tests on-device.
+inputs:
+  gcs_results_path:
+    description: "GCS path for the test results."
+    required: true
+  test_results_key:
+    description: "Artifact key used to store test results."
+    required: true
+  test_dimensions:
+    description: "Test dimensions JSON string."
+    required: true
+  test_device_family:
+    description: "Test device family."
+    required: true
+  test_attempts:
+    description: "Number of attempts for the tests."
+    default: ""
+  docker_tag:
+    description: "Docker image tag to be used by the test lab."
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Requirements
+      run: |
+        pip3 install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/cobalt/tools/requirements.txt
+      shell: bash
+    - name: Generate gRPC files
+      run: |
+        python -m grpc_tools.protoc -I${GITHUB_WORKSPACE}/cobalt/tools/
+            --python_out=${GITHUB_WORKSPACE}/cobalt/tools/
+            --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/
+            ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
+      shell: bash
+    - name: Set Up Cloud SDK
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Set GCS Project Name
+      run: |
+        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+      shell: bash
+    - name: Run Browser Tests on ${{ matrix.platform }} Platform
+      env:
+        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        GITHUB_ACTOR_ID: ${{ github.actor_id }}
+        GITHUB_REPO: ${{ github.repository }}
+        GITHUB_PR_HEAD_USER_LOGIN: ${{ github.event.pull_request.head.user.login }}
+        GITHUB_PR_HEAD_USER_ID: ${{ github.event.pull_request.head.user.id }}
+        GITHUB_COMMIT_AUTHOR_USERNAME: ${{ github.event.commits[0].author.username }}
+        GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
+        GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        GITHUB_WORKFLOW: ${{ github.workflow }}
+        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
+        TEST_TYPE: unit_test
+        DEVICE_FAMILY: ${{ inputs.test_device_family }}
+        TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
+        DOCKER_TAG: ${{ inputs.docker_tag }}
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
+        PLATFORM: ${{ matrix.platform }}
+        # Browser test targets are fixed.
+        TEST_TARGETS_JSON: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
+      run: |
+        set -x
+
+        python3 -u cobalt/tools/on_device_tests_gateway_client.py
+          --token "${GITHUB_TOKEN}"
+          trigger
+          --test_type "${TEST_TYPE}"
+          --device_family "${DEVICE_FAMILY}"
+          --targets "${TEST_TARGETS_JSON}"
+          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"
+          --label chrobalt_on_device_browser_test
+          --label github_"${GITHUB_PR_NUMBER:-postsubmit}"
+          --label builder-"${PLATFORM}"
+          --label builder_url-"${GITHUB_RUN_URL}"
+          --label "${TEST_TYPE}"
+          --label github
+          --label "${GITHUB_EVENT_NAME}"
+          --label "${GITHUB_WORKFLOW}"
+          --label actor-"${GITHUB_ACTOR}"
+          --label actor_id-"${GITHUB_ACTOR_ID}"
+          --label triggering_actor-"${GITHUB_TRIGGERING_ACTOR}"
+          --label sha-"${GITHUB_SHA}"
+          --label repository-"${GITHUB_REPO}"
+          --label author-"${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME}"
+          --label author_id-"${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}"
+          --label branch:"${GITHUB_REF_NAME}"
+          --dimensions "${TEST_DIMENSIONS}"
+          ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"}
+          ${DOCKER_TAG:+"--docker_tag" "$DOCKER_TAG"}
+          --gcs_archive_path "${GCS_ARTIFACTS_PATH}"
+          --gcs_result_path "${GCS_RESULTS_PATH}" || {
+            echo "Finished running tests..."
+            echo "The test session failed. See logs for details."
+            # Fail the job so it's easy to retrigger.
+            exit 1
+          }
+        echo "Finished running tests..."
+      shell: bash
+    - name: Download ${{ matrix.platform }} Test Results from GCS
+      if: always()
+      run: |
+        set -uxe
+        shopt -s globstar nullglob
+
+        test_output="${GITHUB_WORKSPACE}/results"
+        echo "test_output=${test_output}" >> $GITHUB_ENV
+
+        # Test results (xml and logs) must be in a subfolder in results_dir.
+        # to be picked up by the test result processor.
+        mkdir -p "${test_output}/${{ matrix.platform }}"
+        gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+
+        # Check for missing result xml files.
+        test_target="cobalt_browsertests"
+        xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_testoutput.xml)
+        if [[ "${#xml_files[@]}" -eq 0 ]]; then
+          # No matching XML results found. Check if the test target is filtered.
+          test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
+          if [ ! -f "${test_filter_file}" ] || [ "$(jq -cr '.failing_tests[0]' "${test_filter_file}")" != '*' ]; then
+            echo "Test result xml is missing for ${test_target}."
+
+            # Try to find the crashed test in the log and create a fake junit xml for it.
+            log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
+            xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
+            python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+            exit 1
+          fi
+        elif grep -e '<failure' -e '<error' ${xml_files}; then
+          # Double-check the result XML for failures. ODT service has been known to report incorrect status.
+          echo "::error::Found failures in the test xml."
+          exit 1
+        fi
+      shell: bash
+    - name: Archive Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ${{ inputs.test_results_key }}
+        path: ${{ env.test_output }}/*

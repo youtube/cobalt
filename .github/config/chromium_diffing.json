@@ -83,4 +83,5 @@
             "ui/file_manager/image_loader/piex/package-lock.json"
         ]
     }
+  ,"use_browser_test": false
 }

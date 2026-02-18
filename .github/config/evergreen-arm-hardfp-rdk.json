@@ -4,6 +4,7 @@
     "evergreen-arm-hardfp-rdk"
   ],
   "test_package": true,
+  "use_browser_test": false,
   "test_on_device": true,
   "test_device_family": "rdk",
   "test_e2e": true,
