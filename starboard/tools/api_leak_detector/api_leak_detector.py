@@ -254,6 +254,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'socketpair',
     'srand',
     'statvfs',
+    'strftime_l',
     'symlink',
     'sysconf',
     'uname',
