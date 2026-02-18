@@ -13,6 +13,5 @@
       "name": "x86",
       "platform": "chromium_android-x86"
     }
-  ],
-  "use_browser_test": false
+  ]
 }

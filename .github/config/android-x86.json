@@ -11,6 +11,5 @@
       "name": "x86",
       "platform": "android-x86"
     }
-  ],
-  "use_browser_test": false
+  ]
 }

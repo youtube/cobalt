@@ -19,6 +19,5 @@
       "name": "raspi-2",
       "platform": "raspi-2-modular"
     }
-  ],
-  "use_browser_test": false
+  ]
 }
