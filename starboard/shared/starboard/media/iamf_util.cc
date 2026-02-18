@@ -23,6 +23,9 @@
 
 namespace starboard {
 namespace {
+
+constexpr uint8_t kIamfSequenceHeaderObu = 31;
+
 // Checks if |input| is a valid IAMF profile value, and stores the converted
 // value in |*profile| if so.
 bool StringToProfile(const std::string& input, uint32_t* profile) {
@@ -43,6 +46,34 @@ bool StringToProfile(const std::string& input, uint32_t* profile) {
   }
   *profile = converted_val;
   return true;
+}
+
+// Helper function to read a LEB128 value.
+bool ReadLeb128(const uint8_t** data, const uint8_t* end, uint32_t* value) {
+  SB_CHECK(data);
+  SB_CHECK(*data);
+  SB_CHECK(end);
+  SB_CHECK(value);
+
+  uint32_t decoded_value = 0;
+  for (size_t i = 0; i < 5; ++i) {
+    if (*data >= end) {
+      return false;
+    }
+    uint8_t byte = *(*data)++;
+    if (i == 4 && (byte & 0x7f) > 0x0f) {
+      // A 32-bit value can't use more than 4 bits from the 5th LEB128 byte.
+      return false;
+    }
+
+    decoded_value |= (uint32_t)(byte & 0x7f) << (i * 7);
+
+    if (!(byte & 0x80)) {
+      *value = decoded_value;
+      return true;
+    }
+  }
+  return false;
 }
 }  // namespace
 
@@ -120,6 +151,42 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
 
   primary_profile_ = primary_profile;
   additional_profile_ = additional_profile;
+}
+
+// static.
+void IamfMimeUtil::ParseIamfConfigOBU(const uint8_t* data,
+                                      size_t size,
+                                      uint8_t* primary_profile,
+                                      uint8_t* additional_profile) {
+  const uint8_t* end = data + size;
+
+  const uint8_t header_byte = *data++;
+  uint8_t obu_type = (header_byte >> 3) & 0x1f;
+
+  uint32_t obu_size;
+  if (!ReadLeb128(&data, end, &obu_size)) {
+    SB_LOG(ERROR) << "Failed to parse OBU size.";
+    return;
+  }
+
+  if (static_cast<size_t>(end - data) < obu_size) {
+    SB_LOG(ERROR) << "OBU size exceeds access unit size.";
+    return;
+  }
+  const uint8_t* obu_end = data + obu_size;
+
+  if (obu_type == kIamfSequenceHeaderObu) {
+    if (data + sizeof(uint32_t) + 2 > obu_end) {
+      return;
+    }
+    // Skip ia_code (4 bytes).
+    data += sizeof(uint32_t);
+
+    *primary_profile = *data++;
+    *additional_profile = *data;
+  }
+  // The Sequence Header must be the first OBU. If it isn't found, leave the
+  // profile values unset.
 }
 
 }  // namespace starboard

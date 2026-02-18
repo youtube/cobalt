@@ -161,7 +161,6 @@ class VideoDmpReader {
   VideoDmpReader(const VideoDmpReader&) = delete;
   VideoDmpReader& operator=(const VideoDmpReader&) = delete;
 
-  void ParseIamfConfigOBU();
   void ParseHeader(uint32_t* dmp_writer_version);
   bool ParseOneRecord();
   void Parse();

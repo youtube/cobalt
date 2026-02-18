@@ -19,6 +19,7 @@
 #include <iomanip>
 
 #include "starboard/common/check_op.h"
+#include "starboard/shared/starboard/media/iamf_util.h"
 
 namespace starboard {
 
@@ -72,29 +73,6 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
   sample_info.type = kSbMediaTypeVideo;
   video_unit.video_sample_info().ConvertTo(&sample_info.video_sample_info);
   return sample_info;
-}
-
-// Helper function to read a LEB128 value.
-bool ReadLeb128(const uint8_t** data, const uint8_t* end, uint32_t* value) {
-  SB_CHECK(data && *data);
-  SB_CHECK(end);
-  SB_CHECK(value);
-  *value = 0;
-  for (size_t i = 0; i < 5; ++i) {
-    if (*data >= end) {
-      return false;
-    }
-    uint8_t byte = *(*data)++;
-    if (i == 4 && (byte & 0x7f) > 0x0f) {
-      // A 32-bit value can't use more than 4 bits from the 5th LEB128 byte.
-      return false;
-    }
-    *value |= (uint32_t)(byte & 0x7f) << (i * 7);
-    if (!(byte & 0x80)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 }  // namespace
@@ -183,9 +161,7 @@ std::string VideoDmpReader::audio_mime_type() const {
       ss << "audio/wav; codecs=\"1\";";
       break;
     case kSbMediaAudioCodecIamf:
-      if (!dmp_info_.iamf_primary_profile.has_value()) {
-        return "";
-      }
+      SB_CHECK(dmp_info_.iamf_primary_profile.has_value());
       // Only Opus IAMF substreams are currently supported.
       ss << "audio/mp4; codecs=\"iamf.";
       ss << std::setw(3) << std::setfill('0') << std::hex
@@ -265,52 +241,6 @@ const AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
   return au.audio_sample_info();
 }
 
-// Parse IAMF Config OBUs for the primary and additional profiles,
-// based on IAMF specification v1.0.0-errata.
-// https://aomediacodec.github.io/iamf/v1.1.0.html#codecsparameter.
-void VideoDmpReader::ParseIamfConfigOBU() {
-  if (dmp_info_.audio_codec != kSbMediaAudioCodecIamf) {
-    return;
-  }
-
-  if (audio_access_units_.empty()) {
-    SB_LOG(WARNING) << "IAMF stream has no access units.";
-    return;
-  }
-
-  const auto& data = audio_access_units_[0].data();
-  const uint8_t* ptr = data.data();
-  const uint8_t* end = ptr + data.size();
-
-  uint8_t header_byte = *ptr++;
-  uint8_t obu_type = (header_byte >> 3) & 0x1f;
-
-  uint32_t obu_size;
-  if (!ReadLeb128(&ptr, end, &obu_size)) {
-    SB_LOG(ERROR) << "Failed to parse OBU size.";
-    return;
-  }
-
-  if (static_cast<size_t>(end - ptr) < obu_size) {
-    SB_LOG(ERROR) << "OBU size exceeds access unit size.";
-    return;
-  }
-  const uint8_t* obu_end = ptr + obu_size;
-
-  if (obu_type == kIamfSequenceHeaderObu) {
-    if (ptr + sizeof(uint32_t) + 2 > obu_end) {
-      return;
-    }
-    // Skip ia_code (4 bytes).
-    ptr += sizeof(uint32_t);
-
-    dmp_info_.iamf_primary_profile = *ptr++;
-    dmp_info_.iamf_additional_profile = *ptr;
-  }
-  // The Sequence Header must be the first OBU. If it isn't found, leave the
-  // profile values unset.
-}
-
 void VideoDmpReader::ParseHeader(uint32_t* dmp_writer_version) {
   SB_DCHECK(dmp_writer_version);
   SB_DCHECK(!reverse_byte_order_.has_value());
@@ -388,7 +318,12 @@ void VideoDmpReader::Parse() {
 
   if (dmp_info_.audio_codec == kSbMediaAudioCodecIamf &&
       !dmp_info_.iamf_primary_profile.has_value()) {
-    ParseIamfConfigOBU();
+    dmp_info_.iamf_primary_profile = 0;
+    dmp_info_.iamf_additional_profile = 0;
+    IamfMimeUtil::ParseIamfConfigOBU(audio_access_units_[0].data().data(),
+                                     audio_access_units_[0].data().size(),
+                                     &(*dmp_info_.iamf_primary_profile),
+                                     &(*dmp_info_.iamf_additional_profile));
   }
 
   dmp_info_.audio_access_units_size = audio_access_units_.size();
