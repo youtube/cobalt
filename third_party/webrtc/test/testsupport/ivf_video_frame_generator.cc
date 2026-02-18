@@ -13,14 +13,17 @@
 #include <limits>
 
 #include "api/environment/environment.h"
+#include "build/build_config.h"
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video_codecs/video_codec.h"
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/av1/dav1d_decoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
-#include "modules/video_coding/codecs/vp8/include/vp8.h"
-#include "modules/video_coding/codecs/vp9/include/vp9.h"
+#if !BUILDFLAG(IS_STARBOARD)
+#include "modules/video_coding/codecs/vp8/include/vp8.h" //nogncheck
+#include "modules/video_coding/codecs/vp9/include/vp9.h" //nogncheck
+#endif
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/system/file_wrapper.h"
