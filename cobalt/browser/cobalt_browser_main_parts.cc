@@ -23,6 +23,8 @@
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/resource_coordinator_service.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -38,6 +40,21 @@ namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
+
+  // Register the browser process as a memory-instrumentation client.
+  // This replicates content::InitializeBrowserMemoryInstrumentationClient()
+  // while avoiding unauthorized header includes.
+  mojo::PendingRemote<memory_instrumentation::mojom::Coordinator> coordinator;
+  mojo::PendingRemote<memory_instrumentation::mojom::ClientProcess> process;
+  auto process_receiver = process.InitWithNewPipeAndPassReceiver();
+  content::GetMemoryInstrumentationRegistry()->RegisterClientProcess(
+      coordinator.InitWithNewPipeAndPassReceiver(), std::move(process),
+      memory_instrumentation::mojom::ProcessType::BROWSER,
+      base::GetCurrentProcId(), /*service_name=*/std::nullopt);
+  memory_instrumentation::ClientProcessImpl::CreateInstance(
+      std::move(process_receiver), std::move(coordinator),
+      /*is_browser_process=*/true);
+
 #if BUILDFLAG(IS_ANDROIDTV)
   base::android::MemoryPressureListenerAndroid::Initialize(
       base::android::AttachCurrentThread());
