@@ -162,6 +162,8 @@ class VideoDecoder
 
   const int max_pending_inputs_size_;
 
+  const std::optional<bool> use_dual_threads_;
+
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
   void* surface_view_;
 
