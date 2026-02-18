@@ -533,9 +533,22 @@ jobs:
           # Download artifacts that were uploaded in the build job.
           # The browser test runner expects them to be extracted.
 
-          # Use GH CLI to download artifacts
-          gh run download ${{ github.run_id }} -n "${TEST_ARTIFACTS_KEY}" -D artifacts
-
+          # Download artifacts using action
+          echo "Downloading artifacts with key: ${TEST_ARTIFACTS_KEY}"
+          mkdir -p artifacts
+        shell: bash
+      - name: Download Artifacts
+        if: needs.initialize.outputs.test_on_host == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+          path: artifacts
+      - name: Run Browser Tests (Linux) Execution
+        if: needs.initialize.outputs.test_on_host == 'true'
+        env:
+          XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+        run: |
+          set -eux
           mkdir -p unit_test/
           cd unit_test/
           tar -I 'zstd -T0' -xf ../artifacts/test_artifacts.tar.zstd
