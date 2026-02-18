@@ -29,9 +29,9 @@ runs:
       shell: bash
     - name: Generate gRPC files
       run: |
-        python -m grpc_tools.protoc -I${GITHUB_WORKSPACE}/cobalt/tools/
-            --python_out=${GITHUB_WORKSPACE}/cobalt/tools/
-            --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/
+        python -m grpc_tools.protoc -I${GITHUB_WORKSPACE}/cobalt/tools/ \
+            --python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
+            --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
       shell: bash
     - name: Set Up Cloud SDK
@@ -70,13 +70,13 @@ runs:
       run: |
         set -x
 
-        python3 -u cobalt/tools/on_device_tests_gateway_client.py
-          --token "${GITHUB_TOKEN}"
-          trigger
-          --test_type "${TEST_TYPE}"
-          --device_family "${DEVICE_FAMILY}"
-          --targets "${TEST_TARGETS_JSON}"
-          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"
+        python3 -u cobalt/tools/on_device_tests_gateway_client.py \
+          --token "${GITHUB_TOKEN}" \
+          trigger \
+          --test_type "${TEST_TYPE}" \
+          --device_family "${DEVICE_FAMILY}" \
+          --targets "${TEST_TARGETS_JSON}" \
+          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}" \
           --label chrobalt_on_device_browser_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
@@ -93,10 +93,10 @@ runs:
           --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
           --label branch:${GITHUB_REF_NAME} \
-          --dimensions "${TEST_DIMENSIONS}"
-          ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"}
-          ${DOCKER_TAG:+"--docker_tag" "$DOCKER_TAG"}
-          --gcs_archive_path "${GCS_ARTIFACTS_PATH}"
+          --dimensions "${TEST_DIMENSIONS}" \
+          ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
+          ${DOCKER_TAG:+"--docker_tag" "$DOCKER_TAG"} \
+          --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
