@@ -296,15 +296,17 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote) {
-      StarboardRendererTraits traits(
-          task_runner, gpu_task_runner_, std::move(media_log_remote),
-          config.overlay_plane_id, config.audio_write_duration_local,
-          config.audio_write_duration_remote, config.max_video_capabilities,
-          config.experimental_features, config.viewport_size,
-          std::move(renderer_extension_receiver),
-          std::move(client_extension_remote), base::BindRepeating(
-            &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_),
-          android_overlay_factory_cb_);  return CreatePlatformStarboardRenderer(std::move(traits));
+  StarboardRendererTraits traits(
+      task_runner, gpu_task_runner_, std::move(media_log_remote),
+      config.overlay_plane_id, config.audio_write_duration_local,
+      config.audio_write_duration_remote, config.max_video_capabilities,
+      config.experimental_features, config.viewport_size,
+      std::move(renderer_extension_receiver),
+      std::move(client_extension_remote),
+      base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
+                          media_gpu_channel_manager_),
+      android_overlay_factory_cb_);
+  return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
