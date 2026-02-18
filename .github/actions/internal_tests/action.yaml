@@ -41,54 +41,36 @@ runs:
       env:
         GCS_ARTIFACTS_PATH: ${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ matrix.platform }}_qa
         GITHUB_SHA: ${{ github.sha }}
-        GITHUB_TOKEN: ${{ github.token }}
-        GITHUB_EVENT_NAME: ${{ github.event_name }}
-        GITHUB_ACTOR: ${{ github.actor }}
-        GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
-        GITHUB_ACTOR_ID: ${{ github.actor_id }}
-        GITHUB_REPO: ${{ github.repository }}
-        GITHUB_PR_HEAD_USER_LOGIN: ${{ github.event.pull_request.head.user.login }}
-        GITHUB_PR_HEAD_USER_ID: ${{ github.event.pull_request.head.user.id }}
-        GITHUB_COMMIT_AUTHOR_USERNAME: ${{ github.event.commits[0].author.username }}
-        GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
-        GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
-        GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        TEST_TYPE: ${{ inputs.test_type }}
         TEST_RETRY_LEVEL: FAIL
-        TEST_TARGETS: ${{ inputs.test_targets }}
-        TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
-        ARTIFACT_NAME: ${{ inputs.artifact_name }}
-        DEVICE_FAMILY: ${{ inputs.test_device_family }}
-        PLATFORM: ${{ matrix.platform }}
       run: |
         set -x
 
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token "${GITHUB_TOKEN}" \
+          --token ${{ github.token }} \
           trigger \
-          --test_type "${TEST_TYPE}" \
-          --targets "${TEST_TARGETS}" \
-          --retry_level "${TEST_RETRY_LEVEL}" \
-          --label ${TEST_TYPE} \
-          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
+          --test_type ${{ inputs.test_type }} \
+          --targets '${{ inputs.test_targets }}' \
+          --retry_level ${TEST_RETRY_LEVEL} \
+          --label ${{ inputs.test_type }} \
+          --label github_${{ github.event.pull_request.number || 'postsubmit' }} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
           --label github \
-          --label ${GITHUB_EVENT_NAME} \
+          --label ${{ github.event_name }} \
           --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
+          --label actor-${{ github.actor }} \
+          --label actor_id-${{ github.actor_id }} \
+          --label triggering_actor-${{ github.triggering_actor }} \
           --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
-          --label branch:${GITHUB_REF_NAME} \
-          --dimensions "${TEST_DIMENSIONS}" \
-          --artifact_name "${ARTIFACT_NAME}" \
-          --device_family "${DEVICE_FAMILY}" \
+          --label repository-${{ github.repository }} \
+          --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
+          --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }} \
+          --label branch:${{ github.ref_name }} \
+          --dimensions '${{ inputs.test_dimensions }}' \
+          --artifact_name '${{ inputs.artifact_name }}' \
+          --device_family '${{ inputs.test_device_family }}' \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
