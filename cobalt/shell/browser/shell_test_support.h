@@ -46,7 +46,7 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
  public:
   void Initialize(const gfx::Size& default_window_size,
                   bool is_visible) override {
-    is_visible_ = is_visible;
+    set_is_visible(is_visible);
   }
   MOCK_METHOD(void,
               CreatePlatformWindow,
