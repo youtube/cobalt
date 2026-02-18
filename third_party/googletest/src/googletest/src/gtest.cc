@@ -370,18 +370,6 @@ GTEST_DEFINE_string_(
     "This flag specifies the flagfile to read command-line flags from.");
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_
 
-// TODO: b/399507045 - Cobalt: Fix build error, remove hack
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-GTEST_DEFINE_int32_(
-    total_shards,
-    internal::Int32FromGTestEnv("total_shards", -1),
-    "The total number of shards to split test cases into.");
-GTEST_DEFINE_int32_(
-    shard_index,
-    internal::Int32FromGTestEnv("shard_index", -1),
-    "The shard index that determines the subset of unit tests run in the shard.");
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-
 namespace testing {
 namespace internal {
 
