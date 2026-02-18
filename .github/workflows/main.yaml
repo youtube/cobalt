@@ -471,7 +471,7 @@ jobs:
         if: inputs.run_api_leak_detector
 
   browsertest:
-    needs: [initialize, build]
+    needs: [initialize, docker-unittest-image, build]
     if: |
       needs.initialize.outputs.use_browser_test == 'true' &&
       (
@@ -481,6 +481,8 @@ jobs:
       )
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browsertests
+    container:
+      image: ${{ matrix.platform == 'linux-x64x11' && needs.docker-unittest-image.outputs.docker_tag || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -558,14 +560,15 @@ jobs:
           LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
           export LD_LIBRARY_PATH
 
-          # Linux runner is located in the out directory.
-          # It needs to be run via xvfb.
-          RUNNER="./out/${{ matrix.platform }}_${{ matrix.config }}/cobalt_browsertests_runner"
+                    # Linux runner is located in the out directory.
+                    # It needs to be run via xvfb.
+                    RUNNER="./out/${{ matrix.platform }}_${{ matrix.config }}/cobalt_browsertests_runner"
 
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-              stdbuf -i0 -o0 -e0 "${RUNNER}" \
-              --gtest_output="xml:${GITHUB_WORKSPACE}/results/cobalt_browsertests_result.xml" \
-              2>&1 | tee "${GITHUB_WORKSPACE}/results/cobalt_browsertests_log.txt"
+                    xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                        stdbuf -i0 -o0 -e0 "${RUNNER}" \
+                        --gtest_output="xml:${GITHUB_WORKSPACE}/results/cobalt_browsertests_result.xml" \
+                        2>&1 | tee "${GITHUB_WORKSPACE}/results/cobalt_browsertests_log.txt"
+
         shell: bash
       - name: Archive Linux Browser Test Results
         if: always() && needs.initialize.outputs.test_on_host == 'true'
