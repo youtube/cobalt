@@ -29,6 +29,30 @@
     {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_bravia",
       "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_kirkwood",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_kirkwood",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_kirkwood",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_sabrina",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_sabrina",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_sabrina",
+      "test_attempts": "6"
     }
   ],
   "yts_test_targets": [
