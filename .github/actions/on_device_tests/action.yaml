@@ -45,17 +45,31 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
         GITHUB_SHA: ${{ github.sha }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        GITHUB_ACTOR_ID: ${{ github.actor_id }}
+        GITHUB_REPO: ${{ github.repository }}
+        GITHUB_PR_HEAD_USER_LOGIN: ${{ github.event.pull_request.head.user.login }}
+        GITHUB_PR_HEAD_USER_ID: ${{ github.event.pull_request.head.user.id }}
+        GITHUB_COMMIT_AUTHOR_USERNAME: ${{ github.event.commits[0].author.username }}
+        GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
+        GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
+        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
         TEST_TYPE: unit_test
         TEST_TARGETS_FILTER: ${{ inputs.test_targets_filter }}
       run: |
         set -x
 
         # Filter test targets.
-        TEST_TARGETS_JSON=$(echo '${{ inputs.test_targets_json }}' | jq -cr "[.[] | ${TEST_TARGETS_FILTER}]")
+        TEST_TARGETS_JSON=$(echo "${TEST_TARGETS_JSON}" | jq -cr "[.[] | ${TEST_TARGETS_FILTER}]")
         if [[ $(echo "${TEST_TARGETS_JSON}" | jq 'length') -eq 0 ]]; then
           echo "No tests to run after filtering."
           exit 0
@@ -63,30 +77,30 @@ runs:
 
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token ${{ github.token }} \
+          --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
           --device_family '${{ inputs.test_device_family }}' \
           --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
           --label chrobalt_on_device_test \
-          --label github_${{ github.event.pull_request.number || 'postsubmit' }} \
+          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
           --label ${TEST_TYPE} \
           --label github \
-          --label ${{ github.event_name }} \
+          --label ${GITHUB_EVENT_NAME} \
           --label ${GITHUB_WORKFLOW} \
-          --label actor-${{ github.actor }} \
-          --label actor_id-${{ github.actor_id }} \
-          --label triggering_actor-${{ github.triggering_actor }} \
+          --label actor-${GITHUB_ACTOR} \
+          --label actor_id-${GITHUB_ACTOR_ID} \
+          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
           --label sha-${GITHUB_SHA} \
-          --label repository-${{ github.repository }} \
-          --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
-          --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }} \
-          --label branch:${{ github.ref_name }} \
+          --label repository-${GITHUB_REPO} \
+          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
+          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
+          --label branch:${GITHUB_REF_NAME} \
           --dimensions '${{ inputs.test_dimensions }}' \
-          ${{ inputs.test_attempts && format('--test_attempts {0}', inputs.test_attempts) }} \
+          ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${{ inputs.gcs_results_path }}" || {
             echo "Finished running tests..."
@@ -99,13 +113,14 @@ runs:
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
       env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         TEST_TARGETS_FILTER: ${{ inputs.test_targets_filter }}
       run: |
         set -uxe
         shopt -s globstar nullglob
 
         # Filter test targets for result verification as well.
-        TEST_TARGETS_JSON=$(echo '${{ inputs.test_targets_json }}' | jq -cr "[.[] | ${TEST_TARGETS_FILTER}]")
+        TEST_TARGETS_JSON=$(echo "${TEST_TARGETS_JSON}" | jq -cr "[.[] | ${TEST_TARGETS_FILTER}]")
         if [[ $(echo "${TEST_TARGETS_JSON}" | jq 'length') -eq 0 ]]; then
           echo "No tests to download results for after filtering."
           exit 0
