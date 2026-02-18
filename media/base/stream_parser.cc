@@ -4,9 +4,19 @@
 
 #include "media/base/stream_parser.h"
 
+#include <atomic>
+
+#include "base/logging.h"
 #include "media/base/stream_parser_buffer.h"
+#include "media/media_buildflags.h"
 
 namespace media {
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+std::atomic<bool> s_enable_incremental_parse_look_ahead{false};
+}  // namespace
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 StreamParser::InitParameters::InitParameters(base::TimeDelta duration)
     : duration(duration),
@@ -17,6 +27,24 @@ StreamParser::InitParameters::InitParameters(base::TimeDelta duration)
 StreamParser::StreamParser() = default;
 
 StreamParser::~StreamParser() = default;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+void StreamParser::SetEnableIncrementalParseLookAhead(bool enable) {
+  if (enable) {
+    LOG(INFO) << "Enable incremental parse look ahead.";
+  } else {
+    LOG(INFO) << "Disable incremental parse look ahead.";
+  }
+  s_enable_incremental_parse_look_ahead.store(enable,
+                                              std::memory_order_relaxed);
+}
+
+// static
+bool StreamParser::IsIncrementalParseLookAheadEnabled() {
+  return s_enable_incremental_parse_look_ahead.load(std::memory_order_relaxed);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Default implementation of ProcessChunks() is not fully implemented.
 bool StreamParser::ProcessChunks(std::unique_ptr<BufferQueue> buffer_queue) {

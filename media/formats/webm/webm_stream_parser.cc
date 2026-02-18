@@ -22,6 +22,7 @@
 #include "media/formats/webm/webm_content_encodings.h"
 #include "media/formats/webm/webm_info_parser.h"
 #include "media/formats/webm/webm_tracks_parser.h"
+#include "media/media_buildflags.h"
 
 namespace media {
 
@@ -112,8 +113,36 @@ bool WebMStreamParser::AppendToParseBuffer(const uint8_t* buf, size_t size) {
   return true;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 StreamParser::ParseStatus WebMStreamParser::Parse(
     int max_pending_bytes_to_inspect) {
+  if (!StreamParser::IsIncrementalParseLookAheadEnabled() ||
+      max_pending_bytes_to_inspect == 0) {
+    return ParseInternal(max_pending_bytes_to_inspect);
+  }
+
+  // Safe guard to avoid looping infinitely.
+  constexpr int kMaxLoopCount = 128;
+
+  buffers_parsed_ = false;
+
+  for (int loop_count = 0;;++loop_count) {
+    ParseStatus result = ParseInternal(max_pending_bytes_to_inspect);
+
+    if (result == ParseStatus::kFailed || uninspected_pending_bytes_ == 0 ||
+        buffers_parsed_ || loop_count == kMaxLoopCount) {
+      return result;
+    }
+  }
+}
+
+StreamParser::ParseStatus WebMStreamParser::ParseInternal(
+    int max_pending_bytes_to_inspect) {
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+StreamParser::ParseStatus WebMStreamParser::Parse(
+    int max_pending_bytes_to_inspect) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   DCHECK_NE(state_, kWaitingForInit);
   DCHECK_GE(max_pending_bytes_to_inspect, 0);
 
@@ -330,6 +359,12 @@ int WebMStreamParser::ParseCluster(const uint8_t* data, int size) {
   cluster_parser_->GetBuffers(&buffer_queue_map);
 
   bool cluster_ended = cluster_parser_->cluster_ended();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!buffer_queue_map.empty()) {
+    buffers_parsed_ = true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!buffer_queue_map.empty() && !new_buffers_cb_.Run(buffer_queue_map)) {
     return -1;

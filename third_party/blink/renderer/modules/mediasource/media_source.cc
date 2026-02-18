@@ -17,6 +17,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/media_types.h"
 #include "media/base/mime_util.h"
+#include "media/base/stream_parser.h"
 #include "media/base/supported_types.h"
 #include "media/base/video_decoder_config.h"
 #include "media/media_buildflags.h"
@@ -385,6 +386,22 @@ void MediaSource::AddSourceBuffer_Locked(
 
   bool generate_timestamps_flag =
       web_source_buffer->GetGenerateTimestampsFlag();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(b/484617192): Remove once the feature is launched.
+  // Code to allow collecting metrics in the same app instance with incremental
+  // parse look ahead enabled and disabled, to analize its statistical
+  // significance.
+  constexpr bool kEnableIncrementalParseLookAheadMetrics = false;
+  if (kEnableIncrementalParseLookAheadMetrics) {
+    if (source_buffers_->length() == 0) {
+      static bool enable = true;
+
+      media::StreamParser::SetEnableIncrementalParseLookAhead(enable);
+      enable = !enable;
+    }
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   auto* buffer = MakeGarbageCollected<SourceBuffer>(
       std::move(web_source_buffer), this, async_event_queue_.Get());
