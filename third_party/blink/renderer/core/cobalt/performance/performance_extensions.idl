@@ -11,6 +11,10 @@
     // base::SysInfo::AmountOfPhysicalMemory() - base::SysInfo::AmountOfAvailablePhysicalMemory()
     [CallWith=ScriptState] unsigned long long measureUsedCpuMemory();
 
+    [CallWith=ScriptState] unsigned long long measureUsedSwapMemory();
+
+    [CallWith=ScriptState] unsigned long long measureUsedVirtualMemory();
+
     // Returns the application startup duration in microseconds (us).
     [CallWith=ScriptState, RaisesException]
     Promise<long long> getAppStartupTime();
