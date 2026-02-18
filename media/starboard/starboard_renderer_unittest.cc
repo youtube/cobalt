@@ -187,6 +187,7 @@ class StarboardRendererTest : public testing::Test {
           /*initial_max_frames_in_decoder=*/std::nullopt,
           /*max_pending_input_frames=*/std::nullopt,
           /*video_decoder_poll_interval_ms=*/std::nullopt,
+          /*max_samples_per_write=*/std::nullopt,
           /*viewport_size=*/gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
               ,

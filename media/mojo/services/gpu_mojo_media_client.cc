@@ -121,6 +121,7 @@ StarboardRendererTraits::StarboardRendererTraits(
     std::optional<int> initial_max_frames_in_decoder,
     std::optional<int> max_pending_input_frames,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> max_samples_per_write,
     const gfx::Size& viewport_size,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
@@ -140,6 +141,7 @@ StarboardRendererTraits::StarboardRendererTraits(
       initial_max_frames_in_decoder(initial_max_frames_in_decoder),
       max_pending_input_frames(max_pending_input_frames),
       video_decoder_poll_interval_ms(video_decoder_poll_interval_ms),
+      max_samples_per_write(max_samples_per_write),
       viewport_size(viewport_size),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
@@ -310,7 +312,7 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       config.audio_write_duration_remote, config.max_video_capabilities,
       config.enable_flush_during_seek, config.enable_reset_audio_decoder,
       config.initial_max_frames_in_decoder, config.max_pending_input_frames,
-      config.video_decoder_poll_interval_ms,
+      config.video_decoder_poll_interval_ms, config.max_samples_per_write,
       config.viewport_size, std::move(renderer_extension_receiver),
       std::move(client_extension_remote), base::BindRepeating(
         &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_),

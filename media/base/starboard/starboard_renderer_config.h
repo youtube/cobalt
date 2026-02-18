@@ -37,6 +37,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
                           std::optional<int> initial_max_frames_in_decoder,
                           std::optional<int> max_pending_input_frames,
                           std::optional<int> video_decoder_poll_interval_ms,
+                          std::optional<int> max_samples_per_write,
                           const gfx::Size& viewport_size);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
@@ -50,6 +51,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   std::optional<int> initial_max_frames_in_decoder;
   std::optional<int> max_pending_input_frames;
   std::optional<int> video_decoder_poll_interval_ms;
+  std::optional<int> max_samples_per_write;
   gfx::Size viewport_size;
 };
 

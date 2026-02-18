@@ -150,6 +150,7 @@ class MediaServiceTest : public testing::Test {
                                  /*initial_max_frames_in_decoder=*/std::nullopt,
                                  /*max_pending_input_frames=*/std::nullopt,
                                  /*video_decoder_poll_interval_ms=*/std::nullopt,
+                                 /*max_samples_per_write=*/std::nullopt,
                                  gfx::Size(1920, 1080));
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),

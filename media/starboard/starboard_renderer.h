@@ -63,6 +63,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     std::optional<int> initial_max_frames_in_decoder,
                     std::optional<int> max_pending_input_frames,
                     std::optional<int> video_decoder_poll_interval_ms,
+                    std::optional<int> max_samples_per_write,
                     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,

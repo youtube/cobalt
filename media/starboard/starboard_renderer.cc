@@ -129,6 +129,7 @@ StarboardRenderer::StarboardRenderer(
     std::optional<int> initial_max_frames_in_decoder,
     std::optional<int> max_pending_input_frames,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> max_samples_per_write,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -153,10 +154,10 @@ StarboardRenderer::StarboardRenderer(
 #if BUILDFLAG(IS_ANDROID)
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb)),
 #endif  // BUILDFLAG(IS_ANDROID)
-      max_samples_per_write_(
+      max_samples_per_write_(max_samples_per_write.value_or(
           base::FeatureList::IsEnabled(media::kCobaltEnableBatchedWrite)
               ? media::kMaxSamplesPerWrite.Get()
-              : 1) {
+              : 1)) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);

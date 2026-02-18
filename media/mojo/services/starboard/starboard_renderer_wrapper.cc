@@ -44,6 +44,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.initial_max_frames_in_decoder,
           traits.max_pending_input_frames,
           traits.video_decoder_poll_interval_ms,
+          traits.max_samples_per_write,
           traits.viewport_size
 #if BUILDFLAG(IS_ANDROID)
           ,

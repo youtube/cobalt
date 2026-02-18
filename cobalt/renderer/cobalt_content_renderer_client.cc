@@ -50,6 +50,8 @@ const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
     "Media.VideoMaxPendingInputFrames";
 const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
     "Media.VideoDecoderPollIntervalMs";
+const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
+    "Media.MaxSamplesPerWrite";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -65,6 +67,7 @@ struct ParsedH5vccSettings {
   std::optional<int> initial_max_frames_in_decoder;
   std::optional<int> max_pending_input_frames;
   std::optional<int> video_decoder_poll_interval_ms;
+  std::optional<int> max_samples_per_write;
 };
 
 using H5vccSettingValue = std::variant<std::string, int64_t>;
@@ -236,6 +239,9 @@ ParsedH5vccSettings ProcessH5vccSettings(
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
       kMaxVideoDecoderPollIntervalMs, kH5vccUnsetSentinel);
+  parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
+      /*max_val=*/1000, kH5vccUnsetSentinel);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
@@ -391,6 +397,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       parsed.max_pending_input_frames;
   renderer_factory_traits->video_decoder_poll_interval_ms =
       parsed.video_decoder_poll_interval_ms;
+  renderer_factory_traits->max_samples_per_write = parsed.max_samples_per_write;
 
   renderer_factory_traits->viewport_size = viewport_size_;
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.

@@ -150,6 +150,7 @@ struct StarboardRendererTraits {
   const std::optional<int> initial_max_frames_in_decoder;
   const std::optional<int> max_pending_input_frames;
   const std::optional<int> video_decoder_poll_interval_ms;
+  const std::optional<int> max_samples_per_write;
   const gfx::Size& viewport_size;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
@@ -175,6 +176,7 @@ struct StarboardRendererTraits {
       std::optional<int> initial_max_frames_in_decoder,
       std::optional<int> max_pending_input_frames,
       std::optional<int> video_decoder_poll_interval_ms,
+      std::optional<int> max_samples_per_write,
       const gfx::Size& viewport_size,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
