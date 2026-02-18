@@ -19,9 +19,6 @@ inputs:
   test_attempts:
     description: "Number of attempts for the tests."
     default: ""
-  test_targets_filter:
-    description: "jq filter to apply to the test targets."
-    default: "."
 
 runs:
   using: "composite"
@@ -64,16 +61,8 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_ATTEMPTS: ${{ inputs.test_attempts }}
         TEST_TYPE: unit_test
-        TEST_TARGETS_FILTER: ${{ inputs.test_targets_filter }}
       run: |
         set -x
-
-        # Filter test targets.
-        TEST_TARGETS_JSON=$(echo "${TEST_TARGETS_JSON}" | jq -cr "[.[] | ${TEST_TARGETS_FILTER}]")
-        if [[ $(echo "${TEST_TARGETS_JSON}" | jq 'length') -eq 0 ]]; then
-          echo "No tests to run after filtering."
-          exit 0
-        fi
 
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
@@ -114,17 +103,9 @@ runs:
       if: always()
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
-        TEST_TARGETS_FILTER: ${{ inputs.test_targets_filter }}
       run: |
         set -uxe
         shopt -s globstar nullglob
-
-        # Filter test targets for result verification as well.
-        TEST_TARGETS_JSON=$(echo "${TEST_TARGETS_JSON}" | jq -cr "[.[] | ${TEST_TARGETS_FILTER}]")
-        if [[ $(echo "${TEST_TARGETS_JSON}" | jq 'length') -eq 0 ]]; then
-          echo "No tests to download results for after filtering."
-          exit 0
-        fi
 
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
