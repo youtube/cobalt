@@ -22,5 +22,13 @@ BASE_FEATURE(kExperimentConfigExpiration,
              "ExperimentConfigExpiration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Test feature, does not enable any features.
+BASE_FEATURE(kTestFinchFeature,
+             "TestFinchFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string> kTestFinchFeatureParam{
+    &kTestFinchFeature, "TestFinchFeatureParam", ""};
+
 }  // namespace features
 }  // namespace cobalt

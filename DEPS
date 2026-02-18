@@ -42,6 +42,7 @@ gclient_gn_args = [
   'checkout_android',
   'checkout_android_prebuilts_build_tools',
   'checkout_clang_coverage_tools',
+  'checkout_cobalt_internal',
   'checkout_copybara',
   'checkout_glic_e2e_tests',
   'checkout_ios_webkit',
@@ -78,6 +79,9 @@ vars = {
   # variables.
   # TODO(crbug.com/875037): Remove this once the problem in gclient is fixed.
   'checkout_fuchsia': False,
+
+  # By default, do not check out Cobalt internal.
+  'checkout_cobalt_internal': False,
 
   # For code related to internal Fuchsia images.
   'checkout_fuchsia_internal': False,
@@ -286,6 +290,7 @@ vars = {
   'boringssl_git': 'https://boringssl.googlesource.com',
   'chrome_git': 'https://chrome-internal.googlesource.com',
   'chromium_git': 'https://chromium.googlesource.com',
+  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com',
   'dawn_git': 'https://dawn.googlesource.com',
   'pdfium_git': 'https://pdfium.googlesource.com',
   'quiche_git': 'https://quiche.googlesource.com',
@@ -560,6 +565,7 @@ allowed_hosts = [
   'chrome-internal.googlesource.com',
   'chromium.googlesource.com',
   'dawn.googlesource.com',
+  'lbshell-internal.googlesource.com',
   'pdfium.googlesource.com',
   'quiche.googlesource.com',
   'skia.googlesource.com',
@@ -1511,6 +1517,11 @@ deps = {
     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
     'c429267f3539e1d40d05527bacde592f76b64e9d',
     'condition': 'checkout_android and checkout_src_internal',
+  },
+
+  'src/cobalt/internal': {
+    'url': Var('cobalt_internal_git') + '/cobalt/internal.git' + '@' + 'main',
+    'condition': 'checkout_cobalt_internal',
   },
 
   'src/docs/website': {
@@ -5765,6 +5776,7 @@ recursedeps = [
   # clank has its own DEPS file, does not need to be in trybot_analyze_config
   # since the roller does not run tests.
   'src/clank',
+  'src/cobalt/internal',
   'src/components/optimization_guide/internal',
   'src/ios_internal',
 ]
