@@ -251,14 +251,16 @@ static_assert(std::is_same<::media::BindHostReceiverCallback,
               "These two types must be the same");
 
 CobaltContentRendererClient::CobaltContentRendererClient() {
-  DETACH_FROM_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
-CobaltContentRendererClient::~CobaltContentRendererClient() = default;
+CobaltContentRendererClient::~CobaltContentRendererClient() {
+  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+}
 
 void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
 
@@ -273,10 +275,44 @@ void CobaltContentRendererClient::RenderFrameCreated(
   } else {
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
+<<<<<<< HEAD
+=======
+
+  if (sb_window_handle_.load() == 0 && !window_handle_requested_) {
+    window_handle_requested_ = true;
+    mojo::Remote<media::mojom::PlatformWindowProvider> window_provider;
+    render_frame->GetBrowserInterfaceBroker().GetInterface(
+        window_provider.BindNewPipeAndPassReceiver());
+
+    auto* window_provider_ptr = window_provider.get();
+    window_provider_ptr->GetSbWindow(
+        base::BindPostTaskToCurrentDefault(base::BindOnce(
+            [](base::WeakPtr<CobaltContentRendererClient> client,
+               mojo::Remote<media::mojom::PlatformWindowProvider> remote,
+               uint64_t handle) {
+              if (client) {
+                client->OnGetSbWindow(handle);
+              }
+            },
+            weak_factory_.GetWeakPtr(), std::move(window_provider))));
+  }
+}
+
+void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
+  CHECK(content::RenderThread::IsMainThread());
+  if (!handle) {
+    LOG(ERROR) << "Renderer received invalid SbWindow handle.";
+    return;
+  }
+
+  LOG(INFO) << "Renderer received SbWindow handle: "
+            << reinterpret_cast<void*>(handle);
+  sb_window_handle_ = handle;
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
@@ -284,6 +320,7 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 
 #if BUILDFLAG(IS_ANDROID)
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
+  CHECK(content::RenderThread::IsMainThread());
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
   using Robustness = cdm::WidevineKeySystemInfo::Robustness;
@@ -310,7 +347,7 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
 
 void CobaltContentRendererClient::GetSupportedKeySystems(
     ::media::GetSupportedKeySystemsCB cb) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   ::media::KeySystemInfos key_systems;
 #if BUILDFLAG(IS_ANDROID)
   AddStarboardCmaKeySystems(&key_systems);
@@ -320,7 +357,7 @@ void CobaltContentRendererClient::GetSupportedKeySystems(
 
 bool CobaltContentRendererClient::IsSupportedAudioType(
     const ::media::AudioType& type) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -334,7 +371,7 @@ bool CobaltContentRendererClient::IsSupportedAudioType(
 
 bool CobaltContentRendererClient::IsSupportedVideoType(
     const ::media::VideoType& type) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -348,7 +385,7 @@ bool CobaltContentRendererClient::IsSupportedVideoType(
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
     content::RenderFrame* render_frame) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   js_injection::JsCommunication* communication =
       js_injection::JsCommunication::Get(render_frame);
   communication->RunScriptsAtDocumentStart();
@@ -356,13 +393,18 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
 
 void CobaltContentRendererClient::BindHostReceiver(
     mojo::GenericPendingReceiver receiver) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   BindHostReceiverWithValuation(std::move(receiver));
 }
 
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
+<<<<<<< HEAD
     media::RendererFactoryTraits* renderer_factory_traits) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+=======
+    ::media::RendererFactoryTraits* renderer_factory_traits) {
+  CHECK(content::RenderThread::IsMainThread());
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   renderer_factory_traits->audio_write_duration_local =
       base::Microseconds(kSbPlayerWriteDurationLocal);
@@ -401,7 +443,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
 
   // Register the current thread (which is the InProcessRendererThread in
   // single- process mode) for hang watching. Store the ScopedClosureRunner to
