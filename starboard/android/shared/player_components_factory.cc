@@ -587,8 +587,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size,
       std::string* error_message) {
-    const auto& experimental_features =
-        creation_parameters.experimental_features();
+    auto experimental_features = creation_parameters.experimental_features();
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
@@ -628,6 +627,26 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       flush_delay_usec = kFlushDelayUsecOverride;
       SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
                    << " of " << flush_delay_usec << "us during Flush().";
+    }
+
+    if (experimental_features.use_dual_threads_for_video.value_or(false) &&
+        creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      // `use_dual_threads_for_video` should be disabled if the libopus audio
+      // decoder isn't used, as we want to limit the initial experiment to
+      // playbacks with software based audio where their threading behavior is
+      // more straightforward.
+      // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
+      // where technically the stream can start with aac then transit into opus.
+      const bool force_platform_opus_decoder =
+          starboard::features::FeatureList::IsEnabled(
+              starboard::features::kForcePlatformOpusDecoder);
+      bool use_libopus_decoder =
+          creation_parameters.audio_codec() == kSbMediaAudioCodecOpus &&
+          !SbDrmSystemIsValid(creation_parameters.drm_system()) &&
+          !force_platform_opus_decoder;
+      if (!use_libopus_decoder) {
+        experimental_features.use_dual_threads_for_video = false;
+      }
     }
 
     if (experimental_features.media_codec_reset_delay_ms) {

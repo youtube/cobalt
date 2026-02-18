@@ -40,6 +40,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     std::optional<int> video_renderer_min_input_buffers;
     std::optional<int> video_renderer_min_decoded_frames;
     std::optional<int> media_codec_reset_delay_ms;
+    std::optional<bool> use_dual_threads_for_video;
   };
 
   StarboardRendererConfig();
