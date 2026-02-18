@@ -464,6 +464,7 @@ jobs:
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          archive_browsertests: ${{ matrix.config == 'devel' && needs.initialize.outputs.use_browser_test == 'true' }}
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
@@ -501,8 +502,8 @@ jobs:
       - name: Build and Push Browser Test Docker Image
         id: build-docker-image
         if: |
-          (needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_on_host == 'true') &&
-          contains(steps.test-target-json.outputs.test_targets_json, 'cobalt_browsertests')
+          needs.initialize.outputs.test_on_device == 'true' &&
+          needs.initialize.outputs.use_browser_test == 'true'
         uses: ./.github/actions/docker_browsertests
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -511,7 +512,7 @@ jobs:
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
           workflow: ${{ github.workflow }}
-      - name: Run Browser Tests
+      - name: Run Browser Tests (Android)
         if: needs.initialize.outputs.test_on_device == 'true'
         uses: ./.github/actions/browser_tests
         with:
@@ -521,6 +522,44 @@ jobs:
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
           docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
+      - name: Run Browser Tests (Linux)
+        if: needs.initialize.outputs.test_on_host == 'true'
+        env:
+          TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+          XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+        run: |
+          set -eux
+          mkdir -p results
+          # Download artifacts that were uploaded in the build job.
+          # The browser test runner expects them to be extracted.
+
+          # Use GH CLI to download artifacts
+          gh run download ${{ github.run_id }} -n "${TEST_ARTIFACTS_KEY}" -D artifacts
+
+          mkdir -p unit_test/
+          cd unit_test/
+          tar -I 'zstd -T0' -xf ../artifacts/test_artifacts.tar.zstd
+
+          out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
+          LD_LIBRARY_PATH="${out_dir}/starboard"
+          LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
+          export LD_LIBRARY_PATH
+
+          # Linux runner is located in the out directory.
+          # It needs to be run via xvfb.
+          RUNNER="./out/${{ matrix.platform }}_${{ matrix.config }}/cobalt_browsertests_runner"
+
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+              stdbuf -i0 -o0 -e0 "${RUNNER}" \
+              --gtest_output="xml:${GITHUB_WORKSPACE}/results/cobalt_browsertests_result.xml" \
+              2>&1 | tee "${GITHUB_WORKSPACE}/results/cobalt_browsertests_log.txt"
+        shell: bash
+      - name: Archive Linux Browser Test Results
+        if: always() && needs.initialize.outputs.test_on_host == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
+          path: results/*
     outputs:
       # Browser tests are fixed to a single target.
       test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
