@@ -25,3 +25,15 @@ source_set("deep_link_support_tvos") {
 
   frameworks = [ "Foundation.framework" ]
 }
+
+source_set("network_error_handler") {
+  visibility = [ "//cobalt/browser" ]
+  sources = [
+    "network_error_handler.h",
+    "network_error_handler.mm",
+  ]
+
+  deps = [ "//content/public/browser" ]
+
+  frameworks = [ "Foundation.framework" ]
+}

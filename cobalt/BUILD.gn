@@ -14,6 +14,7 @@
 
 import("//build/linux/strip_binary.gni")
 import("//build/toolchain/toolchain.gni")
+import("//cobalt/build/locales.gni")
 import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
@@ -112,11 +113,24 @@ if (is_ios && target_platform == "tvos") {
     info_plist = cobalt_info_plist
   }
 
+  foreach(locale, cobalt_locales) {
+    bundle_data("cobalt_strings_${locale}_bundle_data") {
+      sources = [
+        "//cobalt/shell/app/tvos/strings/$locale.lproj/Localizable.strings",
+      ]
+      outputs =
+          [ "{{bundle_resources_dir}}/$locale.lproj/{{source_file_part}}" ]
+    }
+  }
+
   bundle_data("cobalt_shell_framework_resources") {
     testonly = true
     sources = [ "$root_out_dir/cobalt_shell.pak" ]
 
     public_deps = [ "//cobalt/shell:pak" ]
+    foreach(locale, cobalt_locales) {
+      public_deps += [ ":cobalt_strings_${locale}_bundle_data" ]
+    }
 
     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
   }

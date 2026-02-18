@@ -15,6 +15,10 @@
 import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
 source_set("browser") {
   sources = [
     "cobalt_browser_interface_binders.cc",
@@ -87,6 +91,10 @@ source_set("browser") {
     ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
+  }
+
+  if (is_ios && target_platform == "tvos") {
+    deps += [ "//cobalt/browser/tvos:network_error_handler" ]
   }
 
   if (is_starboard) {

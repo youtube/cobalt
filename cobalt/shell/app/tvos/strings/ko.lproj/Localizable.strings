@@ -1,0 +1,4 @@
+"NoNetworkDialogTitle" = "네트워크에 연결되지 않음";
+"NoNetworkDialogMessage" = "네트워크 연결을 확인하고 다시 시도해 주세요.";
+"NoNetworkDialogRetry" = "재시도";
+"NoNetworkDialogExit" = "종료";
