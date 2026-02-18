@@ -188,13 +188,12 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       const network::ResourceRequest& request,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       BrowserContext* browser_context,
-      const GeneratedResourceMap* resource_map_test,
+      const GeneratedResourceMap& resource_map,
       const std::string& splash_domain,
       uint64_t splash_content_size_limit)
       : client_(std::move(client)),
         url_(request.url),
         browser_context_(browser_context),
-        resource_map_test_(resource_map_test),
         splash_domain_(splash_domain),
         splash_content_size_limit_(splash_content_size_limit),
         mime_type_(kMimeTypeApplicationOctetStream) {
@@ -203,14 +202,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                        weak_factory_.GetWeakPtr()));
     std::string key = url_.host();
     std::string resource_key = key;
-
-    // Get the embedded header resource
-    GeneratedResourceMap resource_map;
-    if (resource_map_test_) {
-      resource_map = *resource_map_test_;
-    } else {
-      LoaderEmbeddedResources::GenerateMap(resource_map);
-    }
 
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
@@ -231,8 +222,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       resource_key = std::move(fallback);
     }
 
+<<<<<<< HEAD
     if (resource_map.find(resource_key) != resource_map.end()) {
       FileContents file_contents = resource_map[resource_key];
+=======
+    if (base::Contains(resource_map, resource_key)) {
+      FileContents file_contents = resource_map.at(resource_key);
+>>>>>>> 06cd139117 (Optimizes H5vccSchemeURLLoaderFactory by caching the resource map (#9123))
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
     } else {
@@ -425,7 +421,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
   BrowserContext* browser_context_;
-  const GeneratedResourceMap* resource_map_test_ = nullptr;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
   std::string mime_type_;
@@ -450,7 +445,13 @@ H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
                          .spec()),
       splash_content_size_limit_(
           global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
-      browser_context_(browser_context) {}
+      browser_context_(browser_context) {
+  if (resource_map_test_) {
+    resource_map_ = *resource_map_test_;
+  } else {
+    LoaderEmbeddedResources::GenerateMap(resource_map_);
+  }
+}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
 
@@ -463,7 +464,7 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<H5vccSchemeURLLoader>(
-          url_request, std::move(client), browser_context_, resource_map_test_,
+          url_request, std::move(client), browser_context_, resource_map_,
           splash_domain_, splash_content_size_limit_),
       std::move(receiver));
 }
