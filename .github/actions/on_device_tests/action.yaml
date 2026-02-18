@@ -70,7 +70,7 @@ runs:
           trigger \
           --test_type ${TEST_TYPE} \
           --device_family '${{ inputs.test_device_family }}' \
-          --targets "${TEST_TARGETS_JSON}" \
+          --targets '${{ inputs.test_targets_json }}' \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}" \
           --label chrobalt_on_device_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
