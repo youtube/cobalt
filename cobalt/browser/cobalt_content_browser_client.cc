@@ -75,16 +75,14 @@
 #include "cobalt/android/jni_headers/CobaltActivity_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-<<<<<<< HEAD
 #if defined(RUN_BROWSER_TESTS)
 #include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
 #endif  // defined(RUN_BROWSER_TESTS)
-=======
+
 #if !BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
->>>>>>> 55794cc3be (3p: Set user_agent_string crash annotation (#9118))
 
 namespace cobalt {
 
