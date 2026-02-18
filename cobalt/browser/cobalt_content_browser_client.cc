@@ -21,8 +21,10 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -532,6 +534,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  UMA_HISTOGRAM_BOOLEAN(
+      "Cobalt.Features.TestFinchFeature",
+      base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  base::UmaHistogramSparse("Cobalt.Features.TestFinchFeatureParam",
+                           base::Hash(features::kTestFinchFeatureParam.Get()));
   LOG(INFO) << "CobaltCommandLine: enable_features=["
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["
