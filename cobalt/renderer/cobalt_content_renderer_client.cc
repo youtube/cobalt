@@ -59,15 +59,9 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
      switches::kMSEVideoBufferSizeLimitClampMb},
 };
 
-struct ParsedH5vccSettings {
-  bool enable_flush_during_seek = false;
-  bool enable_reset_audio_decoder = false;
-  std::optional<int> initial_max_frames_in_decoder;
-  std::optional<int> max_pending_input_frames;
-  std::optional<int> video_decoder_poll_interval_ms;
-};
-
 using H5vccSettingValue = std::variant<std::string, int64_t>;
+using ExperimentalFeatures =
+    ::media::StarboardRendererConfig::ExperimentalFeatures;
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
@@ -210,9 +204,9 @@ std::optional<int> ProcessRangedIntH5vccSetting(
   return static_cast<int>(*val);
 }
 
-ParsedH5vccSettings ProcessH5vccSettings(
+ExperimentalFeatures ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
-  ParsedH5vccSettings parsed;
+  ExperimentalFeatures parsed;
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
     bool enable_allocate_on_demand = *val != 0;
@@ -375,22 +369,13 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   }
 
   cobalt::mojom::SettingsPtr settings;
-  ParsedH5vccSettings parsed;
-  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+  ExperimentalFeatures experimental_features;
+  if (h5vcc_settings_remote_.is_bound() &&
+      h5vcc_settings_remote_->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
-    parsed = ProcessH5vccSettings(h5vcc_settings);
+    experimental_features = ProcessH5vccSettings(h5vcc_settings);
   }
-  // TODO: b/474454335 - Remove once experiments are done.
-  renderer_factory_traits->enable_flush_during_seek =
-      parsed.enable_flush_during_seek;
-  renderer_factory_traits->enable_reset_audio_decoder =
-      parsed.enable_reset_audio_decoder;
-  renderer_factory_traits->initial_max_frames_in_decoder =
-      parsed.initial_max_frames_in_decoder;
-  renderer_factory_traits->max_pending_input_frames =
-      parsed.max_pending_input_frames;
-  renderer_factory_traits->video_decoder_poll_interval_ms =
-      parsed.video_decoder_poll_interval_ms;
+  renderer_factory_traits->experimental_features = experimental_features;
 
   renderer_factory_traits->viewport_size = viewport_size_;
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
