@@ -21,6 +21,11 @@ sys.path.append(
 import starboard.build.util.generate_runfile
 
 _RDK_PRE_RUN = """
+os.environ.update({
+    'XDG_RUNTIME_DIR': '/run',
+    'WAYLAND_DISPLAY': 'wayland-0',
+    'LD_PRELOAD': '/usr/lib/libwesteros_gl.so.0.0.0',
+})
 subprocess.run(['rdkDisplay', 'create'])
 """
 
