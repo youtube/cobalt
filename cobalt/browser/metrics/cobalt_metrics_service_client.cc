@@ -101,7 +101,7 @@ struct CobaltMetricsServiceClient::State
         memory_instrumentation::MemoryInstrumentation::GetInstance();
     if (instrumentation) {
       instrumentation->RequestGlobalDump(
-          {"skia/sk_glyph_cache", "font_caches/shape_caches"},
+          {"malloc", "skia/sk_glyph_cache", "font_caches/shape_caches"},
           base::BindOnce(&OnMemoryDumpDone, base::OnceClosure()));
     }
     RecordMemoryMetricsAfterDelay();
@@ -367,7 +367,7 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
                 memory_instrumentation::MemoryInstrumentation::GetInstance();
             if (instrumentation) {
               instrumentation->RequestGlobalDump(
-                  {"skia/sk_glyph_cache", "font_caches/shape_caches"},
+                  {"malloc", "skia/sk_glyph_cache", "font_caches/shape_caches"},
                   base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
             } else {
               std::move(done_callback).Run();
