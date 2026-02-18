@@ -17,6 +17,5 @@
       "name": "arm-softfp",
       "platform": "evergreen-arm-softfp"
     }
-  ],
-  "use_browser_test": false
+  ]
 }

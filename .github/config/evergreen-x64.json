@@ -23,6 +23,5 @@
       "name": "x64",
       "platform": "evergreen-x64"
     }
-  ],
-  "use_browser_test": false
+  ]
 }

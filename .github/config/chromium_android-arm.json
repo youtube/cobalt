@@ -13,6 +13,5 @@
       "name": "arm",
       "platform": "chromium_android-arm"
     }
-  ],
-  "use_browser_test": false
+  ]
 }
