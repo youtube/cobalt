@@ -83,6 +83,10 @@ runs:
           # TODO: b/382508397 - Currently, override with static test targets
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
+          # Filter out cobalt_browsertests from the test targets as they are handled by a dedicated job.
+          filtered_json=$(jq -cr '.test_targets |= [.[] | select(endswith(":cobalt_browsertests") or . == "cobalt_browsertests" | not)]' "${{ inputs.test_targets_json_file }}")
+          echo "${filtered_json}" > "${{ inputs.test_targets_json_file }}"
+
           # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
           # # Trim any warning gn printed before the json (all lines above the first curly brace).
           # sed -n '/^{/,$p' -i gn_desc.json

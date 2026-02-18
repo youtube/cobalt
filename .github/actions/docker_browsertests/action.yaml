@@ -1,0 +1,96 @@
+name: Browser Test Docker Image Build
+description: Builds and pushes specialized Docker image for Cobalt browser tests.
+inputs:
+  github_token:
+    description: "The github token."
+    required: true
+  docker_content_sha:
+    description: "The git hash for the latest docker related changes."
+    required: true
+  is_pr:
+    description: "True if the event is a pull request."
+    required: true
+  platform:
+    description: "The platform for which tests are being run."
+    required: true
+  config:
+    description: "The build configuration (e.g., devel)."
+    required: true
+  workflow:
+    description: "The workflow name."
+    required: true
+
+outputs:
+  docker_tag:
+    description: "The full docker image tag."
+    value: ${{ steps.build-and-push.outputs.docker_tag }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Cloud SDK
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+
+    - name: Set Docker Build Vars
+      shell: bash
+      run: |
+        # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
+        FLOATING_TAG="${{ inputs.is_pr == 'true' && github.event.pull_request.number || github.ref_name }}"
+        FLOATING_TAG="${FLOATING_TAG//\//__}"
+        FLOATING_TAG="${FLOATING_TAG%.1[+,-]}"
+        echo "DOCKER_FLOATING_TAG=${FLOATING_TAG}" >> $GITHUB_ENV
+
+        REGISTRY_REGION="us-west1"
+        REGISTRY_PROJECT="ytlr-image-hosting"
+        REGISTRY_REPOSITORY="integration-test-images"
+        DOCKER_IMAGE_NAME="avvall-service-test"
+        # For now, keeping the tag as in the previous implementation for compatibility
+        # though we could transition to DOCKER_CONTENT_SHA based tagging.
+        IMAGE_BASE="${REGISTRY_REGION}-docker.pkg.dev/${REGISTRY_PROJECT}/${REGISTRY_REPOSITORY}/${DOCKER_IMAGE_NAME}"
+        echo "IMAGE_BASE=${IMAGE_BASE}" >> $GITHUB_ENV
+        echo "REGISTRY_URL=https://${REGISTRY_REGION}-docker.pkg.dev" >> $GITHUB_ENV
+
+    - name: Login to GAR
+      shell: bash
+      run: |
+        TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+        curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token | docker login -u oauth2accesstoken --password-stdin "${REGISTRY_URL}"
+
+    - name: Prepare Build Context
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        WORKFLOW: ${{ inputs.workflow }}
+      run: |
+        set -eux
+        mkdir -p artifacts
+        PROJECT_NAME=$(gcloud config get-value project)
+        GCS_PATH="gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/"
+        gsutil -m cp -r "${GCS_PATH}*" artifacts/
+        cp cobalt/testing/browser_tests/tools/Dockerfile artifacts/
+
+    - name: Build and Push Docker Image
+      id: build-and-push
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
+      run: |
+        set -eux
+        cd artifacts/
+
+        # Use github run id and platform/config for uniqueness in this migration phase
+        TAG="${{ github.run_id }}-${PLATFORM}-${CONFIG}"
+        FULL_IMAGE="${IMAGE_BASE}:${TAG}"
+
+        docker build -f Dockerfile -t "${FULL_IMAGE}" .
+
+        # Also tag with content SHA and floating tag as per project standards
+        # But we must use the IMAGE_BASE which already contains the full GAR path.
+        docker tag "${FULL_IMAGE}" "${IMAGE_BASE}:${DOCKER_CONTENT_SHA}-${PLATFORM}-${CONFIG}"
+        docker tag "${FULL_IMAGE}" "${IMAGE_BASE}:${DOCKER_FLOATING_TAG}-${PLATFORM}-${CONFIG}"
+
+        docker push --all-tags "${IMAGE_BASE}"
+
+        echo "docker_tag=${FULL_IMAGE}" >> $GITHUB_OUTPUT

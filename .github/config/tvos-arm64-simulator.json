@@ -18,4 +18,5 @@
       "platform": "tvos-arm64-simulator"
     }
   ]
+  ,"use_browser_test": false
 }

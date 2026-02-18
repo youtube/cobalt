@@ -268,6 +268,13 @@ jobs:
           set -x
           enable_sccache=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.enable_sccache')
           echo "enable_sccache=${enable_sccache}" >> $GITHUB_OUTPUT
+      - name: Set use browser test
+        id: set-use-browser-test
+        shell: bash
+        run: |
+          set -x
+          use_browser_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.use_browser_test // false')
+          echo "use_browser_test=${use_browser_test}" >> $GITHUB_OUTPUT
       - name: Set Docker files checksum
         id: set-docker-hash
         shell: bash
@@ -304,6 +311,7 @@ jobs:
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
+      use_browser_test: ${{ steps.set-use-browser-test.outputs.use_browser_test }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -461,12 +469,17 @@ jobs:
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
 
-  docker-browsertests-image:
+  browsertest:
     needs: [initialize, build]
     if: |
-      !contains(fromJSON('["android-x86", "chromium_android-arm", "chromium_android-arm64", "chromium_android-x86", "evergreen-arm-softfp", "evergreen-arm64", "chromium_linux"]'), inputs.platform)
+      needs.initialize.outputs.use_browser_test == 'true' &&
+      (
+        (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+      )
     runs-on: [self-hosted, chrobalt-linux-runner]
-    name: ${{ matrix.name }}_docker_browsertests_image
+    name: ${{ matrix.name }}_browsertests
     strategy:
       fail-fast: false
       matrix:
@@ -486,48 +499,34 @@ jobs:
         id: test-target-json
         uses: ./.github/actions/test_targets_json
       - name: Build and Push Browser Test Docker Image
-        if: needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_on_host == 'true'
-        env:
-          TEST_TARGETS_JSON: ${{ steps.test-target-json.outputs.test_targets_json }}
-          DOCKER_IMAGE_NAME: avvall-service-test
-          REGISTRY_REGION: us-west1
-          REGISTRY_PROJECT: ytlr-image-hosting
-          REGISTRY_REPOSITORY: integration-test-images
-          PLATFORM: ${{ matrix.platform }}
-          CONFIG: ${{ matrix.config }}
-          WORKFLOW: ${{ github.workflow }}
-        run: |
-          set -eux
-          # Check if cobalt_browsertests is in the targets using jq for robust parsing.
-          if echo "${TEST_TARGETS_JSON}" | jq -e '.[] | select(endswith(":cobalt_browsertests") or . == "cobalt_browsertests")' > /dev/null; then
-            echo "Found cobalt_browsertests in targets. Building Docker image..."
-
-            # Download the artifacts tarball from GCS
-            mkdir -p artifacts
-            PROJECT_NAME=$(gcloud config get-value project)
-            GCS_PATH="gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/"
-            gsutil -m cp -r "${GCS_PATH}*" artifacts/
-
-            # Dockerfile expects cobalt_browsertests_artifacts.tar.gz in the context.
-            cp cobalt/testing/browser_tests/tools/Dockerfile artifacts/
-            cd artifacts/
-
-            TAG="${{ github.run_id }}-${PLATFORM}-${CONFIG}"
-            IMAGE="${REGISTRY_REGION}-docker.pkg.dev/${REGISTRY_PROJECT}/${REGISTRY_REPOSITORY}/${DOCKER_IMAGE_NAME}:${TAG}"
-
-            # Login to GAR using the service account token from metadata server.
-            TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-            curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token | docker login -u oauth2accesstoken --password-stdin "https://${REGISTRY_REGION}-docker.pkg.dev"
-
-            docker build -f Dockerfile -t "${IMAGE}" .
-            docker push "${IMAGE}"
-          else
-            echo "cobalt_browsertests not found in targets. Skipping Docker build."
-          fi
-        shell: bash
+        id: build-docker-image
+        if: |
+          (needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_on_host == 'true') &&
+          contains(steps.test-target-json.outputs.test_targets_json, 'cobalt_browsertests')
+        uses: ./.github/actions/docker_browsertests
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
+          workflow: ${{ github.workflow }}
+      - name: Run Browser Tests
+        if: needs.initialize.outputs.test_on_device == 'true'
+        uses: ./.github/actions/browser_tests
+        with:
+          test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
+          test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
+          docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
+    outputs:
+      # Browser tests are fixed to a single target.
+      test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
 
   on-device-test:
-    needs: [initialize, build, docker-browsertests-image]
+    needs: [initialize, build]
     if: |
       always() &&
       needs.initialize.result == 'success' &&
@@ -569,12 +568,11 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
-          docker_tag: ${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}
     outputs:
       test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
 
   e2e-test:
-    needs: [initialize, build, docker-browsertests-image]
+    needs: [initialize, build]
     # Run E2E tests for presumit.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
     if: |
@@ -610,10 +608,9 @@ jobs:
           test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
-          docker_tag: ${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}
 
   yts-test:
-    needs: [initialize, build, docker-browsertests-image]
+    needs: [initialize, build]
     # Run YTS tests via presumit.
     # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
     if: |
@@ -647,7 +644,6 @@ jobs:
         with:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_test_targets }}'
-          docker_tag: ${{ github.run_id }}-${{ matrix.platform }}-${{ matrix.config }}
 
   yts-playback-test:
     needs: [initialize, build]
@@ -833,10 +829,12 @@ jobs:
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
   test-results:
-    needs: [initialize, build, on-device-test, on-host-test]
+    needs: [initialize, build, on-device-test, browsertest, on-host-test]
     if: always() &&
         (
-          needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped'
+          needs.on-device-test.result != 'skipped' ||
+          needs.browsertest.result != 'skipped' ||
+          needs.on-host-test.result != 'skipped'
         )
     permissions: {}
     runs-on: ubuntu-latest
@@ -849,7 +847,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
+        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.browsertest.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
