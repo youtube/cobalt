@@ -51,6 +51,9 @@ inline const char* SupportedAudioCodecToMimeType(
   *is_passthrough = false;
 
   if (audio_codec == kSbMediaAudioCodecAc3 ||
+#if SB_API_VERSION >= 15
+      audio_codec == kSbMediaAudioCodecIamf ||
+#endif  // SB_API_VERSION >= 15
       audio_codec == kSbMediaAudioCodecEac3) {
     *is_passthrough = true;
     return "audio/raw";
@@ -93,6 +96,11 @@ inline int GetAudioFormatSampleType(
     return 6;  // Android AudioFormat.ENCODING_E_AC3.
     // TODO: Consider using 18 (AudioFormat.ENCODING_E_AC3_JOC) when supported.
   }
+#if SB_API_VERSION >= 15
+  if (coding_type == kSbMediaAudioCodingTypeIamfBaseProfileOpus) {
+    return 37; // Android AudioFormat.ENCODING_IAMF_BASE_PROFILE_OPUS
+  }
+#endif  // SB_API_VERSION >= 15
 
   SB_DCHECK(coding_type == kSbMediaAudioCodingTypePcm);
   SB_DCHECK(sample_type);
