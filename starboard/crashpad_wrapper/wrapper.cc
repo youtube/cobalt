@@ -47,7 +47,7 @@ const char kCrashpadCertScopeKey[] = "cert_scope";
 namespace {
 // TODO: Get evergreen information from installation.
 const std::string kCrashpadVersion = "1.0.0.0";
-#if defined(STARBOARD_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 const std::string kUploadUrl("https://clients2.google.com/cr/report");
 #else
 const std::string kUploadUrl("https://clients2.google.com/cr/staging_report");
@@ -145,14 +145,17 @@ std::map<std::string, std::string> GetPlatformInfo() {
     platform_info.insert({"system_integrator_name", value.data()});
   }
 
-#if defined(STARBOARD_BUILD_TYPE_DEBUG)
-  platform_info.insert({"build_configuration", "debug"});
-#elif defined(STARBOARD_BUILD_TYPE_DEVEL)
-  platform_info.insert({"build_configuration", "devel"});
-#elif defined(STARBOARD_BUILD_TYPE_QA)
-  platform_info.insert({"build_configuration", "qa"});
-#elif defined(STARBOARD_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   platform_info.insert({"build_configuration", "gold"});
+#elif defined(OFFICIAL_BUILD)
+  platform_info.insert({"build_configuration", "qa"});
+#elif defined(NDEBUG)
+  platform_info.insert({"build_configuration", "devel"});
+#else
+  // Note: |debug| builds will incorrectly be caught by the previous condition
+  // until the todo comment in cobalt/build/gn.py, attached to b/423038377, is
+  // addressed.
+  platform_info.insert({"build_configuration", "debug"});
 #endif
 
   result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value.data(),
