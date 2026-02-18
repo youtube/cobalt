@@ -197,7 +197,7 @@ Now the data field of this SbEvent type is a boolean indicating if text-to-speec
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
 For a full overview of Starboard POSIX migrations, please refer to
-[migration guide](/starboard/doc/starboard_16_posix.md).
+[migration guide](/starboard/doc/starboard_17_posix.md).
 
 #### Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.

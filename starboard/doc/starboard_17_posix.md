@@ -1,4 +1,4 @@
-# Starboard 16 POSIX APIs
+# Starboard 17 POSIX APIs
 
 
 ## Background
@@ -19,28 +19,22 @@ A test suite [starboard/nplb/posix_compliance](../nplb/posix_compliance) is adde
 to verify the POSIX APIs specification and to enforce uniformity across all platforms.
 
 To run `nplb` in Evergreen mode:
-1. Build the `elf_loader_sandbox` for the  target platform. This is the equivalent of the `loader_app`
-but for running tests using the command line arguments.
-```
-ninja -C out/${PLATFORM}_devel/ elf_loader_sandbox_install
+1. Build the `nplb_loader` for the target platform. This will build both the
+   `elf_loader_sandbox` (the equivalent of `loader_app` but for running tests
+   on the command line) and the `libnplb.so` library.
+    ```shell
+    ninja -C out/${PLATFORM}_devel/ nplb_loader
+    ```
+1. Run the `nplb` test
+    ```shell
+    out/${PLATFORM}_devel/nplb_loader.py
+    ```
 
-```
-2. Build `nplb` for Evergreen.
-```
-ninja -C out/evergreen-arm-softfp_devel/ nplb_install
-
-```
-3. Run the `nplb` test
-
-```
-.../elf_loader_sandbox --evergreen_library=libnplb.so
-                       --evergreen_content=app/nplb/content
-```
-
-The `elf_loader_sandbox` takes two command line switches:
-`--evergreen_library` and `--evergreen_content`. These switches are the path to
-the shared library to be run and the path to that shared library's content.
-These paths should be *relative to the content of the elf_loader_sandbox*.
+`nplb_loader.py` is a wrapper script that runs the `elf_loader_sandbox`. The
+`elf_loader_sandbox` takes two command line switches: `--evergreen_library` and
+`--evergreen_content`. These switches are the path to the shared library to be
+run and the path to that shared library's content. These paths should be
+*relative to the content of the elf_loader_sandbox*.
 
 ```
 .../elf_loader_sandbox
@@ -64,7 +58,7 @@ be a specific number of bytes (e.g. the type long may be 4 or 8 bytes),
 nor the padding/layout of the members in the struct
 (e.g. a compiler is allowed to add additional padding).
 
-The Starboard 16 POSIX ABI is defined by a combination of existing
+The Starboard 17 POSIX ABI is defined by a combination of existing
 [third_party/musl](../../third_party/musl) types and values and new types
 and values added under [third_party/musl/src/starboard](../../third_party/musl/src/starboard).
 All of the types have a concrete stable ABI defined per CPU architecture.
