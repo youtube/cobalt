@@ -71,21 +71,21 @@ runs:
           --test_type "${TEST_TYPE}" \
           --targets "${TEST_TARGETS}" \
           --retry_level "${TEST_RETRY_LEVEL}" \
-          --label "${TEST_TYPE}" \
-          --label github_"${GITHUB_PR_NUMBER:-postsubmit}" \
-          --label builder-"${PLATFORM}" \
-          --label builder_url-"${GITHUB_RUN_URL}" \
+          --label ${TEST_TYPE} \
+          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
+          --label builder-${{ matrix.platform }} \
+          --label builder_url-${GITHUB_RUN_URL} \
           --label github \
-          --label "${GITHUB_EVENT_NAME}" \
-          --label "${GITHUB_WORKFLOW}" \
-          --label actor-"${GITHUB_ACTOR}" \
-          --label actor_id-"${GITHUB_ACTOR_ID}" \
-          --label triggering_actor-"${GITHUB_TRIGGERING_ACTOR}" \
-          --label sha-"${GITHUB_SHA}" \
-          --label repository-"${GITHUB_REPO}" \
-          --label author-"${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME}" \
-          --label author_id-"${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}" \
-          --label branch:"${GITHUB_REF_NAME}" \
+          --label ${GITHUB_EVENT_NAME} \
+          --label ${GITHUB_WORKFLOW} \
+          --label actor-${GITHUB_ACTOR} \
+          --label actor_id-${GITHUB_ACTOR_ID} \
+          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
+          --label sha-${GITHUB_SHA} \
+          --label repository-${GITHUB_REPO} \
+          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
+          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
+          --label branch:${GITHUB_REF_NAME} \
           --dimensions "${TEST_DIMENSIONS}" \
           --artifact_name "${ARTIFACT_NAME}" \
           --device_family "${DEVICE_FAMILY}" \
