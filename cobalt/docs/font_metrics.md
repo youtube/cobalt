@@ -22,7 +22,7 @@ These metrics track actual bytes used in RAM and GPU memory.
 ### Blink / Renderer Layer
 *   **Font Shape Caches**
     *   **Dump Path**: `font_caches/shape_caches`
-    *   **UMA Mapping**: Part of `Memory.Experimental.Renderer2.FontCaches` (aggregated in some versions).
+    *   **UMA Mapping**: `Memory.Experimental.[Process].FontCaches`
     *   **Description**: Memory used for caching text shaping results (the output of HarfBuzz).
     *   **Source**: `third_party/blink/renderer/platform/fonts/font_cache.cc`.
 

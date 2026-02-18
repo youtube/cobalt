@@ -329,6 +329,48 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
 }
 
 TEST_F(CobaltMetricsServiceClientTest,
+       RecordMemoryMetricsRecordsExperimentalHistograms) {
+  base::HistogramTester histogram_tester;
+
+  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+      memory_instrumentation::mojom::GlobalMemoryDump::New();
+
+  auto process_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  process_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::BROWSER;
+  process_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+
+  // 2MB in bytes
+  const uint64_t kSkiaGlyphCacheSize = 2 * 1024 * 1024;
+  // 512KB in bytes
+  const uint64_t kFontCacheSize = 512 * 1024;
+
+  auto skia_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  skia_dump->numeric_entries["size"] = kSkiaGlyphCacheSize;
+  process_dump->chrome_allocator_dumps["skia/sk_glyph_cache"] =
+      std::move(skia_dump);
+
+  auto font_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+  font_dump->numeric_entries["size"] = kFontCacheSize;
+  process_dump->chrome_allocator_dumps["font_caches/shape_caches"] =
+      std::move(font_dump);
+
+  dump_ptr->process_dumps.push_back(std::move(process_dump));
+
+  auto global_dump =
+      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+
+  // Values should be in KB
+  histogram_tester.ExpectUniqueSample(
+      "Memory.Experimental.Browser2.Skia.SkGlyphCache",
+      kSkiaGlyphCacheSize / 1024, 1);
+  histogram_tester.ExpectUniqueSample("Memory.Experimental.Browser2.FontCaches",
+                                      kFontCacheSize / 1024, 1);
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;
 

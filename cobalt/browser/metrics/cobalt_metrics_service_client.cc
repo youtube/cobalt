@@ -382,15 +382,16 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
   uint64_t total_private_footprint_kb = 0;
   uint64_t total_resident_kb = 0;
 
+  // Attribute all metrics to Browser2 since Cobalt is currently
+  // single-process.
+  const char* process_name = "Browser2";
+
   for (const auto& process_dump : global_dump->process_dumps()) {
     uint64_t private_kb = process_dump.os_dump().private_footprint_kb;
     uint64_t resident_kb = process_dump.os_dump().resident_set_kb;
     total_private_footprint_kb += private_kb;
     total_resident_kb += resident_kb;
 
-    // Attribute all metrics to Browser2 since Cobalt is currently
-    // single-process.
-    const char* process_name = "Browser2";
     MEMORY_METRICS_HISTOGRAM_MB(
         base::StringPrintf("Memory.%s.PrivateMemoryFootprint", process_name),
         private_kb / 1024);
@@ -402,19 +403,19 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
     std::optional<uint64_t> skia_glyph_cache =
         process_dump.GetMetric("skia/sk_glyph_cache", "size");
     if (skia_glyph_cache) {
-      MEMORY_METRICS_HISTOGRAM_MB(
+      base::UmaHistogramMemoryKB(
           base::StringPrintf("Memory.Experimental.%s.Skia.SkGlyphCache",
                              process_name),
-          *skia_glyph_cache / 1024 / 1024);
+          *skia_glyph_cache / 1024);
     }
 
     // Record Font Caches
     std::optional<uint64_t> font_caches =
         process_dump.GetMetric("font_caches/shape_caches", "size");
     if (font_caches) {
-      MEMORY_METRICS_HISTOGRAM_MB(
+      base::UmaHistogramMemoryKB(
           base::StringPrintf("Memory.Experimental.%s.FontCaches", process_name),
-          *font_caches / 1024 / 1024);
+          *font_caches / 1024);
     }
   }
 
