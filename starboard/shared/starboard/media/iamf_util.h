@@ -47,10 +47,10 @@ class IamfMimeUtil {
   // Parses IAMF Config OBUs for the primary and additional profiles,
   // based on IAMF specification v1.0.0-errata.
   // https://aomediacodec.github.io/iamf/v1.1.0.html#codecsparameter.
-  static void ParseIamfConfigOBU(const uint8_t* data,
-                                 size_t size,
-                                 uint8_t* primary_profile,
-                                 uint8_t* additional_profile);
+  static bool ParseIamfSequenceHeaderObu(const uint8_t* data,
+                                         size_t size,
+                                         uint8_t* primary_profile,
+                                         uint8_t* additional_profile);
 
   bool is_valid() const {
     return primary_profile_ <= kIamfProfileMax &&

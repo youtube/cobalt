@@ -154,39 +154,47 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
 }
 
 // static.
-void IamfMimeUtil::ParseIamfConfigOBU(const uint8_t* data,
-                                      size_t size,
-                                      uint8_t* primary_profile,
-                                      uint8_t* additional_profile) {
+bool IamfMimeUtil::ParseIamfSequenceHeaderObu(const uint8_t* data,
+                                              size_t size,
+                                              uint8_t* primary_profile,
+                                              uint8_t* additional_profile) {
   const uint8_t* end = data + size;
 
   const uint8_t header_byte = *data++;
   uint8_t obu_type = (header_byte >> 3) & 0x1f;
+  if (obu_type != kIamfSequenceHeaderObu) {
+    SB_LOG(ERROR) << "Tried to read OBU: " << static_cast<int>(obu_type)
+                  << " instead of IA Sequence Header OBU type "
+                  << static_cast<int>(kIamfSequenceHeaderObu)
+                  << " in ParseIamfSequenceHeaderObu().";
+    return false;
+  }
 
   uint32_t obu_size;
   if (!ReadLeb128(&data, end, &obu_size)) {
     SB_LOG(ERROR) << "Failed to parse OBU size.";
-    return;
+    return false;
   }
 
   if (static_cast<size_t>(end - data) < obu_size) {
-    SB_LOG(ERROR) << "OBU size exceeds access unit size.";
-    return;
+    SB_LOG(ERROR) << "Parsed OBU size " << obu_size
+                  << " exceeds the specified size " << size << ".";
+    return false;
   }
   const uint8_t* obu_end = data + obu_size;
 
-  if (obu_type == kIamfSequenceHeaderObu) {
-    if (data + sizeof(uint32_t) + 2 > obu_end) {
-      return;
-    }
-    // Skip ia_code (4 bytes).
-    data += sizeof(uint32_t);
-
-    *primary_profile = *data++;
-    *additional_profile = *data;
+  if (data + sizeof(uint32_t) + 2 > obu_end) {
+    SB_LOG(ERROR) << "Expected OBU data size " << sizeof(uint32_t) + 2
+                  << " exceeds the full OBU size " << obu_size << ".";
+    return false;
   }
-  // The Sequence Header must be the first OBU. If it isn't found, leave the
-  // profile values unset.
+  // Skip ia_code (4 bytes).
+  data += sizeof(uint32_t);
+
+  *primary_profile = *data++;
+  *additional_profile = *data;
+
+  return true;
 }
 
 }  // namespace starboard

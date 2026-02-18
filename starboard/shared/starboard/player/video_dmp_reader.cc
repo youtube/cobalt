@@ -25,8 +25,6 @@ namespace starboard {
 
 namespace {
 
-constexpr uint8_t kIamfSequenceHeaderObu = 31;
-
 template <typename AccessUnit>
 int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
   if (access_units.empty()) {
@@ -320,10 +318,11 @@ void VideoDmpReader::Parse() {
       !dmp_info_.iamf_primary_profile.has_value()) {
     dmp_info_.iamf_primary_profile = 0;
     dmp_info_.iamf_additional_profile = 0;
-    IamfMimeUtil::ParseIamfConfigOBU(audio_access_units_[0].data().data(),
-                                     audio_access_units_[0].data().size(),
-                                     &(*dmp_info_.iamf_primary_profile),
-                                     &(*dmp_info_.iamf_additional_profile));
+    SB_CHECK(IamfMimeUtil::ParseIamfSequenceHeaderObu(
+        audio_access_units_[0].data().data(),
+        audio_access_units_[0].data().size(),
+        &(*dmp_info_.iamf_primary_profile),
+        &(*dmp_info_.iamf_additional_profile)));
   }
 
   dmp_info_.audio_access_units_size = audio_access_units_.size();
