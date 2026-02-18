@@ -111,3 +111,8 @@ runs:
       with:
         name: ${{ inputs.test_results_key }}
         path: ${{ env.results_dir }}/*
+    - name: Run Nightly Deflake
+      # Deflake workflow retries 3 times. Pass the 3rd to keep dashboard green.
+      if: github.event_name == 'schedule' && github.run_attempt != 3
+      run: echo "::warning::Triggering deflaking run by failing." && exit 1
+      shell: bash
