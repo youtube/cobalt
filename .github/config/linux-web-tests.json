@@ -19,6 +19,6 @@
       "name": "x64",
       "platform": "linux-x64x11-no-starboard"
     }
-  ]
-  ,"use_browser_test": false
+  ],
+  "use_browser_test": false
 }

@@ -17,6 +17,6 @@
       "name": "tvos",
       "platform": "tvos-arm64-simulator"
     }
-  ]
-  ,"use_browser_test": false
+  ],
+  "use_browser_test": false
 }

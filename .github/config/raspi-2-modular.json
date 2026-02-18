@@ -3,7 +3,6 @@
   "platforms": [
     "raspi-2-modular"
   ],
-  "use_browser_test": false,
   "test_on_device": true,
   "test_device_family": "raspi",
   "test_root_target": "//cobalt:gn_all",
@@ -20,5 +19,6 @@
       "name": "raspi-2",
       "platform": "raspi-2-modular"
     }
-  ]
+  ],
+  "use_browser_test": false
 }

@@ -4,7 +4,6 @@
     "evergreen-x64"
   ],
   "test_package": true,
-  "use_browser_test": false,
   "test_on_host": true,
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 10,
@@ -24,5 +23,6 @@
       "name": "x64",
       "platform": "evergreen-x64"
     }
-  ]
+  ],
+  "use_browser_test": false
 }

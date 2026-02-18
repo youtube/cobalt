@@ -13,6 +13,6 @@
       "name": "arm64",
       "platform": "chromium_android-arm64"
     }
-  ]
-  ,"use_browser_test": false
+  ],
+  "use_browser_test": false
 }

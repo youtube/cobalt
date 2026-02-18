@@ -15,6 +15,6 @@
       "name": "x64",
       "platform": "chromium_linux-x64x11"
     }
-  ]
-  ,"use_browser_test": false
+  ],
+  "use_browser_test": false
 }
