@@ -70,7 +70,6 @@
     "out/linux-x64x11_devel/nplb",
     "out/linux-x64x11_devel/ozone_unittests",
     "out/linux-x64x11_devel/perfetto_unittests",
-    "out/linux-x64x11_devel/cobalt_browsertests_runner",
     "out/linux-x64x11_devel/skia_unittests",
     "out/linux-x64x11_devel/sql_unittests",
     "out/linux-x64x11_devel/starboard_unittests_wrapper",
