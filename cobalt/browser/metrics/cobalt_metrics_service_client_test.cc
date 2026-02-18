@@ -298,8 +298,6 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
-<<<<<<< HEAD
-=======
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   base::HistogramTester histogram_tester;
 
@@ -328,7 +326,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   // Renderer, GPU) when moving to multi-process architecture.
 }
 
->>>>>>> bd38dfe1bc (cobalt/metrics: Add Memory.*.Resident metrics to Cobalt (#8920))
 TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;
