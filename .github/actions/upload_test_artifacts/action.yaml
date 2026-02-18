@@ -56,26 +56,28 @@ runs:
           FLAGS="--compression zstd --compression-level=9"
         fi
 
-        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
-          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
-          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
-          ${FLAGS}
+        TARGETS=$(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")')
 
-        # Archive browser tests separately if requested.
+        # Archive browser tests if requested.
         if [[ "${{ inputs.archive_browsertests }}" == "true" ]]; then
           # Determine the browser test target for this platform.
           BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
           if [[ "${{ matrix.platform }}" == *linux* ]]; then
             BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests_runner"
           fi
+          if [[ -n "${TARGETS}" ]]; then
+            TARGETS="${TARGETS},${BROWSERTEST_TARGET}"
+          else
+            TARGETS="${BROWSERTEST_TARGET}"
+          fi
+        fi
 
+        if [[ -n "${TARGETS}" ]]; then
           time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
             --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
             --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
             --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-            --targets "${BROWSERTEST_TARGET}" \
+            --targets "${TARGETS}" \
             ${FLAGS}
         fi
       shell: bash
