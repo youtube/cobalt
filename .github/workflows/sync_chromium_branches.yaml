@@ -7,9 +7,10 @@ on:
 permissions: read-all
 jobs:
   sync:
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -30,12 +31,14 @@ jobs:
         with:
           ref: chromium/${{ matrix.branch.milestone }}
           fetch-depth: 1
+          filter: blob:none
       - name: Run fallback actions/checkout@v4
         uses: actions/checkout@v4
         if: steps.checkout.outcome == 'failure'
         with:
           ref: main
           fetch-depth: 1
+          filter: blob:none
       - name: Set up Git
         run: |
           git config --global user.name "GitHub Release Automation"
@@ -72,16 +75,26 @@ jobs:
             echo "main_cherry_pick=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@v4
-        id: checkout_main
+        id: checkout_cherry_pick_main_sync
         if: steps.push_diff.outputs.main_cherry_pick == 'true' && contains(matrix.branch.milestone, 'm138')
         with:
-          ref: main
-          fetch-depth: 1
-      - name: Cherry Pick and Push upstream diff to main
-        if: steps.checkout_main.outcome == 'success'
+          ref: cherry-pick-main-sync
+          fetch-depth: 16
+          filter: blob:none
+      - name: Cherry Pick upstream diff to main
+        if: steps.checkout_cherry_pick_main_sync.outcome == 'success'
         run: |
+          git pull --rebase origin main
           if ! git cherry-pick "${{ steps.push_diff.outputs.main_cherry_pick_hash }}"; then
             git status | sed -n "s/^[[:space:]]*deleted by us:[[:space:]]*//p" | xargs -d "\n" git rm
+            git add .
             git cherry-pick --continue --no-edit
           fi
-          git push --force origin main
+          git push origin cherry-pick-main-sync --force
+          if [ -z "$(gh pr list -H cherry-pick-main-sync)" ]; then
+            gh pr create -B main -H cherry-pick-main-sync --fill -r "briantting"
+          else
+            echo "Pull Request already exists."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
