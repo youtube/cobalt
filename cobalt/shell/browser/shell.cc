@@ -374,9 +374,6 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
     // ShellBrowserMainParts::InitializeMessageLoopContext().
     WebContents::CreateParams splash_screen_create_params(browser_context,
                                                           nullptr);
-    if (!is_visible) {
-      splash_screen_create_params.initially_hidden = true;
-    }
     splash_screen_create_params.main_frame_name = kCobaltSplashMainFrameName;
     splash_screen_web_contents =
         WebContents::Create(splash_screen_create_params);

@@ -35,7 +35,6 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
-#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
