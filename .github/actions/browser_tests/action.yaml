@@ -77,22 +77,22 @@ runs:
           --device_family "${DEVICE_FAMILY}"
           --targets "${TEST_TARGETS_JSON}"
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"
-          --label chrobalt_on_device_browser_test
-          --label github_"${GITHUB_PR_NUMBER:-postsubmit}"
-          --label builder-"${PLATFORM}"
-          --label builder_url-"${GITHUB_RUN_URL}"
-          --label "${TEST_TYPE}"
-          --label github
-          --label "${GITHUB_EVENT_NAME}"
-          --label "${GITHUB_WORKFLOW}"
-          --label actor-"${GITHUB_ACTOR}"
-          --label actor_id-"${GITHUB_ACTOR_ID}"
-          --label triggering_actor-"${GITHUB_TRIGGERING_ACTOR}"
-          --label sha-"${GITHUB_SHA}"
-          --label repository-"${GITHUB_REPO}"
-          --label author-"${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME}"
-          --label author_id-"${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}"
-          --label branch:"${GITHUB_REF_NAME}"
+          --label chrobalt_on_device_browser_test \
+          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
+          --label builder-${{ matrix.platform }} \
+          --label builder_url-${GITHUB_RUN_URL} \
+          --label ${TEST_TYPE} \
+          --label github \
+          --label ${GITHUB_EVENT_NAME} \
+          --label ${GITHUB_WORKFLOW} \
+          --label actor-${GITHUB_ACTOR} \
+          --label actor_id-${GITHUB_ACTOR_ID} \
+          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
+          --label sha-${GITHUB_SHA} \
+          --label repository-${GITHUB_REPO} \
+          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
+          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
+          --label branch:${GITHUB_REF_NAME} \
           --dimensions "${TEST_DIMENSIONS}"
           ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"}
           ${DOCKER_TAG:+"--docker_tag" "$DOCKER_TAG"}
