@@ -50,6 +50,8 @@ const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
     "Media.VideoMaxPendingInputFrames";
 const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
     "Media.VideoDecoderPollIntervalMs";
+const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
+    "Media.MaxSamplesPerWrite";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -230,6 +232,9 @@ ExperimentalFeatures ProcessH5vccSettings(
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
       kMaxVideoDecoderPollIntervalMs, kH5vccUnsetSentinel);
+  parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
+      /*max_val=*/100'000, kH5vccUnsetSentinel);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);

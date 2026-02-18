@@ -232,6 +232,7 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
   IPC_STRUCT_TRAITS_MEMBER(initial_max_frames_in_decoder)
   IPC_STRUCT_TRAITS_MEMBER(max_pending_input_frames)
   IPC_STRUCT_TRAITS_MEMBER(video_decoder_poll_interval_ms)
+  IPC_STRUCT_TRAITS_MEMBER(max_samples_per_write)
 IPC_STRUCT_TRAITS_END()
 
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)

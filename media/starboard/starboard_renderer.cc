@@ -141,6 +141,10 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
       experimental_features_(experimental_features),
+      max_audio_samples_per_write_(
+          experimental_features.max_samples_per_write
+              ? *experimental_features.max_samples_per_write
+              : 1),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
