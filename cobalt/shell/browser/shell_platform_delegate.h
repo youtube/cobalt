@@ -59,6 +59,8 @@ class ShellPlatformDelegate {
   // Returns true if the application is in a visible state.
   bool IsVisible() const;
 
+  void set_is_visible(bool is_visible) { is_visible_ = is_visible; }
+
   // Lifecycle signals called from the application.
   virtual void OnReveal();
 
@@ -168,8 +170,6 @@ class ShellPlatformDelegate {
 
   void CreatePlatformWindowInternal(Shell* shell,
                                     const gfx::Size& initial_size);
-
-  void set_is_visible(bool is_visible) { is_visible_ = is_visible; }
 
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
   // Allows the test subclasses to override the ViewsDelegate.

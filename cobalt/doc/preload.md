@@ -85,6 +85,9 @@ it enters the application layer.
 Application lifecycle and visibility transitions are covered by the following
 unit tests in the `cobalt_unittests` binary:
 
+-   **`AppLifecycleDelegateTest`** (`cobalt/app/app_lifecycle_delegate_unittest.cc`):
+    Verifies that Starboard events (Start, Preload, Reveal, Stop) are correctly
+    interpreted and translated into Cobalt actions.
 -   **`LifecycleTest`** (`cobalt/shell/browser/lifecycle_unittest.cc`): Verifies
     correct window creation and visibility state propagation during startup,
     revelation, and redundant signals.

@@ -115,6 +115,8 @@ source_set("common") {
   testonly = true
 
   sources = [
+    "app/app_lifecycle_delegate.cc",
+    "app/app_lifecycle_delegate.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
   ]
@@ -183,6 +185,7 @@ test("cobalt_unittests") {
   testonly = true
 
   sources = [
+    "//cobalt/app/app_lifecycle_delegate_unittest.cc",
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",

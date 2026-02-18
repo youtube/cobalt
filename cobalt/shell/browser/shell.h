@@ -212,8 +212,18 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     delay_popup_contents_delegate_for_testing_ = delay;
   }
 
- protected:
+  Shell(std::unique_ptr<WebContents> web_contents,
+        std::unique_ptr<WebContents> splash_screen_web_contents,
+        bool should_set_delegate,
+        const std::string& topic = "",
+        bool skip_for_testing = false);
+
   static void FinishShellInitialization(Shell* shell);
+
+ protected:
+  // Adjust the size when Blink sends 0 for width and/or height.
+  // This happens when Blink requests a default-sized window.
+  static gfx::Size AdjustWindowSize(const gfx::Size& initial_size);
 
  private:
   class DevToolsWebContentsObserver;
@@ -221,12 +231,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   friend class TestShell;
   friend class SplashScreenTest;
   friend class LifecycleTest;
-
-  Shell(std::unique_ptr<WebContents> web_contents,
-        std::unique_ptr<WebContents> splash_screen_web_contents,
-        bool should_set_delegate,
-        const std::string& topic = "",
-        bool skip_for_testing = false);
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
@@ -242,10 +246,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       const gfx::Size& initial_size,
       bool should_set_delegate,
       const std::string& topic = "");
-
-  // Adjust the size when Blink sends 0 for width and/or height.
-  // This happens when Blink requests a default-sized window.
-  static gfx::Size AdjustWindowSize(const gfx::Size& initial_size);
 
   // Helper method for the two public LoadData methods.
   void LoadDataWithBaseURLInternal(const GURL& url,

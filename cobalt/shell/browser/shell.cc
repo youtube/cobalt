@@ -221,7 +221,9 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 
 // static
 void Shell::OnReveal() {
-  g_platform->OnReveal();
+  if (g_platform) {
+    g_platform->OnReveal();
+  }
 }
 
 void Shell::FinishShellInitialization(Shell* shell) {
