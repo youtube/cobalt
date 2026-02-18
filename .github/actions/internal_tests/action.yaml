@@ -16,9 +16,6 @@ inputs:
   test_device_family:
     description: "The test device family (e.g., raspi, rdk)."
     default: ""
-  docker_tag:
-    description: "Docker image tag to be used by the test lab."
-    default: ""
 
 runs:
   using: "composite"
@@ -64,7 +61,6 @@ runs:
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
         ARTIFACT_NAME: ${{ inputs.artifact_name }}
         DEVICE_FAMILY: ${{ inputs.test_device_family }}
-        DOCKER_TAG: ${{ inputs.docker_tag }}
         PLATFORM: ${{ matrix.platform }}
       run: |
         set -x
@@ -93,7 +89,6 @@ runs:
           --dimensions "${TEST_DIMENSIONS}" \
           --artifact_name "${ARTIFACT_NAME}" \
           --device_family "${DEVICE_FAMILY}" \
-          ${DOCKER_TAG:+"--docker_tag" "$DOCKER_TAG"} \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
