@@ -19,6 +19,6 @@
       "name": "arm64",
       "platform": "evergreen-arm64"
     }
-  ]
-  ,"use_browser_test": false
+  ],
+  "use_browser_test": false
 }
