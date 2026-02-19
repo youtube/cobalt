@@ -32,7 +32,7 @@ jobs:
           set +x
           # Max number of times the tests should run. Must match number of
           # retries in on_host_tests and on_device_tests actions.
-          MAX_ATTEMPTS=$(jq -r '.deflake_runs // 3' .github/config/infra/deflake.json)
+          MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 3' .github/config/infra/deflake.json)
 
           # This call fails until the workflow has run $MAX_ATTEMPTS times.
           if gh run view --repo "${REPO}" "${WORKFLOW}" --attempt "${MAX_ATTEMPTS}"; then
