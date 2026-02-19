@@ -654,7 +654,7 @@ jobs:
         uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
-          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
+          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
       - name: ${{ matrix.test_target }} Device Logs
