@@ -232,6 +232,10 @@ uint64_t ProcessMetrics::GetVmSwapBytes() const {
   return ReadProcStatusAndGetFieldAsSizeT(process_, "VmSwap") * 1024;
 }
 
+uint64_t ProcessMetrics::GetVmSizeBytes() const {
+  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmSize") * 1024;
+}
+
 bool ProcessMetrics::GetPageFaultCounts(PageFaultCounts* counts) const {
   // We are not using internal::ReadStatsFileAndGetFieldAsInt64(), since it
   // would read the file twice, and return inconsistent numbers.

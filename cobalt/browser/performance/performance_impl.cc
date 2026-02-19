@@ -62,8 +62,12 @@ void PerformanceImpl::MeasureUsedSwapMemory(
   std::move(callback).Run(used_swap_memory);
 }
 
-void PerformanceImpl::MeasureUsedVirtualMemory(
+void PerformanceImpl::MeasureVirtualMemorySize(
     MeasureAvailableCpuMemoryCallback callback) {
+  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+      base::GetCurrentProcessHandle());
+  auto virtual_memory_size = process_metrics->GetVmSizeBytes();
+  std::move(callback).Run(virtual_memory_size);
 }
 
 void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {

@@ -27,7 +27,7 @@ interface CobaltPerformance {
   MeasureUsedSwapMemory() => (uint64 bytes);
 
   [Sync]
-  MeasureUsedVirtualMemory() => (uint64 bytes);
+  MeasureVirtualMemorySize() => (uint64 bytes);
 
   // Get the application startup duration in microseconds (us).
   [Sync]

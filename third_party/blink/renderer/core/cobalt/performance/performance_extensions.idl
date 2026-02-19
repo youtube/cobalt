@@ -13,7 +13,7 @@
 
     [CallWith=ScriptState] unsigned long long measureUsedSwapMemory();
 
-    [CallWith=ScriptState] unsigned long long measureUsedVirtualMemory();
+    [CallWith=ScriptState] unsigned long long measureVirtualMemorySize();
 
     // Returns the application startup duration in microseconds (us).
     [CallWith=ScriptState, RaisesException]

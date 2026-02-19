@@ -60,8 +60,11 @@ uint64_t PerformanceExtensions::measureUsedSwapMemory(ScriptState* script_state,
   return used_swap_memory;
 }
 
-uint64_t PerformanceExtensions::measureUsedVirtualMemory(ScriptState* script_state,
+uint64_t PerformanceExtensions::measureVirtualMemorySize(ScriptState* script_state,
                                                      const Performance&) {
+  uint64_t virtual_memory_size = 0;
+  BindRemotePerformance(script_state)->MeasureVirtualMemorySize(&virtual_memory_size);
+  return virtual_memory_size;
 }
 
 ScriptPromise PerformanceExtensions::getAppStartupTime(
