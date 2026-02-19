@@ -20,7 +20,7 @@
 namespace cobalt {
 namespace browser {
 
-void SetStartupTimestamp(int64_t startup_time);
+void SetStartupTimestamp(int64_t startup_timestamp);
 int64_t GetStartupTimestamp();
 
 }  // namespace browser
