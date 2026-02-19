@@ -22,14 +22,6 @@
 namespace starboard {
 namespace {
 
-// From iamf_simple_profile_5_1.dmp.
-constexpr uint8_t kSimpleProfileSequenceHeaderObu[] = {0xF8, 0x06, 0x69, 0x61,
-                                                       0x6D, 0x66, 0x00, 0x00};
-
-// From iamf_base_profile_stereo_ambisonics.dmp.
-constexpr uint8_t kBaseProfileSequenceHeaderObu[] = {0xF8, 0x06, 0x69, 0x61,
-                                                     0x6D, 0x66, 0x01, 0x01};
-
 TEST(IamfUtilTest, Valid) {
   std::string codec_param = "iamf.000.000.Opus";
   IamfMimeUtil util(codec_param);
@@ -259,21 +251,23 @@ TEST(IamfUtilTest, Profile) {
 }
 
 TEST(IamfUtilTest, ParsesSequenceHeaderObu) {
-  std::vector<uint8_t> simple_profile_data(
-      kSimpleProfileSequenceHeaderObu,
-      kSimpleProfileSequenceHeaderObu +
-          SB_ARRAY_SIZE(kSimpleProfileSequenceHeaderObu));
-  auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(simple_profile_data);
+  // From iamf_simple_profile_5_1.dmp.
+  const std::vector<uint8_t> kSimpleProfileSequenceHeaderObu = {
+      0xF8, 0x06, 0x69, 0x61, 0x6D, 0x66, 0x00, 0x00};
+
+  // From iamf_base_profile_stereo_ambisonics.dmp.
+  const std::vector<uint8_t> kBaseProfileSequenceHeaderObu = {
+      0xF8, 0x06, 0x69, 0x61, 0x6D, 0x66, 0x01, 0x01};
+
+  auto result =
+      IamfMimeUtil::ParseIamfSequenceHeaderObu(kSimpleProfileSequenceHeaderObu);
 
   ASSERT_TRUE(result.has_value()) << result.error();
   EXPECT_EQ(result->primary_profile, kIamfProfileSimple);
   EXPECT_EQ(result->additional_profile, kIamfProfileSimple);
 
-  std::vector<uint8_t> base_profile_data(
-      kBaseProfileSequenceHeaderObu,
-      kBaseProfileSequenceHeaderObu +
-          SB_ARRAY_SIZE(kBaseProfileSequenceHeaderObu));
-  result = IamfMimeUtil::ParseIamfSequenceHeaderObu(base_profile_data);
+  result =
+      IamfMimeUtil::ParseIamfSequenceHeaderObu(kBaseProfileSequenceHeaderObu);
 
   ASSERT_TRUE(result.has_value()) << result.error();
   EXPECT_EQ(result->primary_profile, kIamfProfileBase);
