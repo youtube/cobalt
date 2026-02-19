@@ -62,7 +62,7 @@ void PerformanceImpl::MeasureUsedSwapMemory(
   std::move(callback).Run(used_swap_memory);
 }
 
-void PerformanceImpl::MeasureVirtualMemorySize(
+void PerformanceImpl::MeasureReservedVirtualMemory(
     MeasureAvailableCpuMemoryCallback callback) {
   auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
       base::GetCurrentProcessHandle());

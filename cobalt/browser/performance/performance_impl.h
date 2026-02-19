@@ -42,7 +42,7 @@ class PerformanceImpl
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
   void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
   void MeasureUsedSwapMemory(MeasureAvailableCpuMemoryCallback) override;
-  void MeasureVirtualMemorySize(MeasureAvailableCpuMemoryCallback) override;
+  void MeasureReservedVirtualMemory(MeasureAvailableCpuMemoryCallback) override;
   void GetAppStartupTime(GetAppStartupTimeCallback) override;
 
  private:
