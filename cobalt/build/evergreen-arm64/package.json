@@ -16,7 +16,7 @@
                 "libcobalt.so",
                 "app/crash_sandbox/lib/libcrash_sandbox.lz4",
                 "app/noop_sandbox/lib/libnoop_sandbox.lz4",
-                "app/one_app_only_sandbox_loader/lib/libone_app_only_sandbox_loader.lz4",
+                "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
                 {
                     "from_file": "cobalt_shell.pak",
                     "to_file": "content/cobalt_shell.pak"
@@ -52,7 +52,7 @@
                     "to_file": "lib/test_apps/tnoop/libcobalt.lz4"
                 },
                 {
-                    "from_file": "app/one_app_only_sandbox_loader/lib/libone_app_only_sandbox_loader.lz4",
+                    "from_file": "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
                     "to_file": "lib/test_apps/t1app/libcobalt.lz4"
                 }
             ],
