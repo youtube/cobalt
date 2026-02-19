@@ -21,6 +21,27 @@ sys.path.append(
 import starboard.build.util.generate_runfile
 
 _RDK_PRE_RUN = """
+# TODO: Remove when lab devices are updated to RDK_V6_20251218+.
+os.environ.update({
+    "HOME": "{target_dir}/home",
+    "XDG_RUNTIME_DIR": "/run",
+    "LD_PRELOAD": "/usr/lib/libwesteros_gl.so.0.0.0",
+    "WESTEROS_GL_USE_BEST_MODE": "1",
+    "WESTEROS_GL_MAX_MODE": "3840x2160",
+    "WESTEROS_GL_GRAPHICS_MAX_SIZE": "1920x1080",
+    "WESTEROS_GL_USE_AMLOGIC_AVSYNC": "1",
+    "WESTEROS_GL_REFRESH_PRIORITY": "F,80",
+    "WESTEROS_SINK_AMLOGIC_USE_DMABUF": "1",
+    "WESTEROS_SINK_USE_FREERUN": "1",
+    "WESTEROS_SINK_USE_ESSRMGR": "1",
+    "WESTEROS_GL_USE_REFRESH_LOCK": "1",
+    "WESTEROS_GL_USE_UEVENT_HOTPLUG": "1",
+    "RDKSHELL_KEYMAP_FILE": "/etc/rdkshell_keymapping.json",
+    "ESSOS_NO_EVENT_LOOP_THROTTLE": "1",
+    "AVPK_SKIP_HDMI_VALIDATION": "1",
+    "WAYLAND_DISPLAY": "wayland-0",
+})
+
 # TODO: Remove this when westeros-init is started by default.
 if subprocess.run(['pgrep', 'westeros-init'], capture_output=True).returncode != 0:
     subprocess.Popen(['/usr/bin/westeros-init'])
