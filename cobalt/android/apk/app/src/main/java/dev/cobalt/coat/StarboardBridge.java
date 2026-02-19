@@ -626,7 +626,7 @@ public class StarboardBridge {
     return response.data;
   }
 
-    /** Returns the application start timestamp. */
+  /** Returns the application start timestamp. */
   protected void measureAppStartTimestamp() {
     if (mAppStartTimestamp != 0) {
       return;

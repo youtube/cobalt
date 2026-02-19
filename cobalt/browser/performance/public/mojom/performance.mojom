@@ -26,5 +26,5 @@ interface CobaltPerformance {
 
   // Get the application startup duration in millisecs (ms).
   [Sync]
-  GetAppStartupTime() => (int64 bytes);
+  GetAppStartupTime() => (int64 timestamp_us);
 };

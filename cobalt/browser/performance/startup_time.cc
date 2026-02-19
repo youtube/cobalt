@@ -16,26 +16,20 @@
 
 #include <atomic>
 
-#include "base/time/time.h"
-
-#include "starboard/common/log.h" // nogncheck
-
 namespace cobalt {
 namespace browser {
 
 namespace {
-std::atomic<int64_t> g_startup_time{0};
+std::atomic<int64_t> g_startup_timestamp{0};
 }  // namespace
 
-void SetStartupTimestamp(int64_t startup_time) {
-  g_startup_time.store(startup_time);
+void SetStartupTimestamp(int64_t startup_timestamp) {
+  g_startup_timestamp.store(startup_timestamp);
 }
-
 
 int64_t GetStartupTimestamp() {
-  return g_startup_time.load();
+  return g_startup_timestamp.load();
 }
-
 
 }  // namespace browser
 }  // namespace cobalt

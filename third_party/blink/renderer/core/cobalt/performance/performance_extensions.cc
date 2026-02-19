@@ -33,8 +33,6 @@ mojo::Remote<performance::mojom::CobaltPerformance> BindRemotePerformance(
     ScriptState* script_state) {
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
   DCHECK(execution_context);
-  
-
 
   mojo::Remote<performance::mojom::CobaltPerformance> remote_performance_system;
   auto task_runner =
@@ -70,34 +68,32 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
     return ScriptPromise();
   }
 
-  
-
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   ScriptPromise promise = resolver->Promise();
 
-            bool is_main_web_app = false;
+  bool is_main_web_app = false;
   if (context->IsWindow()) {
-    LocalDOMWindow* window = static_cast<LocalDOMWindow*>(context);
+    auto* window = static_cast<LocalDOMWindow*>(context);
     LocalFrame* frame = window->GetFrame();
     if (frame && frame->IsMainFrame()) {
       const KURL& url = window->document()->Url();
-      if (url.Protocol() == content::kH5vccEmbeddedScheme || 
-          url.GetString().StartsWith(switches::kSplashScreenURL)) {
-        // Identified as splash screen.
-      } else if (url.ProtocolIsInHTTPFamily()) {
+      bool is_auxiliary_content =
+          url.Protocol() == content::kH5vccEmbeddedScheme ||
+          url.GetString().StartsWith(switches::kSplashScreenURL);
+      if (url.ProtocolIsInHTTPFamily() && !is_auxiliary_content) {
         is_main_web_app = true;
       }
     }
   }
 
   if (is_main_web_app) {
-    int64_t startup_timestamp = 0;
-    BindRemotePerformance(script_state)->GetAppStartupTime(&startup_timestamp);
+    int64_t startup_timestamp_us = 0;
+    BindRemotePerformance(script_state)->GetAppStartupTime(&startup_timestamp_us);
 
     resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
         performance_obj.GetTimeOriginInternal(),
-        base::TimeTicks::FromInternalValue(startup_timestamp),
+        base::TimeTicks::FromInternalValue(startup_timestamp_us),
         true /* allow_negative_value */,
         context->CrossOriginIsolatedCapability()));
   } else {
