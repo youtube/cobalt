@@ -227,6 +227,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
   }
+  if (auto initial_preroll_count = starboard::android::shared::
+          GetVideoInitialPrerollCountForCurrentThread()) {
+    handler->SetVideoInitialPrerollCount(*initial_preroll_count);
+  }
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(

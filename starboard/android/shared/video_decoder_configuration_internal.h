@@ -46,6 +46,14 @@ std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
 void SetVideoDecoderPollIntervalMsForCurrentThread(
     int video_decoder_poll_interval_ms);
 
+// Get initial_preroll_count via
+// SetVideoInitialPrerollCountForCurrentThread().
+std::optional<int> GetVideoInitialPrerollCountForCurrentThread();
+
+// Specifies the initial preroll count.
+// |initial_preroll_count| should be non-negative value.
+void SetVideoInitialPrerollCountForCurrentThread(int initial_preroll_count);
+
 }  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_INTERNAL_H_

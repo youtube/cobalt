@@ -62,6 +62,7 @@ class VideoDecoder
     std::optional<int> max_pending_input_frames;
     std::optional<int> initial_max_frames_in_decoder;
     std::optional<int> video_decoder_poll_interval_ms;
+    std::optional<int> initial_preroll_count;
   };
 
   VideoDecoder(const VideoStreamInfo& video_stream_info,

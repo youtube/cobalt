@@ -90,6 +90,7 @@ void VideoDecoderTestFixture::Initialize() {
       /*video_initial_max_frames_in_decoder=*/std::nullopt,
       /*video_max_pending_input_frames=*/std::nullopt,
       /*video_decoder_poll_interval_ms=*/std::nullopt,
+      /*video_initial_preroll_count=*/std::nullopt,
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
   ASSERT_EQ(creation_parameters.flush_decoder_during_reset(),

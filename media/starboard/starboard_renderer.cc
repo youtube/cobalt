@@ -626,7 +626,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
         -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
         initial_max_frames_in_decoder_, max_pending_input_frames_,
-        video_decoder_poll_interval_ms_
+        video_decoder_poll_interval_ms_, /*initial_preroll_count=*/1
 #if BUILDFLAG(IS_ANDROID)
         ,
         // TODO: b/475294958 - Revisit platform-specific codes above starboard.

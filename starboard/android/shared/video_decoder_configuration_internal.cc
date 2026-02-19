@@ -28,6 +28,7 @@ pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
 pthread_key_t g_initial_max_frames_key = 0;
 pthread_key_t g_max_pending_frames_key = 0;
 pthread_key_t g_video_decoder_poll_interval_key = 0;
+pthread_key_t g_initial_preroll_count_key = 0;
 
 void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
   uintptr_t ptr_val = static_cast<uintptr_t>(value);
@@ -58,6 +59,9 @@ void InitializeKeys() {
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_video_decoder_poll_interval_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_initial_preroll_count_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
 }
@@ -115,6 +119,22 @@ void SetVideoDecoderPollIntervalMsForCurrentThread(
   EnsureThreadLocalKeyInitedForDecoderConfig();
   WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key,
                                video_decoder_poll_interval_ms);
+}
+
+std::optional<int> GetVideoInitialPrerollCountForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_initial_preroll_count_key);
+}
+
+void SetVideoInitialPrerollCountForCurrentThread(int initial_preroll_count) {
+  if (initial_preroll_count < 0) {
+    SB_LOG(WARNING) << "Invalid initial_preroll_count: "
+                    << initial_preroll_count;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_initial_preroll_count_key,
+                               initial_preroll_count);
 }
 
 }  // namespace starboard::android::shared

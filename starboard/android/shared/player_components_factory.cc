@@ -557,6 +557,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.video_max_pending_input_frames();
     experimental_features.video_decoder_poll_interval_ms =
         creation_parameters.video_decoder_poll_interval_ms();
+    experimental_features.initial_preroll_count =
+        creation_parameters.video_initial_preroll_count();
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
