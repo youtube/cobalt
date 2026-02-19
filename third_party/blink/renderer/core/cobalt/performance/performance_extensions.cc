@@ -14,16 +14,16 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "base/logging.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
-#include "third_party/blink/renderer/core/frame/local_dom_window.h"
-#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/blink/renderer/core/execution_context/execution_context.h"
-#include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "base/logging.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/timing/performance.h"
 
 namespace blink {
 
@@ -65,6 +65,8 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
     ExceptionState& exception_state) {
   ExecutionContext* context = performance_obj.GetExecutionContext();
   if (!context) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Context is missing.");
     return ScriptPromise();
   }
 
@@ -78,10 +80,12 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
     LocalFrame* frame = window->GetFrame();
     if (frame && frame->IsMainFrame()) {
       const KURL& url = window->document()->Url();
-      bool is_auxiliary_content =
+      // We check for splash screen URLs to exclude them from being considered
+      // as the main web app.
+      bool is_splash_screen_content =
           url.Protocol() == content::kH5vccEmbeddedScheme ||
           url.GetString().StartsWith(switches::kSplashScreenURL);
-      if (url.ProtocolIsInHTTPFamily() && !is_auxiliary_content) {
+      if (url.ProtocolIsInHTTPFamily() && !is_splash_screen_content) {
         is_main_web_app = true;
       }
     }
@@ -89,7 +93,8 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
 
   if (is_main_web_app) {
     int64_t startup_timestamp_us = 0;
-    BindRemotePerformance(script_state)->GetAppStartupTime(&startup_timestamp_us);
+    BindRemotePerformance(script_state)
+        ->GetAppStartupTime(&startup_timestamp_us);
 
     resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
         performance_obj.GetTimeOriginInternal(),
@@ -103,7 +108,8 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
     // its own timeline.
     resolver->Reject(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kNotAllowedError,
-        "getAppStartupTime is only available in the main application context."));
+        "getAppStartupTime is only available in the main application "
+        "context."));
   }
 
   return promise;
