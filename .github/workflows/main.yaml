@@ -505,6 +505,7 @@ jobs:
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
     if: needs.initialize.outputs.test_on_host == 'true'
+    timeout-minutes: 1080
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}

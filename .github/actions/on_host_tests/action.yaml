@@ -26,7 +26,6 @@ runs:
         tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
     - name: Run Tests
       id: run-tests
-      timeout-minutes: 1080
       shell: bash
       env:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
