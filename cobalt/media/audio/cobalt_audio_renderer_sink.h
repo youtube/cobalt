@@ -16,6 +16,7 @@
 #define COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H_
 
 #include <atomic>
+#include <memory>
 
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/media_export.h"
@@ -23,6 +24,12 @@
 #include "starboard/audio_sink.h"
 
 namespace media {
+
+// Custom deleter for Starboard Audio Sink.
+struct SbAudioSinkDeleter {
+  using pointer = SbAudioSink;
+  void operator()(SbAudioSink sink) const { SbAudioSinkDestroy(sink); }
+};
 
 class MEDIA_EXPORT CobaltAudioRendererSink final : public AudioRendererSink {
  public:
@@ -84,7 +91,8 @@ class MEDIA_EXPORT CobaltAudioRendererSink final : public AudioRendererSink {
   std::atomic<bool> is_playing_ = false;
   std::atomic<bool> is_eos_reached_ = false;
 
-  SbAudioSink audio_sink_ = kSbAudioSinkInvalid;
+  using AudioSinkUniquePtr = std::unique_ptr<SbAudioSink, SbAudioSinkDeleter>;
+  AudioSinkUniquePtr audio_sink_;
 
   double resample_ratio_ = 1.0;
   std::unique_ptr<MultiChannelResampler> resampler_ = nullptr;
