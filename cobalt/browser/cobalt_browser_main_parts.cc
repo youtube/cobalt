@@ -51,12 +51,10 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
 
 #if !BUILDFLAG(IS_ANDROIDTV)
-  if (auto* client = CobaltContentBrowserClient::Get()) {
-    client->SetUserAgentCrashAnnotation();
-  } else {
-    CHECK(false) << "CobaltContentBrowserClient::Get() returned NULL in "
-                 << "PreMainMessageLoopRun!";
-  }
+  auto* client = CobaltContentBrowserClient::Get();
+  CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
+                << "PreMainMessageLoopRun!";
+  client->SetUserAgentCrashAnnotation();
 
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
