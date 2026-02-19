@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module performance.mojom;
+#ifndef COBALT_BROWSER_PERFORMANCE_STARTUP_TIME_H_
+#define COBALT_BROWSER_PERFORMANCE_STARTUP_TIME_H_
 
-interface CobaltPerformance {
-  // Get the amount of available memory on the device in bytes.
-  [Sync]
-  MeasureAvailableCpuMemory() => (uint64 bytes);
+#include "starboard/types.h"
 
-  // Get the amount of memory used by the Cobalt process, in bytes. This is also
-  // known as the resident set size.
-  [Sync]
-  MeasureUsedCpuMemory() => (uint64 bytes);
+namespace cobalt {
+namespace browser {
 
-  // Get the application startup duration in millisecs (ms).
-  [Sync]
-  GetAppStartupTime() => (int64 bytes);
-};
+void SetStartupTimestamp(int64_t startup_time);
+int64_t GetStartupTimestamp();
+
+}  // namespace browser
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_PERFORMANCE_STARTUP_TIME_H_

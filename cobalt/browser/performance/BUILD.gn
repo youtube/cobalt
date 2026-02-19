@@ -18,6 +18,13 @@ source_set("performance") {
     "performance_impl.h",
   ]
 
+  if (is_starboard) {
+    sources += [
+      "startup_time.cc",
+      "startup_time.h",
+    ]
+  }
+
   deps = [
     "//base",
     "//cobalt/browser/performance/public/mojom",

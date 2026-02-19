@@ -39,7 +39,10 @@ source_set("browser") {
     ]
   }
 
-  public_deps = [ "//content/public/browser" ]
+  public_deps = [
+    "//cobalt/browser/performance",
+    "//content/public/browser",
+  ]
 
   deps = [
     ":features",
@@ -63,7 +66,6 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/browser/h5vcc_updater",
     "//cobalt/browser/h5vcc_updater/public/mojom",
-    "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
     "//cobalt/common/features",
