@@ -17,8 +17,13 @@
 #include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
+<<<<<<< HEAD
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
+=======
+#include "media/base/stream_parser.h"
+#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+>>>>>>> fe91f5338f (media: Implement incremental parse look-ahead for WebM and MP4 (#9133))
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
@@ -36,6 +41,8 @@ namespace {
 
 constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
+constexpr char kMediaIncrementalParseLookAhead[] =
+    "Media.IncrementalParseLookAhead";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
 // Ideally this function should be moved to decoder_buffer.h.  It's kept here as
@@ -126,6 +133,30 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
       resolver->Reject(V8ThrowException::CreateTypeError(
           script_state->GetIsolate(),
           String("The value for '") + kMediaAppendFirstSegmentSynchronously +
+              "' must be a number."));
+    }
+    return promise;
+  }
+
+  if (name == kMediaIncrementalParseLookAhead) {
+    if (value->IsLong()) {
+      bool enable = (value->GetAsLong() != 0);
+      if (enable) {
+        LOG(INFO) << "Enable incremental parse look ahead.";
+        ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+        resolver->Resolve();
+      } else {
+        LOG(WARNING) << kMediaIncrementalParseLookAhead << " cannot be disabled.";
+        resolver->Reject(V8ThrowException::CreateTypeError(
+            script_state->GetIsolate(),
+            kMediaIncrementalParseLookAhead + String(" cannot be disabled.")));
+      }
+    } else {
+      LOG(WARNING) << "The value for '" << kMediaIncrementalParseLookAhead
+                   << "' must be a number.";
+      resolver->Reject(V8ThrowException::CreateTypeError(
+          script_state->GetIsolate(),
+          String("The value for '") + kMediaIncrementalParseLookAhead +
               "' must be a number."));
     }
     return promise;
