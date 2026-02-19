@@ -114,7 +114,7 @@ runs:
     - name: Get Deflake Max Attempts
       id: deflake-attempts
       run: |
-        MAX_ATTEMPTS=$(jq -r '.deflake_runs // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
+        MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
         echo "max_attempts=${MAX_ATTEMPTS}" >> $GITHUB_OUTPUT
       shell: bash
     - name: Run Nightly Deflake
