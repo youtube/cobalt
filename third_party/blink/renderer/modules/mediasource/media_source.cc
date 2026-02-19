@@ -393,13 +393,12 @@ void MediaSource::AddSourceBuffer_Locked(
   // parse look ahead enabled and disabled, to analize its statistical
   // significance.
   constexpr bool kEnableIncrementalParseLookAheadMetrics = false;
-  if (kEnableIncrementalParseLookAheadMetrics) {
-    if (source_buffers_->length() == 0) {
-      static bool enable = true;
+  if (kEnableIncrementalParseLookAheadMetrics &&
+      source_buffers_->length() == 0) {
+    static bool enable = true;
 
-      media::StreamParser::SetEnableIncrementalParseLookAhead(enable);
-      enable = !enable;
-    }
+    media::StreamParser::SetEnableIncrementalParseLookAhead(enable);
+    enable = !enable;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

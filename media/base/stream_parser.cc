@@ -14,7 +14,7 @@ namespace media {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
-std::atomic<bool> s_enable_incremental_parse_look_ahead{false};
+std::atomic<bool> g_enable_incremental_parse_look_ahead{false};
 }  // namespace
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -31,18 +31,15 @@ StreamParser::~StreamParser() = default;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
 void StreamParser::SetEnableIncrementalParseLookAhead(bool enable) {
-  if (enable) {
-    LOG(INFO) << "Enable incremental parse look ahead.";
-  } else {
-    LOG(INFO) << "Disable incremental parse look ahead.";
-  }
-  s_enable_incremental_parse_look_ahead.store(enable,
+  LOG(INFO) << "Set incremental parse look ahead: "
+            << (enable ? "enabled" : "disabled");
+  g_enable_incremental_parse_look_ahead.store(enable,
                                               std::memory_order_relaxed);
 }
 
 // static
 bool StreamParser::IsIncrementalParseLookAheadEnabled() {
-  return s_enable_incremental_parse_look_ahead.load(std::memory_order_relaxed);
+  return g_enable_incremental_parse_look_ahead.load(std::memory_order_relaxed);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
