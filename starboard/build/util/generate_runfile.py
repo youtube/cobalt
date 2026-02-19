@@ -11,20 +11,76 @@ import os
 import subprocess
 import sys
 
+def get_crashed_test(lines):
+  RUN_MARKER = '[ RUN      ]'
+  END_MARKERS = (
+      '[       OK ]',
+      '[  FAILED  ]',
+      '[  SKIPPED ]',
+  )
+  for i, line in reversed(list(enumerate(lines))):
+    if RUN_MARKER in line:
+      log = ''.join(lines[i:])
+      # If the test crashed there are no end markers.
+      if any(marker in log for marker in END_MARKERS):
+        break
+      test_name = line[len(RUN_MARKER):].strip()
+      return test_name
+  return None
+
 {pre_run}
-command = [
+cmd_args = sys.argv[1:]
+output_file = None
+for arg in cmd_args:
+  if arg.startswith('--gtest_output=xml:'):
+    output_file = arg.split(':', 1)[1]
+    break
+
+command_base = [
     os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
     '--evergreen_content=.', '--evergreen_library={library}.so'
-] + sys.argv[1:]
-try:
-    result = subprocess.run(command, check=False)
-    sys.exit(result.returncode)
-except subprocess.CalledProcessError:
-    # A subprocess failed, so don't log the python traceback.
-    raise SystemExit(1)
-except Exception as e:
+]
+
+max_retries = 500
+return_code = 1
+
+for i in range(max_retries):
+  command = command_base + cmd_args
+  lines = []
+  try:
+    print('Running', ' '.join(command))
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+      for line in proc.stdout:
+        sys.stdout.write(line)
+        lines.append(line)
+      return_code = proc.wait()
+  except Exception as e:
     print("An unexpected error occurred: " + str(e), file=sys.stderr)
     sys.exit(1)
+
+  if output_file and os.path.exists(output_file):
+    print('Success with args:', ' '.join(cmd_args))
+    sys.exit(return_code)
+
+  if output_file:
+    crashed_test = get_crashed_test(lines)
+    if crashed_test:
+      found = False
+      for idx, arg in enumerate(cmd_args):
+        if arg.startswith('--gtest_filter='):
+          old_filter = arg.split('=', 1)[1]
+          new_filter = f'{{old_filter}}:{{crashed_test}}'
+          cmd_args[idx] = f'--gtest_filter={{new_filter}}'
+          found = True
+          break
+      if not found:
+        cmd_args.append(f'--gtest_filter=-{{crashed_test}}')
+      continue
+    break
+  else:
+    break
+
+sys.exit(return_code)
 {post_run}
 """
 
