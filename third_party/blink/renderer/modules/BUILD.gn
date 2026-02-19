@@ -313,7 +313,7 @@ group("make_modules_generated") {
     "//ui/display/mojom:mojom_blink_headers",
   ]
 
-  if (is_cobalt) {
+  if (is_cobalt && !is_androidtv) {
     public_deps += [ "//cobalt/browser/h5vcc_platform_service/public/mojom:mojom_blink_headers" ]
   }
 }
