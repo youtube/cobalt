@@ -604,8 +604,8 @@ jobs:
       needs.initialize.outputs.test_browser == 'true' &&
         (
           (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
+          (github.event_name == 'push')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_browser_tests
@@ -634,9 +634,8 @@ jobs:
     if: |
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
+          (github.event_name == 'push')
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_wpt_tests
