@@ -10,7 +10,7 @@
     // is also known as the resident set size.
     [CallWith=ScriptState] unsigned long long measureUsedCpuMemory();
 
-    // Returns the application startup duration in millisecs (ms).
+    // Returns the application startup timestamp in millisecs (ms).
     [CallWith=ScriptState, RaisesException]
-    Promise<long long> getAppStartupTime();
+    Promise<DOMHighResTimeStamp> getAppStartupTime();
 };
