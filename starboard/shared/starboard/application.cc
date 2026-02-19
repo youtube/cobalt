@@ -24,6 +24,10 @@
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 
+#if SB_IS_EVERGREEN
+#include "starboard/loader_app/startup_timer.h"
+#endif
+
 namespace starboard {
 
 namespace {
@@ -478,11 +482,15 @@ Application::Event* Application::CreateInitialEvent(SbEventType type,
 
 int Application::RunLoop() {
   SB_DCHECK(command_line_);
+
   if (IsPreloadImmediate()) {
     DispatchPreload(CurrentMonotonicTime());
   } else if (IsStartImmediate()) {
     DispatchStart(CurrentMonotonicTime());
   }
+#if SB_IS_EVERGREEN
+  loader_app::StartupTimer::SetAppStartupTime();
+#endif
 
   for (;;) {
     if (!DispatchNextEvent()) {
