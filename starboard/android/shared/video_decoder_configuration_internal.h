@@ -18,14 +18,11 @@
 #include <optional>
 
 #include "starboard/extension/video_decoder_configuration.h"
+#include "starboard/shared/starboard/player/video_decoder_experimental_features.h"
 
 namespace starboard::android::shared {
 
-struct VideoDecoderExperimentalFeatures {
-  std::optional<int> initial_max_frames_in_decoder;
-  std::optional<int> max_pending_input_frames;
-  std::optional<int> video_decoder_poll_interval_ms;
-};
+using ::starboard::shared::starboard::player::VideoDecoderExperimentalFeatures;
 
 // Get experimental features via SetExperimentalFeaturesForCurrentThread().
 VideoDecoderExperimentalFeatures GetExperimentalFeaturesForCurrentThread();

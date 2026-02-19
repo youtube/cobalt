@@ -216,16 +216,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
   handler->SetResetAudioDecoder(
       starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
 
-  auto internal_experimental_features =
-      starboard::android::shared::GetExperimentalFeaturesForCurrentThread();
-  PlayerWorker::Handler::VideoDecoderExperimentalFeatures experimental_features;
-  experimental_features.initial_max_frames_in_decoder =
-      internal_experimental_features.initial_max_frames_in_decoder;
-  experimental_features.max_pending_input_frames =
-      internal_experimental_features.max_pending_input_frames;
-  experimental_features.video_decoder_poll_interval_ms =
-      internal_experimental_features.video_decoder_poll_interval_ms;
-  handler->SetVideoDecoderExperimentalFeatures(experimental_features);
+  handler->SetVideoDecoderExperimentalFeatures(
+      starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
 
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
