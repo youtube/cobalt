@@ -43,7 +43,10 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     compression_flag = f'zstd -T0 -{compression_level}'
   else:
     raise ValueError(f'Unsupported compression: {compression}')
-  tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
+  tar_cmd = [
+      'tar', '--owner=0', '--group=0', '--numeric-owner', '-I',
+      compression_flag, '-cvf', archive_path
+  ]
   tmp_files = []
   for file_list, base_dir in file_lists:
     if not file_list:
