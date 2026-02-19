@@ -12,19 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module performance.mojom;
+#include "cobalt/browser/performance/startup_time.h"
 
-interface CobaltPerformance {
-  // Get the amount of available memory on the device in bytes.
-  [Sync]
-  MeasureAvailableCpuMemory() => (uint64 bytes);
+#include <atomic>
 
-  // Get the amount of memory used by the Cobalt process, in bytes. This is also
-  // known as the resident set size.
-  [Sync]
-  MeasureUsedCpuMemory() => (uint64 bytes);
+#include "base/time/time.h"
 
-  // Get the application startup duration in millisecs (ms).
-  [Sync]
-  GetAppStartupTime() => (int64 bytes);
-};
+#include "starboard/common/log.h" // nogncheck
+
+namespace cobalt {
+namespace browser {
+
+namespace {
+std::atomic<int64_t> g_startup_time{0};
+}  // namespace
+
+void SetStartupTimestamp(int64_t startup_time) {
+  g_startup_time.store(startup_time);
+}
+
+
+int64_t GetStartupTimestamp() {
+  return g_startup_time.load();
+}
+
+
+}  // namespace browser
+}  // namespace cobalt

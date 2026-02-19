@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "cobalt/browser/performance/performance_impl.h"
+#include "cobalt/browser/performance/startup_time.h"
+#include "cobalt/shell/common/url_constants.h"
 
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
@@ -58,15 +60,13 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  auto startup_duration = starboard_bridge->GetAppStartDuration(env);
+  auto startup_timestamp = starboard_bridge->GetAppStartTimestamp(env);
 #elif BUILDFLAG(IS_STARBOARD)
-  // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
-  NOTIMPLEMENTED();
-  int64_t startup_duration = 0;
+  auto startup_timestamp = cobalt::browser::GetStartupTimestamp();
 #else
 #error Unsupported platform.
 #endif
-  std::move(callback).Run(startup_duration);
+  std::move(callback).Run(startup_timestamp);
 }
 
 }  // namespace performance
