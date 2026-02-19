@@ -338,17 +338,18 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
+        if: needs.initialize.outputs.test_on_host == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Build docker image
+        if: needs.initialize.outputs.test_on_host == 'true'
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
@@ -361,17 +362,18 @@ jobs:
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
-    if: needs.initialize.outputs.web_tests == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
+        if: needs.initialize.outputs.web_tests == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Build docker image
+        if: needs.initialize.outputs.web_tests == 'true'
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
