@@ -38,6 +38,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
+#include "starboard/shared/starboard/player/player_worker.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -62,33 +63,33 @@ class PlayerComponents {
       explicit CreationParameters(
           const media::AudioStreamInfo& audio_stream_info,
           SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const media::VideoStreamInfo& video_stream_info,
-                         SbPlayer player,
-                         SbPlayerOutputMode output_mode,
-                         int max_video_input_size,
-                         bool flush_decoder_during_reset,
-                         bool reset_audio_decoder,
-                         std::optional<int> video_initial_max_frames_in_decoder,
-                         std::optional<int> video_max_pending_input_frames,
-                         std::optional<int> video_decoder_poll_interval_ms,
-                         void* surface_view,
-                         SbDecodeTargetGraphicsContextProvider*
-                             decode_target_graphics_context_provider,
-                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const media::AudioStreamInfo& audio_stream_info,
-                         const media::VideoStreamInfo& video_stream_info,
-                         SbPlayer player,
-                         SbPlayerOutputMode output_mode,
-                         int max_video_input_size,
-                         bool flush_decoder_during_reset,
-                         bool reset_audio_decoder,
-                         std::optional<int> video_initial_max_frames_in_decoder,
-                         std::optional<int> video_max_pending_input_frames,
-                         std::optional<int> video_decoder_poll_interval_ms,
-                         void* surface_view,
-                         SbDecodeTargetGraphicsContextProvider*
-                             decode_target_graphics_context_provider,
-                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(
+          const media::VideoStreamInfo& video_stream_info,
+          SbPlayer player,
+          SbPlayerOutputMode output_mode,
+          int max_video_input_size,
+          bool flush_decoder_during_reset,
+          bool reset_audio_decoder,
+          const ::starboard::shared::starboard::player::PlayerWorker::Handler::
+              VideoDecoderExperimentalFeatures& experimental_features,
+          void* surface_view,
+          SbDecodeTargetGraphicsContextProvider*
+              decode_target_graphics_context_provider,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(
+          const media::AudioStreamInfo& audio_stream_info,
+          const media::VideoStreamInfo& video_stream_info,
+          SbPlayer player,
+          SbPlayerOutputMode output_mode,
+          int max_video_input_size,
+          bool flush_decoder_during_reset,
+          bool reset_audio_decoder,
+          const ::starboard::shared::starboard::player::PlayerWorker::Handler::
+              VideoDecoderExperimentalFeatures& experimental_features,
+          void* surface_view,
+          SbDecodeTargetGraphicsContextProvider*
+              decode_target_graphics_context_provider,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const CreationParameters& that);
       void operator=(const CreationParameters& that) = delete;
 
@@ -141,14 +142,10 @@ class PlayerComponents {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
-      std::optional<int> video_initial_max_frames_in_decoder() const {
-        return video_initial_max_frames_in_decoder_;
-      }
-      std::optional<int> video_max_pending_input_frames() const {
-        return video_max_pending_input_frames_;
-      }
-      std::optional<int> video_decoder_poll_interval_ms() const {
-        return video_decoder_poll_interval_ms_;
+      const ::starboard::shared::starboard::player::PlayerWorker::Handler::
+          VideoDecoderExperimentalFeatures&
+          experimental_features() const {
+        return experimental_features_;
       }
 
       SbDrmSystem drm_system() const { return drm_system_; }
@@ -172,9 +169,8 @@ class PlayerComponents {
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
 
-      std::optional<int> video_initial_max_frames_in_decoder_;
-      std::optional<int> video_max_pending_input_frames_;
-      std::optional<int> video_decoder_poll_interval_ms_;
+      ::starboard::shared::starboard::player::PlayerWorker::Handler::
+          VideoDecoderExperimentalFeatures experimental_features_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.
