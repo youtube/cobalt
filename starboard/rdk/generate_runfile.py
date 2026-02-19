@@ -21,11 +21,11 @@ sys.path.append(
 import starboard.build.util.generate_runfile
 
 _RDK_PRE_RUN = """
-os.environ.update({
-    'XDG_RUNTIME_DIR': '/run',
-    'WAYLAND_DISPLAY': 'wayland-0',
-    'LD_PRELOAD': '/usr/lib/libwesteros_gl.so.0.0.0',
-})
+# TODO: Remove this when westeros-init is started by default.
+if subprocess.run(['pgrep', 'westeros-init'], capture_output=True).returncode != 0:
+    subprocess.Popen(['/usr/bin/westeros-init'])
+import time
+time.sleep(2)
 subprocess.run(['rdkDisplay', 'create'])
 """
 
