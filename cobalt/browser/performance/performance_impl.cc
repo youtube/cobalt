@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/browser/performance/performance_impl.h"
+#include "cobalt/browser/performance/startup_time.h"  // nogncheck
 
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
@@ -60,9 +61,8 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   auto startup_duration = starboard_bridge->GetAppStartDuration(env);
 #elif BUILDFLAG(IS_STARBOARD)
-  // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
-  NOTIMPLEMENTED();
-  int64_t startup_duration = 0;
+  int64_t startup_duration = cobalt::browser::GetStartupTime();
+  LOG(INFO) << "startup time in browser is" << startup_duration;
 #else
 #error Unsupported platform.
 #endif

@@ -30,8 +30,10 @@
 #endif
 
 #if BUILDFLAG(IS_LINUX)
+#include "cobalt/browser/performance/startup_time.h"  // nogncheck
 #include "components/os_crypt/sync/key_storage_config_linux.h"
 #include "components/os_crypt/sync/os_crypt.h"
+#include "starboard/common/time.h"
 #endif
 
 namespace cobalt {
@@ -47,6 +49,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  cobalt::browser::SetStartupTime1(starboard::CurrentMonotonicTime());
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
