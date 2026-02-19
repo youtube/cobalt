@@ -1,6 +1,9 @@
 name: On Device Test
 description: Runs on-device tests.
 inputs:
+  nightly:
+    description: "Indicates if this is a nightly job."
+    required: true
   test_targets_json:
     description: "The test targets in a JSON array."
     required: true
@@ -148,12 +151,13 @@ runs:
         path: ${{ env.test_output }}/*
     - name: Get Deflake Max Attempts
       id: deflake-attempts
+      if: input.nightly == 'true'
       run: |
         MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
         echo "max_attempts=${MAX_ATTEMPTS}" >> $GITHUB_OUTPUT
       shell: bash
     - name: Run Nightly Deflake
       # Deflake workflow retries MAX_ATTEMPTS times. Pass the last to keep dashboard green.
-      if: github.event_name == 'schedule' && github.run_attempt != steps.deflake-attempts.outputs.max_attempts
+      if: input.nightly == 'true' && github.run_attempt != steps.deflake-attempts.outputs.max_attempts
       run: echo "::warning::Triggering deflaking run by failing." && exit 1
       shell: bash
