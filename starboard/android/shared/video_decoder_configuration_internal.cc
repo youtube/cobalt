@@ -82,6 +82,11 @@ void SetExperimentalFeaturesForCurrentThread(
     features->video_decoder_poll_interval_ms =
         experimental_features->video_decoder_poll_interval_ms.value;
   }
+
+  if (experimental_features->initial_preroll_count.is_set) {
+    features->initial_preroll_count =
+        experimental_features->initial_preroll_count.value;
+  }
 }
 
 }  // namespace starboard::android::shared

@@ -409,7 +409,9 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
-      number_of_preroll_frames_(kInitialPrerollFrameCount) {
+      number_of_preroll_frames_(
+          experimental_features.initial_preroll_count.value_or(
+              kInitialPrerollFrameCount)) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {

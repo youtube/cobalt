@@ -839,6 +839,10 @@ void SbPlayerBridge::CreatePlayer() {
           /*is_set=*/true,
           *experimental_features_.video_decoder_poll_interval_ms};
     }
+    if (experimental_features_.initial_preroll_count) {
+      experimental_features.initial_preroll_count = {
+          /*is_set=*/true, *experimental_features_.initial_preroll_count};
+    }
     video_decoder_configuration_extension
         ->SetExperimentalFeaturesForCurrentThread(&experimental_features);
   }

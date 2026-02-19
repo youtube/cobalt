@@ -34,6 +34,7 @@ typedef struct StarboardVideoDecoderExperimentalFeatures {
   OptionalInt initial_max_frames_in_decoder;
   OptionalInt max_pending_input_frames;
   OptionalInt video_decoder_poll_interval_ms;
+  OptionalInt initial_preroll_count;
 } StarboardVideoDecoderExperimentalFeatures;
 
 typedef struct StarboardExtensionVideoDecoderConfigurationApi {
