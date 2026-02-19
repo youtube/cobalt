@@ -224,11 +224,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
     int max_video_input_size,
-    bool flush_decoder_during_reset,
-    bool reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms
+    const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -255,11 +251,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       max_video_capabilities_(max_video_capabilities),
       max_video_input_size_(max_video_input_size),
-      flush_decoder_during_reset_(flush_decoder_during_reset),
-      reset_audio_decoder_(reset_audio_decoder),
-      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms)
+      experimental_features_(experimental_features)
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -817,9 +809,10 @@ void SbPlayerBridge::CreatePlayer() {
       player_configurate_seek_extension->version >= 1) {
     player_configurate_seek_extension
         ->SetForceFlushDecoderDuringResetForCurrentThread(
-            flush_decoder_during_reset_);
+            experimental_features_.flush_decoder_during_reset);
     player_configurate_seek_extension
-        ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
+        ->SetForceResetAudioDecoderForCurrentThread(
+            experimental_features_.reset_audio_decoder);
   }
 
   const StarboardExtensionVideoDecoderConfigurationApi*
@@ -831,20 +824,20 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(video_decoder_configuration_extension->name,
              kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
       video_decoder_configuration_extension->version >= 1) {
-    if (initial_max_frames_in_decoder_) {
+    if (experimental_features_.initial_max_frames_in_decoder) {
       video_decoder_configuration_extension
           ->SetVideoInitialMaxFramesInDecoderForCurrentThread(
-              *initial_max_frames_in_decoder_);
+              *experimental_features_.initial_max_frames_in_decoder);
     }
-    if (max_pending_input_frames_) {
+    if (experimental_features_.max_pending_input_frames) {
       video_decoder_configuration_extension
           ->SetVideoMaxPendingInputFramesForCurrentThread(
-              *max_pending_input_frames_);
+              *experimental_features_.max_pending_input_frames);
     }
-    if (video_decoder_poll_interval_ms_) {
+    if (experimental_features_.video_decoder_poll_interval_ms) {
       video_decoder_configuration_extension
           ->SetVideoDecoderPollIntervalMsForCurrentThread(
-              *video_decoder_poll_interval_ms_);
+              *experimental_features_.video_decoder_poll_interval_ms);
     }
   }
 
