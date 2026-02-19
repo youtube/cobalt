@@ -452,6 +452,10 @@ def main() -> int:
       raise ValueError('--filter_json_dir is required for unit_test')
 
   test_requests = _process_test_requests(args)
+  if not test_requests:
+    print('No tests to run after filtering.')
+    return 0
+
   client = OnDeviceTestsGatewayClient()
 
   try:
