@@ -69,6 +69,15 @@ class SbPlayerBridge {
   typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
       GetDecodeTargetGraphicsContextProviderFunc;
 
+  struct ExperimentalFeatures {
+    bool flush_decoder_during_reset = false;
+    bool reset_audio_decoder = false;
+    std::optional<int> initial_max_frames_in_decoder;
+    std::optional<int> max_pending_input_frames;
+    std::optional<int> video_decoder_poll_interval_ms;
+    std::optional<int> initial_preroll_count;
+  };
+
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
@@ -106,11 +115,7 @@ class SbPlayerBridge {
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size,
-                 bool flush_decoder_during_reset,
-                 bool reset_audio_decoder,
-                 std::optional<int> initial_max_frames_in_decoder,
-                 std::optional<int> max_pending_input_frames,
-                 std::optional<int> video_decoder_poll_interval_ms
+                 const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
                  ,
                  jobject surface_view
@@ -346,11 +351,7 @@ class SbPlayerBridge {
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
 
-  const bool flush_decoder_during_reset_;
-  const bool reset_audio_decoder_;
-  const std::optional<int> initial_max_frames_in_decoder_;
-  const std::optional<int> max_pending_input_frames_;
-  const std::optional<int> video_decoder_poll_interval_ms_;
+  const ExperimentalFeatures experimental_features_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Set the surface to Android Overlay's surface view.

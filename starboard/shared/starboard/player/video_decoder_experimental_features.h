@@ -1,0 +1,31 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DECODER_EXPERIMENTAL_FEATURES_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DECODER_EXPERIMENTAL_FEATURES_H_
+
+#include <optional>
+
+namespace starboard::shared::starboard::player {
+
+struct VideoDecoderExperimentalFeatures {
+  std::optional<int> initial_max_frames_in_decoder;
+  std::optional<int> max_pending_input_frames;
+  std::optional<int> video_decoder_poll_interval_ms;
+  std::optional<int> initial_preroll_count;
+};
+
+}  // namespace starboard::shared::starboard::player
+
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DECODER_EXPERIMENTAL_FEATURES_H_

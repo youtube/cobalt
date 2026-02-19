@@ -578,11 +578,15 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     VideoDecoder::ExperimentalFeatures experimental_features;
     experimental_features.initial_max_frames_in_decoder =
-        creation_parameters.video_initial_max_frames_in_decoder();
+        creation_parameters.experimental_features()
+            .initial_max_frames_in_decoder;
     experimental_features.max_pending_input_frames =
-        creation_parameters.video_max_pending_input_frames();
+        creation_parameters.experimental_features().max_pending_input_frames;
     experimental_features.video_decoder_poll_interval_ms =
-        creation_parameters.video_decoder_poll_interval_ms();
+        creation_parameters.experimental_features()
+            .video_decoder_poll_interval_ms;
+    experimental_features.initial_preroll_count =
+        creation_parameters.experimental_features().initial_preroll_count;
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
