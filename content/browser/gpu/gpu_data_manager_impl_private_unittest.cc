@@ -491,7 +491,9 @@ TEST_F(GpuDataManagerImplPrivateTest, NoDefaultFallbackToSwiftShaderForGanesh) {
       switches::kDisableSkiaGraphite);
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures({}, {
+#if BUILDFLAG(ENABLE_SWIFTSHADER)
                                         features::kAllowSwiftShaderFallback,
+#endif
 #if BUILDFLAG(IS_WIN)
                                         features::kAllowD3D11WarpFallback,
 #endif  // BUILDFLAG(IS_WIN)
@@ -546,7 +548,9 @@ TEST_F(GpuDataManagerImplPrivateTest,
       switches::kDisableSoftwareRasterizer);
 
   base::test::ScopedFeatureList feature_list;
+#if BUILDFLAG(ENABLE_SWIFTSHADER)
   feature_list.InitAndDisableFeature(features::kAllowSwiftShaderFallback);
+#endif
 
   ScopedGpuDataManagerImplPrivate manager;
   EXPECT_EQ(gpu::GpuMode::HARDWARE_GL, manager->GetGpuMode());
@@ -622,7 +626,9 @@ TEST_F(GpuDataManagerImplPrivateTest,
       switches::kDisableSoftwareRasterizer);
 
   base::test::ScopedFeatureList feature_list;
+#if BUILDFLAG(ENABLE_SWIFTSHADER)
   feature_list.InitAndDisableFeature(features::kAllowSwiftShaderFallback);
+#endif
 
   ScopedGpuDataManagerImplPrivate manager;
   EXPECT_EQ(gpu::GpuMode::HARDWARE_GRAPHITE, manager->GetGpuMode());
@@ -639,7 +645,9 @@ TEST_F(GpuDataManagerImplPrivateTest,
 TEST_F(GpuDataManagerImplPrivateTest, GpuStartsWithGpuDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures({}, {
+#if BUILDFLAG(ENABLE_SWIFTSHADER)
                                         features::kAllowSwiftShaderFallback,
+#endif
 #if BUILDFLAG(IS_WIN)
                                         features::kAllowD3D11WarpFallback,
 #endif  // BUILDFLAG(IS_WIN)

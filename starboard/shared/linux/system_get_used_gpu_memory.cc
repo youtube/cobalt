@@ -56,13 +56,11 @@ int64_t GetDmaBufUsage() {
 
   for (const std::string& line : lines) {
     // Look for "size: <number>"
-    const char* size_ptr = strstr(line.c_str(), "size: ");
+    const char* size_ptr = strstr(line.c_str(), "size:");
     if (size_ptr) {
-      current_buf_size = 0;
-      size_ptr += 6;
-      while (*size_ptr >= '0' && *size_ptr <= '9') {
-        current_buf_size = current_buf_size * 10 + (*size_ptr - '0');
-        size_ptr++;
+      long long size_val = 0;
+      if (sscanf(size_ptr, "size:%lld", &size_val) == 1) {
+        current_buf_size = static_cast<int64_t>(size_val);
       }
     }
 

@@ -15,21 +15,31 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_PERFORMANCE_EXTENSIONS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_PERFORMANCE_EXTENSIONS_H_
 
+#include "cobalt/browser/performance/public/mojom/performance.mojom-blink.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class Performance;
 class ScriptState;
 
-class CORE_EXPORT PerformanceExtensions final {
-  STATIC_ONLY(PerformanceExtensions);
-
+class CORE_EXPORT PerformanceExtensions final
+    : public GarbageCollected<PerformanceExtensions>,
+      public Supplement<LocalDOMWindow> {
  public:
-  // Web-exposed interface:
+  static const char kSupplementName[];
+  static PerformanceExtensions& From(LocalDOMWindow&);
+
+  explicit PerformanceExtensions(LocalDOMWindow&);
+  ~PerformanceExtensions() = default;
+
+  // Web-exposed interface (static as required by V8 bindings):
   static uint64_t measureAvailableCpuMemory(ScriptState*, const Performance&);
   static uint64_t measureUsedCpuMemory(ScriptState*, const Performance&);
   static ScriptPromise<IDLLongLong> getAppStartupTime(ScriptState*,
@@ -37,6 +47,13 @@ class CORE_EXPORT PerformanceExtensions final {
                                                       ExceptionState&);
   static ScriptPromise<IDLString> requestGlobalMemoryDump(ScriptState*,
                                                           const Performance&);
+
+  void Trace(Visitor*) const override;
+
+ private:
+  mojo::Remote<performance::mojom::blink::CobaltPerformance>& GetRemote();
+
+  mojo::Remote<performance::mojom::blink::CobaltPerformance> remote_;
 };
 
 }  // namespace blink

@@ -25,15 +25,13 @@ namespace media {
 
 MediaMemoryDumpProvider* MediaMemoryDumpProvider::GetInstance() {
   static base::NoDestructor<MediaMemoryDumpProvider> instance;
-  static std::once_flag registration_flag;
-  std::call_once(registration_flag, []() {
-    base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
-        MediaMemoryDumpProvider::GetInstance(), "CobaltMedia", nullptr);
-  });
   return instance.get();
 }
 
-MediaMemoryDumpProvider::MediaMemoryDumpProvider() = default;
+MediaMemoryDumpProvider::MediaMemoryDumpProvider() {
+  base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
+      this, "CobaltMedia", nullptr);
+}
 MediaMemoryDumpProvider::~MediaMemoryDumpProvider() = default;
 
 bool MediaMemoryDumpProvider::OnMemoryDump(

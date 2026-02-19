@@ -1528,6 +1528,7 @@ class MediaStreamDispatcherHostCapturedSurfaceControlTest
     : public MediaStreamDispatcherHostTest {
  public:
   MediaStreamDispatcherHostCapturedSurfaceControlTest() {
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
     media_stream_manager_->SetCapturedSurfaceControllerFactoryForTesting(
         base::BindRepeating(
             [](GlobalRenderFrameHostId gdm_rfhid,
@@ -1541,6 +1542,7 @@ class MediaStreamDispatcherHostCapturedSurfaceControlTest
                   CapturedSurfaceControlResult::kSuccess);
               return captured_surface_controller;
             }));
+#endif
   }
 
  protected:

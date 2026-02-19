@@ -39,6 +39,8 @@ PerformanceImpl::PerformanceImpl(
     : content::DocumentService<mojom::CobaltPerformance>(render_frame_host,
                                                          std::move(receiver)) {}
 
+PerformanceImpl::~PerformanceImpl() = default;
+
 void PerformanceImpl::Create(
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver) {
@@ -95,7 +97,13 @@ void PerformanceImpl::RequestGlobalMemoryDump(
       base::BindOnce(
           [](RequestGlobalMemoryDumpCallback callback, bool success,
              memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
-            if (!success || !dump) {
+            if (!success) {
+              LOG(ERROR) << "Global memory dump request failed.";
+              std::move(callback).Run(false, "");
+              return;
+            }
+            if (!dump) {
+              LOG(ERROR) << "Global memory dump is null.";
               std::move(callback).Run(false, "");
               return;
             }
@@ -104,32 +112,33 @@ void PerformanceImpl::RequestGlobalMemoryDump(
             base::Value::List process_dumps;
             for (const auto& process_dump : dump->process_dumps) {
               base::Value::Dict process_dict;
-              process_dict.Set("pid", static_cast<int>(process_dump->pid));
+              process_dict.Set("pid", static_cast<double>(process_dump->pid));
               process_dict.Set("process_type",
                                static_cast<int>(process_dump->process_type));
 
               base::Value::Dict os_dump;
               os_dump.Set(
                   "resident_set_kb",
-                  static_cast<int>(process_dump->os_dump->resident_set_kb));
+                  static_cast<double>(process_dump->os_dump->resident_set_kb));
               os_dump.Set(
                   "gpu_memory_kb",
-                  static_cast<int>(process_dump->os_dump->gpu_memory_kb));
+                  static_cast<double>(process_dump->os_dump->gpu_memory_kb));
               os_dump.Set("private_footprint_kb",
-                          static_cast<int>(
+                          static_cast<double>(
                               process_dump->os_dump->private_footprint_kb));
-              os_dump.Set(
-                  "shared_footprint_kb",
-                  static_cast<int>(process_dump->os_dump->shared_footprint_kb));
+              os_dump.Set("shared_footprint_kb",
+                          static_cast<double>(
+                              process_dump->os_dump->shared_footprint_kb));
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
               os_dump.Set(
                   "private_footprint_swap_kb",
-                  static_cast<int>(
+                  static_cast<double>(
                       process_dump->os_dump->private_footprint_swap_kb));
               os_dump.Set("pss_kb",
-                          static_cast<int>(process_dump->os_dump->pss_kb));
-              os_dump.Set("swap_pss_kb",
-                          static_cast<int>(process_dump->os_dump->swap_pss_kb));
+                          static_cast<double>(process_dump->os_dump->pss_kb));
+              os_dump.Set(
+                  "swap_pss_kb",
+                  static_cast<double>(process_dump->os_dump->swap_pss_kb));
 #endif
               process_dict.Set("os_dump", std::move(os_dump));
 

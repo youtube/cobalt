@@ -16,44 +16,61 @@
 
 #include <string>
 
-#include "cobalt/browser/performance/public/mojom/performance.mojom.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-namespace {
+// static
+const char PerformanceExtensions::kSupplementName[] = "PerformanceExtensions";
 
-mojo::Remote<performance::mojom::CobaltPerformance> BindRemotePerformance(
-    ScriptState* script_state) {
-  ExecutionContext* execution_context = ExecutionContext::From(script_state);
-  DCHECK(execution_context);
-
-  mojo::Remote<performance::mojom::CobaltPerformance> remote_performance_system;
-  auto task_runner =
-      execution_context->GetTaskRunner(TaskType::kMiscPlatformAPI);
-  execution_context->GetBrowserInterfaceBroker().GetInterface(
-      remote_performance_system.BindNewPipeAndPassReceiver(task_runner));
-  return remote_performance_system;
+// static
+PerformanceExtensions& PerformanceExtensions::From(LocalDOMWindow& window) {
+  PerformanceExtensions* supplement =
+      Supplement<LocalDOMWindow>::From<PerformanceExtensions>(window);
+  if (!supplement) {
+    supplement = MakeGarbageCollected<PerformanceExtensions>(window);
+    ProvideTo(window, supplement);
+  }
+  return *supplement;
 }
 
-}  // namespace
+PerformanceExtensions::PerformanceExtensions(LocalDOMWindow& window)
+    : Supplement<LocalDOMWindow>(window) {}
+
+mojo::Remote<performance::mojom::blink::CobaltPerformance>&
+PerformanceExtensions::GetRemote() {
+  if (!remote_.is_bound()) {
+    LocalDOMWindow* window = GetSupplementable();
+    auto task_runner = window->GetTaskRunner(TaskType::kMiscPlatformAPI);
+    window->GetBrowserInterfaceBroker().GetInterface(
+        remote_.BindNewPipeAndPassReceiver(task_runner));
+  }
+  return remote_;
+}
 
 uint64_t PerformanceExtensions::measureAvailableCpuMemory(
     ScriptState* script_state,
     const Performance&) {
   uint64_t free_memory = 0;
-  BindRemotePerformance(script_state)->MeasureAvailableCpuMemory(&free_memory);
+  LocalDOMWindow* window = LocalDOMWindow::From(script_state);
+  if (window) {
+    From(*window).GetRemote()->MeasureAvailableCpuMemory(&free_memory);
+  }
   return free_memory;
 }
 
 uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
                                                      const Performance&) {
   uint64_t used_memory = 0;
-  BindRemotePerformance(script_state)->MeasureUsedCpuMemory(&used_memory);
+  LocalDOMWindow* window = LocalDOMWindow::From(script_state);
+  if (window) {
+    From(*window).GetRemote()->MeasureUsedCpuMemory(&used_memory);
+  }
   return used_memory;
 }
 
@@ -63,10 +80,25 @@ ScriptPromise<IDLLongLong> PerformanceExtensions::getAppStartupTime(
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLLongLong>>(
       script_state, exception_state.GetContext());
-  int64_t startup_time = 0;
-  BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
-  ScriptPromise<IDLLongLong> promise = resolver->Promise();
-  resolver->Resolve(startup_time);
+  auto promise = resolver->Promise();
+
+  LocalDOMWindow* window = LocalDOMWindow::From(script_state);
+  if (!window) {
+    resolver->Reject("No window available");
+    return promise;
+  }
+
+  From(*window).GetRemote()->GetAppStartupTime(
+      mojo::WrapCallbackWithDropHandler(
+          base::BindOnce([](ScriptPromiseResolver<IDLLongLong>* resolver,
+                            int64_t time) { resolver->Resolve(time); },
+                         WrapPersistent(resolver)),
+          base::BindOnce(
+              [](ScriptPromiseResolver<IDLLongLong>* resolver) {
+                resolver->Reject("Mojo connection lost");
+              },
+              WrapPersistent(resolver))));
+
   return promise;
 }
 
@@ -77,26 +109,38 @@ ScriptPromise<IDLString> PerformanceExtensions::requestGlobalMemoryDump(
       MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(script_state);
   auto promise = resolver->Promise();
 
-  mojo::Remote<performance::mojom::CobaltPerformance> remote =
-      BindRemotePerformance(script_state);
-  performance::mojom::CobaltPerformance* remote_ptr = remote.get();
-  remote_ptr->RequestGlobalMemoryDump(base::BindOnce(
-      [](mojo::Remote<performance::mojom::CobaltPerformance> /*remote*/,
-         ScriptPromiseResolver<IDLString>* resolver, bool success,
-         const std::string& json_dump) {
-        if (!resolver->GetExecutionContext() ||
-            resolver->GetExecutionContext()->IsContextDestroyed()) {
-          return;
-        }
+  LocalDOMWindow* window = LocalDOMWindow::From(script_state);
+  if (!window) {
+    resolver->Reject("No window available");
+    return promise;
+  }
+
+  auto callback = base::BindOnce(
+      [](ScriptPromiseResolver<IDLString>* resolver, bool success,
+         const WTF::String& json_dump) {
         if (success) {
-          resolver->Resolve(String::FromUTF8(json_dump));
+          resolver->Resolve(json_dump);
         } else {
-          resolver->Reject();
+          resolver->Reject("Dump failed or timed out");
         }
       },
-      std::move(remote), WrapPersistent(resolver)));
+      WrapPersistent(resolver));
+
+  auto wrapped_callback = mojo::WrapCallbackWithDropHandler(
+      std::move(callback), base::BindOnce(
+                               [](ScriptPromiseResolver<IDLString>* resolver) {
+                                 resolver->Reject("Mojo connection lost");
+                               },
+                               WrapPersistent(resolver)));
+
+  From(*window).GetRemote()->RequestGlobalMemoryDump(
+      std::move(wrapped_callback));
 
   return promise;
+}
+
+void PerformanceExtensions::Trace(Visitor* visitor) const {
+  Supplement<LocalDOMWindow>::Trace(visitor);
 }
 
 }  //  namespace blink

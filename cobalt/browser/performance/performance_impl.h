@@ -36,6 +36,8 @@ class PerformanceImpl
   static void Create(content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
 
+  ~PerformanceImpl() override;
+
   PerformanceImpl(const PerformanceImpl&) = delete;
   PerformanceImpl& operator=(const PerformanceImpl&) = delete;
 

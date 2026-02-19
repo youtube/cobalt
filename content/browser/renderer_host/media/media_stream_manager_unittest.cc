@@ -1916,6 +1916,7 @@ class MediaStreamManagerCapturedSurfaceControlTest
   void SetCapturedSurfaceControllerFactory(
       GlobalRenderFrameHostId gdm_rfhid,
       WebContentsMediaCaptureId captured_wc_id) {
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
     media_stream_manager_->SetCapturedSurfaceControllerFactoryForTesting(
         base::BindRepeating(
             [](base::RepeatingCallback<void(int)>* received_zoom_level_callback,
@@ -1936,6 +1937,7 @@ class MediaStreamManagerCapturedSurfaceControlTest
                   captured_surface_controller.release());
             },
             &received_zoom_level_callback_));
+#endif
   }
 
   base::OnceCallback<void(CapturedSurfaceControlResult)> MakeCallback() {

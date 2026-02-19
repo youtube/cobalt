@@ -27,15 +27,13 @@ namespace renderer {
 
 RasterizerMemoryDumpProvider* RasterizerMemoryDumpProvider::GetInstance() {
   static base::NoDestructor<RasterizerMemoryDumpProvider> instance;
-  static std::once_flag registration_flag;
-  std::call_once(registration_flag, []() {
-    base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
-        RasterizerMemoryDumpProvider::GetInstance(), "Rasterizer", nullptr);
-  });
   return instance.get();
 }
 
-RasterizerMemoryDumpProvider::RasterizerMemoryDumpProvider() = default;
+RasterizerMemoryDumpProvider::RasterizerMemoryDumpProvider() {
+  base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
+      this, "Rasterizer", nullptr);
+}
 RasterizerMemoryDumpProvider::~RasterizerMemoryDumpProvider() = default;
 
 bool RasterizerMemoryDumpProvider::OnMemoryDump(

@@ -466,7 +466,6 @@ ShellContentBrowserClient::RunSecondaryMediaService() {
 void ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<RenderFrameHost*>* map) {
-  cobalt::PopulateCobaltFrameBinders(render_frame_host, map);
   PerformanceManagerRegistry::GetInstance()
       ->GetBinders()
       .ExposeInterfacesToRenderFrame(map);

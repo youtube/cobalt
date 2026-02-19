@@ -37,32 +37,40 @@ def run_test(url, threshold):
           'demonstration.')
     with open(dump_file, 'w', encoding='utf-8') as f:
       mock_data = {
-          'process_totals': {
-              'resident_set_bytes': 500 * 1024 * 1024  # 500 MB
-          },
-          'allocators_dumps': {
-              'cobalt/media/video_buffers': {
-                  'attrs': {
-                      'size': {
-                          'value': 200 * 1024 * 1024
-                      }
+          'process_dumps': [
+              {
+                  'pid': 1001,
+                  'process_type': 1,  # Browser
+                  'os_dump': {
+                      'resident_set_kb': 200 * 1024,
+                      'gpu_memory_kb': 300 * 1024,  # e.g. 4K Video DMA-BUFs
+                  },
+                  'chrome_allocator_dumps': {
+                      'cobalt/media/video_buffers': {
+                          'size': 180 * 1024 * 1024
+                      },
+                      'cobalt/media/decoded_frames': {
+                          'size': 150 * 1024 * 1024
+                      },
                   }
               },
-              'cobalt/media/decoded_frames': {
-                  'attrs': {
-                      'size': {
-                          'value': 150 * 1024 * 1024
-                      }
-                  }
-              },
-              'cobalt/renderer/rasterizer/resource_cache': {
-                  'attrs': {
-                      'size': {
-                          'value': 100 * 1024 * 1024
-                      }
+              {
+                  'pid': 1002,
+                  'process_type': 2,  # Renderer
+                  'os_dump': {
+                      'resident_set_kb': 150 * 1024,
+                      'gpu_memory_kb': 0,
+                  },
+                  'chrome_allocator_dumps': {
+                      'cobalt/renderer/rasterizer/resource_cache': {
+                          'size': 100 * 1024 * 1024
+                      },
+                      'chromium/malloc': {
+                          'size': 40 * 1024 * 1024
+                      },
                   }
               }
-          }
+          ]
       }
       json.dump(mock_data, f)
 

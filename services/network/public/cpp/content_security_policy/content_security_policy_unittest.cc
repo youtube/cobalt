@@ -1639,6 +1639,7 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
       },
 #if BUILDFLAG(IS_COBALT)
       {
+          mojom::CSPDirectiveName::ScriptSrc,
           "'wrong' 'cobalt_insecure_local_network'",
           base::BindOnce([] {
             auto csp = mojom::CSPSourceList::New();
@@ -1650,6 +1651,7 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
           "ignored.",
       },
       {
+          mojom::CSPDirectiveName::ScriptSrc,
           "'wrong' 'cobalt_insecure_private_range'",
           base::BindOnce([] {
             auto csp = mojom::CSPSourceList::New();
