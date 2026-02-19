@@ -533,7 +533,7 @@ action("embed_loader_resources_as_header_files") {
   sources = [
     "embedded_resources/loader_embedded_resources/splash.html",
 
-    # TODO(481826565): hide code path for internal files
+    # TODO(b/481826565): hide code path for internal files
     # Default splash video, 1920x1080. Copied from
     # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash.webm.
     "embedded_resources/loader_embedded_resources/splash.webm",
@@ -542,9 +542,21 @@ action("embed_loader_resources_as_header_files") {
     # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/splash_480p.webm.
     "embedded_resources/loader_embedded_resources/splash_480.webm",
 
+    # Music splash video, 1920x1080. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/music_splash.webm.
+    "embedded_resources/loader_embedded_resources/music_splash.webm",
+
+    # For low spec TV, 853x480. Copied from
+    # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/music_splash_480p.webm.
+    "embedded_resources/loader_embedded_resources/music_splash_480.webm",
+
     # For devices that do not support VP9. Copied from
     # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash_video_placeholder.png.
     "embedded_resources/loader_embedded_resources/splash.png",
+
+    # For devices that do not support VP9. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/music_splash_video_placeholder.png.
+    "embedded_resources/loader_embedded_resources/music_splash.png",
   ]
 
   args = [
