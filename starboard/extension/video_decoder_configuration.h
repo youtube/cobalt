@@ -15,6 +15,7 @@
 #ifndef STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
 #define STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus

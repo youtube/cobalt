@@ -824,8 +824,7 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(video_decoder_configuration_extension->name,
              kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
       video_decoder_configuration_extension->version >= 2) {
-    StarboardVideoDecoderExperimentalFeatures experimental_features;
-    memset(&experimental_features, 0, sizeof(experimental_features));
+    StarboardVideoDecoderExperimentalFeatures experimental_features{};
     if (experimental_features_.initial_max_frames_in_decoder) {
       experimental_features.initial_max_frames_in_decoder = {
           /*is_set=*/true,
