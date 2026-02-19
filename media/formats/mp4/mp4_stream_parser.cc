@@ -183,9 +183,12 @@ StreamParser::ParseStatus MP4StreamParser::Parse(
   buffers_parsed_ = false;
 
   for (int loop_count = 0;;++loop_count) {
+    auto previous_max_parse_offset = max_parse_offset_;
+
     ParseStatus result = ParseInternal(max_pending_bytes_to_inspect);
 
     if (result == ParseStatus::kFailed || max_parse_offset_ == queue_.tail() ||
+        previous_max_parse_offset == max_parse_offset_ ||
         buffers_parsed_ || loop_count == kMaxLoopCount) {
       return result;
     }

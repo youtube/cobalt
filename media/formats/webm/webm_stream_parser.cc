@@ -127,9 +127,12 @@ StreamParser::ParseStatus WebMStreamParser::Parse(
   buffers_parsed_ = false;
 
   for (int loop_count = 0;;++loop_count) {
+    auto previous_uninspected_pending_bytes = uninspected_pending_bytes_;
+
     ParseStatus result = ParseInternal(max_pending_bytes_to_inspect);
 
     if (result == ParseStatus::kFailed || uninspected_pending_bytes_ == 0 ||
+        previous_uninspected_pending_bytes == uninspected_pending_bytes_ ||
         buffers_parsed_ || loop_count == kMaxLoopCount) {
       return result;
     }
