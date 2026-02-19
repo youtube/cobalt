@@ -14,7 +14,6 @@
 # limitations under the License.
 """Generates a fake junit xml report from a log file (if available)."""
 
-import re
 import html
 import datetime
 import pathlib
@@ -22,18 +21,11 @@ import argparse
 from typing import Tuple
 
 RUN_MARKER = '[ RUN      ]'
-SUITE_MARKER = '[==========]'
 END_MARKERS = (
     '[       OK ]',
     '[  FAILED  ]',
     '[  SKIPPED ]',
 )
-
-
-def _get_test_name_from_run_line(line: str) -> str:
-  """Extracts test name like 'Suite.Test' from a gtest marker line."""
-  match = re.search(rf"{re.escape(RUN_MARKER)}\s*([^\s]+)$", line)
-  return match.group(1) if match else 'UnknownSuite.UnknownTest'
 
 
 def _extract_crash(log_path: pathlib.Path) -> Tuple[str, str, str]:
@@ -54,7 +46,7 @@ def _extract_crash(log_path: pathlib.Path) -> Tuple[str, str, str]:
       # If the test crashed there are no end markers.
       if any(marker in log for marker in END_MARKERS):
         break
-      test_name = _get_test_name_from_run_line(line)
+      test_name = line[len(RUN_MARKER):].strip()
       suite, name = test_name.split(
           '.', 1) if '.' in test_name else ('UnknownSuite', test_name)
       return suite, name, log
