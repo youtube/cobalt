@@ -1186,113 +1186,6 @@ void ClearInjectableArgvs();
 
 #endif  // GTEST_HAS_DEATH_TEST
 
-// TODO: b/399507045 - Cobalt: Fix build error, remove hack
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-// Define synchronization primitives.
-class Mutex {
- public:
-  enum MutexType { kStatic = 0, kDynamic = 1 };
-  // We rely on kStaticMutex being 0 as it is to what the linker initializes
-  // type_ in static mutexes.  critical_section_ will be initialized lazily
-  // in ThreadSafeLazyInit().
-  enum StaticConstructorSelector { kStaticMutex = 0 };
-  // This constructor intentionally does nothing.  It relies on type_ being
-  // statically initialized to 0 (effectively setting it to kStatic) and on
-  // ThreadSafeLazyInit() to lazily initialize the rest of the members.
-  explicit Mutex(StaticConstructorSelector /*dummy*/) {}
-  Mutex() : type_(kDynamic) { pthread_mutex_init(&mutex_, nullptr); }
-  ~Mutex() {
-    if (type_ != kStatic) {
-      pthread_mutex_destroy(&mutex_);
-    }
-  }
-  void Lock() {
-    LazyInit();
-    pthread_mutex_lock(&mutex_);
-  }
-  void Unlock() { pthread_mutex_unlock(&mutex_); }
-  void AssertHeld() const {}
- private:
-  void LazyInit() {
-    if (type_ == kStatic && !initialized_) {
-// TODO: (cobalt b/409757368): Change the code to not have compiler warnings.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wexit-time-destructors"
-#endif
-      static starboard::SpinLock s_lock;
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#pragma GCC diagnostic pop
-#endif
-      s_lock.Acquire();
-      if (!initialized_) {
-        pthread_mutex_init(&mutex_, nullptr);
-        initialized_ = true;
-      }
-      s_lock.Release();
-    }
-  }
-  pthread_mutex_t mutex_;
-  friend class GTestMutexLock;
-  bool initialized_ = false;
-  // For static mutexes, we rely on type_ member being initialized to zero
-  // by the linker.
-  MutexType type_;
-};
-#define GTEST_DECLARE_STATIC_MUTEX_(mutex) \
-  extern ::testing::internal::Mutex mutex
-#define GTEST_DEFINE_STATIC_MUTEX_(mutex) \
-  ::testing::internal::Mutex mutex(::testing::internal::Mutex::kStaticMutex)
-// We cannot name this class MutexLock because the ctor declaration would
-// conflict with a macro named MutexLock, which is defined on some
-// platforms. That macro is used as a defensive measure to prevent against
-// inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
-// "MutexLock l(&mu)".  Hence the typedef trick below.
-class GTestMutexLock {
- public:
-  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) {
-    mutex_->Lock();
-  }  // NOLINT
-  ~GTestMutexLock() { mutex_->Unlock(); }
- private:
-  Mutex* mutex_;
-};
-typedef GTestMutexLock MutexLock;
-template <typename T>
-class ThreadLocal {
- public:
-  ThreadLocal() {
-    int res = pthread_key_create(&key_, [](void* value) { delete static_cast<T*>(value); });
-    SB_DCHECK(res == 0);
-  }
-  explicit ThreadLocal(const T& value) : ThreadLocal() {
-    default_value_ = value;
-    set(value);
-  }
-  ~ThreadLocal() {
-    pthread_key_delete(key_);
-  }
-  T* pointer() { return GetOrCreateValue(); }
-  const T* pointer() const { return GetOrCreateValue(); }
-  const T& get() const { return *pointer(); }
-  void set(const T& value) { *GetOrCreateValue() = value; }
- private:
-  T* GetOrCreateValue() const {
-    T* ptr = static_cast<T*>(pthread_getspecific(key_));
-    if (ptr) {
-      return ptr;
-    } else {
-      T* new_value = new T(default_value_);
-      int res = pthread_setspecific(key_, new_value);
-      SB_CHECK(res == 0);
-      return new_value;
-    }
-  }
-  T default_value_;
-  pthread_key_t key_;
-};
-
-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #if GTEST_IS_THREADSAFE
 
 #if GTEST_OS_WINDOWS
@@ -1981,7 +1874,6 @@ class GTEST_API_ ThreadLocal {
 };
 
 #endif  // GTEST_IS_THREADSAFE
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // Returns the number of threads running in the process, or 0 to indicate that
 // we cannot detect it.
