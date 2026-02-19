@@ -51,7 +51,7 @@ bool StringToProfile(const std::string& input, uint32_t* profile) {
 }
 
 // Helper function to read a LEB128 value.
-std::optional<uint32_t> ReadLeb128(std::string_view view) {
+std::optional<uint32_t> ReadLeb128(std::string_view& view) {
   uint32_t decoded_value = 0;
   for (size_t i = 0; i < 5; ++i) {
     if (view.empty()) {
