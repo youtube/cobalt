@@ -823,22 +823,25 @@ void SbPlayerBridge::CreatePlayer() {
   if (video_decoder_configuration_extension &&
       strcmp(video_decoder_configuration_extension->name,
              kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
-      video_decoder_configuration_extension->version >= 1) {
+      video_decoder_configuration_extension->version >= 2) {
+    StarboardVideoDecoderExperimentalFeatures experimental_features;
+    memset(&experimental_features, 0, sizeof(experimental_features));
     if (experimental_features_.initial_max_frames_in_decoder) {
-      video_decoder_configuration_extension
-          ->SetVideoInitialMaxFramesInDecoderForCurrentThread(
-              *experimental_features_.initial_max_frames_in_decoder);
+      experimental_features.initial_max_frames_in_decoder = {
+          /*is_set=*/true,
+          *experimental_features_.initial_max_frames_in_decoder};
     }
     if (experimental_features_.max_pending_input_frames) {
-      video_decoder_configuration_extension
-          ->SetVideoMaxPendingInputFramesForCurrentThread(
-              *experimental_features_.max_pending_input_frames);
+      experimental_features.max_pending_input_frames = {
+          /*is_set=*/true, *experimental_features_.max_pending_input_frames};
     }
     if (experimental_features_.video_decoder_poll_interval_ms) {
-      video_decoder_configuration_extension
-          ->SetVideoDecoderPollIntervalMsForCurrentThread(
-              *experimental_features_.video_decoder_poll_interval_ms);
+      experimental_features.video_decoder_poll_interval_ms = {
+          /*is_set=*/true,
+          *experimental_features_.video_decoder_poll_interval_ms};
     }
+    video_decoder_configuration_extension
+        ->SetExperimentalFeaturesForCurrentThread(&experimental_features);
   }
 
 #if BUILDFLAG(IS_ANDROID)

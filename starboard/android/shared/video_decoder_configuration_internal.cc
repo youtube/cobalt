@@ -66,55 +66,51 @@ void EnsureThreadLocalKeyInitedForDecoderConfig() {
   pthread_once(&g_once_control, InitializeKeys);
 }
 
-std::optional<int> GetVideoInitialMaxFramesInDecoderForCurrentThread() {
+VideoDecoderExperimentalFeatures GetExperimentalFeaturesForCurrentThread() {
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_initial_max_frames_key);
+  VideoDecoderExperimentalFeatures experimental_features;
+  experimental_features.initial_max_frames_in_decoder =
+      ReadIntFromThreadLocalStorage(g_initial_max_frames_key);
+  experimental_features.max_pending_input_frames =
+      ReadIntFromThreadLocalStorage(g_max_pending_frames_key);
+  experimental_features.video_decoder_poll_interval_ms =
+      ReadIntFromThreadLocalStorage(g_video_decoder_poll_interval_key);
+  return experimental_features;
 }
 
-void SetVideoInitialMaxFramesInDecoderForCurrentThread(
-    int initial_max_frames_in_decoder) {
-  if (initial_max_frames_in_decoder < 0) {
-    SB_LOG(WARNING) << "Invalid initial_max_frames_in_decoder: "
-                    << initial_max_frames_in_decoder;
+void SetExperimentalFeaturesForCurrentThread(
+    const StarboardVideoDecoderExperimentalFeatures* experimental_features) {
+  if (!experimental_features) {
     return;
   }
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_initial_max_frames_key,
-                               initial_max_frames_in_decoder);
-}
 
-std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_max_pending_frames_key);
-}
-
-void SetVideoMaxPendingInputFramesForCurrentThread(
-    int max_pending_input_frames) {
-  if (max_pending_input_frames < 0) {
-    SB_LOG(WARNING) << "Invalid max_pending_input_frames: "
-                    << max_pending_input_frames;
-    return;
+  if (experimental_features->initial_max_frames_in_decoder.is_set) {
+    int value = experimental_features->initial_max_frames_in_decoder.value;
+    if (value < 0) {
+      SB_LOG(WARNING) << "Invalid initial_max_frames_in_decoder: " << value;
+    } else {
+      WriteIntToThreadLocalStorage(g_initial_max_frames_key, value);
+    }
   }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_max_pending_frames_key,
-                               max_pending_input_frames);
-}
 
-std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_video_decoder_poll_interval_key);
-}
-
-void SetVideoDecoderPollIntervalMsForCurrentThread(
-    int video_decoder_poll_interval_ms) {
-  if (video_decoder_poll_interval_ms <= 0) {
-    SB_LOG(WARNING) << "Invalid video_decoder_poll_interval_ms: "
-                    << video_decoder_poll_interval_ms;
-    return;
+  if (experimental_features->max_pending_input_frames.is_set) {
+    int value = experimental_features->max_pending_input_frames.value;
+    if (value < 0) {
+      SB_LOG(WARNING) << "Invalid max_pending_input_frames: " << value;
+    } else {
+      WriteIntToThreadLocalStorage(g_max_pending_frames_key, value);
+    }
   }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key,
-                               video_decoder_poll_interval_ms);
+
+  if (experimental_features->video_decoder_poll_interval_ms.is_set) {
+    int value = experimental_features->video_decoder_poll_interval_ms.value;
+    if (value <= 0) {
+      SB_LOG(WARNING) << "Invalid video_decoder_poll_interval_ms: " << value;
+    } else {
+      WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key, value);
+    }
+  }
 }
 
 }  // namespace starboard::android::shared
