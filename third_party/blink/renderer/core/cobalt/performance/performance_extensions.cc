@@ -92,13 +92,12 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
   }
 
   if (is_main_web_app) {
-    int64_t startup_timestamp_us = 0;
-    BindRemotePerformance(script_state)
-        ->GetAppStartupTime(&startup_timestamp_us);
+    int64_t startup_timestamp = 0;
+    BindRemotePerformance(script_state)->GetAppStartupTime(&startup_timestamp);
 
     resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
         performance_obj.GetTimeOriginInternal(),
-        base::TimeTicks::FromInternalValue(startup_timestamp_us),
+        base::TimeTicks::FromInternalValue(startup_timestamp),
         true /* allow_negative_value */,
         context->CrossOriginIsolatedCapability()));
   } else {
