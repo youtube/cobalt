@@ -107,26 +107,16 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
 
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
-    case kSbEventTypePreload: {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-      init_musl();
-#endif
-      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-      g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
-      g_platform_event_source = new PlatformEventSourceStarboard();
-      InitCobalt(data->argument_count,
-                 const_cast<const char**>(data->argument_values), data->link);
-
-      break;
-    }
+    case kSbEventTypePreload:
     case kSbEventTypeStart: {
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
       init_musl();
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
+      g_content_main_delegate =
+          new cobalt::CobaltMainDelegate(false /* is_content_browsertests */,
+                                         event->type == kSbEventTypeStart);
       g_platform_event_source = new PlatformEventSourceStarboard();
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
@@ -160,7 +150,10 @@ void SbEventHandle(const SbEvent* event) {
       g_platform_event_source->HandleFocusEvent(event);
       break;
     case kSbEventTypeConceal:
+      break;
     case kSbEventTypeReveal:
+      content::Shell::OnReveal();
+      break;
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
       break;

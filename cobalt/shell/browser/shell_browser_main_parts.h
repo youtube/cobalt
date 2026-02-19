@@ -37,7 +37,7 @@ class ShellPlatformDelegate;
 
 class ShellBrowserMainParts : public BrowserMainParts {
  public:
-  ShellBrowserMainParts();
+  explicit ShellBrowserMainParts(bool is_visible = true);
 
   ShellBrowserMainParts(const ShellBrowserMainParts&) = delete;
   ShellBrowserMainParts& operator=(const ShellBrowserMainParts&) = delete;
@@ -81,6 +81,7 @@ class ShellBrowserMainParts : public BrowserMainParts {
 
   std::unique_ptr<performance_manager::PerformanceManagerLifetime>
       performance_manager_lifetime_;
+  bool is_visible_;
 #if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<crash_reporter::ChildExitObserver> child_exit_observer_;
 #endif

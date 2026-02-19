@@ -36,6 +36,9 @@
 
 namespace cobalt {
 
+CobaltBrowserMainParts::CobaltBrowserMainParts(bool is_visible)
+    : ShellBrowserMainParts(is_visible) {}
+
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
 #if BUILDFLAG(IS_ANDROIDTV)

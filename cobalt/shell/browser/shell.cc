@@ -50,7 +50,6 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -188,6 +187,10 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
         splash_screen_web_contents_delegate_.get());
   }
 
+  if (!GetPlatform()->IsVisible()) {
+    web_contents_->WasHidden();
+  }
+
   if (shell_created_callback_) {
     std::move(shell_created_callback_).Run(this);
   }
@@ -214,6 +217,11 @@ Shell::~Shell() {
 // static
 ShellPlatformDelegate* Shell::GetPlatform() {
   return g_platform;
+}
+
+// static
+void Shell::OnReveal() {
+  g_platform->OnReveal();
 }
 
 void Shell::FinishShellInitialization(Shell* shell) {
@@ -297,10 +305,11 @@ Shell* Shell::FromWebContents(WebContents* web_contents) {
 }
 
 // static
-void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform) {
+void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform,
+                       bool is_visible) {
   DCHECK(!g_platform);
   g_platform = platform.release();
-  g_platform->Initialize(GetShellDefaultSize());
+  g_platform->Initialize(GetShellDefaultSize(), is_visible);
 }
 
 // static
@@ -348,6 +357,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const bool create_splash_screen_web_contents,
                               const std::string& topic) {
   WebContents::CreateParams create_params(browser_context, site_instance);
+  bool is_visible = GetPlatform()->IsVisible();
+  create_params.initially_hidden = !is_visible;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
@@ -355,7 +366,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
   std::unique_ptr<WebContents> splash_screen_web_contents;
-  if (create_splash_screen_web_contents) {
+  if (create_splash_screen_web_contents && is_visible) {
     // Create splash screen WebContents. ATV creates splash screen WebContents
     // in JNI_ShellManager_LaunchShell(), whereas other platforms create it in
     // ShellBrowserMainParts::InitializeMessageLoopContext().
@@ -1018,7 +1029,9 @@ void Shell::SwitchToMainWebContents() {
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
-      web_contents_->WasShown();
+      if (GetPlatform()->IsVisible()) {
+        web_contents_->WasShown();
+      }
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }
