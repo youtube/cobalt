@@ -16,7 +16,9 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/common/string.h"
@@ -49,31 +51,28 @@ bool StringToProfile(const std::string& input, uint32_t* profile) {
 }
 
 // Helper function to read a LEB128 value.
-bool ReadLeb128(const uint8_t** data, const uint8_t* end, uint32_t* value) {
-  SB_CHECK(data);
-  SB_CHECK(*data);
-  SB_CHECK(end);
-  SB_CHECK(value);
-
+std::optional<uint32_t> ReadLeb128(std::string_view view) {
   uint32_t decoded_value = 0;
   for (size_t i = 0; i < 5; ++i) {
-    if (*data >= end) {
-      return false;
+    if (view.empty()) {
+      return std::nullopt;
     }
-    uint8_t byte = *(*data)++;
+
+    uint8_t byte = view.front();
+    view.remove_prefix(1);
+
     if (i == 4 && (byte & 0x7f) > 0x0f) {
       // A 32-bit value can't use more than 4 bits from the 5th LEB128 byte.
-      return false;
+      return std::nullopt;
     }
 
     decoded_value |= (uint32_t)(byte & 0x7f) << (i * 7);
 
     if (!(byte & 0x80)) {
-      *value = decoded_value;
-      return true;
+      return decoded_value;
     }
   }
-  return false;
+  return std::nullopt;
 }
 }  // namespace
 
@@ -154,47 +153,50 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
 }
 
 // static.
-bool IamfMimeUtil::ParseIamfSequenceHeaderObu(const uint8_t* data,
-                                              size_t size,
-                                              uint8_t* primary_profile,
-                                              uint8_t* additional_profile) {
-  const uint8_t* end = data + size;
+Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
+    const std::vector<uint8_t>& data) {
+  const uint8_t* read_head = data.data();
+  const uint8_t* end = read_head + data.size();
 
-  const uint8_t header_byte = *data++;
+  const uint8_t header_byte = *read_head++;
   uint8_t obu_type = (header_byte >> 3) & 0x1f;
   if (obu_type != kIamfSequenceHeaderObu) {
-    SB_LOG(ERROR) << "Tried to read OBU: " << static_cast<int>(obu_type)
-                  << " instead of IA Sequence Header OBU type "
-                  << static_cast<int>(kIamfSequenceHeaderObu)
-                  << " in ParseIamfSequenceHeaderObu().";
-    return false;
+    return Failure(FormatString(
+        "Tried to read OBU: %d instead of IA Sequence Header OBU "
+        "type %d in ParseIamfSequenceHeaderObu().",
+        static_cast<int>(obu_type), static_cast<int>(kIamfSequenceHeaderObu)));
   }
 
-  uint32_t obu_size;
-  if (!ReadLeb128(&data, end, &obu_size)) {
-    SB_LOG(ERROR) << "Failed to parse OBU size.";
-    return false;
+  std::string_view view(reinterpret_cast<const char*>(read_head),
+                        end - read_head);
+  const size_t size_before_leb128 = view.size();
+  std::optional<uint32_t> obu_size = ReadLeb128(view);
+
+  if (!obu_size.has_value()) {
+    return Failure(FormatString("Failed to parse OBU size."));
   }
 
-  if (static_cast<size_t>(end - data) < obu_size) {
-    SB_LOG(ERROR) << "Parsed OBU size " << obu_size
-                  << " exceeds the specified size " << size << ".";
-    return false;
-  }
-  const uint8_t* obu_end = data + obu_size;
+  const size_t leb128_byte_count = size_before_leb128 - view.size();
+  read_head += leb128_byte_count;
 
-  if (data + sizeof(uint32_t) + 2 > obu_end) {
-    SB_LOG(ERROR) << "Expected OBU data size " << sizeof(uint32_t) + 2
-                  << " exceeds the full OBU size " << obu_size << ".";
-    return false;
+  if (static_cast<size_t>(end - read_head) < *obu_size) {
+    return Failure(FormatString("Parsed OBU size %u exceeds the data size %zu.",
+                                *obu_size,
+                                static_cast<size_t>(end - read_head)));
+  }
+
+  const uint8_t* obu_end = read_head + *obu_size;
+
+  if (read_head + sizeof(uint32_t) + 2 > obu_end) {
+    return Failure(FormatString(
+        "Expected IA Sequence Header OBU data size %zu exceeds the parsed OBU "
+        "size %u.",
+        sizeof(uint32_t) + 2, *obu_size));
   }
   // Skip ia_code (4 bytes).
-  data += sizeof(uint32_t);
+  read_head += sizeof(uint32_t);
 
-  *primary_profile = *data++;
-  *additional_profile = *data;
-
-  return true;
+  return Success(IamfProfileInfo{*read_head++, *read_head});
 }
 
 }  // namespace starboard

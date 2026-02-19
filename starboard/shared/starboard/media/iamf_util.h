@@ -16,9 +16,12 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_IAMF_UTIL_H_
 
 #include <limits>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/result.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -42,15 +45,18 @@ constexpr uint32_t kIamfProfileMax = 255;
 // Always check is_valid() before calling the getter functions.
 class IamfMimeUtil {
  public:
+  struct IamfProfileInfo {
+    uint8_t primary_profile;
+    uint8_t additional_profile;
+  };
+
   explicit IamfMimeUtil(const std::string& mime_type);
 
   // Parses IAMF Config OBUs for the primary and additional profiles,
   // based on IAMF specification v1.0.0-errata.
   // https://aomediacodec.github.io/iamf/v1.1.0.html#codecsparameter.
-  static bool ParseIamfSequenceHeaderObu(const uint8_t* data,
-                                         size_t size,
-                                         uint8_t* primary_profile,
-                                         uint8_t* additional_profile);
+  static Result<IamfProfileInfo> ParseIamfSequenceHeaderObu(
+      const std::vector<uint8_t>& data);
 
   bool is_valid() const {
     return primary_profile_ <= kIamfProfileMax &&
