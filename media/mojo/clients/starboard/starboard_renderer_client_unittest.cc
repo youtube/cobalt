@@ -72,7 +72,6 @@ class FakeStarboardRendererExtension
   ~FakeStarboardRendererExtension() override = default;
 
   MOCK_METHOD1(GetCurrentVideoFrame, void(GetCurrentVideoFrameCallback cb));
-  MOCK_METHOD1(OnVideoGeometryChange, void(const gfx::Rect&));
   void OnSbWindowHandleReady(uint64_t sb_window_handle) override {}
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD1(OnOverlayInfoChanged, void(const OverlayInfo& overlay_info));
@@ -158,7 +157,6 @@ class StarboardRendererClientTest : public ::testing::Test {
         std::move(client_extension_receiver),
         /*get_sb_window_handle_callback=*/
         base::BindRepeating([]() -> uint64_t { return 0; }),
-        /*bind_host_receiver_callback=*/base::DoNothing(),
         with_gpu_factories ? mock_gpu_factories_.get() : nullptr
 #if BUILDFLAG(IS_ANDROID)
         ,

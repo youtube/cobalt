@@ -20,6 +20,8 @@ source_set("gpu") {
 
   deps = [
     "//base",
+    "//cobalt/media/service",
+    "//cobalt/media/service/mojom",
     "//cobalt/media/service/mojom",
     "//components/viz/common",
     "//components/viz/service",
