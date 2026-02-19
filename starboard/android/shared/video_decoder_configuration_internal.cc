@@ -25,57 +25,31 @@ namespace starboard::android::shared {
 namespace {
 
 pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
-pthread_key_t g_initial_max_frames_key = 0;
-pthread_key_t g_max_pending_frames_key = 0;
-pthread_key_t g_video_decoder_poll_interval_key = 0;
+pthread_key_t g_experimental_features_key = 0;
 
-void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
-  uintptr_t ptr_val = static_cast<uintptr_t>(value);
-  // Sets sentinel value to differentiate 0 vs nullptr.
-  ptr_val <<= 1;
-  ptr_val |= 0x01;
-  pthread_setspecific(key, reinterpret_cast<void*>(ptr_val));
+void FreeExperimentalFeatures(void* ptr) {
+  delete static_cast<VideoDecoderExperimentalFeatures*>(ptr);
 }
 
-std::optional<int> ReadIntFromThreadLocalStorage(pthread_key_t key) {
-  void* ptr = pthread_getspecific(key);
-  if (ptr == nullptr) {
-    return std::nullopt;
-  }
-  uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
-  // Removes sentinel value.
-  ptr_val >>= 1;
-  return static_cast<int>(ptr_val);
+void InitializeKey() {
+  int res = pthread_key_create(&g_experimental_features_key,
+                               FreeExperimentalFeatures);
+  SB_CHECK_EQ(res, 0);
+}
+
+void EnsureThreadLocalKeyInited() {
+  pthread_once(&g_once_control, InitializeKey);
 }
 
 }  // namespace
 
-void InitializeKeys() {
-  int res =
-      pthread_key_create(&g_initial_max_frames_key, /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_max_pending_frames_key,
-                           /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_video_decoder_poll_interval_key,
-                           /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-}
-
-void EnsureThreadLocalKeyInitedForDecoderConfig() {
-  pthread_once(&g_once_control, InitializeKeys);
-}
-
 VideoDecoderExperimentalFeatures GetExperimentalFeaturesForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  VideoDecoderExperimentalFeatures experimental_features;
-  experimental_features.initial_max_frames_in_decoder =
-      ReadIntFromThreadLocalStorage(g_initial_max_frames_key);
-  experimental_features.max_pending_input_frames =
-      ReadIntFromThreadLocalStorage(g_max_pending_frames_key);
-  experimental_features.video_decoder_poll_interval_ms =
-      ReadIntFromThreadLocalStorage(g_video_decoder_poll_interval_key);
-  return experimental_features;
+  EnsureThreadLocalKeyInited();
+  void* ptr = pthread_getspecific(g_experimental_features_key);
+  if (ptr) {
+    return *static_cast<VideoDecoderExperimentalFeatures*>(ptr);
+  }
+  return {};
 }
 
 void SetExperimentalFeaturesForCurrentThread(
@@ -83,33 +57,30 @@ void SetExperimentalFeaturesForCurrentThread(
   if (!experimental_features) {
     return;
   }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
+  EnsureThreadLocalKeyInited();
+
+  void* ptr = pthread_getspecific(g_experimental_features_key);
+  VideoDecoderExperimentalFeatures* features;
+  if (ptr) {
+    features = static_cast<VideoDecoderExperimentalFeatures*>(ptr);
+  } else {
+    features = new VideoDecoderExperimentalFeatures();
+    pthread_setspecific(g_experimental_features_key, features);
+  }
 
   if (experimental_features->initial_max_frames_in_decoder.is_set) {
-    int value = experimental_features->initial_max_frames_in_decoder.value;
-    if (value < 0) {
-      SB_LOG(WARNING) << "Invalid initial_max_frames_in_decoder: " << value;
-    } else {
-      WriteIntToThreadLocalStorage(g_initial_max_frames_key, value);
-    }
+    features->initial_max_frames_in_decoder =
+        experimental_features->initial_max_frames_in_decoder.value;
   }
 
   if (experimental_features->max_pending_input_frames.is_set) {
-    int value = experimental_features->max_pending_input_frames.value;
-    if (value < 0) {
-      SB_LOG(WARNING) << "Invalid max_pending_input_frames: " << value;
-    } else {
-      WriteIntToThreadLocalStorage(g_max_pending_frames_key, value);
-    }
+    features->max_pending_input_frames =
+        experimental_features->max_pending_input_frames.value;
   }
 
   if (experimental_features->video_decoder_poll_interval_ms.is_set) {
-    int value = experimental_features->video_decoder_poll_interval_ms.value;
-    if (value <= 0) {
-      SB_LOG(WARNING) << "Invalid video_decoder_poll_interval_ms: " << value;
-    } else {
-      WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key, value);
-    }
+    features->video_decoder_poll_interval_ms =
+        experimental_features->video_decoder_poll_interval_ms.value;
   }
 }
 
