@@ -20,6 +20,7 @@ import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.media.PlaybackParams;
 import android.os.Build;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.RequiresApi;
@@ -225,6 +226,28 @@ public class AudioTrackBridge {
     mAudioTrack = null;
     mAvSyncHeader = null;
     mAvSyncPacketBytesRemaining = 0;
+  }
+
+
+  @CalledByNative
+  public int setPlaybackRate(float playbackRate) {
+    if (mAudioTrack == null) {
+      Log.e(TAG, "Unable to setPlaybackRate with NULL audio track.");
+      return 0;
+    }
+    if (!mTunnelModeEnabled) {
+      Log.e(TAG, "SetPlaybackRate is only supported for tunnel mode tracks.");
+      return 0;
+    }
+    try {
+      PlaybackParams params = mAudioTrack.getPlaybackParams();
+      params.setSpeed(playbackRate);
+      mAudioTrack.setPlaybackParams(params);
+    } catch (IllegalArgumentException | IllegalStateException e) {
+      Log.e(TAG, String.format("Unable to setPlaybackRate, error: %s", e.toString()));
+      return 1;
+    }
+    return 0;
   }
 
   @CalledByNative

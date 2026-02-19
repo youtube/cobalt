@@ -94,6 +94,10 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
     return tunnel_mode_audio_session_id_ != -1;
   }
 
+  bool AllowDirectPlaybackRateSetting() const override {
+    return tunnel_mode_audio_session_id_ != -1;
+  }
+
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
