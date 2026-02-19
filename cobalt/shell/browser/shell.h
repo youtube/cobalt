@@ -49,7 +49,7 @@ class SiteInstance;
 class WebContents;
 class RenderFrameHost;
 
-// This represents one window of the Content Shell, i.e. all the UI including
+// This represents one window of Cobalt, i.e. all the UI including
 // buttons and url bar, as well as the web content area.
 class Shell : public WebContentsDelegate, public WebContentsObserver {
  public:
@@ -85,13 +85,16 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
   // will be released.
-  static void Initialize(std::unique_ptr<ShellPlatformDelegate> platform);
+  static void Initialize(std::unique_ptr<ShellPlatformDelegate> platform,
+                         bool is_visible);
 
   // Closes all windows, pumps teardown tasks and signal the main message loop
   // to quit.
   static void Shutdown();  // Idempotent, can be called twice.
 
   static ShellPlatformDelegate* GetPlatform();
+
+  static void OnReveal();
 
   static Shell* CreateNewWindow(
       BrowserContext* browser_context,
@@ -209,15 +212,25 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     delay_popup_contents_delegate_for_testing_ = delay;
   }
 
- protected:
-  // Finishes initialization of a new shell window.
+  Shell(std::unique_ptr<WebContents> web_contents,
+        std::unique_ptr<WebContents> splash_screen_web_contents,
+        bool should_set_delegate,
+        const std::string& topic = "",
+        bool skip_for_testing = false);
+
   static void FinishShellInitialization(Shell* shell);
+
+ protected:
+  // Adjust the size when Blink sends 0 for width and/or height.
+  // This happens when Blink requests a default-sized window.
+  static gfx::Size AdjustWindowSize(const gfx::Size& initial_size);
 
  private:
   class DevToolsWebContentsObserver;
 
   friend class TestShell;
   friend class SplashScreenTest;
+  friend class LifecycleTest;
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
@@ -226,12 +239,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     STATE_SPLASH_SCREEN_ENDED         // End Splash Screen WebContents.
   };
 
-  Shell(std::unique_ptr<WebContents> web_contents,
-        std::unique_ptr<WebContents> splash_screen_web_contents,
-        bool should_set_delegate,
-        const std::string& topic = "",
-        bool skip_for_testing = false);
-
   // Helper to create a new Shell given a newly created WebContents.
   static Shell* CreateShell(
       std::unique_ptr<WebContents> web_contents,
@@ -239,10 +246,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       const gfx::Size& initial_size,
       bool should_set_delegate,
       const std::string& topic = "");
-
-  // Adjust the size when Blink sends 0 for width and/or height.
-  // This happens when Blink requests a default-sized window.
-  static gfx::Size AdjustWindowSize(const gfx::Size& initial_size);
 
   // Helper method for the two public LoadData methods.
   void LoadDataWithBaseURLInternal(const GURL& url,
