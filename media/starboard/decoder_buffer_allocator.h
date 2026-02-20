@@ -77,9 +77,16 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   void SetAllocateOnDemand(bool enabled) override;
   void EnableMediaBufferPoolStrategy() override;
+  void EnableInPlaceReuseAllocatorBase() override;
 
  private:
   enum class MediaBufferPoolStrategyState {
+    kDisabled,
+    kEnabled,
+    kPendingEnabling,
+  };
+
+  enum class InPlaceReuseAllocatorBaseStrategyState {
     kDisabled,
     kEnabled,
     kPendingEnabling,
@@ -99,6 +106,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
   MediaBufferPoolStrategyState media_buffer_pool_strategy_state_
       GUARDED_BY(mutex_) = MediaBufferPoolStrategyState::kDisabled;
+  InPlaceReuseAllocatorBaseStrategyState
+      in_place_reuse_allocator_base_strategy_state_ GUARDED_BY(mutex_) =
+          InPlaceReuseAllocatorBaseStrategyState::kDisabled;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation

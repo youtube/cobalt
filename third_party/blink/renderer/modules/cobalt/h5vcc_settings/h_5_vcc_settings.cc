@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
 #include "base/functional/callback.h"
+#include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/stream_parser.h"
@@ -29,6 +30,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -39,6 +41,33 @@ constexpr char kMediaAppendFirstSegmentSynchronously[] =
 constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
+
+constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
+    "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
+static_assert(
+    std::string_view(kEnableMediaBufferPoolAllocatorStrategy)
+        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
+    kDecoderBufferSettingPrefix);
+
+constexpr char kEnableInPlaceReuseAllocatorBase[] =
+    "DecoderBuffer.EnableInPlaceReuseAllocatorBase";
+static_assert(
+    std::string_view(kEnableInPlaceReuseAllocatorBase)
+        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
+    kDecoderBufferSettingPrefix);
+
+using EnableFunction = void (*)();
+using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
+
+const SettingsMap& GetDecoderBufferSettings() {
+  static const base::NoDestructor<SettingsMap> settings({
+      {kEnableMediaBufferPoolAllocatorStrategy,
+       &::media::DecoderBuffer::EnableMediaBufferPoolStrategy},
+      {kEnableInPlaceReuseAllocatorBase,
+       &::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase},
+  });
+  return *settings;
+}
 
 // Ideally this function should be moved to decoder_buffer.h.  It's kept here as
 // H5vccSettings will soon be deprecated and it's easier to remove from here.
@@ -60,20 +89,19 @@ ScriptPromise ProcessDecoderBufferSettings(ScriptState* script_state,
     return promise;
   }
 
-  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
-    bool enable = (value->GetAsLong() != 0);
-    if (enable) {
+  const auto& settings = GetDecoderBufferSettings();
+  auto it = settings.find(name);
+
+  if (it != settings.end()) {
+    if (value->GetAsLong() != 0) {
       LOG(INFO) << "Enabling " << name << ".";
-      ::media::DecoderBuffer::EnableMediaBufferPoolStrategy();
+      it->value();
       resolver->Resolve();
-
-      return promise;
+    } else {
+      LOG(WARNING) << name << " cannot be disabled.";
+      resolver->Reject(V8ThrowException::CreateTypeError(
+          script_state->GetIsolate(), name + " cannot be disabled."));
     }
-
-    LOG(WARNING) << name << " cannot be disabled.";
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(), name + " cannot be disabled."));
-
     return promise;
   }
 
@@ -124,7 +152,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       resolver->Reject(V8ThrowException::CreateTypeError(
           script_state->GetIsolate(),
           String("The value for '") + kMediaAppendFirstSegmentSynchronously +
-                 "' must be a number."));
+              "' must be a number."));
     }
     return promise;
   }

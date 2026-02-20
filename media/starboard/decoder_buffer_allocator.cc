@@ -157,6 +157,8 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
   bool should_reset_strategy =
       media_buffer_pool_strategy_state_ ==
           MediaBufferPoolStrategyState::kPendingEnabling ||
+      in_place_reuse_allocator_base_strategy_state_ ==
+          InPlaceReuseAllocatorBaseStrategyState::kPendingEnabling ||
       is_memory_pool_allocated_on_demand_;
 
   if (should_reset_strategy && strategy_->GetAllocated() == 0) {
@@ -264,6 +266,31 @@ void DecoderBufferAllocator::EnableMediaBufferPoolStrategy() {
   media_buffer_pool_strategy_state_ = MediaBufferPoolStrategyState::kEnabled;
 }
 
+void DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase() {
+  base::AutoLock scoped_lock(mutex_);
+
+  if (in_place_reuse_allocator_base_strategy_state_ !=
+      InPlaceReuseAllocatorBaseStrategyState::kDisabled) {
+    return;
+  }
+
+  // There is another strategy being used, we have to wait until all
+  // allocations are freed before switching to InPlaceReuseAllocatorBase based
+  // strategy.
+  if (strategy_ && strategy_->GetAllocated() > 0) {
+    in_place_reuse_allocator_base_strategy_state_ =
+        InPlaceReuseAllocatorBaseStrategyState::kPendingEnabling;
+    return;
+  }
+
+  if (strategy_) {
+    strategy_.reset();
+  }
+
+  in_place_reuse_allocator_base_strategy_state_ =
+      InPlaceReuseAllocatorBaseStrategyState::kEnabled;
+}
+
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   mutex_.AssertAcquired();
   if (strategy_) {
@@ -273,6 +300,12 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   if (media_buffer_pool_strategy_state_ ==
       MediaBufferPoolStrategyState::kPendingEnabling) {
     media_buffer_pool_strategy_state_ = MediaBufferPoolStrategyState::kEnabled;
+  }
+
+  if (in_place_reuse_allocator_base_strategy_state_ ==
+      InPlaceReuseAllocatorBaseStrategyState::kPendingEnabling) {
+    in_place_reuse_allocator_base_strategy_state_ =
+        InPlaceReuseAllocatorBaseStrategyState::kEnabled;
   }
 
   if (media_buffer_pool_strategy_state_ ==
@@ -290,7 +323,9 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   }
 
   if (base::FeatureList::IsEnabled(
-          kCobaltDecoderBufferAllocatorWithInPlaceMetadata)) {
+          kCobaltDecoderBufferAllocatorWithInPlaceMetadata) ||
+      in_place_reuse_allocator_base_strategy_state_ ==
+          InPlaceReuseAllocatorBaseStrategyState::kEnabled) {
     strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy<
                     starboard::common::InPlaceReuseAllocatorBase>(
         initial_capacity_, allocation_unit_));
