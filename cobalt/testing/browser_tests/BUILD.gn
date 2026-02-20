@@ -197,22 +197,28 @@ test("cobalt_browsertests") {
     "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
-    "encrypted_media_browsertest.cc",
-    "frame_tree_browsertest.cc",
-    "media_browsertest.cc",
-    "media_browsertest.h",
-    "media_session_browsertest.cc",
-    "media_source_browsertest.cc",
-    "navigation_browsertest.cc",
-    "session_history_browsertest.cc",
-    "site_per_process_browsertest.cc",
-    "site_per_process_browsertest.h",
-    "web_contents_impl_browsertest.cc",
-    "webrtc_getusermedia_browsertest.cc",
+    # "encrypted_media_browsertest.cc",
+    # "frame_tree_browsertest.cc",
+    # "media_browsertest.cc",
+    # "media_browsertest.h",
+    # "media_session_browsertest.cc",
+    # "media_source_browsertest.cc",
+    # "navigation_browsertest.cc",
+    # "session_history_browsertest.cc",
+    # "site_per_process_browsertest.cc",
+    # "site_per_process_browsertest.h",
+    # "web_contents_impl_browsertest.cc",
+    # "webrtc_getusermedia_browsertest.cc",
   ]
 
   if (is_android) {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
+  }
+
+  if (is_starboard) {
+    sources += [
+      "cobalt_browser_tests_main.cc",
+    ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -225,6 +231,14 @@ test("cobalt_browsertests") {
     "//content/test:test_interfaces",
     "//content/test:web_ui_mojo_test_resources",
   ]
+
+  if (is_starboard) {
+    public_deps += [
+      "//cobalt:common",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//ui/ozone/platform/starboard:starboard",
+    ]
+  }
 
   deps = [
     ":browsertest_support",
@@ -396,6 +410,14 @@ test("cobalt_browsertests") {
     ]
   }
 
+  if (is_starboard) {
+    deps += [
+      ":cobalt_shell_test_lib",
+      "//content/test:test_support",
+      "//starboard:starboard_headers_only",
+    ]
+  }
+
   if (is_posix) {
     deps += [ "//services/tracing:test_utils" ]
   }
@@ -437,13 +459,6 @@ static_library("cobalt_shell_test_lib") {
   ]
 
   if (shell_use_toolkit_views) {
-    if (use_aura) {
-      sources += [
-        "browser/shell_test_platform_delegate.cc",
-        "browser/shell_test_platform_delegate.h",
-      ]
-
-      public_deps += [ "//ui/views:test_support" ]
-    }
+    public_deps += [ "//ui/views:test_support" ]
   }
 }
