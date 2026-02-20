@@ -41,47 +41,57 @@ void EnsureThreadLocalKeyInited() {
   pthread_once(&g_once_control, InitializeKey);
 }
 
-}  // namespace
-
-VideoDecoderExperimentalFeatures GetExperimentalFeaturesForCurrentThread() {
+VideoDecoderExperimentalFeatures& GetOrCreateExperimentalFeatures() {
   EnsureThreadLocalKeyInited();
   void* ptr = pthread_getspecific(g_experimental_features_key);
   if (ptr) {
     return *static_cast<VideoDecoderExperimentalFeatures*>(ptr);
   }
-  return {};
+  VideoDecoderExperimentalFeatures* features =
+      new VideoDecoderExperimentalFeatures();
+  pthread_setspecific(g_experimental_features_key, features);
+  return *features;
+}
+
+std::optional<int> FromOptionalInt(const OptionalInt& src) {
+  if (src.is_set) {
+    return src.value;
+  }
+  return std::nullopt;
+}
+
+}  // namespace
+
+VideoDecoderExperimentalFeatures GetExperimentalFeaturesForCurrentThread() {
+  EnsureThreadLocalKeyInited();
+  void* ptr = pthread_getspecific(g_experimental_features_key);
+  SB_CHECK(ptr) << __func__
+                << ": No experimental features set for this thread. The "
+                   "setter was either not called yet (e.g., due to a race "
+                   "condition) or this function is being called on the "
+                   "wrong thread.";
+  return *static_cast<VideoDecoderExperimentalFeatures*>(ptr);
 }
 
 void SetExperimentalFeaturesForCurrentThread(
     const StarboardVideoDecoderExperimentalFeatures* experimental_features) {
+  // Ensure the thread-local object is created to signal that the setter has
+  // been called on this thread. This satisfies the initialization check in the
+  // getter, even if experimental_features is null and no specific values are
+  // being set.
+  VideoDecoderExperimentalFeatures& features =
+      GetOrCreateExperimentalFeatures();
+
   if (!experimental_features) {
     return;
   }
-  EnsureThreadLocalKeyInited();
 
-  void* ptr = pthread_getspecific(g_experimental_features_key);
-  VideoDecoderExperimentalFeatures* features;
-  if (ptr) {
-    features = static_cast<VideoDecoderExperimentalFeatures*>(ptr);
-  } else {
-    features = new VideoDecoderExperimentalFeatures();
-    pthread_setspecific(g_experimental_features_key, features);
-  }
-
-  if (experimental_features->initial_max_frames_in_decoder.is_set) {
-    features->initial_max_frames_in_decoder =
-        experimental_features->initial_max_frames_in_decoder.value;
-  }
-
-  if (experimental_features->max_pending_input_frames.is_set) {
-    features->max_pending_input_frames =
-        experimental_features->max_pending_input_frames.value;
-  }
-
-  if (experimental_features->video_decoder_poll_interval_ms.is_set) {
-    features->video_decoder_poll_interval_ms =
-        experimental_features->video_decoder_poll_interval_ms.value;
-  }
+  features.initial_max_frames_in_decoder =
+      FromOptionalInt(experimental_features->initial_max_frames_in_decoder);
+  features.max_pending_input_frames =
+      FromOptionalInt(experimental_features->max_pending_input_frames);
+  features.video_decoder_poll_interval_ms =
+      FromOptionalInt(experimental_features->video_decoder_poll_interval_ms);
 }
 
 }  // namespace starboard::android::shared

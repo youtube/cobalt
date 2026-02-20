@@ -87,6 +87,13 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
+OptionalInt ToOptionalInt(const std::optional<int>& value) {
+  if (value) {
+    return {true, *value};
+  }
+  return {false, 0};
+}
+
 }  // namespace
 
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
@@ -824,21 +831,11 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(video_decoder_configuration_extension->name,
              kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
       video_decoder_configuration_extension->version >= 2) {
-    StarboardVideoDecoderExperimentalFeatures experimental_features{};
-    if (experimental_features_.initial_max_frames_in_decoder) {
-      experimental_features.initial_max_frames_in_decoder = {
-          /*is_set=*/true,
-          *experimental_features_.initial_max_frames_in_decoder};
-    }
-    if (experimental_features_.max_pending_input_frames) {
-      experimental_features.max_pending_input_frames = {
-          /*is_set=*/true, *experimental_features_.max_pending_input_frames};
-    }
-    if (experimental_features_.video_decoder_poll_interval_ms) {
-      experimental_features.video_decoder_poll_interval_ms = {
-          /*is_set=*/true,
-          *experimental_features_.video_decoder_poll_interval_ms};
-    }
+    StarboardVideoDecoderExperimentalFeatures experimental_features = {
+        ToOptionalInt(experimental_features_.initial_max_frames_in_decoder),
+        ToOptionalInt(experimental_features_.max_pending_input_frames),
+        ToOptionalInt(experimental_features_.video_decoder_poll_interval_ms),
+    };
     video_decoder_configuration_extension
         ->SetExperimentalFeaturesForCurrentThread(&experimental_features);
   }
