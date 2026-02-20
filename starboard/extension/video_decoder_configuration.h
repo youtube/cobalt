@@ -45,7 +45,8 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // This specifies the version of the API that is implemented.
   uint32_t version;
 
-  // Specifies the video poll interval in milliseconds.
+  // Specifies experimental features for the video decoder on the current
+  // thread.
   void (*SetExperimentalFeaturesForCurrentThread)(
       const StarboardVideoDecoderExperimentalFeatures* experimental_features);
 } StarboardExtensionVideoDecoderConfigurationApi;
