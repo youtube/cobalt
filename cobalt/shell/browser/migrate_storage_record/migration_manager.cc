@@ -85,7 +85,11 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   auto bytes = std::vector<uint8_t>(record->GetSize());
   const int read_result =
       record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
-  record->Delete();
+  if (!record->Delete()) {
+    LOG(ERROR) << "Failed to delete legacy storage record. Aborting migration "
+                  "to prevent overwrite loop.";
+    return nullptr;
+  }
   if (read_result != bytes.size()) {
     return nullptr;
   }
