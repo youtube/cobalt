@@ -19,6 +19,8 @@ import("//starboard/build/buildflags.gni")
 blink_core_sources_cobalt = [
   "performance/performance_extensions.cc",
   "performance/performance_extensions.h",
+  "//cobalt/shell/common/shell_switches.h",
+  "//cobalt/shell/common/url_constants.h",
 ]
 
 if (use_starboard_media) {
