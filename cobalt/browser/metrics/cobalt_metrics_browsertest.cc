@@ -14,6 +14,7 @@
 
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "build/build_config.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -39,6 +40,9 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
+#if BUILDFLAG(IS_LINUX)
+  GTEST_SKIP() << "Failing on Starboard Linux. See b/433354983.";
+#endif
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -73,6 +77,9 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
+#if BUILDFLAG(IS_LINUX)
+  GTEST_SKIP() << "Failing on Starboard Linux. See b/433354983.";
+#endif
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
