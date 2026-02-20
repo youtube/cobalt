@@ -137,6 +137,8 @@ source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
+    "metrics/cobalt_memory_metrics_emitter.cc",
+    "metrics/cobalt_memory_metrics_emitter.h",
     "metrics/cobalt_metrics_log_uploader.cc",
     "metrics/cobalt_metrics_log_uploader.h",
     "metrics/cobalt_metrics_service_client.cc",
