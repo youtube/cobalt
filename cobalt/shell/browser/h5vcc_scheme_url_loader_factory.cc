@@ -234,15 +234,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // For png/webm, override resource_key with "fallback" query param.
     // If requested key is not found in cache, loader returns the fallback
     // resource.
-    const bool supports_splash_caching =
-        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
-        browser_context_;
-
-    // Specify the built-in video/png if the cache is unavailable.
     std::string fallback;
     if (supports_splash_caching &&
         net::GetValueForKeyInQuery(url_, "fallback", &fallback)) {
-        supports_splash_caching) {
       LOG(INFO) << "Fallback splash: " << fallback;
       resource_key = std::move(fallback);
     }
@@ -255,7 +249,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LOG(WARNING) << "Resource not found: " << resource_key;
     }
       
-    if (supports_splash_caching && base::Contains(resource_map, key)) {
+    if (supports_splash_caching && browser_context_) {
       ReadSplashCache(key);
       return;
     }
