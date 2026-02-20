@@ -73,7 +73,7 @@ for i in range(max_retries):
             new_filter = f'-{{crashed_test}}'
           elif old_filter.startswith('-') or ':-' in old_filter:
             new_filter= f'{{old_filter}}:{{crashed_test}}'
-          else
+          else:
             new_filter= f'{{old_filter}}:-{{crashed_test}}'
 
           cmd_args[idx] = f'--gtest_filter={{new_filter}}'
