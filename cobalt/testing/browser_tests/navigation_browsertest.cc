@@ -349,10 +349,6 @@ class NavigationBaseBrowserTest : public ContentBrowserTest {
 
  protected:
   void SetUpOnMainThread() override {
-#if BUILDFLAG(IS_STARBOARD)
-    GTEST_SKIP() << "Skipping NavigationBrowserTest on Starboard. "
-                    "See b/433354983.";
-#endif
     host_resolver()->AddRule("*", "127.0.0.1");
   }
 
@@ -399,10 +395,6 @@ class NetworkIsolationNavigationBrowserTest : public ContentBrowserTest {
 
  protected:
   void SetUpOnMainThread() override {
-#if BUILDFLAG(IS_STARBOARD)
-    GTEST_SKIP() << "Skipping NetworkIsolationNavigationBrowserTest on "
-                    "Starboard. See b/433354983.";
-#endif
     ASSERT_TRUE(embedded_test_server()->Start());
     ContentBrowserTest::SetUpOnMainThread();
   }

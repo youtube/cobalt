@@ -39,10 +39,12 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
 #if BUILDFLAG(IS_STARBOARD)
-  GTEST_SKIP() << "Failing on Starboard. See b/433354983.";
+#define MAYBE_RecordsMemoryMetrics DISABLED_RecordsMemoryMetrics
+#else
+#define MAYBE_RecordsMemoryMetrics RecordsMemoryMetrics
 #endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -113,10 +115,13 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 }
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
 #if BUILDFLAG(IS_STARBOARD)
-  GTEST_SKIP() << "Failing on Starboard. See b/433354983.";
+#define MAYBE_PeriodicRecordsMemoryMetrics DISABLED_PeriodicRecordsMemoryMetrics
+#else
+#define MAYBE_PeriodicRecordsMemoryMetrics PeriodicRecordsMemoryMetrics
 #endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       MAYBE_PeriodicRecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
