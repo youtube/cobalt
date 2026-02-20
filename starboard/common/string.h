@@ -93,6 +93,33 @@ static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
          dst_length;
 }
 
+// Splits a string on a char delimiter.
+inline std::vector<std::string> SplitString(const std::string& input,
+                                            char delimiter) {
+  std::vector<std::string> output;
+  if (input.empty()) {
+    return output;
+  }
+
+  size_t start = 0;
+  while (start != std::string::npos) {
+    size_t end = input.find_first_of(delimiter, start);
+    std::string piece;
+
+    if (end == std::string::npos) {
+      piece = input.substr(start);
+      start = std::string::npos;
+    } else {
+      piece = input.substr(start, end - start);
+      start = end + 1;
+    }
+
+    output.emplace_back(piece);
+  }
+
+  return output;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_STRING_H_
