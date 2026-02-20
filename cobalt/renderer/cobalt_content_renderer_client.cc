@@ -38,8 +38,10 @@ namespace {
 
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
+// TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
+// TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
@@ -59,9 +61,9 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
      switches::kMSEVideoBufferSizeLimitClampMb},
 };
 
-using H5vccSettingValue = std::variant<std::string, int64_t>;
 using ExperimentalFeatures =
     ::media::StarboardRendererConfig::ExperimentalFeatures;
+using H5vccSettingValue = std::variant<std::string, int64_t>;
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
