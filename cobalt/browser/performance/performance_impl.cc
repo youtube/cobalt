@@ -55,7 +55,7 @@ void PerformanceImpl::MeasureUsedCpuMemory(
 }
 
 void PerformanceImpl::MeasureUsedSwapMemory(
-    MeasureAvailableCpuMemoryCallback callback) {
+    MeasureUsedSwapMemoryCallback callback) {
   auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
       base::GetCurrentProcessHandle());
   auto used_swap_memory = process_metrics->GetVmSwapBytes();
@@ -63,7 +63,7 @@ void PerformanceImpl::MeasureUsedSwapMemory(
 }
 
 void PerformanceImpl::MeasureReservedVirtualMemory(
-    MeasureAvailableCpuMemoryCallback callback) {
+    MeasureReservedVirtualMemoryCallback callback) {
   auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
       base::GetCurrentProcessHandle());
   auto virtual_memory_size = process_metrics->GetVmSizeBytes();
