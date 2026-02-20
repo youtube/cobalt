@@ -79,7 +79,7 @@ def _handle_browsertests(
   collect_script = os.path.join(source_dir, 'cobalt', 'testing',
                                 'browser_tests', 'tools',
                                 'collect_test_artifacts.py')
-  output_name = f'cobalt_browsertests_artifacts.tar.{compression}'
+  output_name = f'cobalt_browsertests_deps.tar.{compression}'
   cmd = [
       sys.executable, collect_script, out_dir, '-o', output_name,
       '--output_dir', destination_dir, '--compression', compression
