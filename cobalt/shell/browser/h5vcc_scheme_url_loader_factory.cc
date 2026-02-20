@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/base64.h"
+#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -202,6 +203,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         base::BindOnce(&H5vccSchemeURLLoader::OnClientDisconnected,
                        weak_factory_.GetWeakPtr()));
     std::string key = url_.host();
+    // The key to query the resource map. It is usually the same as the host,
+    // but can be overridden by the "fallback" query param for png/webm
+    // resources, so that callers can specify a different file for fallback.
     std::string resource_key = key;
 
     // Get the embedded header resource
@@ -220,34 +224,24 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeVideoWebM;
     }
-<<<<<<< HEAD
-    bool is_cacheable_type =
-        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
-=======
 
     // Splash caching only serves the png and webm resources defined in
     // the resource map.
     const bool supports_splash_caching =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
         base::Contains(resource_map, key);
->>>>>>> a2b5bf31ef (Refine the business logic around splash caching (#9166))
 
     // For png/webm, override resource_key with "fallback" query param.
     // If requested key is not found in cache, loader returns the fallback
     // resource.
     std::string fallback;
-<<<<<<< HEAD
-    if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
-        is_cacheable_type) {
-=======
     if (supports_splash_caching &&
         net::GetValueForKeyInQuery(url_, "fallback", &fallback)) {
->>>>>>> a2b5bf31ef (Refine the business logic around splash caching (#9166))
       LOG(INFO) << "Fallback splash: " << fallback;
       resource_key = std::move(fallback);
     }
 
-    if (resource_map.find(resource_key) != resource_map.end()) {
+    if (base::Contains(resource_map, resource_key)) {
       FileContents file_contents = resource_map[resource_key];
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
@@ -255,11 +249,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LOG(WARNING) << "Resource not found: " << resource_key;
     }
 
-<<<<<<< HEAD
-    if (is_cacheable_type && browser_context_) {
-=======
     if (supports_splash_caching && browser_context_) {
->>>>>>> a2b5bf31ef (Refine the business logic around splash caching (#9166))
       ReadSplashCache(key);
       return;
     }
