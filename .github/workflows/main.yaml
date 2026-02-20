@@ -566,8 +566,19 @@ jobs:
                     # It needs to be run via xvfb.
                     RUNNER="./out/${{ matrix.platform }}_${{ matrix.config }}/cobalt_browsertests_runner"
 
+                    # Apply test filter if exists
+                    TEST_FILTER_JSON="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/cobalt_browsertests_runner_filter.json"
+                    TEST_FILTER=""
+                    if [ -f "${TEST_FILTER_JSON}" ]; then
+                        FAILING_TESTS=$(jq -r '.failing_tests | join(":")' "${TEST_FILTER_JSON}")
+                        if [ -n "${FAILING_TESTS}" ]; then
+                            TEST_FILTER="--gtest_filter=-${FAILING_TESTS}"
+                        fi
+                    fi
+
                     xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                         stdbuf -i0 -o0 -e0 "${RUNNER}" \
+                        ${TEST_FILTER} \
                         --gtest_output="xml:${GITHUB_WORKSPACE}/results/cobalt_browsertests_result.xml" \
                         2>&1 | tee "${GITHUB_WORKSPACE}/results/cobalt_browsertests_log.txt"
 
