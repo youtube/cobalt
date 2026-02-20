@@ -173,6 +173,24 @@ class StarboardRendererTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+<<<<<<< HEAD
+=======
+  const std::unique_ptr<StarboardRenderer> renderer_ =
+      std::make_unique<StarboardRenderer>(
+          task_environment_.GetMainThreadTaskRunner(),
+          std::make_unique<NullMediaLog>(),
+          /*overlay_plane_id=*/base::UnguessableToken::Create(),
+          /*audio_write_duration_local=*/base::Seconds(1),
+          /*audio_write_duration_remote=*/base::Seconds(1),
+          /*max_video_capabilities=*/"",
+          StarboardRendererConfig::ExperimentalFeatures{},
+          /*viewport_size=*/gfx::Size()
+#if BUILDFLAG(IS_ANDROID)
+              ,
+          /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+      );
+>>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;

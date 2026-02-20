@@ -73,6 +73,7 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+<<<<<<< HEAD
   const gfx::Size viewport_size_;
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
@@ -80,6 +81,10 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const std::optional<int> max_pending_input_frames_;
   const std::optional<int> video_decoder_poll_interval_ms_;
   const GetSbWindowHandleCallback get_sb_window_handle_callback_;
+=======
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
+  const gfx::Size viewport_size_;
+>>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
   const BindHostReceiverCallback bind_host_receiver_callback_;
 };
 

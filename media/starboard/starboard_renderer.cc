@@ -128,12 +128,17 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+<<<<<<< HEAD
     const gfx::Size& viewport_size,
     bool enable_flush_during_seek,
     bool enable_reset_audio_decoder,
     std::optional<int> initial_max_frames_in_decoder,
     std::optional<int> max_pending_input_frames,
     std::optional<int> video_decoder_poll_interval_ms
+=======
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
+    const gfx::Size& viewport_size
+>>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -147,6 +152,7 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
+<<<<<<< HEAD
       // TODO: b/375674101 - Connect this to the starboard::feature.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
       viewport_size_(viewport_size),
@@ -155,6 +161,12 @@ StarboardRenderer::StarboardRenderer(
       initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
       max_pending_input_frames_(max_pending_input_frames),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms)
+=======
+      experimental_features_(experimental_features),
+      // TODO: b/375674101 - Connect this to h5vcc setting,
+      max_samples_per_write_(kDefaultMaxSamplePerWrite),
+      viewport_size_(viewport_size)
+>>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
 #if BUILDFLAG(IS_ANDROID)
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
@@ -169,6 +181,7 @@ StarboardRenderer::StarboardRenderer(
             << ", max_video_capabilities="
             << base::GetQuotedJSONString(max_video_capabilities_)
             << ", max_samples_per_write=" << max_samples_per_write_
+<<<<<<< HEAD
             << ", view_port_size=" << viewport_size_.ToString()
             << ", initial_max_frames_in_decoder="
             << starboard::ToString(initial_max_frames_in_decoder_)
@@ -176,6 +189,9 @@ StarboardRenderer::StarboardRenderer(
             << starboard::ToString(max_pending_input_frames_)
             << ", video_decoder_poll_interval_ms="
             << starboard::ToString(video_decoder_poll_interval_ms_);
+=======
+            << ", experimental_features=" << experimental_features_;
+>>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -631,6 +647,7 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   LOG(INFO) << "Creating SbPlayerBridge.";
 
+<<<<<<< HEAD
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
       // TODO(b/375070492): Implement decode-to-texture support
@@ -647,6 +664,26 @@ void StarboardRenderer::CreatePlayerBridge() {
       -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
       initial_max_frames_in_decoder_, max_pending_input_frames_,
       video_decoder_poll_interval_ms_
+=======
+    player_bridge_.reset(new SbPlayerBridge(
+        GetSbPlayerInterface(), task_runner_,
+        // TODO(b/375070492): Implement decode-to-texture support
+        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
+        audio_config, audio_mime_type, video_config, video_mime_type,
+        // TODO(b/326497953): Support suspend/resume.
+        // TODO(b/326508279): Support background mode.
+        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
+        // TODO(b/326497953): Support suspend/resume.
+        false,
+        // TODO(b/326825450): Revisit 360 videos.
+        kSbPlayerOutputModeInvalid, max_video_capabilities_,
+        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+        -1, experimental_features_.enable_flush_during_seek,
+        experimental_features_.enable_reset_audio_decoder,
+        experimental_features_.initial_max_frames_in_decoder,
+        experimental_features_.max_pending_input_frames,
+        experimental_features_.video_decoder_poll_interval_ms
+>>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.
