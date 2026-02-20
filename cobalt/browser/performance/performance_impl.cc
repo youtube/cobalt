@@ -14,7 +14,6 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/startup_time.h"
-#include "cobalt/shell/common/url_constants.h"
 
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
