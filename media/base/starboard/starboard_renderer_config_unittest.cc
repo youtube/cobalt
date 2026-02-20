@@ -34,9 +34,7 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
       audio_write_duration_remote, max_video_capabilities,
-      StarboardRendererConfig::ExperimentalFeatures{
-          .enable_flush_during_seek = enable_flush_during_seek,
-          .enable_reset_audio_decoder = enable_reset_audio_decoder},
+      {enable_flush_during_seek, enable_reset_audio_decoder},
       gfx::Size(1920, 1080));
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
