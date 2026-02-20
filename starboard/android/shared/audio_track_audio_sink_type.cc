@@ -188,13 +188,19 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_GE(playback_rate, 0.0);
-  if (playback_rate != 0.0 && playback_rate != 1.0) {
-    SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
-                           "currently supported.";
-    playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
+  SB_DLOG(INFO) << "Set playback rate to " << playback_rate;
+
+  {
+    std::lock_guard lock(mutex_);
+    playback_rate_ = playback_rate;
   }
-  std::lock_guard lock(mutex_);
-  playback_rate_ = playback_rate;
+
+  // AudioTrack doesn't support playback speed of 0.
+  if (playback_rate > 0.0) {
+    // AudioTrackBridge.setPlaybackRate() currently is only enabled for tunnel
+    // mode. It will be no-op for non tunnel player.
+    bridge_.SetPlaybackRate(playback_rate);
+  }
 }
 
 // TODO: Break down the function into manageable pieces.
@@ -439,6 +445,22 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int sampling_frequency_hz) {
   SB_CHECK(audio_track_audio_sink_type_);
   JNIEnv* env = AttachCurrentThread();
+
+  const bool force_tunnel_mode =
+      features::FeatureList::IsEnabled(features::kForceTunnelMode);
+  if (force_tunnel_mode) {
+    // AudioTrack.setPlaybackParams() needs extra buffer to support playback
+    // speed greater than 1.0x.
+    const double kMaxPlaybackSpeed = 2.0;
+    return std::max(
+        AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+            env, sample_type, channels, sampling_frequency_hz),
+        static_cast<int>(
+            audio_track_audio_sink_type_->GetMinBufferSizeInFramesInternal(
+                channels, sample_type, sampling_frequency_hz) *
+            kMaxPlaybackSpeed));
+  }
+
   return std::max(
       AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
           env, sample_type, channels, sampling_frequency_hz),
