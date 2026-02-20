@@ -189,13 +189,12 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       const network::ResourceRequest& request,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       BrowserContext* browser_context,
-      const GeneratedResourceMap* resource_map_test,
+      const GeneratedResourceMap& resource_map,
       const std::string& splash_domain,
       uint64_t splash_content_size_limit)
       : client_(std::move(client)),
         url_(request.url),
         browser_context_(browser_context),
-        resource_map_test_(resource_map_test),
         splash_domain_(splash_domain),
         splash_content_size_limit_(splash_content_size_limit),
         mime_type_(kMimeTypeApplicationOctetStream) {
@@ -208,14 +207,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // resources, so that callers can specify a different file for fallback.
     std::string resource_key = key;
 
-    // Get the embedded header resource
-    GeneratedResourceMap resource_map;
-    if (resource_map_test_) {
-      resource_map = *resource_map_test_;
-    } else {
-      LoaderEmbeddedResources::GenerateMap(resource_map);
-    }
-
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeTextHtml;
@@ -225,31 +216,28 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       mime_type_ = kMimeTypeVideoWebM;
     }
 
-    // Splash caching only serves the png and webm resources defined in
-    // the resource map.
     const bool supports_splash_caching =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
-        base::Contains(resource_map, key);
+        browser_context_;
 
-    // For png/webm, override resource_key with "fallback" query param.
-    // If requested key is not found in cache, loader returns the fallback
-    // resource.
+    // Specify the built-in video/png if the cache is unavailable.
     std::string fallback;
-    if (supports_splash_caching &&
-        net::GetValueForKeyInQuery(url_, "fallback", &fallback)) {
+    if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
+        supports_splash_caching) {
       LOG(INFO) << "Fallback splash: " << fallback;
       resource_key = std::move(fallback);
     }
 
     if (base::Contains(resource_map, resource_key)) {
-      FileContents file_contents = resource_map[resource_key];
+      FileContents file_contents = resource_map.at(resource_key);
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
     } else {
       LOG(WARNING) << "Resource not found: " << resource_key;
     }
 
-    if (supports_splash_caching && browser_context_) {
+    // Only attempt to read files defined in the resource map from cache.
+    if (supports_splash_caching && base::Contains(resource_map, key)) {
       ReadSplashCache(key);
       return;
     }
@@ -435,7 +423,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
   BrowserContext* browser_context_;
-  const GeneratedResourceMap* resource_map_test_ = nullptr;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
   std::string mime_type_;
@@ -460,7 +447,13 @@ H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
                          .spec()),
       splash_content_size_limit_(
           global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
-      browser_context_(browser_context) {}
+      browser_context_(browser_context) {
+  if (resource_map_test_) {
+    resource_map_ = *resource_map_test_;
+  } else {
+    LoaderEmbeddedResources::GenerateMap(resource_map_);
+  }
+}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
 
@@ -473,7 +466,7 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<H5vccSchemeURLLoader>(
-          url_request, std::move(client), browser_context_, resource_map_test_,
+          url_request, std::move(client), browser_context_, resource_map_,
           splash_domain_, splash_content_size_limit_),
       std::move(receiver));
 }
