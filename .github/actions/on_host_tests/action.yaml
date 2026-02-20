@@ -99,7 +99,7 @@ runs:
               gtest_filter_arg=""
             fi
 
-            python3 ${GITHUB_WORKSPACE}/.github/scripts/run_test_with_retries.py \
+            python3 ${GITHUB_WORKSPACE}/.github/scripts/crash_wrapper.py \
               --xml_output_file="${xml_path}" \
               --log_file="${log_path}" \
               --filter_file="${test_output}/${test_binary}_crash.filter" \
