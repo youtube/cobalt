@@ -71,7 +71,7 @@ for i in range(max_retries):
           old_filter = arg.split('=', 1)[1]
           if old_filter == '*':
             new_filter = f'-{{crashed_test}}'
-          elif old_filter.startswith('-') or ':-' in old_filter
+          elif old_filter.startswith('-') or ':-' in old_filter:
             new_filter= f'{{old_filter}}:{{crashed_test}}'
           else
             new_filter= f'{{old_filter}}:-{{crashed_test}}'
