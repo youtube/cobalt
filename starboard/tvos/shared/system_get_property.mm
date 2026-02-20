@@ -23,7 +23,7 @@
 #include "starboard/system.h"
 
 #if defined(INTERNAL_BUILD)
-#include "starboard/keyboxes/tvos/system_properties.h"
+#include "starboard/keyboxes-dev/tvos/system_properties.h"
 #endif
 
 namespace {
