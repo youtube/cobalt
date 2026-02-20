@@ -6,44 +6,56 @@ on:
       - labeled
       - closed
 
+permissions:
+  contents: read
+
 jobs:
   prepare_branch_list:
     runs-on: ubuntu-latest
     if: |
       github.event.pull_request.merged == true &&
       github.event.pull_request.merge_commit_sha != null
+    permissions:
+      pull-requests: write
     outputs:
       target_branch: ${{ steps.set-branches.outputs.target_branch }}
     steps:
-    - name: Set Branches
-      id: set-branches
-      env:
-        PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
-        EVENT_ACTION: ${{ github.event.action }}
-        LABEL_NAME: ${{ github.event.label.name }}
-        BASE_REF: ${{ github.base_ref }}
-      run: |
-        if [[ $EVENT_ACTION == 'closed' ]]; then
-          # Get a list of the labels from the PR.
-          labels=$(echo "$PR_LABELS" | jq -r '.[].name')
-        else
-          # Or get the label that was added on the merged PR.
-          labels=$LABEL_NAME
-        fi
+      - name: Auto-label PR
+        uses: actions/labeler@v5
+        if: github.event.pull_request.merged == true && github.base_ref == 'main'
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          configuration-path: .github/config/infra/main_auto_cherry.yml
 
-        # This list must contain all cherry-pick destinations as file is used for all branches.
-        branches=("main" "26.eap" "26.android" "25.lts.1+" "24.lts.1+" "23.lts.1+" "22.lts.1+" "21.lts.1+" "20.lts.1+" "19.lts.1+" "rc_11" "COBALT_9")
-        filtered_branches=()
-        for branch in "${branches[@]}"; do
-          if [[ $branch == $BASE_REF ]]; then
-            continue
+      - name: Set Branches
+        id: set-branches
+        env:
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          EVENT_ACTION: ${{ github.event.action }}
+          LABEL_NAME: ${{ github.event.label.name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [[ $EVENT_ACTION == 'closed' ]]; then
+            # Get a list of the labels from the PR.
+            labels=$(echo "$PR_LABELS" | jq -r '.[].name')
+          else
+            # Or get the label that was added on the merged PR.
+            labels=$LABEL_NAME
           fi
-          if [[ ${labels[@]} =~ "cp-$branch" ]]; then
-            filtered_branches+=("$branch")
-          fi
-        done
 
-        echo "target_branch=$(echo -n "${filtered_branches[@]}" | jq -cRs 'split(" ")')" >> $GITHUB_OUTPUT
+          # This list must contain all cherry-pick destinations as file is used for all branches.
+          branches=("main" "27.lts" "26.eap" "26.android" "25.lts.1+" "24.lts.1+" "23.lts.1+" "22.lts.1+" "21.lts.1+" "20.lts.1+" "19.lts.1+" "rc_11" "COBALT_9")
+          filtered_branches=()
+          for branch in "${branches[@]}"; do
+            if [[ $branch == $BASE_REF ]]; then
+              continue
+            fi
+            if [[ ${labels[@]} =~ "cp-$branch" ]]; then
+              filtered_branches+=("$branch")
+            fi
+          done
+
+          echo "target_branch=$(echo -n "${filtered_branches[@]}" | jq -cRs 'split(" ")')" >> $GITHUB_OUTPUT
 
   cherry_pick:
     runs-on: ubuntu-latest
