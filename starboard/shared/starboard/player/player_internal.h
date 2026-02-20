@@ -56,6 +56,8 @@ struct SbPlayerPrivate {
   virtual bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
+
+  virtual void* GetPlatformContext() { return nullptr; }
 };
 
 namespace starboard::shared::starboard::player {
@@ -73,7 +75,8 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
+      std::unique_ptr<PlayerWorker::Handler> player_worker_handler,
+      void* platform_context = nullptr);
 
   void Seek(int64_t seek_to_time, int ticket) final;
   void WriteSamples(const SbPlayerSampleInfo* sample_infos,
@@ -90,6 +93,8 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) final;
 
+  void* GetPlatformContext() final { return platform_context_; }
+
   ~SbPlayerPrivateImpl() final;
 
  private:
@@ -101,7 +106,8 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
+      std::unique_ptr<PlayerWorker::Handler> player_worker_handler,
+      void* platform_context);
 
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
@@ -110,6 +116,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
+  void* const platform_context_;
 
   std::mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;

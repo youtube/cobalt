@@ -39,5 +39,4 @@ common_player_sources = [
   "//starboard/shared/starboard/player/player_worker.h",
   "//starboard/shared/starboard/player/player_write_end_of_stream.cc",
   "//starboard/shared/starboard/player/player_write_samples.cc",
-  "//starboard/shared/starboard/player/video_decoder_experimental_features.h",
 ]

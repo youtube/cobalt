@@ -216,14 +216,18 @@ SbPlayer SbPlayerCreate(SbWindow window,
   handler->SetResetAudioDecoder(
       starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
 
-  handler->SetVideoDecoderExperimentalFeatures(
-      starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
-
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
+
+  auto android_context =
+      std::make_unique<starboard::android::shared::AndroidPlayerContext>();
+  android_context->experimental_features =
+      starboard::android::shared::GetExperimentalFeaturesForCurrentThread();
+
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, std::move(handler));
+      player_status_func, player_error_func, context, std::move(handler),
+      android_context.release());
 
   if (SbPlayerIsValid(player)) {
     if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {

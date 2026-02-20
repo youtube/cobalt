@@ -17,12 +17,10 @@
 
 #include <optional>
 
+#include "starboard/android/shared/video_decoder_experimental_features.h"
 #include "starboard/extension/video_decoder_configuration.h"
-#include "starboard/shared/starboard/player/video_decoder_experimental_features.h"
 
 namespace starboard::android::shared {
-
-using ::starboard::shared::starboard::player::VideoDecoderExperimentalFeatures;
 
 // Get experimental features via SetExperimentalFeaturesForCurrentThread().
 VideoDecoderExperimentalFeatures GetExperimentalFeaturesForCurrentThread();

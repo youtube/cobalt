@@ -157,7 +157,6 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                 &players[i], output_mode, max_video_input_size,
                 /*flush_decoder_during_reset=*/false,
                 /*reset_audio_decoder=*/false,
-                /*experimental_features=*/{},
                 fake_graphics_context_provider_.decoder_target_provider(),
                 nullptr);
             ASSERT_EQ(creation_parameters.max_video_input_size(),

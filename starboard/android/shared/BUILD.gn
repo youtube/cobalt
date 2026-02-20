@@ -295,6 +295,7 @@ static_library("starboard_platform") {
     "video_decoder_configuration.h",
     "video_decoder_configuration_internal.cc",
     "video_decoder_configuration_internal.h",
+    "video_decoder_experimental_features.h",
     "video_frame_tracker.cc",
     "video_frame_tracker.h",
     "video_max_video_input_size.cc",

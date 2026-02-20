@@ -38,7 +38,6 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
-#include "starboard/shared/starboard/player/video_decoder_experimental_features.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -54,8 +53,6 @@ class PlayerComponents {
       MediaTimeProvider;
   typedef ::starboard::shared::starboard::player::filter::VideoRenderer
       VideoRenderer;
-  typedef ::starboard::shared::starboard::player::
-      VideoDecoderExperimentalFeatures VideoDecoderExperimentalFeatures;
 
   // This class creates PlayerComponents.
   class Factory {
@@ -71,7 +68,6 @@ class PlayerComponents {
                          int max_video_input_size,
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
-                         const VideoDecoderExperimentalFeatures& experiments,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
@@ -83,7 +79,6 @@ class PlayerComponents {
                          int max_video_input_size,
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
-                         const VideoDecoderExperimentalFeatures& experiments,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
@@ -140,9 +135,6 @@ class PlayerComponents {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
-      const VideoDecoderExperimentalFeatures& experimental_features() const {
-        return experimental_features_;
-      }
 
       SbDrmSystem drm_system() const { return drm_system_; }
 
@@ -164,8 +156,6 @@ class PlayerComponents {
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
-
-      VideoDecoderExperimentalFeatures experimental_features_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.

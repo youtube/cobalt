@@ -92,8 +92,7 @@ class PlayerComponentsTest
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
           max_video_input_size_,
           /*flush_decoder_during_reset=*/false,
-          /*reset_audio_decoder=*/false,
-          /*experimental_features=*/{}, dummy_surface_view_,
+          /*reset_audio_decoder=*/false, dummy_surface_view_,
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
@@ -112,8 +111,7 @@ class PlayerComponentsTest
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
           max_video_input_size_,
           /*flush_decoder_during_reset=*/false,
-          /*reset_audio_decoder=*/false,
-          /*experimental_features=*/{}, dummy_surface_view_,
+          /*reset_audio_decoder=*/false, dummy_surface_view_,
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);

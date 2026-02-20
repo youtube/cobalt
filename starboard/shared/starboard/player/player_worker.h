@@ -30,7 +30,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/shared/starboard/player/video_decoder_experimental_features.h"
 #include "starboard/window.h"
 
 namespace starboard::shared::starboard::player {
@@ -114,10 +113,6 @@ class PlayerWorker {
         bool flush_decoder_during_reset) = 0;
     virtual void SetResetAudioDecoder(bool reset_audio_decoder) = 0;
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
-
-    virtual void SetVideoDecoderExperimentalFeatures(
-        const ::starboard::shared::starboard::player::
-            VideoDecoderExperimentalFeatures& experimental_features) = 0;
 
    private:
     Handler(const Handler&) = delete;
