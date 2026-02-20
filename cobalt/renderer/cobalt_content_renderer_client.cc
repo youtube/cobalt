@@ -370,8 +370,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 
   cobalt::mojom::SettingsPtr settings;
   ExperimentalFeatures experimental_features;
-  if (h5vcc_settings_remote_.is_bound() &&
-      h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
     experimental_features = ProcessH5vccSettings(h5vcc_settings);
   }
