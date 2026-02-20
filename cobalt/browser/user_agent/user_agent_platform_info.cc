@@ -211,6 +211,8 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
   set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
 
+  set_firmware_version(os_version);
+
   set_rasterizer_type("metal");
 }
 
