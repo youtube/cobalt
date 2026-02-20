@@ -222,13 +222,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       resource_key = std::move(fallback);
     }
 
-<<<<<<< HEAD
-    if (resource_map.find(resource_key) != resource_map.end()) {
-      FileContents file_contents = resource_map[resource_key];
-=======
     if (base::Contains(resource_map, resource_key)) {
       FileContents file_contents = resource_map.at(resource_key);
->>>>>>> 06cd139117 (Optimizes H5vccSchemeURLLoaderFactory by caching the resource map (#9123))
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
                              file_contents.size);
     } else {
