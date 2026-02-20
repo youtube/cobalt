@@ -53,6 +53,20 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
   return used_memory;
 }
 
+uint64_t PerformanceExtensions::measureUsedSwapMemory(ScriptState* script_state,
+                                                     const Performance&) {
+  uint64_t used_swap_memory = 0;
+  BindRemotePerformance(script_state)->MeasureUsedSwapMemory(&used_swap_memory);
+  return used_swap_memory;
+}
+
+uint64_t PerformanceExtensions::measureReservedVirtualMemory(ScriptState* script_state,
+                                                     const Performance&) {
+  uint64_t virtual_memory_size = 0;
+  BindRemotePerformance(script_state)->MeasureReservedVirtualMemory(&virtual_memory_size);
+  return virtual_memory_size;
+}
+
 ScriptPromise PerformanceExtensions::getAppStartupTime(
     ScriptState* script_state,
     const Performance&,

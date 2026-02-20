@@ -231,6 +231,11 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
 uint64_t ProcessMetrics::GetVmSwapBytes() const {
   return ReadProcStatusAndGetFieldAsSizeT(process_, "VmSwap") * 1024;
 }
+#if BUILDFLAG(IS_COBALT)
+uint64_t ProcessMetrics::GetVmSizeBytes() const {
+  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmSize") * 1024;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 bool ProcessMetrics::GetPageFaultCounts(PageFaultCounts* counts) const {
   // We are not using internal::ReadStatsFileAndGetFieldAsInt64(), since it
