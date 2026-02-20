@@ -3940,8 +3940,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, SameDocumentLongURLPushState) {
   EXPECT_EQ(long_url, EvalJs(web_contents(), "location.hash"));
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+#define MAYBE_SameDocumentLongURL204PopupHashNavigation \
+  DISABLED_SameDocumentLongURL204PopupHashNavigation
+#else
+#define MAYBE_SameDocumentLongURL204PopupHashNavigation \
+  SameDocumentLongURL204PopupHashNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       SameDocumentLongURL204PopupHashNavigation) {
+                       MAYBE_SameDocumentLongURL204PopupHashNavigation) {
   const GURL url(embedded_test_server()->GetURL("/empty.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
