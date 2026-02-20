@@ -3,7 +3,6 @@
     "CobaltMetricsLogUploaderTest.UploadLogUmaServiceTypeSuccessfulUpload",
     "GlobalFeaturesTest.ActiveExperimentIdsUnchangedAfterInitialization",
     "GlobalFeaturesTest.*",
-    "CobaltMetricsServiceClientTest.*",
-    "CobaltMetricsServicesManagerClientTest.*"
+    "CobaltMetricsServiceClientTest.*"
   ]
 }

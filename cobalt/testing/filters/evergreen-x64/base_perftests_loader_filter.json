@@ -1,7 +1,6 @@
 {
   "failing_tests": [
     "PartitionAllocMemoryAllocationPerfTest.*",
-    "StackTracePerfTest.*",
-    "JobPerfTest.*"
+    "StackTracePerfTest.*"
   ]
 }
