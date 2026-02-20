@@ -87,7 +87,7 @@ runs:
             export GTEST_SHARD_INDEX=${{ matrix.shard }}
 
             crash_filter="-crash_detector"
-            while true; do
+            for i in {1..100}; do
               set +e
               /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                   stdbuf -i0 -o0 -e0 $ENTRYPOINT \
@@ -105,8 +105,10 @@ runs:
                   break
                 fi
                 crash_filter="${crash_filter}:-${crashed_test}"
-                echo "Retrying with filter: '${current_filter}'"
+                echo "Retrying with filter: '${crash_filter}'"
                 echo "${crash_filter}" > "${test_output}/${test_binary}_crash.filter"
+              else
+                break
               fi
             done
             if [[ ! -f ${xml_path} ]]; then
