@@ -104,7 +104,6 @@ runs:
               --log_file="${log_path}" \
               --filter_file="${test_output}/${test_binary}_crash.filter" \
               --max_retries=100 \
-              --test_binary="${test_binary}" \
               -- \
               /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                   stdbuf -i0 -o0 -e0 $ENTRYPOINT \
