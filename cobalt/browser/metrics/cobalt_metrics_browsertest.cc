@@ -41,6 +41,9 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
+#if BUILDFLAG(IS_LINUX)
+  GTEST_SKIP() << "Failing on Starboard Linux. See b/433354983.";
+#endif
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -112,6 +115,9 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
+#if BUILDFLAG(IS_LINUX)
+  GTEST_SKIP() << "Failing on Starboard Linux. See b/433354983.";
+#endif
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
