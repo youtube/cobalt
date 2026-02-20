@@ -40,15 +40,6 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   void cancel(IClient* client) override;
 
  private:
-<<<<<<< HEAD
-  class WaitEvent;
-
-  static void* ThreadFunc(void* param);
-  void RunLoop(WaitEvent* wait_event);
-  void CancelAllJobsOnClient(IClient* client, WaitEvent* wait_event);
-
-=======
->>>>>>> 1ddaea6b90 (starboard: Refactor WidevineTimer to use JobThread (#8690))
   std::mutex mutex_;
   std::unique_ptr<JobThread> job_thread_;  // Guarded by |mutex_|.
   std::map<IClient*, JobQueue::JobOwner*>
