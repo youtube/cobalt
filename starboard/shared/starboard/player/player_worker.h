@@ -115,10 +115,9 @@ class PlayerWorker {
     virtual void SetResetAudioDecoder(bool reset_audio_decoder) = 0;
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
 
-    typedef ::starboard::shared::starboard::player::
-        VideoDecoderExperimentalFeatures VideoDecoderExperimentalFeatures;
     virtual void SetVideoDecoderExperimentalFeatures(
-        const VideoDecoderExperimentalFeatures& experimental_features) = 0;
+        const ::starboard::shared::starboard::player::
+            VideoDecoderExperimentalFeatures& experimental_features) = 0;
 
    private:
     Handler(const Handler&) = delete;

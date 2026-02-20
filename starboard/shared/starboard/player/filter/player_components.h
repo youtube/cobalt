@@ -38,7 +38,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
-#include "starboard/shared/starboard/player/player_worker.h"
+#include "starboard/shared/starboard/player/video_decoder_experimental_features.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -54,6 +54,8 @@ class PlayerComponents {
       MediaTimeProvider;
   typedef ::starboard::shared::starboard::player::filter::VideoRenderer
       VideoRenderer;
+  typedef ::starboard::shared::starboard::player::
+      VideoDecoderExperimentalFeatures VideoDecoderExperimentalFeatures;
 
   // This class creates PlayerComponents.
   class Factory {
@@ -63,33 +65,29 @@ class PlayerComponents {
       explicit CreationParameters(
           const media::AudioStreamInfo& audio_stream_info,
           SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(
-          const media::VideoStreamInfo& video_stream_info,
-          SbPlayer player,
-          SbPlayerOutputMode output_mode,
-          int max_video_input_size,
-          bool flush_decoder_during_reset,
-          bool reset_audio_decoder,
-          const ::starboard::shared::starboard::player::PlayerWorker::Handler::
-              VideoDecoderExperimentalFeatures& experimental_features,
-          void* surface_view,
-          SbDecodeTargetGraphicsContextProvider*
-              decode_target_graphics_context_provider,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(
-          const media::AudioStreamInfo& audio_stream_info,
-          const media::VideoStreamInfo& video_stream_info,
-          SbPlayer player,
-          SbPlayerOutputMode output_mode,
-          int max_video_input_size,
-          bool flush_decoder_during_reset,
-          bool reset_audio_decoder,
-          const ::starboard::shared::starboard::player::PlayerWorker::Handler::
-              VideoDecoderExperimentalFeatures& experimental_features,
-          void* surface_view,
-          SbDecodeTargetGraphicsContextProvider*
-              decode_target_graphics_context_provider,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const media::VideoStreamInfo& video_stream_info,
+                         SbPlayer player,
+                         SbPlayerOutputMode output_mode,
+                         int max_video_input_size,
+                         bool flush_decoder_during_reset,
+                         bool reset_audio_decoder,
+                         const VideoDecoderExperimentalFeatures& experiments,
+                         void* surface_view,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const media::AudioStreamInfo& audio_stream_info,
+                         const media::VideoStreamInfo& video_stream_info,
+                         SbPlayer player,
+                         SbPlayerOutputMode output_mode,
+                         int max_video_input_size,
+                         bool flush_decoder_during_reset,
+                         bool reset_audio_decoder,
+                         const VideoDecoderExperimentalFeatures& experiments,
+                         void* surface_view,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const CreationParameters& that);
       void operator=(const CreationParameters& that) = delete;
 
@@ -142,9 +140,7 @@ class PlayerComponents {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
-      const ::starboard::shared::starboard::player::PlayerWorker::Handler::
-          VideoDecoderExperimentalFeatures&
-          experimental_features() const {
+      const VideoDecoderExperimentalFeatures& experimental_features() const {
         return experimental_features_;
       }
 
@@ -169,8 +165,7 @@ class PlayerComponents {
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
 
-      ::starboard::shared::starboard::player::PlayerWorker::Handler::
-          VideoDecoderExperimentalFeatures experimental_features_;
+      VideoDecoderExperimentalFeatures experimental_features_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.

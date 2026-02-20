@@ -94,8 +94,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
-    const PlayerWorker::Handler::VideoDecoderExperimentalFeatures&
-        experimental_features,
+    const VideoDecoderExperimentalFeatures& experiments,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -106,7 +105,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       max_video_input_size_(max_video_input_size),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
-      experimental_features_(experimental_features),
+      experimental_features_(experiments),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -124,8 +123,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
-    const PlayerWorker::Handler::VideoDecoderExperimentalFeatures&
-        experimental_features,
+    const VideoDecoderExperimentalFeatures& experiments,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -137,7 +135,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       max_video_input_size_(max_video_input_size),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
-      experimental_features_(experimental_features),
+      experimental_features_(experiments),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
