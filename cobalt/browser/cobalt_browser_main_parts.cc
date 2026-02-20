@@ -27,6 +27,8 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
+#else
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -47,6 +49,15 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+  auto* client = CobaltContentBrowserClient::Get();
+  CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
+                << "PreMainMessageLoopRun!";
+  client->SetUserAgentCrashAnnotation();
+
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
