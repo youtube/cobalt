@@ -442,7 +442,12 @@ void MediaCodecDecoder::DecoderThreadFunc() {
           // because the complex conditions are already checked by the
           // surrounding loop, which will re-evaluate the state when this wait
           // returns.
-          condition_variable_.wait_for(lock, std::chrono::milliseconds(1));
+          // Tunnel mode doesn't need Tick() function. It only waits for new
+          // inputs and outputs, so it's safe to wait for longer time.
+          const auto poll_interval = tunnel_mode_enabled_
+                                         ? std::chrono::milliseconds(10)
+                                         : std::chrono::milliseconds(1);
+          condition_variable_.wait_for(lock, poll_interval);
         }
       }
     }
