@@ -357,14 +357,14 @@ def main() -> int:
   trigger_args.add_argument(
       '--job_timeout_sec',
       type=str,
-      default='2700',
+      default='21600',
       help='Timeout in seconds for the job. Must be set higher and '
       'start_timeout_sec and test_timeout_sec combined.',
   )
   trigger_args.add_argument(
       '--test_timeout_sec',
       type=str,
-      default='1800',
+      default='20700',
       help='Timeout in seconds for the test.',
   )
   trigger_args.add_argument(
