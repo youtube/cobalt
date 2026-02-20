@@ -219,10 +219,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
 
-  auto android_context =
-      std::make_unique<starboard::android::shared::AndroidPlayerContext>();
-  android_context->experimental_features =
-      starboard::android::shared::GetExperimentalFeaturesForCurrentThread();
+  auto android_context = std::make_unique<
+      starboard::android::shared::AndroidPlayerContext>(
+      starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
 
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,

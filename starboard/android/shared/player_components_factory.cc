@@ -581,7 +581,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     VideoDecoder::ExperimentalFeatures experimental_features;
     auto* android_context = static_cast<AndroidPlayerContext*>(
         creation_parameters.player()->GetPlatformContext());
-    SB_DCHECK(android_context);
+    SB_CHECK(android_context);
     experimental_features.initial_max_frames_in_decoder =
         android_context->experimental_features.initial_max_frames_in_decoder;
     experimental_features.max_pending_input_frames =

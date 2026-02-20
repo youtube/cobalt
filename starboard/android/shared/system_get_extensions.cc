@@ -36,7 +36,6 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/experimental/video_decoder_configuration.h"
 #include "starboard/extension/features.h"
-#include "starboard/extension/free_space.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/media_settings.h"
