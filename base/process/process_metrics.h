@@ -226,8 +226,10 @@ class BASE_EXPORT ProcessMetrics {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   // Bytes of swap as reported by /proc/[pid]/status.
   uint64_t GetVmSwapBytes() const;
+#if BUILDFLAG(IS_COBALT)
   // Total virtual memory reserved in bytes as reported by /proc/[pid]/status.
   uint64_t GetVmSizeBytes() const;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Minor and major page fault count as reported by /proc/[pid]/stat.
   // Returns true for success.
