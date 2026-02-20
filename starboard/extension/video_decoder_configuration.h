@@ -25,15 +25,10 @@ extern "C" {
 #define kStarboardExtensionVideoDecoderConfigurationName \
   "dev.starboard.extension.VideoDecoderConfiguration"
 
-typedef struct OptionalInt {
-  bool is_set;
-  int value;
-} OptionalInt;
-
 typedef struct StarboardVideoDecoderExperimentalFeatures {
-  OptionalInt initial_max_frames_in_decoder;
-  OptionalInt max_pending_input_frames;
-  OptionalInt video_decoder_poll_interval_ms;
+  const int* initial_max_frames_in_decoder;
+  const int* max_pending_input_frames;
+  const int* video_decoder_poll_interval_ms;
 } StarboardVideoDecoderExperimentalFeatures;
 
 typedef struct StarboardExtensionVideoDecoderConfigurationApi {

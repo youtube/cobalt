@@ -53,9 +53,11 @@ VideoDecoderExperimentalFeatures& GetOrCreateExperimentalFeatures() {
   return *features;
 }
 
-std::optional<int> FromOptionalInt(const OptionalInt& src) {
-  if (src.is_set) {
-    return src.value;
+// Helper to convert C-style pointers back to std::optional after receiving them
+// from the Starboard extension API boundary.
+std::optional<int> ToOptional(const int* ptr) {
+  if (ptr) {
+    return *ptr;
   }
   return std::nullopt;
 }
@@ -87,11 +89,11 @@ void SetExperimentalFeaturesForCurrentThread(
   }
 
   features.initial_max_frames_in_decoder =
-      FromOptionalInt(experimental_features->initial_max_frames_in_decoder);
+      ToOptional(experimental_features->initial_max_frames_in_decoder);
   features.max_pending_input_frames =
-      FromOptionalInt(experimental_features->max_pending_input_frames);
+      ToOptional(experimental_features->max_pending_input_frames);
   features.video_decoder_poll_interval_ms =
-      FromOptionalInt(experimental_features->video_decoder_poll_interval_ms);
+      ToOptional(experimental_features->video_decoder_poll_interval_ms);
 }
 
 }  // namespace starboard::android::shared

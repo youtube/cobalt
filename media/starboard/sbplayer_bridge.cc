@@ -87,11 +87,10 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
-OptionalInt ToOptionalInt(const std::optional<int>& value) {
-  if (value) {
-    return {true, *value};
-  }
-  return {false, 0};
+// Helper to convert std::optional to a C-style pointer for passing through the
+// Starboard extension API boundary.
+const int* ToPtr(const std::optional<int>& value) {
+  return value ? &*value : nullptr;
 }
 
 }  // namespace
@@ -832,9 +831,9 @@ void SbPlayerBridge::CreatePlayer() {
              kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
       video_decoder_configuration_extension->version >= 2) {
     StarboardVideoDecoderExperimentalFeatures experimental_features = {
-        ToOptionalInt(experimental_features_.initial_max_frames_in_decoder),
-        ToOptionalInt(experimental_features_.max_pending_input_frames),
-        ToOptionalInt(experimental_features_.video_decoder_poll_interval_ms),
+        ToPtr(experimental_features_.initial_max_frames_in_decoder),
+        ToPtr(experimental_features_.max_pending_input_frames),
+        ToPtr(experimental_features_.video_decoder_poll_interval_ms),
     };
     video_decoder_configuration_extension
         ->SetExperimentalFeaturesForCurrentThread(&experimental_features);
