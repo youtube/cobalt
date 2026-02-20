@@ -35,6 +35,7 @@
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
@@ -47,6 +48,7 @@ namespace starboard::android::shared {
 namespace {
 
 using ::starboard::shared::starboard::ExperimentalFeatures;
+std::optional<int64_t> g_baseline_us_;
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoRenderAlgorithmBase =
@@ -362,6 +364,23 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    if (!latency_logged_) {
+      SB_CHECK(g_baseline_us_);
+      const int64_t baseline_us = *g_baseline_us_;
+      const auto release_us = release_time_in_nanoseconds / 1'000;
+      const int64_t now_us = CurrentMonotonicTime();
+
+      auto elapsed_ms = (now_us - baseline_us) / 1'000;
+      auto release_ms = (release_us - baseline_us) / 1'000;
+
+      SB_LOG(INFO) << __func__ << " > TTFF: "
+                   << "called-after-start(msec)="
+                   << FormatWithDigitSeparators(elapsed_ms)
+                   << ", rendered-after-start(msec)="
+                   << FormatWithDigitSeparators(release_ms);
+      latency_logged_ = true;
+    }
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
@@ -372,6 +391,7 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   PlaybackRateChangedCB playback_rate_changed_cb_;
   RenderCB render_cb_;
   bool rendered_;
+  bool latency_logged_ = false;
 };
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
@@ -1304,6 +1324,11 @@ void VideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+// Temporary solution for PoC to skip long plumbing.
+void ResetBaselineTime() {
+  g_baseline_us_ = CurrentMonotonicTime();
 }
 
 }  // namespace starboard::android::shared
