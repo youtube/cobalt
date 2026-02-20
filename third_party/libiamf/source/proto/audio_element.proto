@@ -1,0 +1,123 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+import "obu_header.proto";
+import "param_definitions.proto";
+
+enum AudioElementType {
+  AUDIO_ELEMENT_INVALID = 0;
+  AUDIO_ELEMENT_CHANNEL_BASED = 1;
+  AUDIO_ELEMENT_SCENE_BASED = 2;
+}
+
+message ParamDefinitionExtension {
+  optional uint32 param_definition_size = 1;
+  optional bytes param_definition_bytes = 2;
+}
+
+message AudioElementParam {
+  optional uint32 deprecated_param_definition_type = 1 [deprecated = true];
+  optional ParamDefinitionType param_definition_type = 5;
+  oneof param_definition {
+    DemixingParamDefinition demixing_param = 2;
+    ReconGainParamDefinition recon_gain_param = 3;
+    ParamDefinitionExtension param_definition_extension = 4;
+  }
+}
+
+// Valid proto enums start at index 1, which are different from the
+// corresponding enums in C++, e.g. kLayoutMono = 0.
+enum LoudspeakerLayout {
+  LOUDSPEAKER_LAYOUT_INVALID = 0;
+  LOUDSPEAKER_LAYOUT_MONO = 1;
+  LOUDSPEAKER_LAYOUT_STEREO = 2;
+  LOUDSPEAKER_LAYOUT_5_1_CH = 3;
+  LOUDSPEAKER_LAYOUT_5_1_2_CH = 4;
+  LOUDSPEAKER_LAYOUT_5_1_4_CH = 5;
+  LOUDSPEAKER_LAYOUT_7_1_CH = 6;
+  LOUDSPEAKER_LAYOUT_7_1_2_CH = 7;
+  LOUDSPEAKER_LAYOUT_7_1_4_CH = 8;
+  LOUDSPEAKER_LAYOUT_3_1_2_CH = 9;
+  LOUDSPEAKER_LAYOUT_BINAURAL = 10;
+  LOUDSPEAKER_LAYOUT_RESERVED_BEGIN = 11;
+  LOUDSPEAKER_LAYOUT_RESERVED_END = 16;
+}
+
+message ChannelAudioLayerConfig {
+  optional uint32 deprecated_loudspeaker_layout = 1 [deprecated = true];
+  optional LoudspeakerLayout loudspeaker_layout = 10;
+  optional uint32 output_gain_is_present_flag = 2;
+  optional uint32 recon_gain_is_present_flag = 3;
+  optional uint32 reserved_a = 4;
+  optional uint32 substream_count = 5;
+  optional uint32 coupled_substream_count = 6;
+  optional uint32 output_gain_flag = 7;
+  optional uint32 reserved_b = 8;
+  optional int32 output_gain = 9;
+}
+
+message ScalableChannelLayoutConfig {
+  optional uint32 num_layers = 1;
+  optional uint32 reserved = 2;
+  repeated ChannelAudioLayerConfig channel_audio_layer_configs = 3;
+}
+
+enum AmbisonicsMode {
+  AMBISONICS_MODE_INVALID = 0;
+  AMBISONICS_MODE_MONO = 1;
+  AMBISONICS_MODE_PROJECTION = 2;
+}
+
+message AmbisonicsMonoConfig {
+  optional uint32 output_channel_count = 1;
+  optional uint32 substream_count = 2;
+  repeated uint32 channel_mapping = 3 [packed = true];
+}
+
+message AmbisonicsProjectionConfig {
+  optional uint32 output_channel_count = 1;
+  optional uint32 substream_count = 2;
+  optional uint32 coupled_substream_count = 3;
+  repeated int32 demixing_matrix = 4 [packed = true];
+}
+
+message AmbisonicsConfig {
+  optional AmbisonicsMode ambisonics_mode = 1;
+  oneof ambisonics_config {
+    AmbisonicsMonoConfig ambisonics_mono_config = 2;
+    AmbisonicsProjectionConfig ambisonics_projection_config = 3;
+  }
+}
+
+message AudioElementConfigExtension {
+  optional uint32 audio_element_config_size = 1;
+  optional bytes audio_element_config_bytes = 2;
+}
+
+message AudioElementObuMetadata {
+  optional uint32 audio_element_id = 1;
+  optional AudioElementType audio_element_type = 2;
+  optional uint32 reserved = 3;
+  optional uint32 codec_config_id = 4;
+  optional uint32 num_substreams = 5;
+  repeated uint32 audio_substream_ids = 6 [packed = true];
+  optional uint32 num_parameters = 7;
+  repeated AudioElementParam audio_element_params = 8;
+  oneof config {
+    ScalableChannelLayoutConfig scalable_channel_layout_config = 9;
+    AmbisonicsConfig ambisonics_config = 10;
+    AudioElementConfigExtension audio_element_config_extension = 11;
+  }
+  optional ObuHeaderMetadata obu_header = 12;
+}

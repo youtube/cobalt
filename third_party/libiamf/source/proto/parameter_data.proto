@@ -1,0 +1,79 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+enum AnimationType {
+  ANIMATE_INVALID = 0;
+  ANIMATE_STEP = 1;
+  ANIMATE_LINEAR = 2;
+  ANIMATE_BEZIER = 3;
+}
+
+message AnimationStepInt16 {
+  optional int32 start_point_value = 1;
+}
+
+message AnimationLinearInt16 {
+  optional int32 start_point_value = 1;
+  optional int32 end_point_value = 2;
+}
+
+message AnimationBezierInt16 {
+  optional int32 start_point_value = 1;
+  optional int32 end_point_value = 2;
+  optional int32 control_point_value = 3;
+  optional uint32 control_point_relative_time = 4;
+}
+
+message AnimatedParameterDataInt16 {
+  oneof parameter_data {
+    AnimationStepInt16 step = 1;
+    AnimationLinearInt16 linear = 2;
+    AnimationBezierInt16 bezier = 3;
+  }
+}
+
+message MixGainParameterData {
+  optional AnimationType animation_type = 1;
+  optional AnimatedParameterDataInt16 param_data = 2;
+}
+
+enum DMixPMode {
+  DMIXP_MODE_INVALID = 0;
+  //                       (alpha, beta,  gamma, delta, w_idx_offset)
+  DMIXP_MODE_1 = 1;  //    (    1,     1, 0.707, 0.707,           -1)
+  DMIXP_MODE_2 = 2;  //    (0.707, 0.707, 0.707, 0.707,           -1)
+  DMIXP_MODE_3 = 3;  //    (    1, 0.866, 0.866, 0.866,           -1)
+  DMIXP_MODE_RESERVED_A = 4;
+  DMIXP_MODE_1_N = 5;  //  (    1,     1, 0.707, 0.707,            1)
+  DMIXP_MODE_2_N = 6;  //  (0.707, 0.707, 0.707, 0.707,            1)
+  DMIXP_MODE_3_N = 7;  //  (    1, 0.866, 0.866, 0.866,            1)
+  DMIXP_MODE_RESERVED_B = 8;
+}
+
+message DemixingInfoParameterData {
+  optional DMixPMode dmixp_mode = 1;
+  optional uint32 reserved = 2;
+}
+
+message ReconGains {
+  // Mapping from a bit position to a recon gain value.
+  // If recon_gain[j] is defined, then the j-th bit of recon_gain_flags[i]
+  // (for the i-th layer) will be set.
+  map<uint32, uint32> recon_gain = 2;
+}
+
+message ReconGainInfoParameterData {
+  // Length = `num_layers`.
+  repeated ReconGains recon_gains_for_layer = 2;
+}
