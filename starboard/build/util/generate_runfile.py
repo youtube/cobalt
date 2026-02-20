@@ -69,7 +69,13 @@ for i in range(max_retries):
       for idx, arg in enumerate(cmd_args):
         if arg.startswith('--gtest_filter='):
           old_filter = arg.split('=', 1)[1]
-          new_filter = f'{{old_filter}}:{{crashed_test}}'
+          if old_filter == '*':
+            new_filter = f'-{{crashed_test}}'
+          elif old_filter.startswith('-') or ':-' in old_filter
+            new_filter= f'{{old_filter}}:{{crashed_test}}'
+          else
+            new_filter= f'{{old_filter}}:-{{crashed_test}}'
+
           cmd_args[idx] = f'--gtest_filter={{new_filter}}'
           found = True
           break
