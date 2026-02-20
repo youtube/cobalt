@@ -118,7 +118,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service // empty')
           echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
       - name: Set on-host tests
         id: set-test-on-host
@@ -216,6 +216,13 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
+      - name: Set enable sccache
+        id: set-enable-sccache
+        shell: bash
+        run: |
+          set -x
+          enable_sccache=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.enable_sccache')
+          echo "enable_sccache=${enable_sccache}" >> $GITHUB_OUTPUT
       - name: Set Docker files checksum
         id: set-docker-hash
         shell: bash
@@ -245,6 +252,7 @@ jobs:
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
+      enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -258,6 +266,7 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Build docker image
+        if: needs.initialize.outputs.docker_service != ''
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
@@ -336,11 +345,19 @@ jobs:
       DEPOT_TOOLS_COLLECT_METRICS: 0
       DEPOT_TOOLS_METRICS: 0
       IS_CI: 1
-      # We want temp folder to be on tmpfs which makes workloads faster.
-      # However, dind container ends up having / folder mounted on overlay
-      # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
-      TMPDIR: /__w/_temp
     steps:
+      - name: Set TMPDIR
+        shell: bash
+        run: |
+          set -x
+          if [[ -w /__w/_temp/ ]]; then
+            # We want temp folder to be on tmpfs which makes workloads faster.
+            # However, dind container ends up having / folder mounted on overlay
+            # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
+            echo "TMPDIR=/__w/_temp" >> $GITHUB_ENV
+          else
+            echo "TMPDIR=${{ runner.temp }}" >> $GITHUB_ENV
+          fi
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
@@ -371,6 +388,7 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          enable_sccache: ${{ needs.initialize.outputs.enable_sccache }}
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
@@ -646,7 +664,7 @@ jobs:
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
@@ -698,7 +716,7 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Test Results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
