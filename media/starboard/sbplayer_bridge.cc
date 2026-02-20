@@ -38,8 +38,8 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/experimental/video_decoder_configuration.h"
 #include "starboard/extension/player_configurate_seek.h"
-#include "starboard/extension/video_decoder_configuration.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -829,7 +829,7 @@ void SbPlayerBridge::CreatePlayer() {
   if (video_decoder_configuration_extension &&
       strcmp(video_decoder_configuration_extension->name,
              kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
-      video_decoder_configuration_extension->version >= 2) {
+      video_decoder_configuration_extension->version >= 1) {
     StarboardVideoDecoderExperimentalFeatures experimental_features = {
         ToPtr(experimental_features_.initial_max_frames_in_decoder),
         ToPtr(experimental_features_.max_pending_input_frames),

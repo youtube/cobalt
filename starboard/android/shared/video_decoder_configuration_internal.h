@@ -18,7 +18,7 @@
 #include <optional>
 
 #include "starboard/android/shared/video_decoder_experimental_features.h"
-#include "starboard/extension/video_decoder_configuration.h"
+#include "starboard/extension/experimental/video_decoder_configuration.h"
 
 namespace starboard::android::shared {
 
