@@ -12,29 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/video_decoder_configuration.h"
+#ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_EXPERIMENTAL_FEATURES_H_
+#define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_EXPERIMENTAL_FEATURES_H_
 
-#include "starboard/android/shared/video_decoder_configuration_internal.h"
-#include "starboard/extension/experimental/video_decoder_configuration.h"
+#include <optional>
 
 namespace starboard::android::shared {
 
-namespace {
-
-// Definitions of any functions included as components in the extension
-// are added here.
-
-const StarboardExtensionVideoDecoderConfigurationApi
-    kVideoDecoderConfigurationApi = {
-        kStarboardExtensionVideoDecoderConfigurationName,
-        1,
-        &SetExperimentalFeaturesForCurrentThread,
+struct VideoDecoderExperimentalFeatures {
+  std::optional<int> initial_max_frames_in_decoder;
+  std::optional<int> max_pending_input_frames;
+  std::optional<int> video_decoder_poll_interval_ms;
 };
 
-}  // namespace
-
-const void* GetVideoDecoderConfigurationApi() {
-  return &kVideoDecoderConfigurationApi;
-}
+struct AndroidPlayerContext {
+  VideoDecoderExperimentalFeatures experimental_features;
+};
 
 }  // namespace starboard::android::shared
+
+#endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_EXPERIMENTAL_FEATURES_H_

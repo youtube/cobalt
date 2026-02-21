@@ -55,9 +55,11 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
     void* context,
-    std::unique_ptr<PlayerWorker::Handler> player_worker_handler)
+    std::unique_ptr<PlayerWorker::Handler> player_worker_handler,
+    void* platform_context)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
+      platform_context_(platform_context),
       media_time_updated_at_(CurrentMonotonicTime()) {
   worker_ = std::unique_ptr<PlayerWorker>(PlayerWorker::CreateInstance(
       audio_codec, video_codec, std::move(player_worker_handler),
@@ -79,11 +81,12 @@ SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
     void* context,
-    std::unique_ptr<PlayerWorker::Handler> player_worker_handler) {
+    std::unique_ptr<PlayerWorker::Handler> player_worker_handler,
+    void* platform_context) {
   SbPlayerPrivateImpl* ret = new SbPlayerPrivateImpl(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context,
-      std::move(player_worker_handler));
+      std::move(player_worker_handler), platform_context);
 
   if (ret && ret->worker_) {
     return ret;

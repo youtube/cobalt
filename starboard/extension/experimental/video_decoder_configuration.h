@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
-#define STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
+#ifndef STARBOARD_EXTENSION_EXPERIMENTAL_VIDEO_DECODER_CONFIGURATION_H_
+#define STARBOARD_EXTENSION_EXPERIMENTAL_VIDEO_DECODER_CONFIGURATION_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -23,6 +24,12 @@ extern "C" {
 
 #define kStarboardExtensionVideoDecoderConfigurationName \
   "dev.starboard.extension.VideoDecoderConfiguration"
+
+typedef struct StarboardVideoDecoderExperimentalFeatures {
+  const int* initial_max_frames_in_decoder;
+  const int* max_pending_input_frames;
+  const int* video_decoder_poll_interval_ms;
+} StarboardVideoDecoderExperimentalFeatures;
 
 typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Name should be the string
@@ -33,25 +40,14 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // This specifies the version of the API that is implemented.
   uint32_t version;
 
-  // The fields below this point were added in version 1 or later.
-
-  // Specifies the initial max frames in video decoder.
-  void (*SetVideoInitialMaxFramesInDecoderForCurrentThread)(
-      int initial_max_frames_in_decoder);
-
-  // Specifies the max pending video input frames.
-  void (*SetVideoMaxPendingInputFramesForCurrentThread)(
-      int max_pending_input_frames);
-
-  // The fields below this point were added in version 2 or later.
-
-  // Specifies the video poll interval in milliseconds.
-  void (*SetVideoDecoderPollIntervalMsForCurrentThread)(
-      int video_decoder_poll_interval_ms);
+  // Specifies experimental features for the video decoder on the current
+  // thread.
+  void (*SetExperimentalFeaturesForCurrentThread)(
+      const StarboardVideoDecoderExperimentalFeatures* experimental_features);
 } StarboardExtensionVideoDecoderConfigurationApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
+#endif  // STARBOARD_EXTENSION_EXPERIMENTAL_VIDEO_DECODER_CONFIGURATION_H_

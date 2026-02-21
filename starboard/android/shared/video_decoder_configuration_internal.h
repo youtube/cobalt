@@ -17,34 +17,18 @@
 
 #include <optional>
 
+#include "starboard/android/shared/video_decoder_experimental_features.h"
+#include "starboard/extension/experimental/video_decoder_configuration.h"
+
 namespace starboard::android::shared {
 
-// Get initial_max_frames_in_decoder via
-// SetVideoInitialMaxFramesInDecoderForCurrentThread().
-std::optional<int> GetVideoInitialMaxFramesInDecoderForCurrentThread();
+// Get experimental features via SetExperimentalFeaturesForCurrentThread().
+VideoDecoderExperimentalFeatures GetExperimentalFeaturesForCurrentThread();
 
-// Specifies the initial max frames in video decoder.
-// |initial_max_frames_in_decoder| should be non-negative value.
-void SetVideoInitialMaxFramesInDecoderForCurrentThread(
-    int initial_max_frames_in_decoder);
-
-// Get max_pending_input_frames via
-// SetVideoMaxPendingInputFramesForCurrentThread().
-std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread();
-
-// Specifies the max pending video input frames.
-// |max_pending_input_frames| should be non-negative value.
-void SetVideoMaxPendingInputFramesForCurrentThread(
-    int max_pending_input_frames);
-
-// Get video_decoder_poll_interval_ms via
-// SetVideoDecoderPollIntervalMsForCurrentThread().
-std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
-
-// Specifies the video poll interval in milliseconds.
-// |video_decoder_poll_interval_ms| should be positive value.
-void SetVideoDecoderPollIntervalMsForCurrentThread(
-    int video_decoder_poll_interval_ms);
+// Specifies the experimental features for the video decoder on the current
+// thread.
+void SetExperimentalFeaturesForCurrentThread(
+    const StarboardVideoDecoderExperimentalFeatures* experimental_features);
 
 }  // namespace starboard::android::shared
 

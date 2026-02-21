@@ -215,23 +215,18 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetForceFlushDecoderDuringResetForCurrentThread());
   handler->SetResetAudioDecoder(
       starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
-  if (auto initial_max_frames_in_decoder = starboard::android::shared::
-          GetVideoInitialMaxFramesInDecoderForCurrentThread()) {
-    handler->SetVideoInitialMaxFramesInDecoder(*initial_max_frames_in_decoder);
-  }
-  if (auto max_pending_input_frames = starboard::android::shared::
-          GetVideoMaxPendingInputFramesForCurrentThread()) {
-    handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
-  }
-  if (auto video_decoder_poll_interval_ms = starboard::android::shared::
-          GetVideoDecoderPollIntervalMsForCurrentThread()) {
-    handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
-  }
+
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
+
+  auto android_context = std::make_unique<
+      starboard::android::shared::AndroidPlayerContext>(
+      starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
+
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context, std::move(handler));
+      player_status_func, player_error_func, context, std::move(handler),
+      android_context.release());
 
   if (SbPlayerIsValid(player)) {
     if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
