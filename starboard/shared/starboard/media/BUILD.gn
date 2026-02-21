@@ -38,6 +38,7 @@ static_library("media_util") {
     "//starboard/shared/starboard/media/vp9_util.h",
   ]
 
+  deps = [ "//third_party/abseil-cpp:absl" ]
   public_deps = [ "//starboard/common" ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
