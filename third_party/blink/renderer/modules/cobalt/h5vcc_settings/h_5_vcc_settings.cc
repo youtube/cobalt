@@ -64,11 +64,11 @@ struct ScriptContext {
   const ExceptionContext& exception_context;
 };
 
-template <typename Callback>
-ScriptPromise ProcessLongAsBool(const ScriptContext& context,
-                                const V8UnionLongOrString* value,
-                                const String& name,
-                                Callback callback) {
+template <typename T, typename Callback>
+ScriptPromise ProcessLongAs(const ScriptContext& context,
+                            const V8UnionLongOrString* value,
+                            const String& name,
+                            Callback callback) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       context.script_state, context.exception_context);
 
@@ -79,7 +79,7 @@ ScriptPromise ProcessLongAsBool(const ScriptContext& context,
         "The value for '" + name + "' must be a number."));
     return resolver->Promise();
   }
-  callback(resolver, value->GetAsLong() != 0);
+  callback(resolver, static_cast<T>(value->GetAsLong()));
   return resolver->Promise();
 }
 
@@ -100,7 +100,7 @@ ScriptPromise ProcessDecoderBufferSettings(const ScriptContext& context,
                                            const V8UnionLongOrString* value) {
   DCHECK(name.StartsWith(kDecoderBufferSettingPrefix));
 
-  return ProcessLongAsBool(
+  return ProcessLongAs<bool>(
       context, value, name, [&](ScriptPromiseResolver* resolver, bool enable) {
         const auto& settings = GetDecoderBufferSettings();
         auto it = settings.find(name);
@@ -148,7 +148,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
     return ProcessDecoderBufferSettings(context, name, value);
   }
   if (name == kMediaAppendFirstSegmentSynchronously) {
-    return ProcessLongAsBool(
+    return ProcessLongAs<bool>(
         context, value, name,
         [&](ScriptPromiseResolver* resolver, bool enable) {
           append_first_segment_synchronously_ = enable;
@@ -163,21 +163,22 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
         });
   }
   if (name == kMediaIncrementalParseLookAhead) {
-    return ProcessLongAsBool(
+    return ProcessLongAs<bool>(
         context, value, name,
         [&](ScriptPromiseResolver* resolver, bool enable) {
-          if (enable) {
-            LOG(INFO) << "Enable incremental parse look ahead.";
-            ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
-            resolver->Resolve();
-          } else {
+          if (!enable) {
             LOG(WARNING) << kMediaIncrementalParseLookAhead
                          << " cannot be disabled.";
             resolver->Reject(V8ThrowException::CreateTypeError(
                 context.script_state->GetIsolate(),
                 kMediaIncrementalParseLookAhead +
                     String(" cannot be disabled.")));
+            return;
           }
+
+          LOG(INFO) << "Enable incremental parse look ahead.";
+          ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+          resolver->Resolve();
         });
   }
 
