@@ -287,6 +287,8 @@ static_library("starboard_platform_sources") {
     "speech/speech_synthesis_speak.cc",
     "system/system_egl.cc",
     "system/system_get_extensions.cc",
+    "system/ifa.cc",
+    "system/ifa.h",
     "system/system_get_path.cc",
     "system/system_get_property.cc",
     "system/system_has_capability.cc",

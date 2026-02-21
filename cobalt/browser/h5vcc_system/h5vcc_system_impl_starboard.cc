@@ -19,6 +19,7 @@
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
+#include "starboard/extension/ifa.h"
 
 namespace h5vcc_system {
 
@@ -39,27 +40,52 @@ h5vcc_system::mojom::UserOnExitStrategy GetUserOnExitStrategyInternal() {
 }
 
 std::string GetAdvertisingIdShared() {
-  std::string advertising_id;
-  advertising_id =
-      starboard::GetSystemPropertyString(kSbSystemPropertyAdvertisingId);
-  DLOG_IF(INFO, advertising_id == "")
-      << "Failed to get kSbSystemPropertyAdvertisingId.";
-  return advertising_id;
+  auto* ifa_extension = static_cast<const StarboardExtensionIfaApi*>(
+      SbSystemGetExtension(kStarboardExtensionIfaName));
+  if (ifa_extension &&
+      strcmp(ifa_extension->name, kStarboardExtensionIfaName) == 0 &&
+      ifa_extension->version >= 1) {
+    char advertising_id[starboard::kSystemPropertyMaxLength];
+    if (ifa_extension->GetAdvertisingId(advertising_id,
+                                        starboard::kSystemPropertyMaxLength)) {
+      return std::string(advertising_id);
+    }
+  }
+
+  DLOG(INFO) << "Failed to get Advertising ID from IFA extension.";
+  return "";
 }
 
 bool GetLimitAdTrackingShared() {
-  bool limit_ad_tracking = false;
-  std::string result =
-      starboard::GetSystemPropertyString(kSbSystemPropertyLimitAdTracking);
-  if (result == "") {
-    DLOG(INFO) << "Failed to get kSbSystemPropertyLimitAdTracking.";
-  } else {
-    limit_ad_tracking = std::atoi(result.c_str());
+  auto* ifa_extension = static_cast<const StarboardExtensionIfaApi*>(
+      SbSystemGetExtension(kStarboardExtensionIfaName));
+  if (ifa_extension &&
+      strcmp(ifa_extension->name, kStarboardExtensionIfaName) == 0 &&
+      ifa_extension->version >= 1) {
+    char limit_ad_tracking[starboard::kSystemPropertyMaxLength];
+    if (ifa_extension->GetLimitAdTracking(limit_ad_tracking,
+                                          starboard::kSystemPropertyMaxLength)) {
+      return std::atoi(limit_ad_tracking);
+    }
   }
-  return limit_ad_tracking;
+
+  DLOG(INFO) << "Failed to get Limit Ad Tracking from IFA extension.";
+  return false;
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
+  auto* ifa_extension = static_cast<const StarboardExtensionIfaApi*>(
+      SbSystemGetExtension(kStarboardExtensionIfaName));
+  if (ifa_extension &&
+      strcmp(ifa_extension->name, kStarboardExtensionIfaName) == 0 &&
+      ifa_extension->version >= 2) {
+    char status[starboard::kSystemPropertyMaxLength];
+    if (ifa_extension->GetTrackingAuthorizationStatus(
+            status, starboard::kSystemPropertyMaxLength)) {
+      return std::string(status);
+    }
+  }
+
   return "NOT_SUPPORTED";
 }
 

@@ -142,19 +142,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
           out_value, value_length,
           StarboardBridge::GetInstance()->GetUserAgentAuxField(env).c_str());
     }
-    case kSbSystemPropertyAdvertisingId: {
-      JNIEnv* env = AttachCurrentThread();
-      return CopyStringAndTestIfSuccess(
-          out_value, value_length,
-          StarboardBridge::GetInstance()->GetAdvertisingId(env).c_str());
-    }
-    case kSbSystemPropertyLimitAdTracking: {
-      JNIEnv* env = AttachCurrentThread();
-      bool limit_ad_tracking_enabled =
-          StarboardBridge::GetInstance()->GetLimitAdTracking(env);
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        limit_ad_tracking_enabled ? "1" : "0");
-    }
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         starboard::kSystemDeviceTypeAndroidTV);

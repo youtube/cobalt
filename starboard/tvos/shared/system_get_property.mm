@@ -153,11 +153,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         // functionality is clear in Chrobalt.
         SB_NOTIMPLEMENTED();
         return false;
-      case kSbSystemPropertyAdvertisingId:
-      case kSbSystemPropertyLimitAdTracking: {
-        SB_LOG(INFO) << "IFA is not supported via Starboard.";
-        return false;
-      }
       case kSbSystemPropertyDeviceType:
         return CopyStringAndTestIfSuccess(
             out_value, value_length, starboard::kSystemDeviceTypeOverTheTopBox);

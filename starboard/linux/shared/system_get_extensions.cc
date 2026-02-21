@@ -72,6 +72,9 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::GetFreeSpaceApi();
   }
+  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
+    return starboard::GetIfaApi();
+  }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::GetLoaderAppMetricsApi();

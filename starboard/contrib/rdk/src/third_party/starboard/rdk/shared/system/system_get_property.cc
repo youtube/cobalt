@@ -238,21 +238,6 @@ bool GetCertificationScope(char* out_value, int value_length) {
   return starboard::strlcpy<char>(out_value, buf.data(), value_length);
 }
 
-bool GetLimitAdTracking(char* out_value, int value_length) {
-    std::string prop;
-    if (AdvertisingId::GetLmtAdTracking(prop)) {
-      return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
-    }
-    return false;
-}
-
-bool GetAdvertisingId(char* out_value, int value_length) {
-    std::string prop;
-    if (AdvertisingId::GetIfa(prop)) {
-      return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
-    }
-    return false;
-}
 
 bool GetDeviceType(char* out_value, int value_length) {
     std::string prop;
@@ -304,12 +289,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 
     case kSbSystemPropertyCertificationScope:
       return GetCertificationScope(out_value, value_length);
-
-    case kSbSystemPropertyAdvertisingId:
-      return GetAdvertisingId(out_value, value_length);
-
-    case kSbSystemPropertyLimitAdTracking:
-      return GetLimitAdTracking(out_value, value_length);
 
     case kSbSystemPropertyDeviceType:
       return GetDeviceType(out_value, value_length);

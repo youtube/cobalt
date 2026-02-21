@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/linux/shared/ifa.h"
-
-#include "starboard/common/string.h"
 #include "starboard/extension/ifa.h"
-#include "starboard/shared/environment.h"
+#include "starboard/common/string.h"
+#include "third_party/starboard/rdk/shared/system/advertising_id.h"
 
+namespace third_party {
 namespace starboard {
-
+namespace rdk {
+namespace shared {
 namespace {
 
 bool CopyStringAndTestIfSuccess(char* out_value,
@@ -28,37 +28,31 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   if (strlen(from_value) + 1 > value_length) {
     return false;
   }
-  starboard::strlcpy(out_value, from_value, value_length);
+  ::starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
 
-// Definitions of any functions included as components in the extension
-// are added here.
-
 bool GetAdvertisingId(char* out_value, int value_length) {
-  return CopyStringAndTestIfSuccess(
-      out_value, value_length,
-      starboard::GetEnvironment("COBALT_ADVERTISING_ID").c_str());
+    std::string prop;
+    if (AdvertisingId::GetIfa(prop)) {
+      return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
+    }
+    return false;
 }
 
 bool GetLimitAdTracking(char* out_value, int value_length) {
-  return CopyStringAndTestIfSuccess(
-      out_value, value_length,
-      GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
-}
-
-bool GetTrackingAuthorizationStatus(char* out_value, int value_length) {
-  return CopyStringAndTestIfSuccess(
-      out_value, value_length,
-      GetEnvironment("COBALT_TRACKING_AUTHORIZATION_STATUS").c_str());
+    std::string prop;
+    if (AdvertisingId::GetLmtAdTracking(prop)) {
+      return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
+    }
+    return false;
 }
 
 const StarboardExtensionIfaApi kIfaApi = {
     kStarboardExtensionIfaName,
-    2,  // API version that's implemented.
+    1,  // API version that's implemented.
     &GetAdvertisingId,
     &GetLimitAdTracking,
-    &GetTrackingAuthorizationStatus,
 };
 
 }  // namespace
@@ -67,4 +61,7 @@ const void* GetIfaApi() {
   return &kIfaApi;
 }
 
+}  // namespace shared
+}  // namespace rdk
 }  // namespace starboard
+}  // namespace third_party

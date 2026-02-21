@@ -500,16 +500,14 @@ public class StarboardBridge {
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_get_property.cc
-  /** Returns string for kSbSystemPropertyAdvertisingId */
+  // Used in cobalt/browser/h5vcc_system/h5vcc_system_impl_android.cc
   @CalledByNative
   protected String getAdvertisingId() {
     return mAdvertisingId.getId();
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_get_property.cc
-  /** Returns boolean for kSbSystemPropertyLimitAdTracking */
+  // Used in cobalt/browser/h5vcc_system/h5vcc_system_impl_android.cc
   @CalledByNative
   protected boolean getLimitAdTracking() {
     return mAdvertisingId.isLimitAdTrackingEnabled();
