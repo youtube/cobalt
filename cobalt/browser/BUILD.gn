@@ -76,6 +76,7 @@ source_set("browser") {
     "//components/os_crypt/sync",
     "//components/prefs",
     "//components/variations/service:service",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
   ]
 
