@@ -173,7 +173,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
             LOG(WARNING) << kMediaIncrementalParseLookAhead
                          << " cannot be disabled.";
             resolver->Reject(V8ThrowException::CreateTypeError(
-                script_state->GetIsolate(),
+                context.script_state->GetIsolate(),
                 kMediaIncrementalParseLookAhead +
                     String(" cannot be disabled.")));
           }
