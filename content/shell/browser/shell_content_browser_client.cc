@@ -1036,4 +1036,55 @@ ShellContentBrowserClient::GetShellContentBrowserClientInstances() {
   return GetShellContentBrowserClientInstancesImpl();
 }
 
+bool ShellContentBrowserClient::IsFullCookieAccessAllowed(
+    content::BrowserContext* browser_context,
+    content::WebContents* web_contents,
+    const GURL& url,
+    const blink::StorageKey& storage_key) {
+  LOG(WARNING) << "IsFullCookieAccessAllowed: " << url.spec() << 
+    " storagekey:" << storage_key.GetDebugString();
+  return true;
+}
+bool ShellContentBrowserClient::WillCreateRestrictedCookieManager(
+    network::mojom::RestrictedCookieManagerRole role,
+    BrowserContext* browser_context,
+    const url::Origin& origin,
+    const net::IsolationInfo& isolation_info,
+    bool is_service_worker,
+    int process_id,
+    int routing_id,
+    mojo::PendingReceiver<network::mojom::RestrictedCookieManager>* receiver) {
+  LOG(WARNING) << "Creating cookie manager for origin:" << origin.GetDebugString() << 
+    " is_service_worker:" << is_service_worker << 
+    " isolation:" << isolation_info.DebugString();
+  switch(role) {
+    case network::mojom::RestrictedCookieManagerRole::SCRIPT:
+      LOG(WARNING) << " Role: SCRIPT";
+      break;
+    case network::mojom::RestrictedCookieManagerRole::NETWORK:
+      LOG(WARNING) << " Role: NETWORK";
+      break;
+  }
+  return true;        
+}
+
+StoragePartitionConfig ShellContentBrowserClient::GetStoragePartitionConfigForSite(
+    BrowserContext* browser_context,
+    const GURL& site) {
+  // Spammy, this gets called a lot
+  //LOG(WARNING) << "GetStoragePartitionConfigForSite: " << site.spec();
+  
+  // Demo to mapp two sites to same storage partition
+  GURL::Replacements replacements;
+  replacements.ClearPort();
+  if (site.ReplaceComponents(replacements) == GURL("https://httpbin.org")) {
+    return StoragePartitionConfig::Create(browser_context,
+                                          /*partition_domain=*/"httpbin.org",
+                                          /*partition_name=*/"http_bin_test_partition",
+                                          /*in_memory=*/false);
+  }
+  return StoragePartitionConfig::CreateDefault(browser_context);
+}
+
+
 }  // namespace content

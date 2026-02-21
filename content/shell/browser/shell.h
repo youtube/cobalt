@@ -22,6 +22,8 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
+#include "content/public/browser/storage_usage_info.h"
+
 class GURL;
 
 namespace content {
@@ -46,6 +48,28 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void LoadDataWithBaseURL(const GURL& url,
                            const std::string& data,
                            const GURL& base_url);
+
+  // Hackety sax
+  void OnCookiesAccessed(RenderFrameHost* render_frame_host,
+                                 const CookieAccessDetails& details) override;
+  void OnCookiesAccessed(NavigationHandle* navigation_handle,
+                                 const CookieAccessDetails& details) override;
+  void NotifyStorageAccessed(
+      RenderFrameHost* render_frame_host,
+      blink::mojom::StorageTypeAccessed storage_type,
+      bool blocked) override;
+  void PrimaryMainDocumentElementAvailable() override;
+
+  void DOMContentLoaded(RenderFrameHost* render_frame_host) override;
+  void DidFinishLoad(RenderFrameHost* render_frame_host,
+                             const GURL& validated_url)  override;
+  void DidFailLoad(RenderFrameHost* render_frame_host,
+                           const GURL& validated_url,
+                           int error_code)  override;
+  void DocumentOnLoadCompletedInPrimaryMainFrame() override;
+  void OnGotLocalStorageUsage(
+      const std::vector<content::StorageUsageInfo>& infos);
+  // End hackety sax
 
 #if BUILDFLAG(IS_ANDROID)
   // Android-only path to allow loading long data strings.
