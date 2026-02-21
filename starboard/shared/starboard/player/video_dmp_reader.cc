@@ -316,12 +316,8 @@ void VideoDmpReader::Parse() {
 
   if (dmp_info_.audio_codec == kSbMediaAudioCodecIamf &&
       !dmp_info_.iamf_primary_profile.has_value()) {
-    dmp_info_.iamf_primary_profile = 0;
-    dmp_info_.iamf_additional_profile = 0;
-    std::vector<uint8_t> data(audio_access_units_[0].data().data(),
-                              audio_access_units_[0].data().data() +
-                                  audio_access_units_[0].data().size());
-    auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(data);
+    auto result =
+        IamfMimeUtil::ParseIamfSequenceHeaderObu(audio_access_units_[0].data());
     SB_CHECK(result) << result.error();
     dmp_info_.iamf_primary_profile = result->primary_profile;
     dmp_info_.iamf_additional_profile = result->additional_profile;

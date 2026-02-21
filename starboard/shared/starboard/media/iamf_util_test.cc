@@ -285,7 +285,7 @@ TEST(IamfUtilTest, ParseSequenceHeaderFailsOnInvalidObuType) {
       << "Parsed IA Sequence Header OBU when an error was expected. Primary "
          "profile: "
       << result->primary_profile
-      << " additonal profile: " << result->additional_profile;
+      << " additional profile: " << result->additional_profile;
 }
 
 TEST(IamfUtilTest, ParseSequenceHeaderFailsOnTruncatedData) {
@@ -298,7 +298,7 @@ TEST(IamfUtilTest, ParseSequenceHeaderFailsOnTruncatedData) {
       << "Parsed IA Sequence Header OBU when an error was expected. Primary "
          "profile: "
       << result->primary_profile
-      << " additonal profile: " << result->additional_profile;
+      << " additional profile: " << result->additional_profile;
 }
 
 TEST(IamfUtilTest, ParseSequenceHeaderFailsOnTruncatedLeb128) {
@@ -310,7 +310,7 @@ TEST(IamfUtilTest, ParseSequenceHeaderFailsOnTruncatedLeb128) {
       << "Parsed IA Sequence Header OBU when an error was expected. Primary "
          "profile: "
       << result->primary_profile
-      << " additonal profile: " << result->additional_profile;
+      << " additional profile: " << result->additional_profile;
 }
 
 TEST(IamfUtilTest, ParseSequenceHeaderFailsOnInvalid5ByteLeb128) {
@@ -323,7 +323,7 @@ TEST(IamfUtilTest, ParseSequenceHeaderFailsOnInvalid5ByteLeb128) {
       << "Parsed IA Sequence Header OBU when an error was expected. Primary "
          "profile: "
       << result->primary_profile
-      << " additonal profile: " << result->additional_profile;
+      << " additional profile: " << result->additional_profile;
 }
 
 TEST(IamfUtilTest, ParseSequenceHeaderFailsWhenObuSizeExceedsBufferSize) {
@@ -337,7 +337,7 @@ TEST(IamfUtilTest, ParseSequenceHeaderFailsWhenObuSizeExceedsBufferSize) {
       << "Parsed IA Sequence Header OBU when an error was expected. Primary "
          "profile: "
       << result->primary_profile
-      << " additonal profile: " << result->additional_profile;
+      << " additional profile: " << result->additional_profile;
 }
 
 TEST(IamfUtilTest, ParseSequenceHeaderFailsWhenObuSizeIsTooSmall) {
@@ -351,7 +351,7 @@ TEST(IamfUtilTest, ParseSequenceHeaderFailsWhenObuSizeIsTooSmall) {
       << "Parsed IA Sequence Header OBU when an error was expected. Primary "
          "profile: "
       << result->primary_profile
-      << " additonal profile: " << result->additional_profile;
+      << " additional profile: " << result->additional_profile;
 }
 
 }  // namespace
