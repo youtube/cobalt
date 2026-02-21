@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/url-search-params/1.1.0/url-search-params.js"></script>
+    <title>Download speed test</title>
+    <style>
+        body {
+            background-color: #fff;
+        }
+
+        #progress-container {
+            width: 100%;
+            height: 50px;
+            background-color: #ddd;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        #progress-bar {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            width: 0%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .error {
+            background-color: #f44336 !important;
+        }
+
+        #progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        #speed-text,
+        #avg-speed-text {
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .table-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .table-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+
+        .table-cell {
+            margin: 0 10px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <div id="progress-container">
+            <div id="progress-bar"><span id="progress-text">0%</span></div>
+        </div>
+        <div id="speed-text">Instantaneous Speed: 0 kbps</div>
+        <div id="avg-speed-text">Average Speed: 0 kbps</div>
+        <div class="table-container">
+            <div class="table-row">
+                <div class="table-cell">Chunk Size: <span id="chunkSizeValue"></span></div>
+                <div class="table-cell">Limit Kbps: <span id="limitKbpsValue"></span></div>
+                <div class="table-cell">QUIC: <span id="quicValue"></span></div>
+            </div>
+        </div>
+        <div id="currentParamsLink" class="params-link-container">
+            <a id="paramsLink" href="#">Current Page with Parameters</a>
+        </div>
+    </div>
+
+    <script>
+        class Download {
+            constructor(config) {
+                this.startTime = performance.now();
+                this.lastTime = this.startTime;
+                this.currentTime = this.startTime;
+                this.lastUpdateTime = this.startTime;
+                this.totalBytesDownloaded = 0;
+                this.bytesDownloadedSinceLastUpdate = 0;
+                this.limitBytesBps = (config.limitKbps * 1024) / 8;
+                this.nextChunkDelay = 0;
+                this.contentLength = config.contentLength;
+            }
+
+            update(bytes) {
+                this.currentTime = performance.now();
+                this.totalBytesDownloaded += bytes;
+                this.bytesDownloadedSinceLastUpdate += bytes;
+
+                if ((this.currentTime - this.lastUpdateTime) >= 1000) { // Update display every second
+                    this.updateDisplay();
+                    this.lastUpdateTime = this.currentTime;
+                }
+                const targetTime = this.startTime + (this.totalBytesDownloaded / this.limitBytesBps) * 1000; // target timestamp in ms
+                this.nextChunkDelay = Math.max(0, targetTime - this.currentTime - 10); // Calculate delay with a small bias (10 ms)
+            }
+
+            updateDisplay() {
+                const elapsedTime = (this.currentTime - this.startTime) / 1000; // in seconds
+                const speedKbps = (this.totalBytesDownloaded * 8) / (elapsedTime * 1024); // in kbps
+                const totalElapsedTime = (this.currentTime - this.startTime) / 1000; // in seconds
+                const avgSpeedKbps = (this.totalBytesDownloaded * 8) / (totalElapsedTime * 1024); // in kbps
+                updateSpeedText(speedKbps);
+                updateAvgSpeedText(avgSpeedKbps);
+                const progress = (this.totalBytesDownloaded / this.contentLength) * 100;
+                let progressBarText = `${parseInt(progress)}%`;
+                let isError = false;
+                if (speedKbps * 1.05 < this.limitBytesBps * 8 / 1024) {
+                    progressBarText = 'Error: Download speed too slow';
+                    isError = true;
+                }
+                updateProgressBar(progress, progressBarText, isError);
+            }
+        }
+
+        async function fetchStream(url, config) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const download = new Download(config);
+
+            let accumulatedBuffer = new Uint8Array(Math.max(1024 * 1024, config.chunkSize * 2)); // overallocate buffer to avoid any reallocs
+            let accumulatedBytes = 0;
+
+            async function read() {
+                const { done, value } = await reader.read();
+                if (done) {
+                    updateProgressBar(100, 'Download complete');
+                    return;
+                }
+
+                const newSize = accumulatedBytes + value.length;
+                if (newSize > accumulatedBuffer.length) {
+                    throw new Error(`Buffer error! new value exceeds buffer length: ${newSize} buffer size:${accumulatedBuffer.length}`);
+                }
+                accumulatedBuffer.set(value, accumulatedBytes);
+                accumulatedBytes += value.length;
+
+                if (accumulatedBytes >= config.chunkSize) {
+                    download.update(accumulatedBytes);
+                    accumulatedBytes = 0; // reset for the next chunk
+                    await new Promise(resolve => setTimeout(resolve, download.nextChunkDelay));
+                }
+
+                await read();
+            }
+
+            await read();
+        }
+
+        async function fetchBYOBStream(url, config) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader({ mode: 'byob' });
+            const download = new Download(config);
+
+            let accumulatedBytes = 0;
+
+            async function read() {
+                // Allocate a fresh buffer for each read operation
+                const readBuffer = new Uint8Array(config.chunkSize);
+                const { done, value } = await reader.read(readBuffer);
+
+                if (done) {
+                    updateProgressBar(100, 'Download complete');
+                    return;
+                }
+
+                accumulatedBytes += value.byteLength;
+
+                if (accumulatedBytes >= config.chunkSize) {
+                    download.update(accumulatedBytes);
+                    accumulatedBytes = 0; // reset for the next chunk
+                    await new Promise(resolve => setTimeout(resolve, download.nextChunkDelay));
+                }
+
+                await read();
+            }
+
+            await read();
+        }
+
+        async function fetchXhr(url, config) {
+            const download = new Download(config);
+
+            let accumulatedBuffer = new Uint8Array(Math.max(1024 * 1024, config.chunkSize * 2)); // overallocate buffer to avoid any reallocs
+            let accumulatedBytes = 0;
+
+            function fetchNextChunk(start, end) {
+                return new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', url, true);
+                    xhr.responseType = 'arraybuffer';
+                    xhr.setRequestHeader('Range', `bytes=${start}-${end}`);
+
+                    xhr.onload = () => {
+                        if (xhr.status === 206 || xhr.status === 200) {
+                            const chunk = new Uint8Array(xhr.response);
+                            const newSize = accumulatedBytes + chunk.length;
+                            if (newSize > accumulatedBuffer.length) {
+                                reject(new Error(`Buffer error! new value exceeds buffer length: ${newSize} buffer size:${accumulatedBuffer.length}`));
+                                return;
+                            }
+                            accumulatedBuffer.set(chunk, accumulatedBytes);
+                            accumulatedBytes += chunk.length;
+
+                            if (accumulatedBytes >= config.chunkSize) {
+                                download.update(accumulatedBytes);
+                                accumulatedBytes = 0; // reset for the next chunk
+                            }
+
+                            resolve(chunk.length);
+                        } else {
+                            reject(new Error(`HTTP error! Status: ${xhr.status}`));
+                        }
+                    };
+
+                    xhr.onerror = () => {
+                        reject(new Error('Network error'));
+                    };
+
+                    xhr.send();
+                });
+            }
+
+            let start = 0;
+            let end = config.chunkSize - 1;
+
+            while (start < download.contentLength) {
+                try {
+                    const chunkSize = await fetchNextChunk(start, end);
+                    start += chunkSize;
+                    end = Math.min(start + config.chunkSize - 1, download.contentLength - 1);
+                    await new Promise(resolve => setTimeout(resolve, download.nextChunkDelay));
+                } catch (error) {
+                    updateProgressBar(0, `Download error: ${error.message}`, true);
+                    break;
+                }
+            }
+
+            updateProgressBar(100, 'Download complete');
+        }
+
+
+        function updateProgressBar(progress, text, isError = false) {
+            const width = isError ? Math.max(30, progress) : progress;
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = width + '%';
+            progressBar.classList.toggle('error', isError);
+            const progressText = document.getElementById('progress-text');
+            progressText.textContent = text;
+        }
+
+        function updateSpeedText(speed) {
+            const speedText = document.getElementById('speed-text');
+            speedText.textContent = `Instantaneous Speed: ${speed.toFixed(2)} kbps`;
+        }
+
+        function updateAvgSpeedText(avgSpeed) {
+            const avgSpeedText = document.getElementById('avg-speed-text');
+            avgSpeedText.textContent = `Average Speed: ${avgSpeed.toFixed(2)} kbps`;
+        }
+
+        function updateUrlParams(config, mode) {
+            document.getElementById('chunkSizeValue').textContent = (config.chunkSize / 1024) + ' KB';
+            document.getElementById('limitKbpsValue').textContent = config.limitKbps + ' kbps';
+            document.getElementById('quicValue').textContent = config.quic ? 'Enabled' : 'Disabled';
+            const url = new URL(window.location.href);
+            url.searchParams.set('chunksize', config.chunkSize / 1024);
+            url.searchParams.set('limitkbps', config.limitKbps);
+            url.searchParams.set('quic', config.quic);
+            url.searchParams.set('mode', mode);
+            document.getElementById('paramsLink').href = url.toString();
+            document.getElementById('paramsLink').textContent = url.toString();
+        }
+
+        function downloadDemo() {
+            const urlSearchParams = new URLSearchParams(window.location.search);
+            const params = Object.fromEntries(urlSearchParams.entries());
+            const config = {
+                limitKbps: params.limitkbps || 30000,
+                chunkSize: (params.chunksize || 1024) * 1024,
+                contentLength: 500 * 1024 * 1024,
+                quic: params.quic || 0
+            };
+            const mode = params.mode || 'xhr';
+            const downloadFunction = { 'fetch': fetchStream, 'xhr': fetchXhr, 'byob': fetchBYOBStream }[mode];
+            updateUrlParams(config, mode);
+            if (window.h5vcc && window.h5vcc.settings) {
+                console.log(`setting quic to ${config.quic}`);
+                h5vcc.settings.set('QUIC', config.quic);
+            }
+
+            const url = 'https://storage.googleapis.com/kk_testfiles/bbb_sunflower_2160p_60fps_normal.mp4';
+            downloadFunction(url, config).catch(error => {
+                console.error('Download error:', error);
+                updateProgressBar(0, `Download error ${error}`, true);
+            });
+        }
+        window.onload = setTimeout(downloadDemo, 500);
+
+    </script>
+</body>
+
+</html>
