@@ -78,6 +78,11 @@ std::string SbSysInfo::Brand() {
   __system_property_get("ro.product.brand", brand_str);
   return std::string(brand_str);
 }
+
+std::string SbSysInfo::OSFriendlyName() {
+  return "AOSP";
+}
+
 #elif BUILDFLAG(IS_STARBOARD)
 std::string SbSysInfo::OriginalDesignManufacturer() {
   return GetSystemPropertyString(kSbSystemPropertySystemIntegratorName);
@@ -93,6 +98,10 @@ std::string SbSysInfo::ModelYear() {
 
 std::string SbSysInfo::Brand() {
   return GetSystemPropertyString(kSbSystemPropertyBrandName);
+}
+
+std::string SbSysInfo::OSFriendlyName() {
+  return GetSystemPropertyString(kSbSystemPropertyFriendlyName);
 }
 
 #elif BUILDFLAG(IS_IOS_TVOS)
@@ -150,6 +159,11 @@ std::string SbSysInfo::ModelYear() {
 
 std::string SbSysInfo::Brand() {
   return "Apple";
+}
+
+std::string SbSysInfo::OSFriendlyName() {
+  NOTIMPLEMENTED();
+  return ""
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
