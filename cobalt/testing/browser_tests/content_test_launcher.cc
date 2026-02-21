@@ -46,7 +46,7 @@ class ContentBrowserTestSuite : public ContentTestSuiteBase {
   ContentBrowserTestSuite& operator=(const ContentBrowserTestSuite&) = delete;
 
   ~ContentBrowserTestSuite() override {}
-
+  
  protected:
   void Initialize() override {
     // Browser tests are expected not to tear-down various globals.
@@ -58,6 +58,7 @@ class ContentBrowserTestSuite : public ContentTestSuiteBase {
     RegisterInProcessThreads();
 #endif
   }
+
 };
 
 class ContentTestLauncherDelegate : public TestLauncherDelegate {

@@ -38,10 +38,18 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_H_
 #define COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_H_
 
+#include <memory>
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "build/build_config.h"
 #include "content/public/test/browser_test_base.h"
+
+namespace base {
+class Thread;
+}  // namespace base
+
+struct SbEvent;
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/scoped_nsautorelease_pool.h"
@@ -52,6 +60,11 @@ class Shell;
 
 // Base class for browser tests which use content_shell.
 class ContentBrowserTest : public BrowserTestBase {
+
+//  public: 
+//   // Member functions for handling Starboard events.
+//   void OnStarboardEvent(const SbEvent* event);
+
  protected:
   ContentBrowserTest();
   ~ContentBrowserTest() override;
@@ -90,6 +103,9 @@ class ContentBrowserTest : public BrowserTestBase {
   // time code is directly executed.
   raw_ptr<base::mac::ScopedNSAutoreleasePool> pool_ = nullptr;
 #endif
+
+  // std::unique_ptr<base::Thread> starboard_thread_;
+  // base::WaitableEvent starboard_setup_complete_;
 
   // Used to detect incorrect overriding of PreRunTestOnMainThread() with
   // missung call to base implementation.

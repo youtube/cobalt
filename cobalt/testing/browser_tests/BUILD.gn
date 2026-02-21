@@ -123,6 +123,10 @@ static_library("browsertest_support") {
     deps += [ "//ui/views" ]
   }
 
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+  }
+
   configs += [ "//v8:external_startup_data" ]
 }
 
@@ -199,6 +203,7 @@ test("cobalt_browsertests") {
     "content_main_runner_impl_browsertest.cc",
     "encrypted_media_browsertest.cc",
     "frame_tree_browsertest.cc",
+    "main.cc",
     "media_browsertest.cc",
     "media_browsertest.h",
     "media_session_browsertest.cc",
@@ -404,7 +409,7 @@ test("cobalt_browsertests") {
     deps += [ "//ui/events:test_support" ]
   }
 
-  if (is_linux && !is_tsan) {
+if (is_linux && !is_tsan) {
     deps += [
       "//cobalt/shell:shell_controller_mojom",
       "//components/variations:variations",
@@ -414,7 +419,10 @@ test("cobalt_browsertests") {
     ]
     data_deps += [ "//mojo/core:shared_library" ]
     if (use_ozone) {
-      deps += [ "//ui/ozone" ]
+      deps += [
+        "//ui/ozone",
+        "//ui/ozone/platform/starboard:starboard",
+      ]
     }
   }
 }

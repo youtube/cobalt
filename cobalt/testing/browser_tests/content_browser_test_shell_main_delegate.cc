@@ -14,10 +14,15 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 
+#include "base/base_paths.h"
+#include "base/files/file_path.h"
+#include "base/path_service.h"
+#include "build/build_config.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
+#include "ui/base/resource/resource_bundle.h"
 
 namespace content {
 
@@ -26,6 +31,21 @@ ContentBrowserTestShellMainDelegate::ContentBrowserTestShellMainDelegate()
 
 ContentBrowserTestShellMainDelegate::~ContentBrowserTestShellMainDelegate() =
     default;
+
+void ContentBrowserTestShellMainDelegate::InitializeResourceBundle() {
+#if BUILDFLAG(IS_MAC)
+  // On Mac, the content_shell Framework includes the resources.
+  base::FilePath pak_file = GetResourcesPakFilePath();
+  ui::ResourceBundle::InitSharedInstanceWithPakPath(pak_file);
+#else
+  // On other platforms, the browser test resources are in a separate .pak file.
+  base::FilePath pak_file;
+  bool r = base::PathService::Get(base::DIR_ASSETS, &pak_file);
+  DCHECK(r);
+  pak_file = pak_file.Append(FILE_PATH_LITERAL("content_test.pak"));
+  ui::ResourceBundle::InitSharedInstanceWithPakPath(pak_file);
+#endif
+}
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 absl::optional<int>
