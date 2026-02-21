@@ -151,6 +151,33 @@ class TestCollectTestArtifactsMain(unittest.TestCase):
       mock_error.assert_called_once()
       self.assertIn('cannot be an absolute path', mock_error.call_args[0][0])
 
+  @mock.patch('collect_test_artifacts.find_runtime_deps')
+  @mock.patch('collect_test_artifacts.copy_if_needed')
+  @mock.patch('collect_test_artifacts.generate_runner_py')
+  @mock.patch('subprocess.run')
+  @mock.patch('os.makedirs')
+  @mock.patch('os.path.isdir', return_value=True)
+  @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
+  def test_main_tar_command(self, mock_which, mock_isdir, mock_makedirs,
+                            mock_run, mock_gen_runner, mock_copy,
+                            mock_find_deps):
+    # pylint: disable=too-many-positional-arguments
+    del mock_which, mock_isdir, mock_makedirs, mock_gen_runner, mock_copy
+    mock_find_deps.return_value = Path('out/dir/deps')
+    # Mock the open() call inside main for the runtime_deps file
+    with mock.patch('builtins.open', mock.mock_open(read_data='file1\n')):
+      test_args = ['collect_test_artifacts.py', 'out/dir', '-o', 'out.tar.gz']
+      with mock.patch('sys.argv', test_args):
+        collect_test_artifacts.main()
+
+    # The last subprocess.run call should be the tar command
+    self.assertTrue(mock_run.called)
+    tar_cmd = mock_run.call_args[0][0]
+    self.assertEqual(tar_cmd[0], 'tar')
+    self.assertIn('--owner=0', tar_cmd)
+    self.assertIn('--group=0', tar_cmd)
+    self.assertIn('--numeric-owner', tar_cmd)
+
 
 if __name__ == '__main__':
   unittest.main()

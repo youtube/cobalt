@@ -5,10 +5,12 @@
   ],
   "test_package": true,
   "test_on_host": true,
+  "use_browser_test": true,
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 10,
   "targets": [
     "cobalt:gn_all",
+    "cobalt/testing/browser_tests:cobalt_browsertests_runner",
     "chromedriver",
     "dump_syms",
     "minidump_stackwalk"

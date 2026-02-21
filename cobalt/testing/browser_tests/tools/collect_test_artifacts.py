@@ -243,7 +243,8 @@ def main():
       raise ValueError(f'Unsupported compression: {args.compression}')
 
     subprocess.run([
-        'tar', '-I', compression_flag, '-C', stage_dir, '-cf', args.output, '.'
+        'tar', '--owner=0', '--group=0', '--numeric-owner', '-I',
+        compression_flag, '-C', stage_dir, '-cf', args.output, '.'
     ],
                    check=True)
 
