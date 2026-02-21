@@ -29,13 +29,10 @@
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
   ReceiveMessageCallback receive_callback;
-  const char* name;
+  std::string name;
   jobject cobalt_service;
 
   ~CobaltExtensionPlatformServicePrivate() {
-    if (name) {
-      delete name;
-    }
     if (cobalt_service) {
       JNIEnv* env = base::android::AttachCurrentThread();
       env->DeleteGlobalRef(cobalt_service);
@@ -87,8 +84,8 @@ void Close(CobaltExtensionPlatformService service) {
       base::android::JavaParamRef<jobject>(env, service->cobalt_service);
   Java_CobaltService_onClose(env, j_cobalt_service);
 
-  starboard::StarboardBridge::GetInstance()->CloseCobaltService(env,
-                                                                service->name);
+  starboard::StarboardBridge::GetInstance()->CloseCobaltService(
+      env, service->name.c_str());
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -117,7 +114,12 @@ void* Send(CobaltExtensionPlatformService service,
   auto j_out_data = Java_ResponseToClient_getData(env, j_response);
   int data_length = base::android::SafeGetArrayLength(env, j_out_data);
   SB_CHECK_GE(data_length, 0);
-  char* output = new char[data_length];
+  void* output = malloc(data_length);
+  if (!output) {
+    *output_length = 0;
+    return nullptr;
+  }
+
   env->GetByteArrayRegion(j_out_data.obj(), 0, data_length,
                           reinterpret_cast<jbyte*>(output));
 

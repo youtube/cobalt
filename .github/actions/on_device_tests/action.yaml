@@ -146,3 +146,14 @@ runs:
       with:
         name: ${{ inputs.test_results_key }}
         path: ${{ env.test_output }}/*
+    - name: Get Deflake Max Attempts
+      id: deflake-attempts
+      run: |
+        MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
+        echo "max_attempts=${MAX_ATTEMPTS}" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Run Nightly Deflake
+      # Deflake workflow retries MAX_ATTEMPTS times. Pass the last to keep dashboard green.
+      if: github.event_name == 'schedule' && github.run_attempt != steps.deflake-attempts.outputs.max_attempts
+      run: echo "::warning::Triggering deflaking run by failing." && exit 1
+      shell: bash
