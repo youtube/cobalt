@@ -30,6 +30,8 @@ source_set("browser") {
     "cobalt_secure_navigation_throttle.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "performance/performance_impl.cc",
+    "performance/performance_impl.h",
   ]
 
   if (is_androidtv) {
@@ -39,10 +41,7 @@ source_set("browser") {
     ]
   }
 
-  public_deps = [
-    "//cobalt/browser/performance",
-    "//content/public/browser",
-  ]
+  public_deps = [ "//content/public/browser" ]
 
   deps = [
     ":features",
