@@ -2,6 +2,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if(is_cobalt) {
+
+  # Hack out a heavy dependency chain
+source_set("browser") {
+  check_includes = false
+  sources = [
+    "content_settings_manager_impl.h",
+    "page_specific_content_settings.h",
+  ]
+  deps = [
+    "//base",
+    "//content/public/browser",
+    "//content/public/common",
+    "//components/content_settings/common:mojom",# Build the Mojom files
+  ]
+}
+} else {
+
 source_set("browser") {
   sources = [
     "content_settings_manager_impl.cc",
@@ -25,6 +43,8 @@ source_set("browser") {
     "//content/public/browser",
     "//content/public/common",
   ]
+}
+
 }
 
 source_set("test_support") {
