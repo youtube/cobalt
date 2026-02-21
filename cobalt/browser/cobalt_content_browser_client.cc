@@ -362,7 +362,7 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
     LOG(INFO) << "Creating UpdaterModule singleton.";
     updater::UpdaterModule::CreateInstance(
         storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        updater::kDefaultUpdateCheckDelay);
+        GetUserAgent(), updater::kDefaultUpdateCheckDelay);
   }
 #endif
 }

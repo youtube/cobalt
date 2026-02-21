@@ -15,9 +15,9 @@
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
                 "libcobalt.so",
-                "libcrash_sandbox.so",
-                "libnoop_sandbox.so",
-                "libone_app_only_sandbox.so",
+                "app/crash_sandbox/lib/libcrash_sandbox.lz4",
+                "app/noop_sandbox/lib/libnoop_sandbox.lz4",
+                "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
                 "loader_app",
                 {
                     "from_file": "cobalt_shell.pak",
@@ -50,16 +50,16 @@
                     "to_file": "licenses_cobalt.txt"
                 },
                 {
-                    "from_file": "libcrash_sandbox.so",
-                    "to_file": "lib/test_apps/tcrash/libcobalt.so"
+                    "from_file": "app/crash_sandbox/lib/libcrash_sandbox.lz4",
+                    "to_file": "lib/test_apps/tcrash/libcobalt.lz4"
                 },
                 {
-                    "from_file": "libnoop_sandbox.so",
-                    "to_file": "lib/test_apps/tnoop/libcobalt.so"
+                    "from_file": "app/noop_sandbox/lib/libnoop_sandbox.lz4",
+                    "to_file": "lib/test_apps/tnoop/libcobalt.lz4"
                 },
                 {
-                    "from_file": "libone_app_only_sandbox.so",
-                    "to_file": "lib/test_apps/t1app/libcobalt.so"
+                    "from_file": "app/one_app_only_sandbox/lib/libone_app_only_sandbox.lz4",
+                    "to_file": "lib/test_apps/t1app/libcobalt.lz4"
                 }
             ],
             "dirs": [

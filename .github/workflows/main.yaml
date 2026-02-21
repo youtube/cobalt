@@ -544,7 +544,7 @@ jobs:
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
@@ -594,7 +594,7 @@ jobs:
         with:
           name: ci-essentials-${{ inputs.platform }}
       - name: Download Test Results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
