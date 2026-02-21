@@ -59,7 +59,7 @@ runs:
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_ATTEMPTS: ${{ inputs.test_attempts }}
-        TEST_TYPE: unit_test
+        TEST_TYPE: browser_test
         DEVICE_FAMILY: ${{ inputs.test_device_family }}
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
         DOCKER_TAG: ${{ inputs.docker_tag }}
