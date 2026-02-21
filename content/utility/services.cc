@@ -196,12 +196,14 @@ auto RunNetworkService(
       /*delay_initialization_until_set_client=*/true);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunAuctionWorkletService(
     mojo::PendingReceiver<auction_worklet::mojom::AuctionWorkletService>
         receiver) {
   return auction_worklet::AuctionWorkletServiceImpl::CreateForService(
       std::move(receiver));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 auto RunAudio(mojo::PendingReceiver<audio::mojom::AudioService> receiver) {
 #if BUILDFLAG(IS_MAC)
@@ -272,12 +274,14 @@ auto RunCdmServiceBroker(
 }
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunDataDecoder(
     mojo::PendingReceiver<data_decoder::mojom::DataDecoderService> receiver) {
   UtilityThread::Get()->EnsureBlinkInitialized();
   return std::make_unique<data_decoder::DataDecoderService>(
       std::move(receiver));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
 auto RunAccessibilityService(
@@ -307,17 +311,20 @@ auto RunMediaDrmSupportService(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunStorageService(
     mojo::PendingReceiver<storage::mojom::StorageService> receiver) {
   return std::make_unique<storage::StorageServiceImpl>(
       std::move(receiver), ChildProcess::current()->io_task_runner());
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 auto RunTracing(
     mojo::PendingReceiver<tracing::mojom::TracingService> receiver) {
   return std::make_unique<tracing::TracingService>(std::move(receiver));
 }
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunVideoCapture(
     mojo::PendingReceiver<video_capture::mojom::VideoCaptureService> receiver) {
 #if BUILDFLAG(IS_CHROMEOS)
@@ -340,6 +347,7 @@ auto RunVideoCapture(
 
   return service;
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
 auto RunVideoEffects(
@@ -415,13 +423,19 @@ void RegisterIOThreadServices(mojo::ServiceFactory& services) {
 }
 
 void RegisterMainThreadServices(mojo::ServiceFactory& services) {
+#if !BUILDFLAG(IS_COBALT)
   services.Add(RunAuctionWorkletService);
+#endif
   services.Add(RunAudio);
 
+#if !BUILDFLAG(IS_COBALT)
   services.Add(RunDataDecoder);
   services.Add(RunStorageService);
+#endif
   services.Add(RunTracing);
+#if !BUILDFLAG(IS_COBALT)
   services.Add(RunVideoCapture);
+#endif
 
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
   services.Add(RunVideoEffects);
