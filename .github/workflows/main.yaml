@@ -21,6 +21,8 @@ on:
     secrets:
       datadog_api_key:
         required: false
+      sccache_gcs_key:
+        required: false
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
@@ -436,7 +438,8 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          enable_sccache: ${{ needs.initialize.outputs.enable_sccache }}
+          enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' && secrets.sccache_gcs_key != '' }}
+          sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
