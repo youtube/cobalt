@@ -33,8 +33,8 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     bool enable_reset_audio_decoder = false;
     std::optional<int> initial_max_frames_in_decoder;
     std::optional<int> max_pending_input_frames;
-    std::optional<int> video_decoder_poll_interval_ms;
     std::optional<int> max_samples_per_write;
+    std::optional<int> video_decoder_poll_interval_ms;
   };
 
   StarboardRendererConfig();

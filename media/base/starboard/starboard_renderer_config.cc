@@ -49,10 +49,10 @@ std::ostream& operator<<(
             << opt_to_string(features.initial_max_frames_in_decoder)
             << ", max_pending_input_frames="
             << opt_to_string(features.max_pending_input_frames)
-            << ", video_decoder_poll_interval_ms="
-            << opt_to_string(features.video_decoder_poll_interval_ms)
             << ", max_samples_per_write="
-            << opt_to_string(features.max_samples_per_write) << "}";
+            << opt_to_string(features.max_samples_per_write)
+            << ", video_decoder_poll_interval_ms="
+            << opt_to_string(features.video_decoder_poll_interval_ms) << "}";
 }
 
 }  // namespace media
