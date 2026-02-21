@@ -8,6 +8,9 @@
 
 import("//build/config/ui.gni")
 import("../webrtc.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 if (is_android) {
   import("//build/config/android/rules.gni")
   import("//third_party/jni_zero/jni_zero.gni")
@@ -79,7 +82,7 @@ rtc_library("frame_generator_impl") {
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 
-  if (is_starboard) {
+  if (is_cobalt && (is_starboard || use_starboard_media)) {
     deps -= [
       "../modules/video_coding:webrtc_vp8",
       "../modules/video_coding:webrtc_vp9"
@@ -562,7 +565,7 @@ rtc_library("video_test_support") {
     "../rtc_base/system:file_wrapper",
   ]
 
-  if (is_starboard) {
+  if (is_cobalt && (is_starboard || use_starboard_media)) {
     deps -= [
       "../modules/video_coding:webrtc_vp8",
       "../modules/video_coding:webrtc_vp9",
@@ -786,7 +789,7 @@ if (rtc_include_tests) {
         "//third_party/libyuv",
       ]
 
-      if (is_starboard) {
+      if (is_cobalt && (is_starboard || use_starboard_media)) {
         deps -= [
           "../modules/video_coding:webrtc_vp8",
           "../modules/video_coding:webrtc_vp9",

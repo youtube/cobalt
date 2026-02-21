@@ -20,7 +20,7 @@
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/av1/dav1d_decoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
-#if !BUILDFLAG(IS_STARBOARD)
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
 #include "modules/video_coding/codecs/vp8/include/vp8.h" //nogncheck
 #include "modules/video_coding/codecs/vp9/include/vp9.h" //nogncheck
 #endif
