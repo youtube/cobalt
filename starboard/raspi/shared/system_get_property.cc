@@ -149,15 +149,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertySpeechApiKey:
       return false;
 
-    // Implementation provided for testing purposes only
-    case kSbSystemPropertyAdvertisingId:
-      return CopyStringAndTestIfSuccess(
-          out_value, value_length,
-          starboard::GetEnvironment("COBALT_ADVERTISING_ID").c_str());
-    case kSbSystemPropertyLimitAdTracking:
-      return CopyStringAndTestIfSuccess(
-          out_value, value_length,
-          starboard::GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
 
     case kSbSystemPropertyFriendlyName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);

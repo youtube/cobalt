@@ -80,6 +80,9 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     return third_party::starboard::rdk::shared::GetAccessibilityApi();
   }
+  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
+    return third_party::starboard::rdk::shared::GetIfaApi();
+  }
   return NULL;
 }
 

@@ -8,6 +8,8 @@ since the version previous to it.
 **NOTE: Starboard versions 16 and older are no longer supported.**
 
 ## Version 17
+### Removed kSbSystemPropertyAdvertisingId and kSbSystemPropertyLimitAdTracking
+The functionality is migrated to the IFA extension.
 Starboard 17 fully switches to POSIX APIs.
 
 ### Removed SbCPUFeaturesGet

@@ -20,8 +20,10 @@
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/ifa.h"
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
+#include "starboard/raspi/shared/ifa.h"
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
@@ -52,6 +54,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     return starboard::GetGraphicsApi();
+  }
+  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
+    return starboard::raspi::GetIfaApi();
   }
 #if BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
