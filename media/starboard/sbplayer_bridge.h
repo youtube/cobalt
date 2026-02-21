@@ -42,6 +42,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
@@ -69,13 +70,7 @@ class SbPlayerBridge {
   typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
       GetDecodeTargetGraphicsContextProviderFunc;
 
-  struct ExperimentalFeatures {
-    bool flush_decoder_during_reset = false;
-    bool reset_audio_decoder = false;
-    std::optional<int> initial_max_frames_in_decoder;
-    std::optional<int> max_pending_input_frames;
-    std::optional<int> video_decoder_poll_interval_ms;
-  };
+  using ExperimentalFeatures = StarboardRendererConfig::ExperimentalFeatures;
 
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>

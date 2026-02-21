@@ -815,10 +815,10 @@ void SbPlayerBridge::CreatePlayer() {
       player_configurate_seek_extension->version >= 1) {
     player_configurate_seek_extension
         ->SetForceFlushDecoderDuringResetForCurrentThread(
-            experimental_features_.flush_decoder_during_reset);
+            experimental_features_.enable_flush_during_seek);
     player_configurate_seek_extension
         ->SetForceResetAudioDecoderForCurrentThread(
-            experimental_features_.reset_audio_decoder);
+            experimental_features_.enable_reset_audio_decoder);
   }
 
   const StarboardExtensionVideoDecoderConfigurationApi*
