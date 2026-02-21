@@ -155,8 +155,9 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient()
-    : video_geometry_setter_service_(
+CobaltContentBrowserClient::CobaltContentBrowserClient(int64_t startup_time)
+    : startup_timestamp_(startup_time),
+      video_geometry_setter_service_(
           std::unique_ptr<cobalt::media::VideoGeometrySetterService,
                           base::OnTaskRunnerDeleter>(
               nullptr,

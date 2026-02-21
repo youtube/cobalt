@@ -28,7 +28,13 @@ namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate(bool is_content_browsertests = false);
+  void SetAppStartupTimestamp(int64_t timestamp) {
+    startup_timestamp_ = timestamp;
+  }
+  int64_t GetAppStartupTimestamp() const { return startup_timestamp_; }
+
+  explicit CobaltMainDelegate(int64_t startup_timestamp = 0,
+                              bool is_content_browsertests = false);
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
@@ -54,6 +60,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   ~CobaltMainDelegate() override;
 
  private:
+  int64_t startup_timestamp_ = 0;
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;

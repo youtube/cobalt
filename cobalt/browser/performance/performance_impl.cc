@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #include "cobalt/browser/performance/performance_impl.h"
-#include "cobalt/browser/performance/startup_time.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
@@ -61,7 +62,8 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   auto startup_timestamp = starboard_bridge->GetAppStartTimestamp(env);
 #elif BUILDFLAG(IS_STARBOARD)
-  auto startup_timestamp = cobalt::browser::GetStartupTimestamp();
+  auto startup_timestamp =
+      cobalt::CobaltContentBrowserClient::Get()->GetAppStartupTimestamp();
 #else
 #error Unsupported platform.
 #endif
