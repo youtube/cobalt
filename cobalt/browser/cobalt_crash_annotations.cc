@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/cobalt_crash_annotations.h"
 
+#include "base/logging.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -44,6 +46,8 @@ void CobaltCrashAnnotations::SetAnnotation(const std::string& name,
   }
 
   if (annotations_.size() >= kMaxAnnotations) {
+    LOG(WARNING) << "Maximum number of crash annotations reached ("
+                 << kMaxAnnotations << "). Ignoring: " << name;
     return;
   }
 
