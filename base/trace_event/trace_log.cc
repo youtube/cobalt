@@ -449,6 +449,7 @@ void TraceLog::SetEnabled(const TraceConfig& trace_config) {
   source_chrome_config->set_convert_to_legacy_json(true);
 
   if (trace_config.GetTraceRecordMode() == base::trace_event::ECHO_TO_CONSOLE) {
+    InitializePerfettoIfNeeded();
     perfetto::ConsoleInterceptor::Register();
     source_config->mutable_interceptor_config()->set_name("console");
   }
