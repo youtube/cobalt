@@ -114,16 +114,17 @@ ScriptPromise ProcessDecoderBufferSettings(const ScriptContext& context,
           return;
         }
 
-        if (enable) {
-          LOG(INFO) << "Enabling " << name << ".";
-          it->value();
-          resolver->Resolve();
-        } else {
+        if (!enable) {
           LOG(WARNING) << name << " cannot be disabled.";
           resolver->Reject(V8ThrowException::CreateTypeError(
               context.script_state->GetIsolate(),
               name + " cannot be disabled."));
+          return;
         }
+
+        LOG(INFO) << "Enabling " << name << ".";
+        it->value();
+        resolver->Resolve();
       });
 }
 
