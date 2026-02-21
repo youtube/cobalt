@@ -180,3 +180,14 @@ source_set("command_line_logger") {
   ]
   deps = [ "//base" ]
 }
+
+source_set("cobalt_crash_annotations") {
+  sources = [
+    "cobalt_crash_annotations.cc",
+    "cobalt_crash_annotations.h",
+  ]
+  deps = [
+    "//base",
+    "//third_party/crashpad/crashpad/client",
+  ]
+}
