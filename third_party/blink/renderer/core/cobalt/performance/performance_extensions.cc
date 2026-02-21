@@ -14,9 +14,15 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "base/logging.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
 namespace blink {
@@ -55,14 +61,56 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
 
 ScriptPromise PerformanceExtensions::getAppStartupTime(
     ScriptState* script_state,
-    const Performance&,
+    const Performance& performance_obj,
     ExceptionState& exception_state) {
+  ExecutionContext* context = performance_obj.GetExecutionContext();
+  if (!context) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Context is missing.");
+    return ScriptPromise();
+  }
+
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-  int64_t startup_time = 0;
-  BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
   ScriptPromise promise = resolver->Promise();
-  resolver->Resolve(startup_time);
+
+  bool is_main_web_app = false;
+  if (context->IsWindow()) {
+    auto* window = static_cast<LocalDOMWindow*>(context);
+    LocalFrame* frame = window->GetFrame();
+    if (frame && frame->IsMainFrame()) {
+      const KURL& url = window->document()->Url();
+      // We check for splash screen URLs to exclude them from being considered
+      // as the main web app.
+      bool is_splash_screen_content =
+          url.Protocol() == content::kH5vccEmbeddedScheme ||
+          url.GetString().StartsWith(switches::kSplashScreenURL);
+      if (url.ProtocolIsInHTTPFamily() && !is_splash_screen_content) {
+        is_main_web_app = true;
+      }
+    }
+  }
+
+  if (is_main_web_app) {
+    int64_t startup_timestamp = 0;
+    BindRemotePerformance(script_state)->GetAppStartupTime(&startup_timestamp);
+
+    resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
+        performance_obj.GetTimeOriginInternal(),
+        base::TimeTicks::FromInternalValue(startup_timestamp),
+        true /* allow_negative_value */,
+        context->CrossOriginIsolatedCapability()));
+  } else {
+    // Only the main application should have access to startup metrics. For
+    // other contexts (like background service workers, iframes or the splash
+    // screen), we explicitly reject the promise as each of those contexts has
+    // its own timeline.
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kNotAllowedError,
+        "getAppStartupTime is only available in the main application "
+        "context."));
+  }
+
   return promise;
 }
 

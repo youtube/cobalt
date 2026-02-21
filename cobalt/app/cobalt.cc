@@ -31,6 +31,7 @@
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
@@ -113,7 +114,8 @@ void SbEventHandle(const SbEvent* event) {
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
+      g_content_main_delegate =
+          new cobalt::CobaltMainDelegate(event->timestamp);
       g_platform_event_source = new PlatformEventSourceStarboard();
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
@@ -126,7 +128,8 @@ void SbEventHandle(const SbEvent* event) {
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
+      g_content_main_delegate =
+          new cobalt::CobaltMainDelegate(event->timestamp);
       g_platform_event_source = new PlatformEventSourceStarboard();
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
