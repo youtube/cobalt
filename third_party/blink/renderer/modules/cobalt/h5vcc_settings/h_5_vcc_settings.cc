@@ -59,6 +59,30 @@ static_assert(
 using EnableFunction = void (*)();
 using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
 
+struct ScriptContext {
+  ScriptState* script_state;
+  const ExceptionContext& exception_context;
+};
+
+template <typename T, typename Callback>
+ScriptPromise ProcessLongAs(const ScriptContext& context,
+                            const V8UnionLongOrString* value,
+                            const String& name,
+                            Callback callback) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      context.script_state, context.exception_context);
+
+  if (!value->IsLong()) {
+    LOG(WARNING) << "The value for '" << name << "' must be a number.";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        context.script_state->GetIsolate(),
+        "The value for '" + name + "' must be a number."));
+    return resolver->Promise();
+  }
+  callback(resolver, static_cast<T>(value->GetAsLong()));
+  return resolver->Promise();
+}
+
 const SettingsMap& GetDecoderBufferSettings() {
   static const base::NoDestructor<SettingsMap> settings({
       {kEnableMediaBufferPoolAllocatorStrategy,
@@ -71,46 +95,37 @@ const SettingsMap& GetDecoderBufferSettings() {
 
 // Ideally this function should be moved to decoder_buffer.h.  It's kept here as
 // H5vccSettings will soon be deprecated and it's easier to remove from here.
-ScriptPromise ProcessDecoderBufferSettings(ScriptState* script_state,
+ScriptPromise ProcessDecoderBufferSettings(const ScriptContext& context,
                                            const WTF::String& name,
-                                           const V8UnionLongOrString* value,
-                                           ExceptionState& exception_state) {
+                                           const V8UnionLongOrString* value) {
   DCHECK(name.StartsWith(kDecoderBufferSettingPrefix));
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  auto promise = resolver->Promise();
+  return ProcessLongAs<bool>(
+      context, value, name, [&](ScriptPromiseResolver* resolver, bool enable) {
+        const auto& settings = GetDecoderBufferSettings();
+        auto it = settings.find(name);
 
-  if (!value->IsLong()) {
-    LOG(WARNING) << "The value for " << name << " must be a number.";
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(),
-        "The value for " + name + " must be a number."));
-    return promise;
-  }
+        if (it == settings.end()) {
+          LOG(WARNING) << name << " isn't a supported setting.";
+          // An unknown setting leads to TypeError.
+          resolver->Reject(V8ThrowException::CreateTypeError(
+              context.script_state->GetIsolate(),
+              name + " isn't a supported setting."));
+          return;
+        }
 
-  const auto& settings = GetDecoderBufferSettings();
-  auto it = settings.find(name);
+        if (!enable) {
+          LOG(WARNING) << name << " cannot be disabled.";
+          resolver->Reject(V8ThrowException::CreateTypeError(
+              context.script_state->GetIsolate(),
+              name + " cannot be disabled."));
+          return;
+        }
 
-  if (it != settings.end()) {
-    if (value->GetAsLong() != 0) {
-      LOG(INFO) << "Enabling " << name << ".";
-      it->value();
-      resolver->Resolve();
-    } else {
-      LOG(WARNING) << name << " cannot be disabled.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(), name + " cannot be disabled."));
-    }
-    return promise;
-  }
-
-  LOG(WARNING) << name << " isn't a supported setting.";
-  // An unknown setting leads to TypeError.
-  resolver->Reject(V8ThrowException::CreateTypeError(
-      script_state->GetIsolate(), name + " isn't a supported setting."));
-
-  return promise;
+        LOG(INFO) << "Enabling " << name << ".";
+        it->value();
+        resolver->Resolve();
+      });
 }
 
 }  // namespace
@@ -127,61 +142,50 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
                                  const WTF::String& name,
                                  const V8UnionLongOrString* value,
                                  ExceptionState& exception_state) {
+  ScriptContext context{script_state, exception_state.GetContext()};
+
   if (name.StartsWith(kDecoderBufferSettingPrefix)) {
-    return ProcessDecoderBufferSettings(script_state, name, value,
-                                        exception_state);
+    return ProcessDecoderBufferSettings(context, name, value);
   }
-
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  auto promise = resolver->Promise();
-
   if (name == kMediaAppendFirstSegmentSynchronously) {
-    if (value->IsLong()) {
-      append_first_segment_synchronously_ = (value->GetAsLong() != 0);
-      if (append_first_segment_synchronously_) {
-        LOG(INFO) << "Enable synchronous append of first media source segment.";
-      } else {
-        LOG(INFO) << "Disable synchronous append of first media source"
-                  << " segment.";
-      }
-      resolver->Resolve();
-    } else {
-      LOG(WARNING) << "The value for '" << kMediaAppendFirstSegmentSynchronously
-                   << "' must be a number.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(),
-          String("The value for '") + kMediaAppendFirstSegmentSynchronously +
-              "' must be a number."));
-    }
-    return promise;
+    return ProcessLongAs<bool>(
+        context, value, name,
+        [&](ScriptPromiseResolver* resolver, bool enable) {
+          append_first_segment_synchronously_ = enable;
+          if (enable) {
+            LOG(INFO)
+                << "Enable synchronous append of first media source segment.";
+          } else {
+            LOG(INFO) << "Disable synchronous append of first media source"
+                      << " segment.";
+          }
+          resolver->Resolve();
+        });
   }
-
   if (name == kMediaIncrementalParseLookAhead) {
-    if (value->IsLong()) {
-      bool enable = (value->GetAsLong() != 0);
-      if (enable) {
-        LOG(INFO) << "Enable incremental parse look ahead.";
-        ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
-        resolver->Resolve();
-      } else {
-        LOG(WARNING) << kMediaIncrementalParseLookAhead << " cannot be disabled.";
-        resolver->Reject(V8ThrowException::CreateTypeError(
-            script_state->GetIsolate(),
-            kMediaIncrementalParseLookAhead + String(" cannot be disabled.")));
-      }
-    } else {
-      LOG(WARNING) << "The value for '" << kMediaIncrementalParseLookAhead
-                   << "' must be a number.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(),
-          String("The value for '") + kMediaIncrementalParseLookAhead +
-              "' must be a number."));
-    }
-    return promise;
+    return ProcessLongAs<bool>(
+        context, value, name,
+        [&](ScriptPromiseResolver* resolver, bool enable) {
+          if (!enable) {
+            LOG(WARNING) << kMediaIncrementalParseLookAhead
+                         << " cannot be disabled.";
+            resolver->Reject(V8ThrowException::CreateTypeError(
+                context.script_state->GetIsolate(),
+                kMediaIncrementalParseLookAhead +
+                    String(" cannot be disabled.")));
+            return;
+          }
+
+          LOG(INFO) << "Enable incremental parse look ahead.";
+          ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+          resolver->Resolve();
+        });
   }
 
   EnsureReceiverIsBound();
+
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
 
   h5vcc_settings::mojom::blink::ValuePtr mojo_value;
   if (value->IsString()) {
@@ -194,7 +198,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
     NOTREACHED();
     resolver->Reject(V8ThrowException::CreateTypeError(
         script_state->GetIsolate(), "Unsupported type."));
-    return promise;
+    return resolver->Promise();
   }
 
   ongoing_requests_.insert(resolver);
@@ -202,7 +206,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       name, std::move(mojo_value),
       WTF::BindOnce(&H5vccSettings::OnSetValueFinished, WrapPersistent(this),
                     WrapPersistent(resolver)));
-  return promise;
+  return resolver->Promise();
 }
 
 void H5vccSettings::OnSetValueFinished(ScriptPromiseResolver* resolver) {
