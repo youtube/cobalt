@@ -77,6 +77,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/storage_write_record.cc",
+    "//starboard/shared/stub/system_get_extensions.cc",
     "//starboard/shared/stub/system_symbolize.cc",
     "application_darwin.h",
     "application_darwin.mm",
@@ -163,21 +164,43 @@ static_library("starboard_platform") {
 
   sources += common_player_sources
 
-  sources += [
-    # TODO: b/469333751, b/460479616 - the tvOS versions depend on internal
-    # files.
-    "//starboard/shared/stub/drm_close_session.cc",
-    "//starboard/shared/stub/drm_create_system.cc",
-    "//starboard/shared/stub/drm_destroy_system.cc",
-    "//starboard/shared/stub/drm_generate_session_update_request.cc",
-    "//starboard/shared/stub/drm_get_metrics.cc",
-    "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
-    "//starboard/shared/stub/drm_update_server_certificate.cc",
-    "//starboard/shared/stub/drm_update_session.cc",
-
-    # TODO: b/470021310 - get the tvOS version of this file to build.
-    "//starboard/shared/stub/system_get_extensions.cc",
-  ]
+  deps = []
+  if (is_internal_build) {
+    sources += [
+      "//starboard/shared/widevine/drm_system_widevine.cc",
+      "//starboard/shared/widevine/drm_system_widevine.h",
+      "//starboard/shared/widevine/widevine_storage.cc",
+      "//starboard/shared/widevine/widevine_storage.h",
+      "//starboard/shared/widevine/widevine_timer.cc",
+      "//starboard/shared/widevine/widevine_timer.h",
+      "media/drm_close_session.mm",
+      "media/drm_create_system.mm",
+      "media/drm_destroy_system.mm",
+      "media/drm_generate_session_update_request.mm",
+      "media/drm_get_metrics.mm",
+      "media/drm_is_server_certificate_updatable.mm",
+      "media/drm_update_server_certificate.mm",
+      "media/drm_update_session.mm",
+      "media/oemcrypto_engine_device_properties_uikit.h",
+      "media/oemcrypto_engine_device_properties_uikit.mm",
+    ]
+    deps += [
+      "//starboard/shared/widevine:oemcrypto",
+      "//third_party/boringssl",
+      "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
+    ]
+  } else {
+    sources += [
+      "//starboard/shared/stub/drm_close_session.cc",
+      "//starboard/shared/stub/drm_create_system.cc",
+      "//starboard/shared/stub/drm_destroy_system.cc",
+      "//starboard/shared/stub/drm_generate_session_update_request.cc",
+      "//starboard/shared/stub/drm_get_metrics.cc",
+      "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
+      "//starboard/shared/stub/drm_update_server_certificate.cc",
+      "//starboard/shared/stub/drm_update_session.cc",
+    ]
+  }
 
   sources -= [
     # Exclude these files from common_player_sources, because they are not used
@@ -192,7 +215,7 @@ static_library("starboard_platform") {
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
-  deps = [
+  deps += [
     "//base",
     "//starboard/shared/starboard/player:video_dmp",
     "//third_party/angle:includes",
