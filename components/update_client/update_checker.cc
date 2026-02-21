@@ -278,7 +278,11 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
 // with update check.
 #endif
     apps.push_back(MakeProtocolApp(
+#if BUILDFLAG(IS_STARBOARD)
+        app_id, current_version, crx_component->ap, crx_component->brand,
+#else
         app_id, crx_component->version, crx_component->ap, crx_component->brand,
+#endif
         active_ids.find(app_id) != active_ids.end()
             ? metadata->GetInstallId(app_id)
             : "",
