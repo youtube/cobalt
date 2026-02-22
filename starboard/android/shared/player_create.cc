@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/android/shared/exoplayer/exoplayer_player_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -27,9 +28,14 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
+
+using starboard::ExoPlayerPlayerWorkerHandler;
+using starboard::FilterBasedPlayerWorkerHandler;
+using starboard::PlayerWorker;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,
@@ -198,9 +204,25 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
   }
 
-  std::unique_ptr<starboard::PlayerWorker::Handler> handler =
-      std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
-          creation_param, provider);
+  bool use_exoplayer = starboard::features::FeatureList::IsEnabled(
+      starboard::features::kEnableExoPlayer);
+  if (use_exoplayer &&
+      (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture ||
+       creation_param->drm_system != kSbDrmSystemInvalid)) {
+    SB_LOG(WARNING) << "ExoPlayer does not support decode-to-texture mode or "
+                       "encrypted playback, "
+                       "defaulting to FilterBasedPlayerWorkerHandler.";
+    use_exoplayer = false;
+  }
+
+  std::unique_ptr<PlayerWorker::Handler> handler;
+  if (use_exoplayer) {
+    handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param);
+  } else {
+    handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
+                                                               provider);
+  }
+
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());

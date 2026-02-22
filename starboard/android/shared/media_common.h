@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 
+#include <jni.h>
+
 #include <cstring>
 #include <optional>
 
@@ -25,6 +27,27 @@
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 
 namespace starboard {
+
+const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+
+// See
+// https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
+constexpr jint COLOR_RANGE_FULL = 1;
+constexpr jint COLOR_RANGE_LIMITED = 2;
+// Not defined in MediaFormat. Represents unspecified color ID range.
+constexpr jint COLOR_RANGE_UNSPECIFIED = 0;
+
+constexpr jint COLOR_STANDARD_BT2020 = 6;
+constexpr jint COLOR_STANDARD_BT709 = 1;
+
+constexpr jint COLOR_TRANSFER_HLG = 7;
+constexpr jint COLOR_TRANSFER_SDR_VIDEO = 3;
+constexpr jint COLOR_TRANSFER_ST2084 = 6;
+
+// A special value to represent that no mapping between an SbMedia* HDR
+// metadata value and Android HDR metadata value is possible.  This value
+// implies that HDR playback should not be attempted.
+constexpr jint COLOR_VALUE_UNKNOWN = -1;
 
 inline bool IsWidevineL1(const char* key_system) {
   return strcmp(key_system, "com.widevine") == 0 ||
@@ -102,6 +125,52 @@ inline int GetAudioFormatSampleType(
   }
   SB_NOTREACHED();
   return 0u;
+}
+
+inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
+  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
+         color_metadata.transfer == kSbMediaTransferIdBt709 &&
+         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
+         color_metadata.range == kSbMediaRangeIdLimited &&
+          memcmp(&color_metadata, &kEmptyMasteringMetadata,
+                  sizeof(SbMediaMasteringMetadata)) == 0;
+}
+
+inline jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
+  switch (primary_id) {
+    case kSbMediaPrimaryIdBt709:
+      return COLOR_STANDARD_BT709;
+    case kSbMediaPrimaryIdBt2020:
+      return COLOR_STANDARD_BT2020;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+inline jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
+  switch (transfer_id) {
+    case kSbMediaTransferIdBt709:
+      return COLOR_TRANSFER_SDR_VIDEO;
+    case kSbMediaTransferIdSmpteSt2084:
+      return COLOR_TRANSFER_ST2084;
+    case kSbMediaTransferIdAribStdB67:
+      return COLOR_TRANSFER_HLG;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+inline jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
+  switch (range_id) {
+    case kSbMediaRangeIdLimited:
+      return COLOR_RANGE_LIMITED;
+    case kSbMediaRangeIdFull:
+      return COLOR_RANGE_FULL;
+    case kSbMediaRangeIdUnspecified:
+      return COLOR_RANGE_UNSPECIFIED;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
 }
 
 }  // namespace starboard
