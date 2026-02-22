@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "cobalt/shell/browser/shell_platform_delegate.h"
+// clang-format on
+
 #include <stddef.h>
 
 #include <algorithm>
@@ -26,7 +30,6 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/context_factory.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -381,6 +384,21 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
       ->SetWebContents(shell->web_contents(), shell_data.content_size);
   shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
   shell_data.window_widget->Show();
+}
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  ShellViewForWidget(shell_data.window_widget)
+      ->SetWebContents(shell->splash_screen_web_contents(),
+                       shell_data.content_size);
+  shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+  shell_data.window_widget->Show();
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  SetContents(shell);
 }
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,

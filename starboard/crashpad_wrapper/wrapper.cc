@@ -47,11 +47,17 @@ const char kCrashpadCertScopeKey[] = "cert_scope";
 namespace {
 // TODO: Get evergreen information from installation.
 const std::string kCrashpadVersion = "1.0.0.0";
-#if defined(STARBOARD_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 const std::string kUploadUrl("https://clients2.google.com/cr/report");
 #else
 const std::string kUploadUrl("https://clients2.google.com/cr/staging_report");
 #endif
+
+static constexpr ::crashpad::SanitizationInformation kSanitizationInfo = {
+    /*allowed_annotations_address=*/0,
+    /*target_module_address=*/0,
+    /*allowed_memory_ranges_address=*/0,
+    /*sanitize_stacks=*/1};
 
 ::crashpad::CrashpadClient* GetCrashpadClient() {
   static auto* crashpad_client = new ::crashpad::CrashpadClient();
@@ -139,14 +145,17 @@ std::map<std::string, std::string> GetPlatformInfo() {
     platform_info.insert({"system_integrator_name", value.data()});
   }
 
-#if defined(STARBOARD_BUILD_TYPE_DEBUG)
-  platform_info.insert({"build_configuration", "debug"});
-#elif defined(STARBOARD_BUILD_TYPE_DEVEL)
-  platform_info.insert({"build_configuration", "devel"});
-#elif defined(STARBOARD_BUILD_TYPE_QA)
-  platform_info.insert({"build_configuration", "qa"});
-#elif defined(STARBOARD_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   platform_info.insert({"build_configuration", "gold"});
+#elif defined(OFFICIAL_BUILD)
+  platform_info.insert({"build_configuration", "qa"});
+#elif defined(NDEBUG)
+  platform_info.insert({"build_configuration", "devel"});
+#else
+  // Note: |debug| builds will incorrectly be caught by the previous condition
+  // until the todo comment in cobalt/build/gn.py, attached to b/423038377, is
+  // addressed.
+  platform_info.insert({"build_configuration", "debug"});
 #endif
 
   result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value.data(),
@@ -228,14 +237,17 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
       {kCrashpadVersionKey, kCrashpadVersion},
       {kCrashpadProductKey, product_name}};
 
-  // Without this argument the handler's report upload thread, when the handler
-  // is started in response to a crash, will perform its first periodic scan for
-  // pending reports before that crash is handled. This scan is not needed -
-  // a scan is triggered via CrashReportUploadThread::ReportPending after the
-  // crash is handled - and we can simplify the concurrency model and avoid
-  // thread contention by skipping it, especially now that upload scans trigger
-  // report pruning upon completion.
-  const std::vector<std::string> default_arguments = {"--no-periodic-tasks"};
+  const std::vector<std::string> default_arguments = {
+      // Without this argument the handler's report upload thread, when the
+      // handler is started in response to a crash, will perform its first
+      // periodic scan for pending reports before that crash is handled. This
+      // scan is not needed - a scan is triggered via
+      // CrashReportUploadThread::ReportPending after the crash is handled - and
+      // we can simplify the concurrency model and avoid thread contention by
+      // skipping it, especially now that upload scans trigger report pruning
+      // upon completion.
+      "--no-periodic-tasks",
+      base::StringPrintf("--sanitization-information=%p", &kSanitizationInfo)};
 
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
   default_annotations.insert(platform_info.begin(), platform_info.end());
@@ -264,12 +276,6 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
         CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
     return;
   }
-
-// TODO: b/446933116 - pass sanitization information to the handler.
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
-  client->SendSanitizationInformationToHandler(sanitization_info);
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
   // |InsertCrashpadAnnotation| is injected into the extension implementation
   // to avoid a build dependency from the extension implementation on this

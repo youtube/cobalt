@@ -28,9 +28,6 @@ if (current_toolchain == default_toolchain &&
       "//starboard/raspi/shared/platform_configuration:pedantic_warnings"
   sabi_path = "//starboard/sabi/arm/hardfp/sabi-v$sb_api_version.json"
 
-  speed_config_path = "//starboard/raspi/shared/platform_configuration:speed"
-  size_config_path = "//starboard/raspi/shared/platform_configuration:size"
-
   v8_enable_webassembly = true
 
   is_raspi = true

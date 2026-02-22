@@ -10,6 +10,11 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
+  enable_sccache:
+    description: Use sccache for build acceleration.
+    default: 'false'
+  sccache_gcs_key:
+    description: GCS SA key to read/write to bucket
 runs:
   using: "composite"
   steps:
@@ -17,10 +22,21 @@ runs:
         run: |
           rm -rf cobalt/src/out
         shell: bash
+      - name: Install sccache
+        if: inputs.enable_sccache == 'true'
+        uses: ./.github/actions/sccache
+        with:
+          sccache_gcs_key: ${{ inputs.sccache_gcs_key }}
       - name: GN gen
+        env:
+          ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
         run: |
           cd cobalt/src
-          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
+          gn_flags=()
+          if [[ $ENABLE_SCCACHE == "true" ]]; then
+            gn_flags+=(--no-rbe --no-check --use-sccache)
+          fi
+          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
         shell: bash
       - name: List GN args
         run: |
@@ -40,8 +56,9 @@ runs:
           # of the code as if the pull request had been merged into the base branch.
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
-          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
-          cat ${CHANGED_FILES_LIST}
+          # TODO(b/382508397): Disabled for now.
+          # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          # cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
         # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
@@ -108,11 +125,15 @@ runs:
       - name: Ninja build
         env:
           TARGETS_JSON: ${{ inputs.targets }}
+          USE_SCCACHE: ${{ inputs.enable_sccache }}
         run: |
           set -ex
           cd cobalt/src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+          if [[ $USE_SCCACHE == "true" ]]; then
+            sccache --show-stats
+          fi
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
@@ -123,11 +144,3 @@ runs:
             cobalt/src/out/${{ matrix.platform }}_qa/apks/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/gen/build_info.json
-      - name: Upload Test Artifacts
-        if: steps.build-test-targets.outcome == 'success'
-        uses: ./cobalt/src/.github/actions/upload_test_artifacts
-        with:
-          test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
-          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: ${{ inputs.test_targets_json_file }}

@@ -15,15 +15,15 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_RENDERER_RENDER_FRAME_TEST_HELPER_H_
 #define COBALT_TESTING_BROWSER_TESTS_RENDERER_RENDER_FRAME_TEST_HELPER_H_
 
+#include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/testing/browser_tests/common/render_frame_test_helper.mojom.h"
-#include "content/public/renderer/render_frame_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
 namespace content {
 
 class RenderFrameTestHelper : public mojom::RenderFrameTestHelper,
-                              public RenderFrameObserver {
+                              public cobalt::CobaltRenderFrameObserver {
  public:
   // Creates a new instance that deletes itself when the RenderFrame is
   // destroyed.

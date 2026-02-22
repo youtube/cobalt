@@ -18,6 +18,7 @@
 source_set("common_headers_only") {
   sources = [
     "log.h",
+    "string.h",
     "system_property.h",
   ]
 
@@ -64,6 +65,7 @@ static_library("common") {
     "metrics/stats_tracker.h",
     "murmurhash2.cc",
     "murmurhash2.h",
+    "pass_key.h",
     "paths.cc",
     "paths.h",
     "player.cc",

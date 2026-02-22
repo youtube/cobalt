@@ -17,6 +17,7 @@
 import argparse
 import os
 import subprocess
+import sys
 import tempfile
 from typing import List, Tuple
 
@@ -55,13 +56,33 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     tmp_file.write('\n'.join(sorted(file_list)))
     tmp_file.flush()
     # Change the tar working directory and add the file list.
-    tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
+    # Use absolute path for base_dir to avoid issues with cumulative -C flags.
+    tar_cmd += ['-C', os.path.abspath(base_dir), '-T', tmp_file.name]
 
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
 
   archive_size = f'{os.path.getsize(archive_path) / 1024 / 1024:.2f} MB'
   print(f'Created {os.path.basename(archive_path)} ({archive_size})')
+
+
+def _handle_browsertests(
+    source_dir: str,
+    out_dir: str,
+    destination_dir: str,
+    compression: str,
+):
+  # Handle cobalt_browsertests using the specialized script.
+  collect_script = os.path.join(source_dir, 'cobalt', 'testing',
+                                'browser_tests', 'tools',
+                                'collect_test_artifacts.py')
+  output_name = f'cobalt_browsertests_artifacts.tar.{compression}'
+  cmd = [
+      sys.executable, collect_script, out_dir, '-o', output_name,
+      '--output_dir', destination_dir, '--compression', compression
+  ]
+  print(f"Running: {' '.join(cmd)}")
+  subprocess.check_call(cmd)
 
 
 def create_archive(
@@ -79,6 +100,13 @@ def create_archive(
   """Main logic. Collects runtime dependencies for each target."""
   combined_deps = set()
   for target in targets:
+    # TODO(b/483460300): Unify unittest and browsertest packaging
+    if target.endswith(':cobalt_browsertests'):
+      _handle_browsertests(source_dir, out_dir, destination_dir, compression)
+      # If this was the only target, we are done.
+      if len(targets) == 1:
+        return
+      continue
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
@@ -99,8 +127,8 @@ def create_archive(
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files both in the out and source root folders
-      # to be working directory archive whereas Linux tests expect it relative
-      # to the binary.
+      # to be in the working directory of the archive whereas Linux tests
+      # expect it relative to the binary.
       tar_root = '.' if flatten_deps else out_dir
       target_deps = set()
       target_src_root_deps = set()
@@ -115,7 +143,7 @@ def create_archive(
           continue
 
         if flatten_deps and line.startswith('../../'):
-          target_src_root_deps.add(line[6:])
+          target_src_root_deps.add(line.strip()[6:])
         else:
           # Rebase all files to be relative to their respective root (source or
           # out dir) to be able to flatten them below. Chromium test runners

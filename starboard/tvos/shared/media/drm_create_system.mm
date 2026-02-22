@@ -22,6 +22,9 @@
 #include "starboard/tvos/shared/media/oemcrypto_engine_device_properties_uikit.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
+using starboard::DrmSystemPlatform;
+using starboard::DrmSystemWidevine;
+
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
     void* context,
@@ -36,12 +39,11 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 
-  if (!starboard::MediaIsSupported(kSbMediaVideoCodecNone,
-                                   kSbMediaAudioCodecNone, key_system)) {
+  if (!starboard::MediaIsKeySystemSupported(
+          kSbMediaVideoCodecNone, kSbMediaAudioCodecNone, key_system)) {
     return kSbDrmSystemInvalid;
   }
 
-  using starboard::shared::widevine::DrmSystemWidevine;
   if (strstr(key_system, "widevine")) {
     auto drm_system = new DrmSystemWidevine(
         context, update_request_callback, session_updated_callback,
@@ -54,7 +56,6 @@ SbDrmSystem SbDrmCreateSystem(
     return drm_system;
   }
 
-  using starboard::shared::uikit::DrmSystemPlatform;
   if (DrmSystemPlatform::IsKeySystemSupported(key_system)) {
     return DrmSystemPlatform::Create(
         context, update_request_callback, session_updated_callback,

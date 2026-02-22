@@ -19,12 +19,6 @@ namespace starboard {
 
 const void* GetCrashHandlerApi();
 
-// Aliases not to break CI tests.
-// See https://paste.googleplex.com/5497367583391744
-// TODO: b/441955897 - Update CI test to use flattened namespace
-namespace common {
-using ::starboard::GetCrashHandlerApi;
-}
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_CRASH_HANDLER_H_

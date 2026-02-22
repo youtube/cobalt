@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
+
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-// Need this nested namespace to prevent breaking RDK build on CI.
-// http://go/paste/5453531536556032
-// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
-// updated.
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -49,4 +48,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
          bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 30;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

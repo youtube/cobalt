@@ -19,9 +19,10 @@
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
-#include "cobalt/shell/common/shell_test_switches.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"
 #include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/renderer/shell_render_frame_observer.h"
 #include "content/public/common/pseudonymization_util.h"
 #include "content/public/test/test_service.mojom.h"
@@ -30,8 +31,17 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "sandbox/policy/sandbox.h"
+#include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_testing_support.h"
 #include "v8/include/v8.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/task/bind_post_task.h"
+#include "content/public/renderer/render_thread.h"
+#include "media/base/starboard/renderer_factory_traits.h"
+#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
+#endif
 
 namespace content {
 
@@ -166,6 +176,13 @@ void ShellContentRendererTestClient::RenderFrameCreated(
   new ShellRenderFrameObserver(render_frame);
 }
 
+void ShellContentRendererTestClient::RenderThreadStarted() {
+  ShellContentRendererClient::RenderThreadStarted();
+  // Register h5vcc scheme for renders to use Fetch API.
+  blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
+      blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+}
+
 void ShellContentRendererTestClient::DidInitializeWorkerContextOnWorkerThread(
     v8::Local<v8::Context> context) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -173,5 +190,16 @@ void ShellContentRendererTestClient::DidInitializeWorkerContextOnWorkerThread(
     blink::WebTestingSupport::InjectInternalsObject(context);
   }
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void ShellContentRendererTestClient::GetStarboardRendererFactoryTraits(
+    media::RendererFactoryTraits* renderer_factory_traits) {
+  renderer_factory_traits->bind_host_receiver_callback =
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating([](mojo::GenericPendingReceiver receiver) {
+            content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
+          }));
+}
+#endif
 
 }  // namespace content

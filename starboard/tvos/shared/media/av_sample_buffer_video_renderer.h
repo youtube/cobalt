@@ -21,6 +21,7 @@
 #include <queue>
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
@@ -42,7 +43,8 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
 
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
-  AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
+  AVSBVideoRenderer(JobQueue* job_queue,
+                    const VideoStreamInfo& video_stream_info,
                     SbDrmSystem drm_system);
   ~AVSBVideoRenderer();
 
@@ -130,6 +132,8 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
   bool is_first_sample_written_ = false;
   bool is_cached_frames_below_low_watermark = false;
   std::atomic_bool is_display_layer_flushing_ = {false};
+
+  base::WeakPtrFactory<AVSBVideoRenderer> weak_ptr_factory_{this};
 };
 
 }  // namespace starboard

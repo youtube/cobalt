@@ -167,13 +167,12 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 }
 
 // static
-std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
+NonNullResult<std::unique_ptr<MediaCodecBridge>>
+MediaCodecBridge::CreateVideoMediaCodecBridge(
     SbMediaVideoCodec video_codec,
-    int width_hint,
-    int height_hint,
+    const Size& frame_size_hint,
     int fps,
-    std::optional<int> max_width,
-    std::optional<int> max_height,
+    const std::optional<Size>& max_frame_size,
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
@@ -182,17 +181,15 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     bool require_software_codec,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    std::string* error_message) {
-  SB_DCHECK(error_message);
-  SB_DCHECK_EQ(max_width.has_value(), max_height.has_value());
-  SB_DCHECK_GT(max_width.value_or(1920), 0);
-  SB_DCHECK_GT(max_height.value_or(1080), 0);
-
+    int max_video_input_size) {
+  if (max_frame_size) {
+    SB_CHECK_GT(max_frame_size->width, 0);
+    SB_CHECK_GT(max_frame_size->height, 0);
+  }
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
-    *error_message = FormatString("Unsupported mime for codec %d", video_codec);
-    return nullptr;
+    return Failure(std::string("Unsupported mime for codec: ") +
+                   GetMediaVideoCodecName(video_codec));
   }
 
   const bool must_support_secure = require_secured_decoder;
@@ -230,10 +227,10 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   }
 
   if (decoder_name.empty()) {
-    *error_message =
-        FormatString("Failed to find decoder: %s, mustSupportSecure: %d.", mime,
-                     !!j_media_crypto);
-    return nullptr;
+    return Failure(
+        FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
+                     static_cast<const char*>(mime),
+                     starboard::to_string(!!j_media_crypto).data()));
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -281,10 +278,11 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 
   Java_MediaCodecBridge_createVideoMediaCodecBridge(
       env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
-      j_decoder_name, width_hint, height_hint, fps, max_width.value_or(-1),
-      max_height.value_or(-1), j_surface_local, j_media_crypto_local,
-      j_color_info, tunnel_mode_audio_session_id, max_video_input_size,
-      j_create_media_codec_bridge_result);
+      j_decoder_name, frame_size_hint.width, frame_size_hint.height, fps,
+      max_frame_size ? max_frame_size->width : -1,
+      max_frame_size ? max_frame_size->height : -1, j_surface_local,
+      j_media_crypto_local, j_color_info, tunnel_mode_audio_session_id,
+      max_video_input_size, j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
@@ -294,15 +292,13 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     ScopedJavaLocalRef<jstring> j_error_message(
         Java_CreateMediaCodecBridgeResult_errorMessage(
             env, j_create_media_codec_bridge_result));
-    *error_message = ConvertJavaStringToUTF8(env, j_error_message);
-    return nullptr;
+    return Failure(ConvertJavaStringToUTF8(env, j_error_message));
   }
 
   SB_LOG(INFO)
       << __func__ << ": video_codec=" << GetMediaVideoCodecName(video_codec)
-      << ", width_hint=" << width_hint << ", height_hint=" << height_hint
-      << ", fps=" << fps << ", max_width=" << max_width
-      << ", max_height=" << max_height
+      << ", frame_size_hint=" << frame_size_hint << ", fps=" << fps
+      << ", max_frame_size=" << max_frame_size
       << ", has_color_metadata=" << to_string(color_metadata)
       << ", require_secured_decoder=" << to_string(require_secured_decoder)
       << ", require_software_codec=" << to_string(require_software_codec)
@@ -321,7 +317,6 @@ MediaCodecBridge::~MediaCodecBridge() {
   }
 
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
   Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
 }
 
@@ -425,11 +420,6 @@ bool MediaCodecBridge::Restart() {
 jint MediaCodecBridge::Flush() {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
-}
-
-void MediaCodecBridge::Stop() {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
 }
 
 std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {

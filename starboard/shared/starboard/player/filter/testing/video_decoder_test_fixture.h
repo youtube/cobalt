@@ -132,7 +132,7 @@ class VideoDecoderTestFixture {
   void ClearDecodedFrames() { decoded_frames_.clear(); }
 
  protected:
-  JobQueue* job_queue_;
+  JobQueue* const job_queue_;
 
   std::mutex mutex_;
   std::deque<Event> event_queue_;

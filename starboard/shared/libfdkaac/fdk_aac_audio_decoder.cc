@@ -21,7 +21,8 @@
 
 namespace starboard {
 
-FdkAacAudioDecoder::FdkAacAudioDecoder() {
+FdkAacAudioDecoder::FdkAacAudioDecoder(JobQueue* job_queue)
+    : JobOwner(job_queue) {
   static_assert(sizeof(INT_PCM) == sizeof(int16_t),
                 "sizeof(INT_PCM) has to be the same as sizeof(int16_t).");
   InitializeCodec();

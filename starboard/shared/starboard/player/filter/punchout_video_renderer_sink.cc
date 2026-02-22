@@ -30,7 +30,6 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
                                                      int64_t render_interval)
     : player_(player),
       render_interval_(render_interval),
-      thread_(0),
       z_index_(0),
       x_(0),
       y_(0),
@@ -40,9 +39,9 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 }
 
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
-  if (thread_ != 0) {
-    stop_requested_.store(true);
-    SB_CHECK_EQ(pthread_join(thread_, nullptr), 0);
+  stop_requested_.store(true);
+  if (job_thread_) {
+    job_thread_->Stop();
   }
 }
 
@@ -52,8 +51,8 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
 
   render_cb_ = render_cb;
 
-  pthread_create(&thread_, nullptr,
-                 &PunchoutVideoRendererSink::ThreadEntryPoint, this);
+  job_thread_ = JobThread::Create("punchoutvidsink");
+  job_thread_->Schedule([this] { RunLoop(); });
 }
 
 void PunchoutVideoRendererSink::SetBounds(int z_index,
@@ -89,19 +88,6 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
   Application::Get()->HandleFrame(player_, frame, z_index_, x_, y_, width_,
                                   height_);
   return kNotReleased;
-}
-
-// static
-void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("punchoutvidsink");
-#else
-  pthread_setname_np(pthread_self(), "punchoutvidsink");
-#endif
-  PunchoutVideoRendererSink* this_ptr =
-      static_cast<PunchoutVideoRendererSink*>(context);
-  this_ptr->RunLoop();
-  return NULL;
 }
 
 }  // namespace starboard

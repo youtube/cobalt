@@ -130,12 +130,18 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 
   content_browsertests_manifest =
-      "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
+      "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
 
-  jinja_template("content_browsertests_manifest") {
+  jinja_template("cobalt_browsertests_manifest_gen") {
     testonly = true
-    input = "//cobalt/testing/browser_tests/browsertests_apk/AndroidManifest.xml.jinja2"
+    input = "//cobalt/shell/android/javatests/AndroidManifest.xml"
     output = content_browsertests_manifest
+    includes = [ "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2" ]
+    variables = [
+      "debuggable=true",
+      "manifest_package=org.chromium.content_browsertests_apk",
+      "build_type=$build_type",
+    ]
   }
 
   android_library("content_browsertests_java") {
@@ -147,11 +153,12 @@ if (is_android) {
       "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentShellBrowserTestActivity.java",
     ]
     deps = [
-      ":content_browsertests_manifest",
+      ":cobalt_browsertests_manifest_gen",
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
       "//base:content_uri_utils_java",
+      "//cobalt/android:cobalt_main_java",
       "//cobalt/shell/android:cobalt_shell_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
@@ -166,11 +173,27 @@ if (is_android) {
 
   android_resources("content_browsertests_resources") {
     testonly = true
-    sources = [
-      "browsertests_apk/res/layout/test_activity.xml",
-      "browsertests_apk/res/xml/file_paths.xml",
-    ]
+    sources = [ "browsertests_apk/res/xml/file_paths.xml" ]
   }
+}
+
+copy("cobalt_browsertests_runner_script") {
+  testonly = true
+
+  # TODO(433354983): Switch back to the run_browser_tests.py
+  # once the infra supports python.
+  sources = [ "cobalt_browsertests_runner.sh" ]
+  outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
+  deps = [ ":cobalt_browsertests" ]
+}
+
+group("cobalt_browsertests_runner") {
+  testonly = true
+  data_deps = [
+    ":cobalt_browsertests",
+    ":cobalt_browsertests_runner_script",
+  ]
+  write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
 }
 
 # Note: Testing on official builds is not currently supported.
@@ -185,14 +208,18 @@ test("cobalt_browsertests") {
 
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
-    #"content_main_runner_impl_browsertest.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "content_main_runner_impl_browsertest.cc",
+
     #"encrypted_media_browsertest.cc",
     #"frame_tree_browsertest.cc",
     #"media_browsertest.cc",
     #"media_browsertest.h",
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
-    #"navigation_browsertest.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
+    "navigation_browsertest.cc",
+
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
     #"site_per_process_browsertest.h",
@@ -202,6 +229,10 @@ test("cobalt_browsertests") {
 
   if (is_android) {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
+  }
+
+  if (is_starboard) {
+    sources += [ "cobalt_browser_tests_main.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -214,18 +245,32 @@ test("cobalt_browsertests") {
     "//content/test:web_ui_mojo_test_resources",
   ]
 
+  if (is_starboard) {
+    public_deps += [
+      "//cobalt:common",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//ui/ozone/platform/starboard:starboard",
+    ]
+  }
+
   deps = [
     ":cobalt_browsertests_test_runner",
+    ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
+    "//cobalt/browser:global_features",
+    "//cobalt/browser:metrics",
+    "//cobalt/browser:switches",
+    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
     "//components/discardable_memory/common",
     "//components/discardable_memory/service",
     "//components/favicon/content",
+    "//components/metrics_services_manager",
     "//components/network_session_configurator/common",
     "//components/payments/mojom",
     "//components/performance_manager",
@@ -245,11 +290,11 @@ test("cobalt_browsertests") {
     "//content/browser/background_sync:background_sync_proto",
     "//content/child:for_content_tests",
     "//content/gpu",
-    "//content/public/browser",
     "//content/public/gpu",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
     "//content/test:mojo_web_test_bindings",
+    "//content/test:test_support",
     "//content/test:web_ui_managed_interface_tests_bindings",
     "//content/test:web_ui_ts_test_mojo_bindings",
     "//device/base/synchronization",
@@ -352,8 +397,8 @@ test("cobalt_browsertests") {
       "//ui/touch_selection:touch_selection",
     ]
     android_manifest =
-        "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
-    android_manifest_dep = ":content_browsertests_manifest"
+        "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
+    android_manifest_dep = ":cobalt_browsertests_manifest_gen"
     use_default_launcher = false
   }
 
@@ -362,6 +407,14 @@ test("cobalt_browsertests") {
     data += [
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
+    ]
+  }
+
+  if (is_starboard) {
+    deps += [
+      ":cobalt_shell_test_lib",
+      "//content/test:test_support",
+      "//starboard:starboard_headers_only",
     ]
   }
 
@@ -393,12 +446,16 @@ static_library("cobalt_shell_test_lib") {
     "app/shell_main_test_delegate.h",
     "browser/shell_browser_test_context.cc",
     "browser/shell_browser_test_context.h",
+    "browser/shell_browser_test_main_parts.cc",
+    "browser/shell_browser_test_main_parts.h",
     "browser/shell_content_browser_test_client.cc",
     "browser/shell_content_browser_test_client.h",
     "browser/test_shell.cc",
     "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
+    "gpu/shell_content_gpu_test_client.cc",
+    "gpu/shell_content_gpu_test_client.h",
     "renderer/shell_content_renderer_test_client.cc",
     "renderer/shell_content_renderer_test_client.h",
     "utility/shell_content_utility_client.cc",
@@ -407,13 +464,16 @@ static_library("cobalt_shell_test_lib") {
 
   deps = [
     ":cobalt_browsertests_support",
+    ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//components/viz/service",
     "//services/network/public/cpp",
   ]
 
@@ -426,14 +486,7 @@ static_library("cobalt_shell_test_lib") {
   }
 
   if (shell_use_toolkit_views) {
-    if (use_aura) {
-      sources += [
-        "browser/shell_test_platform_delegate.cc",
-        "browser/shell_test_platform_delegate.h",
-      ]
-
-      deps += [ "//ui/views:test_support" ]
-    }
+    deps += [ "//ui/views:test_support" ]
   }
 }
 
@@ -444,6 +497,8 @@ source_set("cobalt_browsertests_support") {
     "common/main_frame_counter_test_impl.h",
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
+    "common/shell_test_switches.cc",
+    "common/shell_test_switches.h",
     "renderer/render_frame_test_helper.cc",
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
@@ -453,10 +508,11 @@ source_set("cobalt_browsertests_support") {
   public_deps = [
     ":cobalt_browsertests_support_mojom",
     ":shell_controller_mojom",
-    "//cobalt/shell:shell_test_switches_lib",
+    "//cobalt/renderer",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/services/storage/test_api",
+    "//content/browser",
     "//content/common:main_frame_counter",
     "//content/public/child",
     "//content/public/common",

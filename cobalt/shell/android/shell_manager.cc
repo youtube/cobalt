@@ -23,6 +23,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
@@ -63,11 +64,14 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 }
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
-                                  const JavaParamRef<jstring>& jurl) {
+                                  const JavaParamRef<jstring>& jurl,
+                                  const JavaParamRef<jstring>& jtopic) {
   ShellBrowserContext* browserContext =
       ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
-  Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size());
+  std::string topic = base::android::ConvertJavaStringToUTF8(env, jtopic);
+  Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
+                         switches::ShouldCreateSplashScreen(), topic);
 }
 
 void DestroyShellManager() {

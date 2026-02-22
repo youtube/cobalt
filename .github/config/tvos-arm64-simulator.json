@@ -1,0 +1,21 @@
+{
+  "enable_sccache": true,
+  "build_runners": [
+    "macos-latest-large"
+  ],
+  "platforms": [
+    "tvos-arm64-simulator"
+  ],
+  "build_configs": [
+    "devel"
+  ],
+  "targets": [
+    "nplb"
+  ],
+  "includes": [
+    {
+      "name": "tvos",
+      "platform": "tvos-arm64-simulator"
+    }
+  ]
+}

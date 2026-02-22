@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
+
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_support_internal.h"
 
 #if ENABLE_IAMF_DECODE
 #include "starboard/shared/starboard/media/iamf_util.h"
-#endif  // ENABLE_IAMF_DECODE
+#endif
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool HasSupportedIamfProfile(const IamfMimeUtil* mime_util) {
   return mime_util->primary_profile() == kIamfProfileSimple ||
@@ -83,4 +86,4 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   return false;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

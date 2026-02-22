@@ -22,3 +22,13 @@ treat_warnings_as_errors = false
 # dawn_shared_texture_cache.cc, for example).
 use_dawn = true
 skia_use_dawn = true
+
+# Disable AV1 decoder for tvOS
+enable_dav1d_decoder = false
+
+# TODO: b/376141256 - Decide if this flag is needed here or in .gclient file.
+chrome_pgo_phase = 0
+
+# TODO: b/477518757 - Explicitly disable Crashpad while integration with Cobalt
+# is pending.
+use_crashpad = false

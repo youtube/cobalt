@@ -1,0 +1,53 @@
+name: Deflake Tests
+on:
+  workflow_run:
+    workflows: [android, raspi-2-modular, evergreen, linux, tvos]
+    types:
+      - completed
+permissions:
+  contents: read
+  checks: read
+
+jobs:
+  rerun-failing-jobs:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      actions: write
+    steps:
+      - name: Checkout .github Files
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: .github
+      - name: Rerun Failing Tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set +x
+          # Max number of times the tests should run. Must match number of
+          # retries in on_host_tests and on_device_tests actions.
+          MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 3' .github/config/infra/deflake.json)
+
+          # This call fails until the workflow has run $MAX_ATTEMPTS times.
+          if gh run view --repo "${REPO}" "${WORKFLOW}" --attempt "${MAX_ATTEMPTS}"; then
+            echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${MAX_ATTEMPTS} attempts."
+            exit 0
+          fi
+
+          # Fetch failed jobs containing _tests.
+          failed_job_ids=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
+
+          if [ -z "${failed_job_ids}" ]; then
+            echo "No failing '_tests' jobs found to rerun."
+            exit 0
+          fi
+
+          # Rerun all failed jobs under the workflow all in one go. One by one throws an error.
+          echo "Rerunning failed jobs under https://github.com/${REPO}/actions/runs/${WORKFLOW}"
+          gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed

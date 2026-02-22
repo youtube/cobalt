@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/application_android.h"
+// clang-format off
 #include "starboard/window.h"
+// clang-format on
+
+#include "starboard/android/shared/application_android.h"
 
 bool SbWindowDestroy(SbWindow window) {
   return starboard::ApplicationAndroid::Get()->DestroyWindow(window);

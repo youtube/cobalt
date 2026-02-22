@@ -85,8 +85,10 @@ const bool g_registered =
 }  // namespace
 
 FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info)
-    : codec_context_(NULL),
+    : JobOwner(job_queue),
+      codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
       audio_stream_info_(audio_stream_info) {
@@ -107,8 +109,9 @@ FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {
 
 // static
 FfmpegAudioDecoder* FfmpegAudioDecoderImpl<FFMPEG>::Create(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info) {
-  return new FfmpegAudioDecoderImpl<FFMPEG>(audio_stream_info);
+  return new FfmpegAudioDecoderImpl<FFMPEG>(job_queue, audio_stream_info);
 }
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,

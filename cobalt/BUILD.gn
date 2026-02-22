@@ -87,19 +87,23 @@ if (is_ios && target_platform == "tvos") {
   ios_app_bundle("cobalt") {
     testonly = true
 
-    sources = [ "app/main.mm" ]
+    sources = [ "app/tvos/main.mm" ]
 
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
+      "//starboard:starboard_group",
     ]
     bundle_deps = [
       ":cobalt_shell_framework_resources",
       "shell/app/ios/resources",
     ]
+
+    intents_target = "//cobalt/browser/tvos/intents:yt_intents"
 
     data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
 
@@ -132,10 +136,12 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/h5vcc_accessibility:manager",
       "//cobalt/browser/h5vcc_runtime:deep_link_manager",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
+      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
@@ -145,6 +151,13 @@ if (is_ios && target_platform == "tvos") {
     }
     if (is_starboard) {
       deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    } else {
+      # Web test support only built for the linux-x64x11-no-starboard target.
+      deps += [
+        "//content/web_test:web_test_browser",
+        "//content/web_test:web_test_common",
+        "//content/web_test:web_test_renderer",
+      ]
     }
 
     data_deps = [
@@ -238,8 +251,12 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/cobalt_secure_navigation_throttle_unittest.cc",
+    "//cobalt/browser/cobalt_web_contents_observer_unittest.cc",
+    "//cobalt/browser/command_line_logger_unittest.cc",
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
+    "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
@@ -256,12 +273,17 @@ test("cobalt_unittests") {
     ]
   }
 
+  if (!is_android) {
+    sources += [ "//cobalt/shell/browser/splash_screen_unittest.cc" ]
+  }
+
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 
   deps = [
     ":common",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
+    "//cobalt/browser:command_line_logger",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser/client_hint_headers",
@@ -272,6 +294,7 @@ test("cobalt_unittests") {
     "//cobalt/common/libc:libc_test",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
+    "//components/metrics:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
@@ -292,10 +315,25 @@ test("cobalt_unittests") {
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
     "//cobalt/shell:cobalt_shell_lib",
+    "//content/browser:for_content_tests",
     "//content/public/common:switches",
+    "//content/test:test_support",
     "//gpu/config",
     "//sandbox/policy:policy",
+    "//ui/events/devices",
   ]
+
+  if (is_android) {
+    deps += [
+      "//base:base_java_test_support",
+      "//content/public/android:content_java",
+      "//ui/android:ui_java",
+    ]
+  }
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
+  }
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]

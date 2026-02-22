@@ -82,7 +82,8 @@ void VideoDecoderTestFixture::Initialize() {
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
       max_video_input_size,
-      fake_graphics_context_provider_->decoder_target_provider(), nullptr);
+      fake_graphics_context_provider_->decoder_target_provider(), nullptr,
+      job_queue_);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
 
   std::unique_ptr<PlayerComponents::Factory> factory;
@@ -91,10 +92,11 @@ void VideoDecoderTestFixture::Initialize() {
   } else {
     factory = PlayerComponents::Factory::Create();
   }
-  std::string error_message;
-  ASSERT_TRUE(factory->CreateSubComponents(
-      creation_parameters, nullptr, nullptr, &video_decoder_,
-      &video_render_algorithm_, &video_renderer_sink_, &error_message));
+  auto sub_components = factory->CreateSubComponents(creation_parameters);
+  ASSERT_TRUE(sub_components) << sub_components.error();
+  video_decoder_ = std::move(sub_components->video.decoder);
+  video_render_algorithm_ = std::move(sub_components->video.render_algorithm);
+  video_renderer_sink_ = std::move(sub_components->video.renderer_sink);
   ASSERT_TRUE(video_decoder_);
 
   if (video_renderer_sink_) {

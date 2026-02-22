@@ -19,6 +19,7 @@
 
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/system.h"
 #include "starboard/tvos/shared/media/vp9_av_sample_buffer_helper.h"
 
 namespace starboard {
@@ -34,6 +35,11 @@ const size_t k4KHdrMaxNumberOfCachedFrames = 56;
 // The initial max number of cached frames should be the maximum number of
 // possible cached frames.
 const size_t kInitialMaxNumberOfCachedFrames = k4KHdrMaxNumberOfCachedFrames;
+
+// Bounds for the number of threads used for software video decoding.
+// https://source.chromium.org/chromium/chromium/src/+/main:media/base/limits.h;l=86
+constexpr int kMinVideoDecodeThreads = 2;
+constexpr int kMaxVideoDecodeThreads = 16;
 
 // CopyYAndMergeUVRowAligned() copies one row of y data and interleaves one row
 // of planar uv data. Note that it processes 64 bytes at a time. The lengths of
@@ -516,15 +522,37 @@ bool IsHdrVideo(const VideoStreamInfo& video_stream_info) {
          primaries == kSbMediaPrimaryIdBt2020;
 }
 
+// Returns the number of threads to use for VP9 software decoding based on the
+// frame width. For higher resolutions, more threads are used to match the
+// maximum number of tiles possible. The number of threads is also clamped to
+// the number of hardware threads available on the system. Refer similar
+// chromium implementation
+// https://source.chromium.org/chromium/chromium/src/+/main:media/filters/vpx_video_decoder.cc;l=39
+int GetVpxVideoDecoderThreadCount(int width) {
+  int desired_threads = kMinVideoDecodeThreads;
+  // For VP9 decoding increase the number of decode threads to equal the
+  // maximum number of tiles possible for higher resolution streams.
+  if (width >= 3840) {
+    desired_threads = 16;
+  } else if (width >= 2560) {
+    desired_threads = 8;
+  } else if (width >= 1280) {
+    desired_threads = 4;
+  }
+
+  const int hardware_threads = SbSystemGetNumberOfProcessors();
+  desired_threads = std::min(desired_threads, hardware_threads);
+  return std::clamp(desired_threads, kMinVideoDecodeThreads,
+                    kMaxVideoDecodeThreads);
+}
+
 }  // namespace
 
 Vp9SwAVVideoSampleBufferBuilder::Vp9SwAVVideoSampleBufferBuilder(
     const VideoStreamInfo& video_stream_info)
     : is_hdr_(IsHdrVideo(video_stream_info)),
       preroll_frame_count_(kDefaultPrerollFrameCount),
-      max_number_of_cached_buffers_(kInitialMaxNumberOfCachedFrames),
-      decoder_thread_(new JobThread("vp9_decoder")),
-      builder_thread_(new JobThread("vp9_builder")) {
+      max_number_of_cached_buffers_(kInitialMaxNumberOfCachedFrames) {
   if (is_hdr_) {
     const SbMediaColorMetadata& color_metadata =
         video_stream_info.color_metadata;
@@ -565,8 +593,9 @@ void Vp9SwAVVideoSampleBufferBuilder::Reset() {
   }
   // Wait until all jobs on |decoder_thread_| are done.
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->ScheduleAndWait(
         std::bind(&Vp9SwAVVideoSampleBufferBuilder::TeardownCodec, this));
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
   current_frame_width_ = 0;
@@ -613,7 +642,7 @@ void Vp9SwAVVideoSampleBufferBuilder::WriteInputBuffer(
     // |media_time_offset| only changes after Reset(), it's safe to set it here
     // only once.
     media_time_offset_ = media_time_offset;
-    decoder_thread_.reset(new JobThread("vpx_video_decoder"));
+    decoder_thread_ = JobThread::Create("vpx_video_decoder");
   }
   SB_DCHECK(media_time_offset_ == media_time_offset);
 
@@ -621,7 +650,7 @@ void Vp9SwAVVideoSampleBufferBuilder::WriteInputBuffer(
     std::lock_guard lock(pending_input_buffers_mutex_);
     pending_input_buffers_.push(input_buffer);
   }
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer, this));
 }
 
@@ -632,7 +661,7 @@ void Vp9SwAVVideoSampleBufferBuilder::WriteEndOfStream() {
     return;
   }
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->Schedule(
         std::bind(&Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream, this));
   }
   stream_ended_ = true;
@@ -664,7 +693,7 @@ void Vp9SwAVVideoSampleBufferBuilder::OnCachedFramesWatermarkHigh() {
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::InitializeCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(!context_);
   SB_DCHECK(!builder_thread_);
 
@@ -672,14 +701,7 @@ void Vp9SwAVVideoSampleBufferBuilder::InitializeCodec() {
   vpx_codec_dec_cfg_t vpx_config = {0};
   vpx_config.w = current_frame_width_;
   vpx_config.h = current_frame_height_;
-
-  // Use 2 threads if the device only have 2 cors. Otherwise, we prefer 4
-  // threads.
-  if ([[NSProcessInfo processInfo] activeProcessorCount] == 2) {
-    vpx_config.threads = 2;
-  } else {
-    vpx_config.threads = 4;
-  }
+  vpx_config.threads = GetVpxVideoDecoderThreadCount(current_frame_width_);
 
   vpx_codec_err_t status =
       vpx_codec_dec_init(context_.get(), &vpx_codec_vp9_dx_algo, &vpx_config,
@@ -700,14 +722,17 @@ void Vp9SwAVVideoSampleBufferBuilder::InitializeCodec() {
     SB_DCHECK(status == VPX_CODEC_OK);
   }
 
-  builder_thread_.reset(new JobThread("vp9_buffer_builder"));
+  builder_thread_ = JobThread::Create("vp9_buffer_builder");
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::TeardownCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   // Wait until all jobs on |builder_thread_| are done. It may take some time if
   // |builder_thread_| is waiting for available memory.
-  builder_thread_.reset();
+  if (builder_thread_) {
+    builder_thread_->Stop();
+    builder_thread_.reset();
+  }
   // |decoding_input_buffers_| and |decoded_images_| may be not empty when
   // resetting.
   decoding_input_buffers_.clear();
@@ -724,7 +749,7 @@ void Vp9SwAVVideoSampleBufferBuilder::TeardownCodec() {
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   if (error_occurred_) {
     return;
   }
@@ -734,7 +759,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
     // memory usage of vpx decoder and would be released only after vpx decoder
     // is destroyed.
     if (decoded_images_.size() > kMaxNumberOfHoldingDecodedImages) {
-      decoder_thread_->job_queue()->Schedule(
+      decoder_thread_->Schedule(
           std::bind(&Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer, this),
           5000);
       return;
@@ -860,14 +885,14 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeOneBuffer() {
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   if (error_occurred_) {
     return;
   }
   {
     std::lock_guard lock(pending_input_buffers_mutex_);
     if (!pending_input_buffers_.empty()) {
-      decoder_thread_->job_queue()->Schedule(
+      decoder_thread_->Schedule(
           std::bind(&Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream, this),
           pending_input_buffers_.size() * 16000);
       return;
@@ -877,7 +902,7 @@ void Vp9SwAVVideoSampleBufferBuilder::DecodeEndOfStream() {
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::FlushPendingBuffers() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   if (error_occurred_) {
     return;
   }
@@ -903,7 +928,7 @@ void Vp9SwAVVideoSampleBufferBuilder::FlushPendingBuffers() {
 }
 
 bool Vp9SwAVVideoSampleBufferBuilder::TryGetOneFrame() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   vpx_codec_iter_t dummy = NULL;
   const vpx_image_t* vpx_image = vpx_codec_get_frame(context_.get(), &dummy);
@@ -952,13 +977,13 @@ bool Vp9SwAVVideoSampleBufferBuilder::TryGetOneFrame() {
         new VpxImageWrapper(decoding_input_buffers_[timestamp], *vpx_image));
   }
   decoding_input_buffers_.erase(timestamp);
-  builder_thread_->job_queue()->Schedule(
+  builder_thread_->Schedule(
       std::bind(&Vp9SwAVVideoSampleBufferBuilder::BuildSampleBuffer, this));
   return true;
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::BuildSampleBuffer() {
-  SB_DCHECK(builder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(builder_thread_->BelongsToCurrentThread());
   if (error_occurred_) {
     return;
   }
@@ -982,7 +1007,7 @@ void Vp9SwAVVideoSampleBufferBuilder::BuildSampleBuffer() {
     // The decoder needs more memory to produce more frame, retry later. Note
     // that the output pixel buffers may be hold by either video renderer or
     // AVSBDL.
-    builder_thread_->job_queue()->Schedule(
+    builder_thread_->Schedule(
         std::bind(&Vp9SwAVVideoSampleBufferBuilder::BuildSampleBuffer, this),
         16000);
     return;

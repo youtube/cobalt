@@ -78,6 +78,13 @@ rtc_library("frame_generator_impl") {
     "../system_wrappers",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
+
+  if (is_starboard) {
+    deps -= [
+      "../modules/video_coding:webrtc_vp8",
+      "../modules/video_coding:webrtc_vp9"
+    ]
+  }
 }
 
 rtc_library("y4m_frame_generator") {
@@ -554,6 +561,13 @@ rtc_library("video_test_support") {
     "../rtc_base:stringutils",
     "../rtc_base/system:file_wrapper",
   ]
+
+  if (is_starboard) {
+    deps -= [
+      "../modules/video_coding:webrtc_vp8",
+      "../modules/video_coding:webrtc_vp9",
+    ]
+  }
 }
 
 if (rtc_include_tests) {
@@ -771,6 +785,14 @@ if (rtc_include_tests) {
         "//third_party/abseil-cpp/absl/strings:string_view",
         "//third_party/libyuv",
       ]
+
+      if (is_starboard) {
+        deps -= [
+          "../modules/video_coding:webrtc_vp8",
+          "../modules/video_coding:webrtc_vp9",
+        ]
+      }
+
       sources = [
         "call_config_utils_unittest.cc",
         "direct_transport_unittest.cc",

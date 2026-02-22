@@ -24,9 +24,6 @@ install_target_path = "//starboard/build/install/install_target.gni"
 
 sb_enable_opus_sse = false
 
-speed_config_path = "//starboard/linux/shared/platform_configuration:speed"
-size_config_path = "//starboard/linux/shared/platform_configuration:size"
-
 pedantic_warnings_config_path =
     "//starboard/linux/shared/platform_configuration:pedantic_warnings"
 no_pedantic_warnings_config_path =

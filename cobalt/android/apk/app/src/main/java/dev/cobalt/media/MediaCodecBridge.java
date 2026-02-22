@@ -583,20 +583,6 @@ class MediaCodecBridge {
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
 
-  @CalledByNative
-  public void release() {
-    try {
-      String codecName = mMediaCodec.get().getName();
-      Log.w(TAG, "calling MediaCodec.release() on " + codecName);
-      mMediaCodec.get().release();
-    } catch (Exception e) {
-      // The MediaCodec is stuck in a wrong state, possibly due to losing
-      // the surface.
-      Log.e(TAG, "Cannot release media codec", e);
-    }
-    mMediaCodec.set(null);
-  }
-
   public boolean start() {
     return start(null);
   }
@@ -662,12 +648,16 @@ class MediaCodecBridge {
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
+    } finally {
+      if (mFrameRateEstimator != null) {
+        mFrameRateEstimator.reset();
+      }
     }
     return MediaCodecStatus.OK;
   }
 
   @CalledByNative
-  private void stop() {
+  public void release() {
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
@@ -676,14 +666,24 @@ class MediaCodecBridge {
     // if an error occurs during stop(). See b/369372033 for details.
     if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
       Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
-      return;
+    } else {
+      try {
+        mMediaCodec.get().stop();
+      } catch (Exception e) {
+        Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
+      }
     }
 
     try {
-      mMediaCodec.get().stop();
+      String codecName = mMediaCodec.get().getName();
+      Log.w(TAG, "Calling MediaCodec.release() on " + codecName);
+      mMediaCodec.get().release();
     } catch (Exception e) {
-      Log.e(TAG, "Failed to stop MediaCodec", e);
+      // The MediaCodec is stuck in a wrong state, possibly due to losing
+      // the surface.
+      Log.w(TAG, "Failed to release MediaCodec", e);
     }
+    mMediaCodec.set(null);
   }
 
   @CalledByNative

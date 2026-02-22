@@ -6,7 +6,6 @@ import android.content.Context;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
-
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 

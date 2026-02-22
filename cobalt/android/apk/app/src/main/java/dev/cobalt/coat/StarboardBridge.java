@@ -71,7 +71,7 @@ public class StarboardBridge {
   private ResourceOverlay mResourceOverlay;
   private AdvertisingId mAdvertisingId;
   private VolumeStateReceiver mVolumeStateReceiver;
-
+  private PlatformError mPlatformError;
   private final Context mAppContext;
   private final Holder<Activity> mActivityHolder;
   private final Holder<Service> mServiceHolder;
@@ -107,6 +107,7 @@ public class StarboardBridge {
   private final boolean mIsAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long mTimeNanosecondsPerMicrosecond = 1000;
+  private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
 
   public StarboardBridge(
       Context appContext,
@@ -148,6 +149,7 @@ public class StarboardBridge {
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(mIsAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
+    StarboardBridgeJni.get().setYoutubeCertificationScope(getSystemProperty(YTS_CERT_SCOPE_SYSTEM_PROPERTY));
   }
 
   @NativeMethods
@@ -171,7 +173,11 @@ public class StarboardBridge {
 
     void setAndroidPlayServicesVersion(long version);
 
+    void setYoutubeCertificationScope(String certScope);
+
     boolean isReleaseBuild();
+
+    boolean isDevelopmentBuild();
   }
 
   protected void onActivityStart(Activity activity) {
@@ -287,13 +293,26 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-    PlatformError error = new PlatformError(mActivityHolder, errorType, data);
-    error.raise();
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data);
+    mPlatformError.raise();
+  }
+
+  @CalledByNative
+  public boolean isPlatformErrorShowing() {
+    if (mPlatformError != null) {
+      return mPlatformError.isShowing();
+    }
+    return false;
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
   public static boolean isReleaseBuild() {
     return StarboardBridgeJni.get().isReleaseBuild();
+  }
+
+  /** Returns true if the native code is compiled for development (i.e. 'devel' build). */
+  public static boolean isDevelopmentBuild() {
+    return StarboardBridgeJni.get().isDevelopmentBuild();
   }
 
   protected Holder<Activity> getActivityHolder() {
@@ -568,7 +587,7 @@ public class StarboardBridge {
   // Avoid using mActivityHolder.get(), because onActivityStop() can set it to null.
   @CalledByNative
   public CobaltService openCobaltService(
-      Activity activity, long nativeService, String serviceName) {
+      long nativeService, String serviceName) {
     if (mCobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
@@ -584,10 +603,6 @@ public class StarboardBridge {
       service.receiveStarboardBridge(this);
       mCobaltServices.put(serviceName, service);
       Log.i(TAG, String.format("Opened platform service %s.", serviceName));
-
-      if (activity instanceof CobaltActivity) {
-        service.setCobaltActivity((CobaltActivity) activity);
-      }
     }
     return service;
   }

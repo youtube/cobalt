@@ -7,6 +7,7 @@
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
+  "test_yts": false,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "test_dimensions": {
     "device_type": "nvidia_shield",
@@ -18,6 +19,28 @@
   "e2e_test_targets": [
     {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_nvidia_shield",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_nvidia_shield",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_nvidia_shield",
+      "test_attempts": "6"
+    },
+    {
+      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_nvidia_shield",
+      "test_attempts": "6"
+    }
+  ],
+  "yts_test_targets": [
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_shield_custom_test",
+      "test_attempts": "6"
+    },
+    {
+      "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_shield_custom_test",
       "test_attempts": "6"
     }
   ],

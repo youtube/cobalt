@@ -1,10 +1,18 @@
 {
-  "_comment": "TODO(b/403007005): Disabled new locale tests.",
+  "_comment": "TODO: b/467701409 - Investigate failing langinfo tests.",
   "failing_tests": [
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
     "PosixTimeClockTests.ClockIncreasesOverTime",
+    "Posix/NlLanginfoTest.AllItems/as_IN",
+    "Posix/NlLanginfoTest.AllItems/be_BY",
+    "Posix/NlLanginfoTest.AllItems/bs_BA",
+    "Posix/NlLanginfoTest.AllItems/or_IN",
+    "Posix/NlLanginfoLTest.AllItems/as_IN",
+    "Posix/NlLanginfoLTest.AllItems/be_BY",
+    "Posix/NlLanginfoLTest.AllItems/bs_BA",
+    "Posix/NlLanginfoLTest.AllItems/or_IN",
     "SbAudioSinkTest.*",
     "SbLogFlushTest.DontCrashMeBro",
     "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
@@ -14,15 +22,6 @@
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerTest.*",
     "SbPlayerWriteSampleTests*",
-    "VerticalVideoTests/VerticalVideoTest*",
-
-    "PosixLocaleSetTest.LocaleConvC",
-    "PosixLocaleSetTest.NewUseFreeLocale",
-    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
-    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
-    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
-    "PosixLocaleThreadTest.DupLocale",
-    "PosixLocaleThreadTest.DupLocaleNonDefault",
-    "Posix/NlLanginfo*"
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

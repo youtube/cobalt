@@ -18,6 +18,7 @@ exclude: |
     (?x)^(
         (
             starboard/contrib/RDK|
+            starboard/contrib/rdk|
         )/
     )
 
@@ -36,6 +37,11 @@ repos:
     -   id: end-of-file-fixer
     -   id: mixed-line-ending
     -   id: trailing-whitespace
+-   repo: https://github.com/rhysd/actionlint
+    rev: 03d0035246f3e81f36aed592ffb4bebf33a03106
+    hooks:
+    -   id: actionlint
+        files: ^.github/workflows
 -   repo: local
     hooks:
     -   id: chromium-pre-commit
@@ -43,6 +49,11 @@ repos:
         entry: ./third_party/depot_tools/vpython3 --vpython-spec=./third_party/depot_tools/.vpython3 ./cobalt/precommit/run_chromium_presubmits.py
         language: system
         types: [file]
+        exclude: |
+            (?x)^(
+                (.*/)?cobalt/.*|
+                (.*/)?starboard/.*|
+            )
         files: ^.*$ # Apply to all file paths
     -   id: clang-format
         name: clang-format

@@ -12,7 +12,7 @@ on:
       - feature/*
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
+  group: ${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
   cancel-in-progress: true
 
 permissions: {}
@@ -37,6 +37,7 @@ jobs:
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
           fetch-depth: 2
+          filter: blob:none
       - name: Run pre-commit
         run: |
           export SKIP=chromium-pre-commit

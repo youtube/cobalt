@@ -41,6 +41,8 @@
 
 namespace starboard {
 
+class JobQueue;
+
 // This class holds necessary media stack components required by
 // by |FilterBasedPlayerWorkerHandler| to function.  It owns the components, and
 // the returned value of each function won't change over the lifetime of this
@@ -52,22 +54,27 @@ class PlayerComponents {
    public:
     class CreationParameters {
      public:
-      explicit CreationParameters(const AudioStreamInfo& audio_stream_info,
-                                  SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const AudioStreamInfo& audio_stream_info,
+                         JobQueue* job_queue,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
+                         void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
+                         JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const AudioStreamInfo& audio_stream_info,
                          const VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
+                         void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
+                         JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
@@ -111,11 +118,14 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
+      void* surface_view() const { return surface_view_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
+
+      JobQueue* job_queue() const { return job_queue_; }
 
       SbDrmSystem drm_system() const { return drm_system_; }
 
@@ -132,8 +142,10 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
+      void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
+      JobQueue* const job_queue_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.
@@ -156,34 +168,37 @@ class PlayerComponents {
     virtual NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
         const CreationParameters& creation_parameters);
 
+    struct AudioComponents {
+      std::unique_ptr<AudioDecoder> decoder;
+      std::unique_ptr<AudioRendererSink> renderer_sink;
+    };
+    struct VideoComponents {
+      std::unique_ptr<VideoDecoder> decoder;
+      std::unique_ptr<VideoRenderAlgorithm> render_algorithm;
+      scoped_refptr<VideoRendererSink> renderer_sink;
+    };
+    struct MediaComponents {
+      AudioComponents audio;
+      VideoComponents video;
+    };
+
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
    private:
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     // Note that the following function is exposed in non-Gold build to allow
     // unit tests to run.
-    virtual bool CreateSubComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink,
-        std::string* error_message) = 0;
+    virtual Result<MediaComponents> CreateSubComponents(
+        const CreationParameters& creation_parameters) = 0;
 
    protected:
     Factory() {}
 
-    void CreateStubAudioComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
+    AudioComponents CreateStubAudioComponents(
+        const CreationParameters& creation_parameters);
 
-    void CreateStubVideoComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink);
+    VideoComponents CreateStubVideoComponents(
+        const CreationParameters& creation_parameters);
 
     // Check AudioRenderer ctor for more details on the parameters.
     virtual void GetAudioRendererParams(

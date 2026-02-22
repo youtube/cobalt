@@ -1,0 +1,31 @@
+name: tvos
+permissions: read-all
+
+on:
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  # This is default Chromium build config
+  tvos-arm64-simulator:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: tvos-arm64-simulator
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
+      sccache_gcs_key: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}

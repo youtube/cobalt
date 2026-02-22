@@ -53,10 +53,8 @@ v8_use_external_startup_data = false
 enable_hls_demuxer = false
 
 # Many of these come from media_options.gni.
-enable_dav1d_decoder = false
 enable_hevc_parser_and_hw_decoder = false
 enable_libaom = false
-enable_platform_ac3_eac3_audio = false
 enable_platform_dolby_vision = false
 enable_platform_mpeg_h_audio = false
 media_use_libvpx = false
@@ -72,3 +70,6 @@ generate_about_credits = false
 # Disable WebNN and some bits of TensorFlowLite.
 build_tflite_with_xnnpack = false
 webnn_use_tflite = false
+
+# Disable dav1d in webrtc to reduce binary size (~533KB)
+rtc_include_dav1d_in_internal_decoder_factory = false

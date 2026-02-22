@@ -25,4 +25,5 @@ interface H5vcc {
     readonly attribute H5vccMetrics metrics;
     readonly attribute H5vccSystem system;
     readonly attribute H5vccRuntime runtime;
+    readonly attribute H5vccStorage storage;
 };

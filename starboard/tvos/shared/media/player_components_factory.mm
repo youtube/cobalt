@@ -155,86 +155,74 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         is_5_1_playback, std::move(components)));
   }
 
-  bool CreateSubComponents(
-      const CreationParameters& creation_parameters,
-      std::unique_ptr<AudioDecoder>* audio_decoder,
-      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-      std::unique_ptr<VideoDecoder>* video_decoder,
-      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
-      std::string* error_message) override {
-    SB_DCHECK(error_message);
+  Result<MediaComponents> CreateSubComponents(
+      const CreationParameters& creation_parameters) override {
+    MediaComponents components;
+    JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      SB_DCHECK(audio_decoder);
-      SB_DCHECK(audio_renderer_sink);
-
-      auto decoder_creator = [](const AudioStreamInfo& audio_stream_info,
-                                SbDrmSystem drm_system) {
+      auto decoder_creator =
+          [job_queue](const AudioStreamInfo& audio_stream_info,
+                      SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
             audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
             audio_stream_info.codec == kSbMediaAudioCodecEac3) {
-          return std::unique_ptr<AudioDecoder>(
-              new TvosAudioDecoder(audio_stream_info));
+          return std::make_unique<TvosAudioDecoder>(job_queue,
+                                                    audio_stream_info);
         } else if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          return std::unique_ptr<AudioDecoder>(
-              new OpusAudioDecoder(audio_stream_info));
+          return std::make_unique<OpusAudioDecoder>(job_queue,
+                                                    audio_stream_info);
         } else {
           SB_NOTREACHED();
         }
-        return std::unique_ptr<AudioDecoder>();
+        return nullptr;
       };
 
-      audio_decoder->reset(new AdaptiveAudioDecoder(
-          creation_parameters.audio_stream_info(),
+      components.audio.decoder.reset(new AdaptiveAudioDecoder(
+          job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator));
-      audio_renderer_sink->reset(new AudioRendererSinkImpl);
+      components.audio.renderer_sink.reset(new AudioRendererSinkImpl);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      SB_DCHECK(video_decoder);
-      SB_DCHECK(video_render_algorithm);
-      SB_DCHECK(video_renderer_sink);
-
       // TODO: b/447334535 - This code needs decode to texture support and is
       // therefore always failing here by design.
       SB_LOG(ERROR) << "Unsupported video codec "
                     << creation_parameters.video_codec();
-      *error_message = FormatString("Unsupported video codec %d",
-                                    creation_parameters.video_codec());
       SB_NOTREACHED();
-      return false;
+      return Failure(FormatString("Unsupported video codec %d",
+                                  creation_parameters.video_codec()));
     }
 
-    return true;
+    return components;
   }
 
   std::unique_ptr<PlayerComponents> CreatePunchoutComponents(
       const CreationParameters& creation_parameters) {
     SB_DCHECK(creation_parameters.output_mode() == kSbPlayerOutputModePunchOut);
+    JobQueue* job_queue = creation_parameters.job_queue();
 
-    std::unique_ptr<AVSBSynchronizer> synchronizer(new AVSBSynchronizer());
+    auto synchronizer = std::make_unique<AVSBSynchronizer>(job_queue);
     std::unique_ptr<AVSBAudioRenderer> audio_renderer;
     std::unique_ptr<AVSBVideoRenderer> video_renderer;
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      audio_renderer.reset(
-          new AVSBAudioRenderer(creation_parameters.audio_stream_info(),
-                                creation_parameters.drm_system()));
+      audio_renderer = std::make_unique<AVSBAudioRenderer>(
+          job_queue, creation_parameters.audio_stream_info(),
+          creation_parameters.drm_system());
       synchronizer->SetRenderer(audio_renderer.get());
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      video_renderer.reset(
-          new AVSBVideoRenderer(creation_parameters.video_stream_info(),
-                                creation_parameters.drm_system()));
+      video_renderer = std::make_unique<AVSBVideoRenderer>(
+          job_queue, creation_parameters.video_stream_info(),
+          creation_parameters.drm_system());
       synchronizer->SetRenderer(video_renderer.get());
     }
 
-    return std::unique_ptr<PlayerComponents>(
-        new AVSampleBufferPlayerComponentsImpl(std::move(synchronizer),
-                                               std::move(audio_renderer),
-                                               std::move(video_renderer)));
+    return std::make_unique<AVSampleBufferPlayerComponentsImpl>(
+        std::move(synchronizer), std::move(audio_renderer),
+        std::move(video_renderer));
   }
 };
 

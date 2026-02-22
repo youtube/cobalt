@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
+
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -111,4 +114,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       frame_width, frame_height, bitrate, fps);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

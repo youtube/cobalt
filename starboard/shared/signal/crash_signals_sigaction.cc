@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/signal/crash_signals.h"
+// clang-format on
+
 #include <signal.h>
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/system.h"
 

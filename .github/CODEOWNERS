@@ -28,10 +28,13 @@
 /components/viz/service/display/starboard/ @youtube/cobalt-starboard-owners
 /ui/ozone/platform/starboard/              @youtube/cobalt-starboard-owners
 
-/starboard/tvos @youtube/cobalt-tvos
+/cobalt/app/tvos @youtube/cobalt-tvos
+/starboard/tvos  @youtube/cobalt-tvos
+/cobalt/**/*.mm  @youtube/cobalt-tvos
 
 /cobalt/build/gn.py @youtube/cobalt-build
 
 /third_party/blink/ @youtube/cobalt-web-api
 
 *.nplb_filter.json @youtube/nplb-filters
+/starboard/contrib/rdk @youtube/starboard-rdk-owners

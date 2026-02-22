@@ -25,6 +25,7 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "starboard/system.h"
 
 namespace h5vcc_system {
@@ -62,47 +63,48 @@ std::string GetTrackingAuthorizationStatusShared() {
 }  // namespace
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GetAdvertisingIdShared(std::move(callback));
 }
 
 void H5vccSystemImpl::GetAdvertisingIdSync(
     GetAdvertisingIdSyncCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GetAdvertisingIdShared(std::move(callback));
 }
 
 void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetLimitAdTrackingShared());
 }
 
 void H5vccSystemImpl::GetLimitAdTrackingSync(
     GetLimitAdTrackingSyncCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetLimitAdTrackingShared());
 }
 
 void H5vccSystemImpl::GetTrackingAuthorizationStatus(
     GetTrackingAuthorizationStatusCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetTrackingAuthorizationStatusShared());
 }
 
 void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
     GetTrackingAuthorizationStatusSyncCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetTrackingAuthorizationStatusShared());
 }
 
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto completion = base::CallbackToBlock(base::BindPostTask(
       base::SequencedTaskRunner::GetCurrentDefault(),
       base::IgnoreArgs<ATTrackingManagerAuthorizationStatus>(base::BindOnce(
           [](RequestTrackingAuthorizationCallback callback) {
-            std::move(callback).Run();
+            std::move(callback).Run(
+                /*is_tracking_authorization_supported=*/true);
           },
           std::move(callback)))));
   [ATTrackingManager

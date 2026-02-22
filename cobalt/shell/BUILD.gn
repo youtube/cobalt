@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/buildflag_header.gni")
 import("//build/config/cast.gni")
 import("//build/config/ui.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
@@ -19,12 +20,21 @@ import("//starboard/build/buildflags.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/grit/repack.gni")
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
 shell_use_toolkit_views = toolkit_views && !is_castos
 
-# Web test support only built for the linux-x64x11-no-starboard target.
-support_web_tests = !is_android && !is_ios && !is_starboard
+support_web_tests =
+    !is_android && !(is_ios && target_platform == "tvos") && !is_starboard
+
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+  flags = [ "SUPPORT_WEB_TESTS=$support_web_tests" ]
+}
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("cobalt_shell_lib_warnings") {
@@ -47,6 +57,7 @@ group("cobalt_shell_lib_deps") {
 
   public_deps = [
     ":android_shell_descriptors",
+    ":buildflags",
     ":embed_loader_resources_as_header_files",
     ":embed_polyfilled_javascript",
     ":resources",
@@ -115,7 +126,7 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//services/tracing/public/cpp",
       "//services/tracing/public/mojom:mojom",
-      "//ui/shell_dialogs",
+      "//ui/accessibility:ax_base",
     ]
   }
 
@@ -174,10 +185,10 @@ static_library("cobalt_shell_switches") {
     "common/shell_switches.cc",
     "common/shell_switches.h",
   ]
+  deps = [ "//base" ]
 }
 
 static_library("cobalt_shell_lib") {
-  testonly = true
   public_deps = [
     ":cobalt_shell_lib_deps",
     ":cobalt_shell_switches",
@@ -210,6 +221,10 @@ static_library("cobalt_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "browser/splash_screen_web_contents_delegate.cc",
+    "browser/splash_screen_web_contents_delegate.h",
+    "browser/splash_screen_web_contents_observer.cc",
+    "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/shell_paths.cc",
@@ -246,17 +261,6 @@ static_library("cobalt_shell_lib") {
     "CONTENT_SHELL_VERSION=\"1.0.0\"",
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
   ]
-
-  # TODO(b/440376024): run_browser_tests and RUN_BROWSER_TESTS gate all test logic which should not be in
-  # an official build, including not only browser tests but also web tests or render tests.
-  if (run_browser_tests) {
-    defines += [ "RUN_BROWSER_TESTS=1" ]
-
-    public_deps += [
-      ":shell_test_switches_lib",
-      "//content/test:test_support",
-    ]
-  }
 
   if (shell_use_toolkit_views) {
     # All cobalt_shell code should use this define instead of TOOLKIT_VIEWS,
@@ -302,15 +306,6 @@ static_library("cobalt_shell_lib") {
   }
 }
 
-source_set("shell_test_switches_lib") {
-  testonly = true
-  sources = [
-    "common/shell_test_switches.cc",
-    "common/shell_test_switches.h",
-  ]
-  deps = [ "//base:base" ]
-}
-
 # This component provides a ContentMainDelegate for Content Shell and derived
 # applications. This delegate is the central place that creates interfaces for
 # each type of process (browser, renderer, etc). This implementation of
@@ -324,7 +319,6 @@ source_set("shell_test_switches_lib") {
 # cobalt_shell_lib component will not, to avoid circular deps, as web_test
 # inherits from things in cobalt_shell_lib.
 static_library("cobalt_shell_app") {
-  testonly = true
   sources = [
     "app/shell_crash_reporter_client.cc",
     "app/shell_crash_reporter_client.h",
@@ -339,12 +333,6 @@ static_library("cobalt_shell_app") {
       "app/paths_mac.mm",
     ]
   }
-  if (is_ios) {
-    sources += [
-      "app/ios/shell_application_ios.h",
-      "app/ios/shell_application_ios.mm",
-    ]
-  }
   defines = [
     "CONTENT_SHELL_VERSION=\"1.0.0\"",
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
@@ -356,24 +344,16 @@ group("cobalt_shell_app_deps") {
     "//cobalt/shell:*",
     "//cobalt/testing:*",
   ]
-  testonly = true
+
   public_deps = [
     ":cobalt_shell_lib",
     "//components/crash/core/app",
-    "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
     "//content/public/renderer",
     "//v8",
   ]
-  if (support_web_tests) {
-    public_deps += [
-      "//content/web_test:web_test_browser",
-      "//content/web_test:web_test_common",
-      "//content/web_test:web_test_renderer",
-    ]
-  }
 }
 
 repack("pak") {
@@ -471,6 +451,34 @@ group("resources") {
 action("embed_loader_resources_as_header_files") {
   script = "//cobalt/build/generate_data_header.py"
   outputs = [ "$target_gen_dir/embedded_resources/embedded_resources.h" ]
+  sources = [
+    "embedded_resources/loader_embedded_resources/splash.html",
+
+    # TODO(b/481826565): hide code path for internal files
+    # Default splash video, 1920x1080. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash.webm.
+    "embedded_resources/loader_embedded_resources/splash.webm",
+
+    # For low spec TV, 853x480. Copied from
+    # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/splash_480p.webm.
+    "embedded_resources/loader_embedded_resources/splash_480.webm",
+
+    # Music splash video, 1920x1080. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/music_splash.webm.
+    "embedded_resources/loader_embedded_resources/music_splash.webm",
+
+    # For low spec TV, 853x480. Copied from
+    # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/music_splash_480p.webm.
+    "embedded_resources/loader_embedded_resources/music_splash_480.webm",
+
+    # For devices that do not support VP9. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash_video_placeholder.png.
+    "embedded_resources/loader_embedded_resources/splash.png",
+
+    # For devices that do not support VP9. Copied from
+    # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/music_splash_video_placeholder.png.
+    "embedded_resources/loader_embedded_resources/music_splash.png",
+  ]
 
   args = [
     "LoaderEmbeddedResources",

@@ -14,6 +14,8 @@
 
 #include "cobalt/shell/common/shell_switches.h"
 
+#include "base/command_line.h"
+
 namespace switches {
 
 // Makes Content Shell use the given path for its data directory.
@@ -25,6 +27,9 @@ const char kContentShellUserDataDir[] = "user-data-dir";
 
 // The directory breakpad should store minidumps in.
 const char kCrashDumpsDir[] = "crash-dumps-dir";
+
+// Disables showing splash screen.
+const char kDisableSplashScreen[] = "disable-splash-screen";
 
 // Disables the check for the system font when specified.
 const char kDisableSystemFontCheck[] = "disable-system-font-check";
@@ -50,7 +55,16 @@ const char kOmitDeviceAuthenticationQueryParameters[] =
 // risk.
 const char kRemoteDebuggingAddress[] = "remote-debugging-address";
 
+// The delay in milliseconds before shutting down the splash screen.
+const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
+
 // Register the provided scheme as a standard scheme.
 const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
+
+bool ShouldCreateSplashScreen() {
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  return !command_line->HasSwitch(kDisableSplashScreen);
+}
 
 }  // namespace switches
