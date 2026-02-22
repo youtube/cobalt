@@ -316,6 +316,17 @@ static_library("starboard_platform_sources") {
   if (is_debug || is_devel) {
     defines += [ "SB_PLAYER_ENABLE_VIDEO_DUMPER" ]
   }
+
+  if (enable_iamf_decode) {
+    sources += [
+      "//starboard/shared/libiamf/iamf_audio_decoder.cc",
+      "//starboard/shared/libiamf/iamf_audio_decoder.h",
+      "//starboard/shared/libiamf/iamf_decoder_utils.cc",
+      "//starboard/shared/libiamf/iamf_decoder_utils.h",
+    ]
+
+    defines += [ "ENABLE_IAMF_DECODE" ]
+  }
 }
 
 if (current_toolchain == starboard_toolchain) {

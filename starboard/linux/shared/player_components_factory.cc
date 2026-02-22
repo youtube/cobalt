@@ -42,6 +42,10 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
+#if ENABLE_IAMF_DECODE
+#include "starboard/shared/libiamf/iamf_audio_decoder.h"
+#endif  // ENABLE_IAMF_DECODE
+
 namespace starboard {
 
 namespace {
@@ -72,6 +76,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
           return std::make_unique<FdkAacAudioDecoder>(job_queue);
+#if ENABLE_IAMF_DECODE
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
+          auto iamf_audio_decoder =
+              std::make_unique<IamfAudioDecoder>(audio_stream_info);
+          if (iamf_audio_decoder->is_valid()) {
+            SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
+            return iamf_audio_decoder;
+#endif  // ENABLE_IAMF_DECODE
         } else {
           std::unique_ptr<FfmpegAudioDecoder> ffmpeg_audio_decoder(
               FfmpegAudioDecoder::Create(job_queue, audio_stream_info));
