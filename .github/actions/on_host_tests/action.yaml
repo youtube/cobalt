@@ -85,18 +85,33 @@ runs:
           else
             export GTEST_TOTAL_SHARDS=${{ inputs.num_gtest_shards }}
             export GTEST_SHARD_INDEX=${{ matrix.shard }}
-            /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                stdbuf -i0 -o0 -e0 $ENTRYPOINT \
-                --single-process-tests \
-                --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
+
+            # TODO: Only assign here if $test_filter != '*', else assign empty.
+            if [ "${test_filter}" == "*" ]; then
+              crash_filter=""
+            else
+              crash_filter="${test_filter}"
+            fi
+
+            if [ -n "${crash_filter}" ]; then
+              gtest_filter_arg="--gtest_filter=${crash_filter}"
+            else
+              gtest_filter_arg=""
+            fi
+
+            python3 ${GITHUB_WORKSPACE}/.github/scripts/crash_wrapper.py \
+              --xml_output_file="${xml_path}" \
+              --log_file="${log_path}" \
+              --filter_file="${test_output}/${test_binary}_crash.filter" \
+              --max_retries=100 \
+              -- \
+              /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                  stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+                  --single-process-tests \
+                  --gtest_output="xml:${xml_path}" \
+                  ${gtest_filter_arg} || {
               failed_suites="${failed_suites} ${test_binary}"
             }
-
-            if [[ ! -f ${xml_path} ]]; then
-              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-            fi
           fi
         done
         echo "Finished running tests..."

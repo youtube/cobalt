@@ -20,7 +20,7 @@ runs:
       id: test-summary
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
-        paths: ${{ inputs.results_glob }}
+        paths: ${{ inputs.results_glob }}.xml
         output: test-report-summary.md
         show: "fail, skip"
 
@@ -45,7 +45,7 @@ runs:
           num_shards=1
         fi
 
-        result_xmls=(${{ inputs.results_glob }})
+        result_xmls=( ${{ inputs.results_glob }}.xml )
         if [ ${#result_xmls[@]} -ne ${num_shards} ]; then
           echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${{ inputs.num_gtest_shards }}). Did a test shard crash?"
           exit_code=1
@@ -66,6 +66,13 @@ runs:
           echo "::error::${{ inputs.target_name }} has ${{ steps.test-summary.outputs.failed }} failed test(s)."
           exit_code=1
         fi
+
+        crash_filters=(${{ inputs.results_glob }}crash.filter)
+        for crash_filter in ${#crash_filters[@]}; do
+          echo "::error::${target_name} has crashed tests."
+          cat "${crash_filter}"
+          exit_code=1
+        done
 
         exit ${exit_code}
       shell: bash
