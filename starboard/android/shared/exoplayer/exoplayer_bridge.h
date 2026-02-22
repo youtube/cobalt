@@ -24,8 +24,10 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -50,7 +52,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   };
 
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
-                  const SbMediaVideoStreamInfo& video_stream_info);
+                  const SbMediaVideoStreamInfo& video_stream_info,
+                  const SbDrmSystem drm_system,
+                  const std::vector<uint8_t>& drm_init_data);
   ~ExoPlayerBridge();
 
   // VideoSurfaceHolder method.
@@ -59,7 +63,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool Init(ErrorCB error_cb, PrerolledCB prerolled_cb, EndedCB ended_cb);
 
   void Seek(int64_t timestamp);
-  void WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
+  void WriteSamples(const InputBuffers& input_buffers,
+                    SbMediaType type,
+                    std::vector<uint8_t>& drm_init_data);
   void WriteEOS(SbMediaType type);
   void SetPause(bool pause) const;
   void SetPlaybackRate(const double playback_rate) const;

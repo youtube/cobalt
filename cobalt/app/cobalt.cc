@@ -19,11 +19,13 @@
 #include <string>
 #include <vector>
 
+#include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
@@ -202,9 +204,24 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
+    case kSbEventTypeLowMemory: {
+      // Send a one-time critical memory pressure signal to ask
+      // other components to release memory.
+      base::MemoryPressureListener::NotifyMemoryPressure(
+          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
+                   "burden.";
+
+      // Chromium internally calls Reclaim/ReclaimNormal at regular interval
+      // to claim free memory. Using ReclaimAll is more aggressive.
+      // TODO: b/454095852 - Remove this when
+      // https://chromium-review.googlesource .com/c/chromium/src/+/7127962
+      // lands on main
+      ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+      break;
+    }
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
-    case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
       CHECK(g_platform_event_source);
       g_platform_event_source->HandleWindowSizeChangedEvent(event);

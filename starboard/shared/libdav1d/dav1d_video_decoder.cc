@@ -97,7 +97,7 @@ void Dav1dVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   const auto& input_buffer = input_buffers[0];
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&Dav1dVideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
@@ -116,7 +116,7 @@ void Dav1dVideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&Dav1dVideoDecoder::DecodeEndOfStream, this, 100'000));
 }
 
@@ -125,7 +125,7 @@ void Dav1dVideoDecoder::Reset() {
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
-    decoder_thread_->job_queue()->ScheduleAndWait(
+    decoder_thread_->ScheduleAndWait(
         std::bind(&Dav1dVideoDecoder::TeardownCodec, this));
 
     decoder_thread_.reset();
@@ -164,7 +164,7 @@ void Dav1dVideoDecoder::ReportError(const std::string& error_message) {
 }
 
 void Dav1dVideoDecoder::InitializeCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK_EQ(dav1d_context_, nullptr);
 
   Dav1dSettings dav1d_settings{0};
@@ -187,7 +187,7 @@ void Dav1dVideoDecoder::InitializeCodec() {
 }
 
 void Dav1dVideoDecoder::TeardownCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   if (dav1d_context_) {
     dav1d_close(&dav1d_context_);
@@ -211,7 +211,7 @@ void Dav1dVideoDecoder::TeardownCodec() {
 
 void Dav1dVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
@@ -268,17 +268,16 @@ void Dav1dVideoDecoder::DecodeOneBuffer(
 }
 
 void Dav1dVideoDecoder::DecodeEndOfStream(int64_t timeout) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   if (!TryToOutputFrames()) {
     return;
   }
   if (frames_being_decoded_ > 0 && timeout > 0) {
     const int64_t delay_period_usec = 5'000;  // 5ms
-    decoder_thread_->job_queue()->Schedule(
-        std::bind(&Dav1dVideoDecoder::DecodeEndOfStream, this,
-                  timeout - delay_period_usec),
-        delay_period_usec);
+    decoder_thread_->Schedule(std::bind(&Dav1dVideoDecoder::DecodeEndOfStream,
+                                        this, timeout - delay_period_usec),
+                              delay_period_usec);
     return;
   } else {
     SB_LOG_IF(WARNING, frames_being_decoded_ > 0)
@@ -290,7 +289,7 @@ void Dav1dVideoDecoder::DecodeEndOfStream(int64_t timeout) {
 }
 
 bool Dav1dVideoDecoder::TryToOutputFrames() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   bool error_occurred = false;
 

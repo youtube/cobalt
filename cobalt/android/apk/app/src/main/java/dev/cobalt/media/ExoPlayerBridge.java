@@ -138,7 +138,7 @@ public class ExoPlayerBridge {
      */
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context,
             DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
-            @Nullable ExoPlayerMediaSource videoSource,
+            @Nullable ExoPlayerMediaSource videoSource, @Nullable ExoPlayerDrmBridge drmBridge,
             @Nullable Surface surface, boolean enableTunnelMode) {
         this.mExoplayerHandler = new Handler(Looper.getMainLooper());
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
@@ -163,18 +163,24 @@ public class ExoPlayerBridge {
             playbackMediaSource = mAudioMediaSource != null ? mAudioMediaSource : mVideoMediaSource;
         }
 
-        mPlayer = new ExoPlayer.Builder(context)
-                          .setRenderersFactory(renderersFactory)
-                          .setLoadControl(
-                                  new DefaultLoadControl.Builder()
-                                          .setBufferDurationsMs(MIN_BUFFER_DURATION_MS,
-                                                  MAX_BUFFER_DURATION_MS, MIN_BUFFER_DURATION_MS,
-                                                  MIN_BUFFER_DURATION_MS)
-                                          .build())
-                          .setLooper(mExoplayerHandler.getLooper())
-                          .setTrackSelector(trackSelector)
-                          .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS)
-                          .build();
+        ExoPlayer.Builder builder =
+                new ExoPlayer.Builder(context)
+                        .setRenderersFactory(renderersFactory)
+                        .setLoadControl(
+                                new DefaultLoadControl.Builder()
+                                        .setBufferDurationsMs(MIN_BUFFER_DURATION_MS,
+                                                MAX_BUFFER_DURATION_MS, MIN_BUFFER_DURATION_MS,
+                                                MIN_BUFFER_DURATION_MS)
+                                        .build())
+                        .setLooper(mExoplayerHandler.getLooper())
+                        .setTrackSelector(trackSelector)
+                        .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS);
+
+        if (drmBridge != null) {
+            builder.setMediaSourceFactory(drmBridge.getMediaSourceFactory());
+        }
+
+        mPlayer = builder.build();
 
         mPlayerListener = new ExoPlayerListener();
         mDroppedFramesListener = new DroppedFramesListener();
@@ -248,6 +254,27 @@ public class ExoPlayerBridge {
     @CalledByNative
     public void writeSample(
             ByteBuffer samples, int size, long timestamp, boolean isKeyFrame, int type) {
+        writeEncryptedSample(
+                samples, size, timestamp, isKeyFrame, type, 0, null, 0, 0, null, 0, null, null);
+    }
+
+    /**
+     * Writes a sample to the appropriate media source.
+     * @param samples The sample data.
+     * @param size The size of the sample data.
+     * @param timestamp The timestamp of the sample in microseconds.
+     * @param isKeyFrame Whether the sample is a keyframe.
+     * @param type The type of the media source (audio or video).
+     * @param encryptionMode Signals the type of Widevine encryption.
+     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
+     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
+     */
+    @CalledByNative
+    public void writeEncryptedSample(ByteBuffer samples, int size, long timestamp,
+            boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] key,
+            int encryptedBlocks, int clearBlocks, @Nullable byte[] initializationVector,
+            int ivSize, @Nullable int[] subsampleEncryptedBytes,
+            @Nullable int[] subsampleClearBytes) {
         ExoPlayerMediaSource mediaSource =
                 type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
         if (mediaSource == null || mIsReleasing) {
@@ -255,7 +282,9 @@ public class ExoPlayerBridge {
                     String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
                             type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
         }
-        mediaSource.writeSample(samples, size, timestamp, isKeyFrame);
+        mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
+                encryptedBlocks, clearBlocks, initializationVector, ivSize,
+                subsampleEncryptedBytes, subsampleClearBytes);
     }
 
     /**

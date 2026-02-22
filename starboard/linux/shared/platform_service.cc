@@ -14,6 +14,8 @@
 
 #include "starboard/linux/shared/platform_service.h"
 
+#include <pthread.h>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -21,6 +23,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/linux/shared/echo_service.h"
 #include "starboard/linux/shared/pre_app_recommendation_service.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
 #include "starboard/shared/starboard/application.h"
@@ -39,6 +42,9 @@ struct cmp_str {
 };
 
 std::map<const char*, const void* (*)(), cmp_str> platform_service_registry = {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    {kEchoServiceName, GetEchoServiceApi},
+#endif
     {kSoftMicPlatformServiceName, GetSoftMicPlatformServiceApi},
     {kPreappRecommendationServiceName, GetPreappRecommendationServiceApi}};
 
@@ -78,23 +84,6 @@ CobaltExtensionPlatformService Open(void* context,
     service->platform_service_impl = std::unique_ptr<PlatformServiceImpl>(
         api->Open(context, receive_callback));
     SB_LOG(INFO) << "Open() created service: " << name;
-  }
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  const bool is_evergreen = elf_loader::EvergreenConfig::GetInstance() != NULL;
-#else
-  const bool is_evergreen = false;
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
-
-  // The name parameter memory is allocated in h5vcc_platform_service::Open()
-  // with new[] and must be deallocated here.
-  // If we are in an Evergreen build, the name parameter must be deallocated
-  // with free (), since new[] will map to malloc()
-  // in an Evergreen build.
-  if (is_evergreen) {
-    free((void*)name);  // NOLINT
-  } else {
-    delete[] name;
   }
 
   return service;

@@ -180,30 +180,6 @@ config("platform_configuration") {
   }
 }
 
-config("speed") {
-  cflags = [ "-O2" ]
-
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
-}
-
-config("size") {
-  cflags = [ "-Os" ]
-
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
-}
-
 config("no_pedantic_warnings") {
   cflags = [
     # Do not warn for implicit type conversions that may change a value.

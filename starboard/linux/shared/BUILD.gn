@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/shared/enhanced_audio/enhanced_audio.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
@@ -247,6 +246,13 @@ static_library("starboard_platform_sources") {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
+    ]
+  }
+
+  if (!cobalt_is_release_build) {
+    sources += [
+      "//starboard/linux/shared/echo_service.cc",
+      "//starboard/linux/shared/echo_service.h",
     ]
   }
 

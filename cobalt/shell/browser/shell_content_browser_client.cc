@@ -256,8 +256,6 @@ ShellContentBrowserClient* ShellContentBrowserClient::Get() {
 
 ShellContentBrowserClient::ShellContentBrowserClient() {
   GetShellContentBrowserClientInstancesImpl().push_back(this);
-  h5vcc_scheme_url_loader_factory_ =
-      std::make_unique<H5vccSchemeURLLoaderFactory>();
 }
 
 ShellContentBrowserClient::~ShellContentBrowserClient() {
@@ -684,9 +682,13 @@ ShellContentBrowserClient::GetShellContentBrowserClientInstances() {
 
 void ShellContentBrowserClient::RegisterH5vccScheme(
     NonNetworkURLLoaderFactoryMap* factories) {
+  auto* context = browser_context();
+  CHECK(context) << "H5vcc scheme factory requires a valid BrowserContext to "
+                    "access local storage cache.";
+
   if (!h5vcc_scheme_url_loader_factory_) {
-    LOG(WARNING) << "h5vcc_scheme_url_loader_factory_ is not initialized!";
-    return;
+    h5vcc_scheme_url_loader_factory_ =
+        std::make_unique<H5vccSchemeURLLoaderFactory>(context);
   }
 
   mojo::PendingRemote<network::mojom::URLLoaderFactory> remote;

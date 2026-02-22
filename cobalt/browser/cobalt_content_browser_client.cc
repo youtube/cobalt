@@ -41,6 +41,7 @@
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -92,6 +93,17 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+void BindPlatformWindowProviderService(
+    uint64_t window_handle,
+    mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+        receiver) {
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<cobalt::media::PlatformWindowProviderService>(
+          base::BindRepeating([](uint64_t handle) { return handle; },
+                              window_handle)),
+      std::move(receiver));
+}
 
 }  // namespace
 
@@ -153,9 +165,19 @@ CobaltContentBrowserClient::CobaltContentBrowserClient()
               nullptr,
               base::OnTaskRunnerDeleter(nullptr))) {
   DETACH_FROM_THREAD(thread_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
+  ui::PlatformWindowStarboard::SetWindowCreatedCallback(
+      base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowCreated,
+                          weak_factory_.GetWeakPtr()));
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
-CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
+CobaltContentBrowserClient::~CobaltContentBrowserClient() {
+#if BUILDFLAG(IS_STARBOARD)
+  ui::PlatformWindowStarboard::SetWindowCreatedCallback(base::NullCallback());
+#endif  // BUILDFLAG(IS_STARBOARD)
+}
 
 // static
 CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
@@ -416,6 +438,27 @@ void CobaltContentBrowserClient::DispatchFocus() {
       web_contents->GetRenderViewHost()->GetWidget()->Focus();
     }
   }
+}
+
+void CobaltContentBrowserClient::AddPendingWindowReceiver(
+    mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+        receiver) {
+  if (cached_sb_window_) {
+    BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
+  } else {
+    pending_window_receivers_.push_back(std::move(receiver));
+  }
+}
+
+void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
+  // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows. This
+  // assumes only single PlatformWindowStarboard() in Cobalt.
+  CHECK(!cached_sb_window_);
+  cached_sb_window_ = reinterpret_cast<uint64_t>(window);
+  for (auto& receiver : pending_window_receivers_) {
+    BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
+  }
+  pending_window_receivers_.clear();
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(

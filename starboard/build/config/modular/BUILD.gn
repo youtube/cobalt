@@ -37,6 +37,9 @@ config("modular") {
     # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
     # nasty macros (|Status|, for example) that conflict with Chromium base.
     "EGL_NO_X11",
+
+    # Disable weak symbols in zstd.
+    "ZSTD_HAVE_WEAK_SYMBOLS=0",
   ]
 
   if (is_debug || cobalt_debugging_enabled) {
@@ -111,12 +114,4 @@ config("modular") {
 
     defines += [ "THREAD_SANITIZER" ]
   }
-}
-
-config("speed") {
-  cflags = [ "-O2" ]
-}
-
-config("size") {
-  cflags = [ "-Os" ]
 }

@@ -83,6 +83,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   std::string GetVersionString() override;
   void CollectFinalMetricsForLog(base::OnceClosure done_callback) override;
   GURL GetMetricsServerUrl() override;
+  GURL GetInsecureMetricsServerUrl() override;
   std::unique_ptr<::metrics::MetricsLogUploader> CreateUploader(
       const GURL& server_url,
       const GURL& insecure_server_url,

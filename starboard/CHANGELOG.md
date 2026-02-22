@@ -29,6 +29,7 @@ The functionality is migrated to use `getauxval` instead.
 * `fchown`
 * `fdatasync`
 * `fdopendir`
+* `fstatat`
 * `gai_strerror`
 * `getauxval`
 * `getcwd`
@@ -41,13 +42,13 @@ The functionality is migrated to use `getauxval` instead.
 * `isatty`
 * `kill`
 * `link`
-* `lstat`
 * `madvise`
 * `malloc_usable_size`
 * `mincore`
 * `mkdtemp`
 * `mkostemp`
 * `mkstemp`
+* `openat`
 * `pathconf`
 * `pause`
 * `pipe`
@@ -113,6 +114,11 @@ The functionality is migrated to use `getauxval` instead.
 * `unlinkat`
 * `utimensat`
 * `writev`
+
+### Removed the following POSIX Symbols:
+The following were removed in favor of more modern POSIX APIs added above.
+* `open`
+* `stat`
 
 ### From `starboard/time_zone.h`
  * Removed `SbTimeZoneGetCurrent`. The time offset is now derived

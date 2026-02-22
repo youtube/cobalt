@@ -15,6 +15,7 @@
 package dev.cobalt.media;
 
 
+import android.os.Looper;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -22,6 +23,8 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.TransferListener;
+import androidx.media3.exoplayer.analytics.PlayerId;
+import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.BaseMediaSource;
 import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SinglePeriodTimeline;
@@ -36,15 +39,25 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     // Guarded by mLock
     private ExoPlayerMediaPeriod mMediaPeriod;
     private final MediaItem mMediaItem;
+    private DrmSessionManager mDrmSessionManager;
     private final Object mLock = new Object();
 
-    ExoPlayerMediaSource(Format format) {
+    ExoPlayerMediaSource(Format format, DrmSessionManager drmSessionManager) {
         this.mFormat = format;
+        mDrmSessionManager = drmSessionManager;
         this.mMediaItem = new MediaItem.Builder().setMediaMetadata(MediaMetadata.EMPTY).build();
+    }
+
+    public Format getFormat() {
+        return mFormat;
     }
 
     @Override
     protected void prepareSourceInternal(@Nullable TransferListener mediaTransferListener) {
+        if (mDrmSessionManager != null) {
+            mDrmSessionManager.setPlayer(Looper.myLooper(), PlayerId.UNSET);
+            mDrmSessionManager.prepare();
+        }
         refreshSourceInfo(new SinglePeriodTimeline(
                 /* durationUs= */ C.TIME_UNSET,
                 /* isSeekable= */ true,
@@ -54,7 +67,9 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     }
 
     @Override
-    protected void releaseSourceInternal() {}
+    protected void releaseSourceInternal() {
+        // DrmSessionManager is owned by ExoPlayerDrmBridge, so we do not release it here.
+    }
 
     @Override
     public MediaItem getMediaItem() {
@@ -79,7 +94,8 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
         synchronized (mLock) {
             if (mMediaPeriod == null) {
-                mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator);
+                mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator, mDrmSessionManager,
+                        mDrmSessionManager != null ? createDrmEventDispatcher(id) : null);
                 return mMediaPeriod;
             }
         }
@@ -116,13 +132,22 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      * @param size The size of the sample data.
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
+     * @param encryptionMode Signals the type of Widevine encryption.
+     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
+     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
+     * must be non-null when writing the first sample of the stream
      */
-    public void writeSample(ByteBuffer samples, int size, long timestamp, boolean isKeyFrame) {
-      synchronized (mLock) {
-        if (mMediaPeriod != null) {
-          mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame);
+    public void writeSample(ByteBuffer samples, int size, long timestamp, boolean isKeyFrame,
+            int encryptionMode, @Nullable byte[] key, int encryptedBlocks, int clearBlocks,
+            @Nullable byte[] initializationVector, int ivSize,
+            @Nullable int[] subsampleEncryptedBytes, @Nullable int[] subsampleClearBytes) {
+        synchronized (mLock) {
+            if (mMediaPeriod != null) {
+                mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
+                        encryptedBlocks, clearBlocks, initializationVector, ivSize,
+                        subsampleEncryptedBytes, subsampleClearBytes);
+            }
         }
-      }
     }
 
     public void writeEndOfStream() {
