@@ -164,21 +164,6 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
   prerolled_cb_ = std::move(prerolled_cb);
   ended_cb_ = std::move(ended_cb);
 
-  bool completed_init;
-  {
-    std::unique_lock<std::mutex> lock(mutex_);
-    completed_init = initialized_cv_.wait_for(
-        lock, std::chrono::microseconds(kWaitForInitializedTimeoutUsec),
-        [this] { return initialized_.load(); });
-  }
-
-  if (!completed_init) {
-    std::string msg = "ExoPlayer failed to initialize in time";
-    SB_LOG(ERROR) << msg;
-    ReportError(msg);
-    return false;
-  }
-
   return true;
 }
 
@@ -201,32 +186,40 @@ void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
     return;
   }
 
-  JNIEnv* env = AttachCurrentThread();
-
-  for (auto& input_buffer : input_buffers) {
-    bool is_key_frame = type == kSbMediaTypeAudio
-                            ? true
-                            : input_buffer->video_sample_info().is_key_frame;
-    int offset = GetSampleOffset(type, input_buffer);
-    int size = input_buffer->size() - offset;
-
-    ScopedJavaLocalRef<jobject> sample_byte_buffer(
-        env, env->NewDirectByteBuffer(
-                 const_cast<uint8_t*>(input_buffer->data() + offset), size));
-
-    Java_ExoPlayerBridge_writeSample(
-        env, j_exoplayer_bridge_, sample_byte_buffer, size,
-        input_buffer->timestamp(), is_key_frame, type);
+  if (!initialized_.load()) {
+    std::lock_guard lock(mutex_);
+    if (!initialized_.load()) {
+      auto& pending_samples = type == kSbMediaTypeAudio
+                                  ? pending_audio_samples_
+                                  : pending_video_samples_;
+      for (auto& input_buffer : input_buffers) {
+        pending_samples.push_back(input_buffer);
+      }
+      return;
+    }
   }
+
+  WriteSamplesInternal(AttachCurrentThread(), input_buffers, type);
 }
 
-void ExoPlayerBridge::WriteEOS(SbMediaType type) const {
+void ExoPlayerBridge::WriteEOS(SbMediaType type) {
   if (ShouldAbortOperation()) {
     return;
   }
 
-  Java_ExoPlayerBridge_writeEndOfStream(AttachCurrentThread(),
-                                        j_exoplayer_bridge_, type);
+  if (!initialized_.load()) {
+    std::lock_guard lock(mutex_);
+    if (!initialized_.load()) {
+      if (type == kSbMediaTypeAudio) {
+        audio_eos_pending_ = true;
+      } else {
+        video_eos_pending_ = true;
+      }
+      return;
+    }
+  }
+
+  WriteEOSInternal(AttachCurrentThread(), type);
 }
 
 void ExoPlayerBridge::SetPause(bool pause) const {
@@ -281,21 +274,55 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
   return MediaInfo{media_time_usec, dropped_frames_.load(), is_playing_.load()};
 }
 
-bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) const {
+bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) {
   if (ShouldAbortOperation()) {
     return false;
   }
+
+  if (!initialized_.load()) {
+    std::lock_guard lock(mutex_);
+    if (!initialized_.load()) {
+      const auto& pending_samples = type == kSbMediaTypeAudio
+                                        ? pending_audio_samples_
+                                        : pending_video_samples_;
+      // Arbitrary limit of 256 samples to provide back-pressure during init.
+      return pending_samples.size() < 256;
+    }
+  }
+
   return Java_ExoPlayerBridge_canAcceptMoreData(AttachCurrentThread(),
                                                 j_exoplayer_bridge_, type);
 }
 
-void ExoPlayerBridge::OnInitialized(JNIEnv*) {
-  if (initialized_.exchange(true)) {
-    SB_LOG(WARNING)
-        << "ExoPlayer called OnInitialized again after initialization.";
+void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
+  {
+    std::lock_guard lock(mutex_);
+    if (initialized_.exchange(true)) {
+      SB_LOG(WARNING)
+          << "ExoPlayer called OnInitialized again after initialization.";
+      return;
+    }
+
+    if (!pending_audio_samples_.empty()) {
+      WriteSamplesInternal(env, pending_audio_samples_, kSbMediaTypeAudio);
+      pending_audio_samples_.clear();
+      pending_audio_samples_.shrink_to_fit();
+    }
+    if (audio_eos_pending_) {
+      WriteEOSInternal(env, kSbMediaTypeAudio);
+      audio_eos_pending_ = false;
+    }
+
+    if (!pending_video_samples_.empty()) {
+      WriteSamplesInternal(env, pending_video_samples_, kSbMediaTypeVideo);
+      pending_video_samples_.clear();
+      pending_video_samples_.shrink_to_fit();
+    }
+    if (video_eos_pending_) {
+      WriteEOSInternal(env, kSbMediaTypeVideo);
+      video_eos_pending_ = false;
+    }
   }
-  std::lock_guard lock(mutex_);
-  initialized_cv_.notify_one();
 }
 
 void ExoPlayerBridge::OnReady(JNIEnv*) {
@@ -337,6 +364,31 @@ bool ExoPlayerBridge::ShouldAbortOperation() const {
 void ExoPlayerBridge::ReportError(const std::string& msg) const {
   SB_CHECK(error_cb_);
   error_cb_(kSbPlayerErrorDecode, msg);
+}
+
+void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
+                                           const InputBuffers& input_buffers,
+                                           SbMediaType type) {
+  for (auto& input_buffer : input_buffers) {
+    bool is_key_frame = type == kSbMediaTypeAudio
+                            ? true
+                            : input_buffer->video_sample_info().is_key_frame;
+    int offset = GetSampleOffset(type, input_buffer);
+    int size = input_buffer->size() - offset;
+
+    ScopedJavaLocalRef<jobject> sample_byte_buffer(
+        env, env->NewDirectByteBuffer(
+                 const_cast<uint8_t*>(input_buffer->data() + offset), size));
+
+    Java_ExoPlayerBridge_writeSample(
+        env, j_exoplayer_bridge_, sample_byte_buffer, size,
+        input_buffer->timestamp(), is_key_frame, static_cast<jint>(type));
+  }
+}
+
+void ExoPlayerBridge::WriteEOSInternal(JNIEnv* env, SbMediaType type) const {
+  Java_ExoPlayerBridge_writeEndOfStream(env, j_exoplayer_bridge_,
+                                        static_cast<jint>(type));
 }
 
 }  // namespace starboard

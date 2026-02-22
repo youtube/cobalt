@@ -60,14 +60,14 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   void Seek(int64_t timestamp);
   void WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
-  void WriteEOS(SbMediaType type) const;
+  void WriteEOS(SbMediaType type);
   void SetPause(bool pause) const;
   void SetPlaybackRate(const double playback_rate) const;
   void SetVolume(const double volume) const;
   void Stop() const;
 
   MediaInfo GetMediaInfo() const;
-  bool CanAcceptMoreData(SbMediaType type) const;
+  bool CanAcceptMoreData(SbMediaType type);
 
   // Native callbacks.
   void OnInitialized(JNIEnv*);
@@ -85,9 +85,21 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool ShouldAbortOperation() const;
   void ReportError(const std::string& msg) const;
 
+  void WriteSamplesInternal(JNIEnv* env,
+                            const InputBuffers& input_buffers,
+                            SbMediaType type);
+  void WriteEOSInternal(JNIEnv* env, SbMediaType type) const;
+
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
 
   std::atomic_bool player_is_releasing_ = false;
+
+  // Queues to buffer samples that arrive before the player is initialized.
+  // Guarded by |mutex_|.
+  std::vector<scoped_refptr<InputBuffer>> pending_audio_samples_;
+  std::vector<scoped_refptr<InputBuffer>> pending_video_samples_;
+  bool audio_eos_pending_ = false;
+  bool video_eos_pending_ = false;
 
   // The following variables may be accessed by the ExoPlayer Looper
   // thread.
@@ -102,12 +114,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   EndedCB ended_cb_;
 
   std::mutex mutex_;
-  std::condition_variable initialized_cv_;  // Guarded by |mutex_|.
 
   bool owns_surface_ = false;
   std::string init_error_msg_;
-
-  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard
