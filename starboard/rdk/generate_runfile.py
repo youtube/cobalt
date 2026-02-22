@@ -40,6 +40,8 @@ os.environ.update({
     "ESSOS_NO_EVENT_LOOP_THROTTLE": "1",
     "AVPK_SKIP_HDMI_VALIDATION": "1",
     "WAYLAND_DISPLAY": "wayland-0",
+    # TODO: Move?
+    "ASAN_OPTIONS": "exitcode=0"
 })
 
 # TODO: Remove this when westeros-init is started by default.
