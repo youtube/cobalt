@@ -116,6 +116,7 @@ runs:
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
 
         # Check for missing result xml files.
+        exit_code=0
         readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
@@ -131,14 +132,15 @@ runs:
               log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
               xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-              exit 1
+              exit_code=1
             fi
           elif grep -e '<failure' -e '<error' ${xml_files}; then
             # Double-check the result XML for failures. ODT service has been known to report incorrect status.
             echo "::error::Found failures in the test xml."
-            exit 1
+            exit_code=1
           fi
         done
+        exit ${exit_code}
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
