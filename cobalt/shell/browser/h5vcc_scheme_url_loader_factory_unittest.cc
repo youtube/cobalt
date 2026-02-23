@@ -124,7 +124,8 @@ const char kTestHtmlContent[] = "<html><body><h1>Test</h1></body></html>";
 class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
  public:
   H5vccSchemeURLLoaderFactoryTest()
-      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO) {}
+      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO),
+        factory_(nullptr) {}
 
   void SetUp() override {
     testing::Test::SetUp();
@@ -134,7 +135,12 @@ class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
         reinterpret_cast<const unsigned char*>(kTestHtmlContent),
         sizeof(kTestHtmlContent) - 1};
     test_resource_map_["test.html"] = test_content;
-    factory_.SetResourceMapForTesting(&test_resource_map_);
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(&test_resource_map_);
+  }
+
+  void TearDown() override {
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
+    testing::Test::TearDown();
   }
 
  protected:

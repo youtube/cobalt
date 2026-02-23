@@ -103,6 +103,9 @@ public abstract class CobaltActivity extends Activity {
   private String diagnosticFinishReason = "Unknown";
   private PlatformError mPlatformError;
 
+  private static final String URL_TOPIC_NAME = "topic";
+  private String mUrlTopic;
+
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
@@ -132,6 +135,11 @@ public abstract class CobaltActivity extends Activity {
     if (startDeepLink == null) {
       Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
       startDeepLink = "";
+    }
+    Uri startDeepLinkUri = Uri.parse(startDeepLink);
+    mUrlTopic = startDeepLinkUri.getQueryParameter(URL_TOPIC_NAME);
+    if (mUrlTopic == null) {
+      mUrlTopic = "";
     }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
@@ -249,7 +257,7 @@ public abstract class CobaltActivity extends Activity {
     // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("",
+    mShellManager.launchShell("", mUrlTopic,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {

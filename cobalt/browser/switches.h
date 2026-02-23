@@ -35,6 +35,9 @@ constexpr char kEnforceHTTPS[] = "https-enforcement";
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";
 
+// Sets the interval for memory metrics collection in seconds.
+constexpr char kMemoryMetricsInterval[] = "memory-metrics-interval";
+
 }  // namespace switches
 }  // namespace cobalt
 
