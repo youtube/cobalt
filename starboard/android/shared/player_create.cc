@@ -29,6 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -46,6 +47,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
+  // Lazy initialization of media specific event tracing.  See comment in
+  // EnsureMediaTracingIsInitialized() for limitations.
+  EnsureMediaTracingIsInitialized();
+
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
     return kSbPlayerInvalid;

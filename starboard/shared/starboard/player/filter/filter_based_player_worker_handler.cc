@@ -28,6 +28,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -171,6 +172,12 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   if (audio_renderer_) {
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
 
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    audio_preroll_trace_token_ = reinterpret_cast<uintptr_t>(audio_renderer_);
+    MEDIA_TRACE_EVENT_BEGIN("starboard", "Audio Preroll",
+                            perfetto::Track(*audio_preroll_trace_token_));
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
     audio_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
@@ -183,6 +190,12 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   media_time_provider_->SetPlaybackRate(playback_rate_);
   if (video_renderer_) {
     SB_LOG(INFO) << "Initialize video renderer.";
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    video_preroll_trace_token_ = reinterpret_cast<uintptr_t>(video_renderer_);
+    MEDIA_TRACE_EVENT_BEGIN("starboard", "Video Preroll",
+                            perfetto::Track(*video_preroll_trace_token_));
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     video_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
@@ -449,8 +462,22 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
       << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    if (audio_preroll_trace_token_) {
+      MEDIA_TRACE_EVENT_END("starboard",
+                            perfetto::Track(*audio_preroll_trace_token_));
+      audio_preroll_trace_token_ = std::nullopt;
+    }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     SB_LOG(INFO) << "Audio prerolled.";
   } else {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    if (video_preroll_trace_token_) {
+      MEDIA_TRACE_EVENT_END("starboard",
+                            perfetto::Track(*video_preroll_trace_token_));
+      video_preroll_trace_token_ = std::nullopt;
+    }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     SB_LOG(INFO) << "Video prerolled.";
   }
 
@@ -521,6 +548,20 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   SB_DCHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "FilterBasedPlayerWorkerHandler stopped.";
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  if (audio_preroll_trace_token_) {
+    MEDIA_TRACE_EVENT_END("starboard",
+                          perfetto::Track(*audio_preroll_trace_token_));
+    audio_preroll_trace_token_ = std::nullopt;
+  }
+
+  if (video_preroll_trace_token_) {
+    MEDIA_TRACE_EVENT_END("starboard",
+                          perfetto::Track(*video_preroll_trace_token_));
+    video_preroll_trace_token_ = std::nullopt;
+  }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   RemoveJobByToken(update_job_token_);
 
