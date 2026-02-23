@@ -372,7 +372,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      const bool force_tunnel_mode =
+          features::FeatureList::IsEnabled(features::kForceTunnelMode);
       enable_tunnel_mode =
+          force_tunnel_mode ||
           video_mime_type.GetParamBoolValue("tunnelmode", false);
 
       SB_LOG(INFO) << "Tunnel mode is "
@@ -380,7 +383,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << "Video mime parameter \"tunnelmode\" value: "
                    << video_mime_type.GetParamStringValue("tunnelmode",
                                                           "<not provided>")
-                   << ".";
+                   << (force_tunnel_mode ? ", force tunnel mode is on." : ".");
     } else {
       SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
                    << "Audio codec: "
@@ -388,16 +391,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << ", Video codec: "
                    << GetMediaVideoCodecName(creation_parameters.video_codec())
                    << ". Tunnel mode is disabled.";
-    }
-
-    const bool force_tunnel_mode = starboard::features::FeatureList::IsEnabled(
-        starboard::features::kForceTunnelMode);
-
-    if (force_tunnel_mode && !enable_tunnel_mode) {
-      SB_LOG(INFO)
-          << "`force_tunnel_mode` is set to true, force enabling tunnel"
-          << " mode.";
-      enable_tunnel_mode = true;
     }
 
     bool force_secure_pipeline_under_tunnel_mode = false;
@@ -506,13 +499,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           enable_reset_audio_decoder);
 
       if (tunnel_mode_audio_session_id != -1) {
-        *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
-            tunnel_mode_audio_session_id, creation_parameters);
-        if (!*audio_renderer_sink) {
-          tunnel_mode_audio_session_id = -1;
-        }
+        *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
+          tunnel_mode_audio_session_id);
       }
-      if (!*audio_renderer_sink) {
+      else {
         *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
             tunnel_mode_audio_session_id, pause_using_audio_track_state);
       }
@@ -756,42 +746,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "Failed to generate audio session id for tunnel mode.";
 
     return tunnel_mode_audio_session_id;
-  }
-
-  std::unique_ptr<AudioRendererSink> TryToCreateTunnelModeAudioRendererSink(
-      int tunnel_mode_audio_session_id,
-      const CreationParameters& creation_parameters) {
-    std::unique_ptr<AudioRendererSink> audio_sink =
-        std::make_unique<AudioRendererSinkAndroid>(
-            tunnel_mode_audio_session_id);
-    // We need to double check if the audio sink can actually be created.
-    int max_cached_frames, min_frames_per_append;
-    GetAudioRendererParams(creation_parameters, &max_cached_frames,
-                           &min_frames_per_append);
-    AudioRendererSinkCallbackStub callback_stub;
-    std::vector<uint16_t> frame_buffer(
-        max_cached_frames *
-        creation_parameters.audio_stream_info().number_of_channels);
-    uint16_t* frame_buffers[] = {frame_buffer.data()};
-    audio_sink->Start(
-        0, creation_parameters.audio_stream_info().number_of_channels,
-        creation_parameters.audio_stream_info().samples_per_second,
-        kSbMediaAudioSampleTypeInt16Deprecated,
-        kSbMediaAudioFrameStorageTypeInterleaved,
-        reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers),
-        max_cached_frames, &callback_stub);
-    if (audio_sink->HasStarted() && !callback_stub.error_occurred()) {
-      audio_sink->Stop();
-      return audio_sink;
-    }
-    SB_LOG(WARNING)
-        << "AudioTrack does not support tunnel mode with sample rate:"
-        << creation_parameters.audio_stream_info().samples_per_second
-        << ", channels:"
-        << creation_parameters.audio_stream_info().number_of_channels
-        << ", audio format:" << creation_parameters.audio_codec()
-        << ", and audio buffer frames:" << max_cached_frames;
-    return nullptr;
   }
 
  private:
