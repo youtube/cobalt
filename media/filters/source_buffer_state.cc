@@ -224,7 +224,11 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
   // TODO(wolenetz): Curry and pass a NewBuffersCB here bound with append window
   // and timestamp offset pointer. See http://crbug.com/351454.
   StreamParser::ParseStatus result =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParseOverride);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParse);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (result == StreamParser::ParseStatus::kFailed) {
     MEDIA_LOG(ERROR, media_log_)

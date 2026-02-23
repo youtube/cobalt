@@ -190,7 +190,8 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       if (experimental_value > 0) {
         LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
                   << " to " << experimental_value << " bytes.";
-        ::media::StreamParser::SetMaxPendingBytesPerParse(experimental_value);
+        ::media::StreamParser::SetMaxPendingBytesPerParseOverride(
+            experimental_value);
         resolver->Resolve();
         return promise;
       }

@@ -75,13 +75,14 @@ class MEDIA_EXPORT StreamParser {
   // TODO(crbug.com/1379177): Tune this experimentally.
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  static std::atomic<int> kMaxPendingBytesPerParse;
+  // Override value for kMaxPendingBytesPerParse. This value can be changed
+  // at runtime.
+  static std::atomic<int> kMaxPendingBytesPerParseOverride;
   // Overrides the maximum number of bytes that a single call to Parse() will
   // inspect from the pending buffer.
-  static void SetMaxPendingBytesPerParse(int max_bytes);
-#else
-  static constexpr int kMaxPendingBytesPerParse = 128 * 1024; // 128KiB
+  static void SetMaxPendingBytesPerParseOverride(int max_bytes);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  static constexpr int kMaxPendingBytesPerParse = 128 * 1024;  // 128KiB
 
   // Stream parameters passed in InitCB.
   struct MEDIA_EXPORT InitParameters {

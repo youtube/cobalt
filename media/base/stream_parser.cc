@@ -167,11 +167,11 @@ bool MergeBufferQueues(const StreamParser::BufferQueueMap& buffer_queue_map,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
-std::atomic<int> StreamParser::kMaxPendingBytesPerParse{128 * 1024};  // 128KiB
+std::atomic<int> StreamParser::kMaxPendingBytesPerParseOverride{128 * 1024};  // 128KiB
 
 // static
-void StreamParser::SetMaxPendingBytesPerParse(int max_bytes) {
-  kMaxPendingBytesPerParse = max_bytes;
+void StreamParser::SetMaxPendingBytesPerParseOverride(int max_bytes) {
+  kMaxPendingBytesPerParseOverride = max_bytes;
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
