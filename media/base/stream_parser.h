@@ -77,7 +77,7 @@ class MEDIA_EXPORT StreamParser {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Override value for kMaxPendingBytesPerParse. This value can be changed
   // at runtime.
-  static std::atomic<int> kMaxPendingBytesPerParseOverride;
+  static std::atomic<int> g_max_pending_bytes_per_parse;
   // Overrides the maximum number of bytes that a single call to Parse() will
   // inspect from the pending buffer.
   static void SetMaxPendingBytesPerParseOverride(int max_bytes);
