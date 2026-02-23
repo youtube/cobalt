@@ -223,7 +223,8 @@ jobs:
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
 
           # Also export just the target strings for the results matrix.
-          if [[ "${{ inputs.platform }}" == *linux* ]]; then
+          PLATFORM="${{ inputs.platform }}"
+          if [[ "$PLATFORM" == *linux* ]]; then
              browser_test_targets_json='["cobalt/testing/browser_tests:cobalt_browsertests_runner"]'
           else
              browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
