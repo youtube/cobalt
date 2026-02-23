@@ -18,6 +18,7 @@
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/stream_parser.h"
 #include "media/filters/source_buffer_state.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
