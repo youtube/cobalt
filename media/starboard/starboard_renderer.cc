@@ -144,8 +144,14 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
       experimental_features_(experimental_features),
+<<<<<<< HEAD
       // TODO: b/375674101 - Connect this to h5vcc setting.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
+=======
+      max_samples_per_write_(
+          experimental_features.max_samples_per_write.value_or(
+              kDefaultMaxSamplePerWrite)),
+>>>>>>> 97e2183a63 (media: connect 'Media.MaxSamplesPerWrite' H5vcc setting  (#9192))
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
