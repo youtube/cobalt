@@ -221,6 +221,14 @@ jobs:
           set -x
           browser_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.browser_test_targets // []')
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
+
+          # Also export just the target strings for the results matrix.
+          if [[ "${{ inputs.platform }}" == *linux* ]]; then
+             browser_test_targets_json='["cobalt/testing/browser_tests:cobalt_browsertests_runner"]'
+          else
+             browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
+          fi
+          echo "browser_test_targets_json=${browser_test_targets_json}" >> $GITHUB_OUTPUT
       - name: Set YTS WPT test targets
         id: set-yts-wpt-test-targets
         shell: bash
@@ -300,6 +308,7 @@ jobs:
       browser_test_targets: ${{ steps.set-browser-test-targets.outputs.browser_test_targets }}
       yts_wpt_test_targets: ${{ steps.set-yts-wpt-test-targets.outputs.yts_wpt_test_targets }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
+      browser_test_targets_json: ${{ steps.set-browser-test-targets.outputs.browser_test_targets_json }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
@@ -864,7 +873,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || (needs.initialize.outputs.test_browser == 'true' && '["cobalt/testing/browser_tests:cobalt_browsertests"]') || '[]') }}
+        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || (needs.initialize.outputs.test_browser == 'true' && needs.initialize.outputs.browser_test_targets_json) || '[]') }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -905,6 +914,7 @@ jobs:
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
+        continue-on-error: ${{ contains(matrix.test_target, 'browser_test') }}
         with:
           target_name: ${{ matrix.test_target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml

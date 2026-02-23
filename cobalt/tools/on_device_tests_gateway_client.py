@@ -259,7 +259,11 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = []
       if test_type in ('browser_test', 'yts_wpt_test'):
         test_type = 'e2e_test'
-        params = []
+        target_name = test_target.split(':')[-1]
+        params = [
+            f'gcs_result_filename={target_name}_testoutput.xml',
+            f'gcs_log_filename={target_name}_log.txt',
+        ]
         if args.docker_tag:
           params.append(f'docker_tag={args.docker_tag}')
         if args.gcs_result_path:

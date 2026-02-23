@@ -58,6 +58,11 @@ class TestOnDeviceTestsGatewayClient(unittest.TestCase):
     self.assertEqual(req['test_type'], 'e2e_test')
     self.assertEqual(req['test_target'],
                      'testing/container/browser_tests:cobalt_browser_test')
+    params_dict = dict(p.split('=', 1) for p in req['params'])
+    self.assertEqual(params_dict['gcs_result_filename'],
+                     'cobalt_browser_test_testoutput.xml')
+    self.assertEqual(params_dict['gcs_log_filename'],
+                     'cobalt_browser_test_log.txt')
     self.assertIn(f'docker_tag={docker_tag}', req['params'])
     self.assertIn('gcs_result_path=gs://results/android-arm/123/1',
                   req['params'])
