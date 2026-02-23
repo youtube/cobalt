@@ -15,19 +15,14 @@ runs:
     env:
       SCCACHE_GCS_KEY: ${{ inputs.sccache_gcs_key }}
     run: |
-      set -x
-      base64 -D -i "${GITHUB_WORKSPACE}/.github/resources/test_reference.jpeg" > "${HOME}/gcloud.json"
-      echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
-      echo "SCCACHE=1" >> $GITHUB_ENV
-      echo "SCCACHE_GCS_BUCKET=cobalt-sccache-tvos-bucket" >> $GITHUB_ENV
+      printf "%s" "$SCCACHE_GCS_KEY" > "${HOME}/gcloud.json"
       echo "SCCACHE_GCS_RW_MODE=READ_WRITE" >> $GITHUB_ENV
+      echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
+      echo "SCCACHE_GCS_BUCKET=cobalt-sccache-tvos-bucket" >> $GITHUB_ENV
+      echo "SCCACHE=1" >> $GITHUB_ENV
       echo "SCCACHE_IDLE_TIMEOUT=0" >> $GITHUB_ENV
-
-      export SCCACHE_GCS_KEY_PATH="${HOME}/gcloud.json"
-      export SCCACHE_GCS_BUCKET="cobalt-sccache-tvos-bucket"
-      export SCCACHE_GCS_RW_MODE="READ_WRITE"
-      export SCCACHE_IDLE_TIMEOUT="0"
-      export ENABLE_SCCACHE="true"
-
+  - name: Start sccache server
+    shell: bash
+    run: |
       sccache --stop-server || true
       sccache --start-server
