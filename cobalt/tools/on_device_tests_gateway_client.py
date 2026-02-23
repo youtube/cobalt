@@ -216,7 +216,7 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
 
 def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
   """Builds the list of test requests based on the test type."""
-  test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
+  base_test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
   test_requests = []
 
   try:
@@ -226,18 +226,27 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
 
   for target_data in targets:
     test_type = args.test_type
+    current_test_args = base_test_args.copy()
+    if isinstance(target_data, str):
+      test_target = target_data
+      test_attempts = ''
+    else:
+      test_target = target_data['target']
+      test_attempts = target_data.get('test_attempts', '')
 
     if test_type == 'unit_test':
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
-      test_target = target_data
       target_name = test_target.split(':')[-1]
       gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
       if gtest_filter == '-*':
         print(f'Skipping {target_name} due to test filter.')
         continue
-      if args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+      if test_attempts:
+        current_test_args.extend([f'test_attempts={test_attempts}'])
+      elif args.test_attempts:
+        # Already in base_test_args if provided via args.
+        pass
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
@@ -248,17 +257,20 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       params = _unit_test_params(args, target_name, dir_on_device)
 
     elif test_type in ('e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'):
-      test_target = target_data['target']
-      test_attempts = target_data.get('test_attempts', '')
       if test_attempts:
-        test_args.extend([f'test_attempts={test_attempts}'])
+        current_test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+        # Already in base_test_args if provided via args.
+        pass
       test_cmd_args = []
       files = []
       if test_type in ('browser_test', 'yts_wpt_test'):
         test_type = 'e2e_test'
         params = []
+        if args.docker_tag:
+          params.append(f'docker_tag={args.docker_tag}')
+        if args.gcs_result_path:
+          params.append(f'gcs_result_path={args.gcs_result_path}')
       else:
         params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
         if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
@@ -278,7 +290,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'device_type': device_type,
         'device_pool': device_pool,
         'test_cmd_args': test_cmd_args,
-        'test_args': test_args,
+        'test_args': current_test_args,
         'files': files,
         'params': params,
         'test_target': test_target,

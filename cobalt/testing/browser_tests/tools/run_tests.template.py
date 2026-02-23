@@ -134,8 +134,10 @@ def main():
   if is_android:
     logging.info("Executing Android test runner for '%s': %s", target_name,
                  test_runner)
-    cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
-          ] + runner_args
+    cmd = [vpython_path, test_runner]
+    if "--runtime-deps-path" not in runner_args:
+      cmd.extend(["--runtime-deps-path", deps_path])
+    cmd.extend(runner_args)
   else:
     logging.info(
         "Executing Linux test runner for '%s' using xvfb.py and "
