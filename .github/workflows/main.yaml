@@ -21,6 +21,8 @@ on:
     secrets:
       datadog_api_key:
         required: false
+      sccache_gcs_key:
+        required: false
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
@@ -54,7 +56,7 @@ jobs:
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     if: |
       github.event.action != 'labeled' ||
-      (github.event.pull_request.merged == false && github.event.label.name == 'runtest')
+      (github.event.pull_request.merged == false && (github.event.label.name == 'runtest' || github.event.label.name == 'yts_playback_test'))
     timeout-minutes: 10
     steps:
       - name: Restore CI Essentials
@@ -155,6 +157,27 @@ jobs:
           set -x
           test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
+      - name: Set YTS Playback tests
+        id: set-test-yts-playback
+        shell: bash
+        run: |
+          set -x
+          test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
+          echo "test_yts_playback=${test_yts_playback}" >> $GITHUB_OUTPUT
+      - name: Set Browser tests
+        id: set-test-browser
+        shell: bash
+        run: |
+          set -x
+          test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_browser')
+          echo "test_browser=${test_browser}" >> $GITHUB_OUTPUT
+      - name: Set YTS WPT tests
+        id: set-test-yts-wpt
+        shell: bash
+        run: |
+          set -x
+          test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_wpt')
+          echo "test_yts_wpt=${test_yts_wpt}" >> $GITHUB_OUTPUT
       - name: Set web tests
         id: set-web-tests
         shell: bash
@@ -183,6 +206,27 @@ jobs:
           set -x
           yts_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_test_targets // []')
           echo "yts_test_targets=${yts_test_targets}" >> $GITHUB_OUTPUT
+      - name: Set YTS Playback test targets
+        id: set-yts-playback-test-targets
+        shell: bash
+        run: |
+          set -x
+          yts_playback_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_playback_test_targets // []')
+          echo "yts_playback_test_targets=${yts_playback_test_targets}" >> $GITHUB_OUTPUT
+      - name: Set Browser test targets
+        id: set-browser-test-targets
+        shell: bash
+        run: |
+          set -x
+          browser_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.browser_test_targets // []')
+          echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
+      - name: Set YTS WPT test targets
+        id: set-yts-wpt-test-targets
+        shell: bash
+        run: |
+          set -x
+          yts_wpt_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_wpt_test_targets // []')
+          echo "yts_wpt_test_targets=${yts_wpt_test_targets}" >> $GITHUB_OUTPUT
       - name: Set E2E test targets
         id: set-e2e-test-targets
         shell: bash
@@ -244,10 +288,16 @@ jobs:
       test_package: ${{ steps.set-test-package.outputs.test_package }}
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
       test_yts: ${{ steps.set-test-yts.outputs.test_yts }}
+      test_yts_playback: ${{ steps.set-test-yts-playback.outputs.test_yts_playback }}
+      test_browser: ${{ steps.set-test-browser.outputs.test_browser }}
+      test_yts_wpt: ${{ steps.set-test-yts-wpt.outputs.test_yts_wpt }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
+      yts_playback_test_targets: ${{ steps.set-yts-playback-test-targets.outputs.yts_playback_test_targets }}
+      browser_test_targets: ${{ steps.set-browser-test-targets.outputs.browser_test_targets }}
+      yts_wpt_test_targets: ${{ steps.set-yts-wpt-test-targets.outputs.yts_wpt_test_targets }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
@@ -388,7 +438,8 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          enable_sccache: ${{ needs.initialize.outputs.enable_sccache }}
+          enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' && secrets.sccache_gcs_key != '' }}
+          sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
@@ -519,6 +570,97 @@ jobs:
         with:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_test_targets }}'
+
+  yts-playback-test:
+    needs: [initialize, build]
+    # Run YTS Playback tests via presumit.
+    if: |
+      needs.initialize.outputs.test_yts_playback == 'true' &&
+        (
+          github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'yts_playback_test')
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_yts_playback_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Run YTS Playback Tests
+        uses: ./.github/actions/internal_tests
+        with:
+          test_type: 'yts_test'
+          test_targets: '${{ needs.initialize.outputs.yts_playback_test_targets }}'
+
+  browser-test:
+    needs: [initialize, build]
+    if: |
+      needs.initialize.outputs.test_browser == 'true' &&
+        (
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
+          (github.event_name == 'push')
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_browser_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Run Browser Tests
+        uses: ./.github/actions/internal_tests
+        with:
+          test_type: 'browser_test'
+          test_targets: '${{ needs.initialize.outputs.browser_test_targets }}'
+
+  yts-wpt-test:
+    needs: [initialize, build]
+    if: |
+      needs.initialize.outputs.test_yts_wpt == 'true' &&
+        (
+          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
+          (github.event_name == 'push')
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_yts_wpt_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Run YTS WPT Tests
+        uses: ./.github/actions/internal_tests
+        with:
+          test_type: 'yts_wpt_test'
+          test_targets: '${{ needs.initialize.outputs.yts_wpt_test_targets }}'
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
