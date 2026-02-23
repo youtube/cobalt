@@ -125,11 +125,6 @@ def _get_test_args_and_dimensions(
       f'retry_level={args.retry_level}',
   ]
 
-  if args.test_attempts:
-    test_args.extend([
-        f'test_attempts={args.test_attempts}',
-    ])
-
   device_type = None
   device_pool = None
 
@@ -245,8 +240,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       if test_attempts:
         current_test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:
-        # Already in base_test_args if provided via args.
-        pass
+        current_test_args.extend([f'test_attempts={args.test_attempts}'])
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
@@ -260,8 +254,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       if test_attempts:
         current_test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:
-        # Already in base_test_args if provided via args.
-        pass
+        current_test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
       files = []
       if test_type in ('browser_test', 'yts_wpt_test'):

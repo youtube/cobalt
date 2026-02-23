@@ -164,7 +164,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     collect_cmd = mock_call.call_args_list[0][0][0]
     self.assertIn('collect_test_artifacts.py', collect_cmd[1])
     self.assertIn(self.out_dir, collect_cmd)
-    self.assertIn('cobalt_browsertests_artifacts.tar.gz', collect_cmd)
+    self.assertIn('cobalt_browsertests_deps.tar.gz', collect_cmd)
     self.assertIn('--compression', collect_cmd)
     self.assertIn('gz', collect_cmd)
 

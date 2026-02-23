@@ -19,6 +19,9 @@ inputs:
   docker_tag:
     description: "Docker image tag to be used by the test lab."
     required: true
+  test_targets:
+    description: "JSON string representing the test targets."
+    required: true
 
 runs:
   using: "composite"
@@ -65,8 +68,7 @@ runs:
         DOCKER_TAG: ${{ inputs.docker_tag }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         PLATFORM: ${{ matrix.platform }}
-        # Browser test targets are fixed.
-        TEST_TARGETS_JSON: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
+        TEST_TARGETS_JSON: ${{ inputs.test_targets }}
       run: |
         set -x
 
