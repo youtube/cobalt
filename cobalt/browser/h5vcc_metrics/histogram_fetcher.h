@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_H5VCC_METRICS_HISTOGRAM_FETCHER_H_
 #define COBALT_BROWSER_H5VCC_METRICS_HISTOGRAM_FETCHER_H_
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>

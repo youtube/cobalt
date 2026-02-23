@@ -12,14 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/cobalt_web_contents_observer.h"
-
-#include "base/memory/raw_ptr.h"
-#include "base/test/task_environment.h"
-#include "base/test/test_timeouts.h"
-#include "base/timer/mock_timer.h"
-#include "content/public/test/mock_navigation_handle.h"
-#include "net/base/net_errors.h"
+#include "build/buildflag.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

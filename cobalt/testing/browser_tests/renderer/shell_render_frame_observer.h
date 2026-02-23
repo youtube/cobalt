@@ -15,7 +15,11 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
 #define COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
 
+#include <string>
+
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
+#include "content/public/renderer/render_frame.h"
+#include "mojo/public/cpp/system/message_pipe.h"
 
 namespace content {
 

@@ -15,9 +15,11 @@
 #ifndef COBALT_SHELL_BROWSER_SHELL_SPEECH_RECOGNITION_MANAGER_DELEGATE_H_
 #define COBALT_SHELL_BROWSER_SHELL_SPEECH_RECOGNITION_MANAGER_DELEGATE_H_
 
-#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "build/buildflag.h"
 #include "content/public/browser/speech_recognition_event_listener.h"
 #include "content/public/browser/speech_recognition_manager_delegate.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace content {
 

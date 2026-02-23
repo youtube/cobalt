@@ -16,30 +16,31 @@
 
 #include <stdint.h>
 
+#include <memory>
+#include <string>
 #include <vector>
 
 #include "base/atomicops.h"
+#include "base/check.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
-#include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/grit/shell_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_client_channel.h"
+#include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/devtools_socket_factory.h"
-#include "content/public/browser/favicon_status.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/url_constants.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/tcp_server_socket.h"

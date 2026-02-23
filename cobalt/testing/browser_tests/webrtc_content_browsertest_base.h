@@ -15,6 +15,8 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_WEBRTC_CONTENT_BROWSERTEST_BASE_H_
 #define COBALT_TESTING_BROWSER_TESTS_WEBRTC_CONTENT_BROWSERTEST_BASE_H_
 
+#include <string>
+
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 
 namespace base {

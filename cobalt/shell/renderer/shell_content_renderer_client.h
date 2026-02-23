@@ -21,6 +21,8 @@
 #include "build/build_config.h"
 #include "content/public/common/alternative_error_page_override_info.mojom-forward.h"
 #include "content/public/renderer/content_renderer_client.h"
+#include "media/base/key_system_info.h"
+#include "media/base/key_systems_support_registration.h"
 #include "media/mojo/buildflags.h"
 
 namespace blink {

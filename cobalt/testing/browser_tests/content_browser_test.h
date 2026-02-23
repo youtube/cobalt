@@ -40,6 +40,8 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_H_
 #define COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_H_
 
+#include <memory>
+
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"

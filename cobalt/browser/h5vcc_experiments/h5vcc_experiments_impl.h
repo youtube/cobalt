@@ -18,8 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "base/feature_list.h"
-#include "base/metrics/field_trial_params.h"
+#include "base/values.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"

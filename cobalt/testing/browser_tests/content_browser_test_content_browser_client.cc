@@ -14,9 +14,10 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 
+#include <cstddef>
 #include <string_view>
 
-#include "base/test/task_environment.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
 
 namespace content {

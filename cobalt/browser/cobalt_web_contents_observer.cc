@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
+#include "build/buildflag.h"
+#include "content/public/browser/web_contents_observer.h"
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/functional/bind.h"
 #include "base/logging.h"

@@ -15,6 +15,7 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 
 #include <memory>
+#include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
 

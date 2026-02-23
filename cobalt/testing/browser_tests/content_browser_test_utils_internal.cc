@@ -17,29 +17,37 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/containers/stack.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
+#include "base/functional/callback.h"
+#include "base/location.h"
+#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/safe_ref.h"
+#include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/stringprintf.h"
-#include "base/task/thread_pool.h"
-#include "base/test/bind.h"
 #include "base/test/test_future.h"
-#include "base/test/test_timeouts.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
-#include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
+#include "content/browser/bad_message.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
-#include "content/browser/renderer_host/delegated_frame_host.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/renderer_host/navigation_type.h"
 #include "content/browser/renderer_host/navigator.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
@@ -47,20 +55,29 @@
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/frame_messages.mojom.h"
-#include "content/public/browser/browser_task_traits.h"
-#include "content/public/browser/browser_thread.h"
-#include "content/public/browser/file_select_listener.h"
+#include "content/public/browser/back_forward_cache.h"
+#include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/javascript_dialog_type.h"
+#include "content/public/common/page_type.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/test_utils.h"
+#include "ipc/ipc_message.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
 #include "third_party/blink/public/common/frame/frame_visual_properties.h"
+#include "ui/base/page_transition_types.h"
+#include "url/url_constants.h"
 
 namespace content {
 

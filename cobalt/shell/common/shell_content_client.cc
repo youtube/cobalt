@@ -14,19 +14,21 @@
 
 #include "cobalt/shell/common/shell_content_client.h"
 
+#include <string>
 #include <string_view>
+#include <utility>
 
 #include "base/command_line.h"
-#include "base/strings/utf_string_conversions.h"
-#include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
-#include "cobalt/shell/grit/shell_resources.h"
-#include "content/public/common/content_switches.h"
+#include "content/public/common/content_client.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/base/resource/resource_scale_factor.h"
+#include "ui/gfx/image/image.h"
+#include "url/gurl.h"
 #include "url/url_util.h"
 
 namespace content {

@@ -15,15 +15,18 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTSTYLESET_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTSTYLESET_COBALT_H_
 
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 
+#include "base/memory/scoped_refptr.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "include/core/SkFontMgr.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
 #include "include/core/SkTypeface.h"
+#include "skia/config/sk_ref_cnt_ext_release.h"
 #include "src/core/SkTHash.h"
 
 // This class, which is thread-safe, is Cobalt's implementation of

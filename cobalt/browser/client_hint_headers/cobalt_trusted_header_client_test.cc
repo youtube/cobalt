@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
 
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <tuple>
 
@@ -22,16 +24,13 @@
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/core/embedder/scoped_ipc_support.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
-#include "services/network/public/mojom/url_loader.mojom.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {

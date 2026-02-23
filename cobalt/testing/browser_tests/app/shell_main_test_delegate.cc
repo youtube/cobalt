@@ -15,13 +15,20 @@
 #include "cobalt/testing/browser_tests/app/shell_main_test_delegate.h"
 
 #include <iostream>
+#include <memory>
+#include <optional>
 
 #include "base/command_line.h"
+#include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/testing/browser_tests/common/shell_content_test_client.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/gpu/shell_content_gpu_test_client.h"
 #include "cobalt/testing/browser_tests/renderer/shell_content_renderer_test_client.h"
 #include "cobalt/testing/browser_tests/utility/shell_content_utility_client.h"
+#include "content/public/common/content_client.h"
+#include "content/public/gpu/content_gpu_client.h"
+#include "content/public/renderer/content_renderer_client.h"
+#include "content/public/utility/content_utility_client.h"
 
 namespace content {
 

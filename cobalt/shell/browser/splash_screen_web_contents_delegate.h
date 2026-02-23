@@ -16,6 +16,7 @@
 #define COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_DELEGATE_H_
 
 #include "base/functional/callback.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 
 namespace content {

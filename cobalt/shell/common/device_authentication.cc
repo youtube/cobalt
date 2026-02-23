@@ -15,10 +15,15 @@
 #include "cobalt/shell/common/device_authentication.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <map>
+#include <string>
 
 #include "base/base64.h"
 #include "base/base64url.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/strings/escape.h"
@@ -26,6 +31,7 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "crypto/hmac.h"
 #include "starboard/system.h"
+#include "url/gurl.h"
 
 namespace content {
 

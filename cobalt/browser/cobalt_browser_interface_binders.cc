@@ -14,7 +14,10 @@
 
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
+#include <utility>
+
 #include "base/functional/bind.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
@@ -32,7 +35,7 @@
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
-#include "cobalt/media/service/platform_window_provider_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"

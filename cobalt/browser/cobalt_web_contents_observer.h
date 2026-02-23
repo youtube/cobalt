@@ -15,8 +15,7 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
-#include "base/memory/weak_ptr.h"
-#include "base/timer/timer.h"
+#include "build/buildflag.h"
 #include "content/public/browser/web_contents_observer.h"
 
 namespace cobalt {

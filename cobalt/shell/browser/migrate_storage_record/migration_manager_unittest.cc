@@ -14,9 +14,18 @@
 
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <numeric>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"

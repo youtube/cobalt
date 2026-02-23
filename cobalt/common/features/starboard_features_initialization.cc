@@ -17,9 +17,14 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
-#include "cobalt/common/features/features.h"
-#include "starboard/common/log.h"
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/feature_list.h"
+#include "base/logging.h"
+#include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 #include "starboard/extension/features.h"
 #include "starboard/system.h"
 

@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 #define COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 
+#include <string>
+
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_service.h"

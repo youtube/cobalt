@@ -15,9 +15,15 @@
 #ifndef COBALT_SHELL_BROWSER_SHELL_DEVTOOLS_MANAGER_DELEGATE_H_
 #define COBALT_SHELL_BROWSER_SHELL_DEVTOOLS_MANAGER_DELEGATE_H_
 
+#include <string>
+
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/devtools_manager_delegate.h"
+#include "url/gurl.h"
 
 namespace content {
 

@@ -15,13 +15,16 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <cstdint>
 #include <optional>
 #include <string>
 
-#include "cobalt/shell/embedded_resources/embedded_resources.h"
+#include "cobalt/base/generated_resources_types.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/network/public/cpp/mutable_network_traffic_annotation_tag_mojom_traits.h"
+#include "services/network/public/mojom/url_loader.mojom-forward.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 
 namespace content {

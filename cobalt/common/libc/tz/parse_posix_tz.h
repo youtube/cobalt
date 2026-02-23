@@ -16,6 +16,7 @@
 #define COBALT_COMMON_LIBC_TZ_PARSE_POSIX_TZ_H_
 
 #include <optional>
+#include <ostream>
 #include <string>
 
 namespace cobalt {

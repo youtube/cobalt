@@ -15,17 +15,15 @@
 #ifndef COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_TAB_HELPER_H_
 #define COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_TAB_HELPER_H_
 
-#include "base/memory/raw_ptr.h"
-#include "base/memory/unsafe_shared_memory_region.h"
 #include "base/memory/weak_ptr.h"
-#include "base/scoped_observation.h"
+#include "base/process/kill.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/oom_intervention/oom_intervention.mojom.h"
 

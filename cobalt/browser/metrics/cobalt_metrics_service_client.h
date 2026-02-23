@@ -15,15 +15,22 @@
 #ifndef COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICE_CLIENT_H_
 #define COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICE_CLIENT_H_
 
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <string_view>
 
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "components/metrics/metrics_service_client.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "url/gurl.h"
 
 class PrefService;
 namespace h5vcc_metrics {

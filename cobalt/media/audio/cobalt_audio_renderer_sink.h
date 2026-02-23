@@ -16,11 +16,15 @@
 #define COBALT_MEDIA_AUDIO_COBALT_AUDIO_RENDERER_SINK_H_
 
 #include <atomic>
+#include <cstdint>
+#include <memory>
 
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/media_export.h"
 #include "media/base/multi_channel_resampler.h"
+#include "media/base/output_device_info.h"
 #include "starboard/audio_sink.h"
+#include "starboard/media.h"
 
 namespace media {
 

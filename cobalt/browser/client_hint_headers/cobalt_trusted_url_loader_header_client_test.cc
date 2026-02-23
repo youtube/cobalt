@@ -14,17 +14,16 @@
 
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 
+#include <cstdint>
+#include <memory>
+
 #include "base/test/task_environment.h"
-#include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/core/embedder/scoped_ipc_support.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/resource_request.h"
-#include "services/network/public/mojom/url_loader.mojom.h"
-#include "services/network/public/mojom/url_response_head.mojom.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

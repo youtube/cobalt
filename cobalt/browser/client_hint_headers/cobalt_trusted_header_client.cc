@@ -15,10 +15,13 @@
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
 
 #include <optional>
+#include <string>
+#include <utility>
 
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
-#include "net/http/http_response_headers.h"
+#include "net/http/http_request_headers.h"
 
 namespace cobalt {
 namespace browser {

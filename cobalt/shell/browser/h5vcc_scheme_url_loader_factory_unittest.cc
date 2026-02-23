@@ -14,24 +14,31 @@
 
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
-#include "cobalt/shell/embedded_resources/embedded_resources.h"
+#include "cobalt/base/generated_resources_types.h"
 #include "mojo/core/embedder/embedder.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/data_pipe_utils.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "net/url_request/redirect_info.h"
+#include "services/network/public/cpp/mutable_network_traffic_annotation_tag_mojom_traits.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/url_loader_completion_status.h"
+#include "services/network/public/mojom/early_hints.mojom-forward.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"

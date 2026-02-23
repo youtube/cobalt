@@ -15,8 +15,9 @@
 #ifndef COBALT_COMMON_COBALT_THREAD_CHECKER_H_
 #define COBALT_COMMON_COBALT_THREAD_CHECKER_H_
 
-#include "base/logging.h"
+#include "base/check.h"
 #include "base/macros/uniquify.h"
+#include "base/thread_annotations.h"
 #include "base/threading/thread_checker_impl.h"
 
 // Same macros as in base/threading/thread_checker.h (e.g. THREAD_CHECKER(name),

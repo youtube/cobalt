@@ -15,15 +15,21 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_BROWSING_DATA_BROWSERTEST_UTILS_H_
 #define COBALT_TESTING_BROWSER_TESTS_BROWSING_DATA_BROWSERTEST_UTILS_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
+#include "base/command_line.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/service_worker/service_worker_version.h"
+#include "content/public/browser/service_worker_context.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "url/gurl.h"
 
 namespace blink {
 class StorageKey;

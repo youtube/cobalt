@@ -14,8 +14,17 @@
 
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "base/check.h"
 #include "base/command_line.h"
-#include "cobalt/shell/common/shell_switches.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
+#include "cobalt/shell/browser/shell.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
@@ -24,8 +33,11 @@
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/renderer_preferences_util.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_switches.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace content {
 

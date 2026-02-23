@@ -20,32 +20,49 @@
 // Note: If a function here also works with browser_tests, it should be in
 // the content public API.
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
-#include "base/files/file_path.h"
+#include "base/check_op.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/renderer_host/back_forward_cache_metrics.h"
 #include "content/browser/renderer_host/navigation_type.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/frame_messages.mojom-forward.h"
+#include "content/common/navigation_client.mojom-forward.h"
+#include "content/public/browser/back_forward_cache.h"
+#include "content/public/browser/frame_tree_node_id.h"
+#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/javascript_dialog_manager.h"
+#include "content/public/browser/site_instance.h"
+#include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/javascript_dialog_type.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "ipc/ipc_message.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/blink/public/mojom/choosers/popup_menu.mojom.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-test-utils.h"
 #include "third_party/blink/public/mojom/page/widget.mojom-test-utils.h"
+#include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
 namespace content {

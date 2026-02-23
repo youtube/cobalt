@@ -14,12 +14,18 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
+#include <string>
+#include <utility>
+
 #include "base/base64url.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "components/metrics/log_decoder.h"
+#include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_log_uploader.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/cobalt_uma_event.pb.h"

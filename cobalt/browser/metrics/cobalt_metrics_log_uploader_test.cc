@@ -14,6 +14,11 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+
 #include "base/base64url.h"
 #include "base/functional/bind.h"
 #include "base/test/bind.h"
@@ -23,7 +28,6 @@
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"

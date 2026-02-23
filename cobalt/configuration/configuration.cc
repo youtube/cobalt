@@ -16,9 +16,10 @@
 
 #include <string>
 
+#include "base/check_op.h"
 #include "base/memory/singleton.h"
-#include "base/notreached.h"
 #include "build/build_config.h"
+#include "starboard/extension/configuration.h"
 #include "starboard/system.h"
 
 namespace cobalt {

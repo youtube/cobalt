@@ -14,6 +14,9 @@
 
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 
+#include <cstring>
+#include <memory>
+
 #include "starboard/extension/graphics.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

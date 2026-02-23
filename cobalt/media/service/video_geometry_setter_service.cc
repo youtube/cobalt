@@ -6,7 +6,19 @@
 
 #include <utility>
 
+#include "base/check.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/location.h"
+#include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/unguessable_token.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/overlay_transform.h"
 
 #define MAKE_SURE_ON_SEQUENCE(callback, ...)                                   \
   if (!task_runner_->RunsTasksInCurrentSequence()) {                           \

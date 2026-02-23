@@ -16,7 +16,12 @@
 #define COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_CONTENT_RENDERER_TEST_CLIENT_H_
 
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+#include "content/public/common/content_client.h"
+#include "content/public/renderer/content_renderer_client.h"
+#include "media/base/starboard/renderer_factory_traits.h"
 #include "media/media_buildflags.h"
+#include "v8-forward.h"
+#include "v8-local-handle.h"
 
 namespace content {
 

@@ -16,17 +16,23 @@
 
 #include <stddef.h>
 
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/base64.h"
+#include "base/check.h"
 #include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
-#include "base/json/json_reader.h"
-#include "base/json/json_writer.h"
-#include "base/json/string_escape.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -34,28 +40,22 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
-#include "cobalt/shell/browser/shell_browser_main_parts.h"
-#include "cobalt/shell/browser/shell_content_browser_client.h"
-#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
-#include "content/public/browser/browser_task_traits.h"
-#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/render_view_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/content_client.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "ipc/ipc_channel.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/cpp/simple_url_loader_stream_consumer.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "url/origin.h"
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-#include "base/command_line.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/devtools_frontend_host.h"
 #endif
 

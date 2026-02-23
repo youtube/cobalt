@@ -14,8 +14,12 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 
-#include "base/check.h"
+#include <utility>
+
 #include "base/no_destructor.h"
+#include "base/threading/thread_checker.h"
+#include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace cobalt {
 namespace browser {

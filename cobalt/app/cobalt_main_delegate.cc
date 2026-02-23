@@ -14,18 +14,33 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <variant>
+
+#include "base/check_op.h"
+#include "base/command_line.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
-#include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/utility/cobalt_content_utility_client.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
-#include "content/common/content_constants_internal.h"
 #include "content/public/app/initialize_mojo_core.h"
+#include "content/public/browser/browser_main_runner.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/main_function_params.h"
+#include "content/public/gpu/content_gpu_client.h"
+#include "content/public/renderer/content_renderer_client.h"
+#include "content/public/utility/content_utility_client.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 
 namespace cobalt {

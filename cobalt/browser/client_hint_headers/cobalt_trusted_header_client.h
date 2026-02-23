@@ -15,7 +15,9 @@
 #ifndef COBALT_BROWSER_CLIENT_HINT_HEADERS_COBALT_TRUSTED_HEADER_CLIENT_H_
 #define COBALT_BROWSER_CLIENT_HINT_HEADERS_COBALT_TRUSTED_HEADER_CLIENT_H_
 
-#include "mojo/public/cpp/bindings/receiver.h"
+#include <string>
+
+#include "net/base/ip_endpoint.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 

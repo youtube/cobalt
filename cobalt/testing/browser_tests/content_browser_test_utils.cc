@@ -14,11 +14,17 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/location.h"
+#include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/threading/thread_restrictions.h"
@@ -26,7 +32,6 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
-#include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/child_process_security_policy_impl.h"
@@ -35,14 +40,16 @@
 #include "content/browser/site_instance_impl.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_paths.h"
 #include "content/public/test/browser_test_utils.h"
-#include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "media/capture/mojom/video_capture_types.mojom-data-view.h"
+#include "media/capture/video/video_capture_device_descriptor.h"
 #include "net/base/filename_util.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 

@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 #define COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 
+#include <cstdint>
+
 #include "cobalt/browser/h5vcc_metrics/histogram_fetcher.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"

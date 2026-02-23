@@ -16,6 +16,8 @@
 #define COBALT_TESTING_H5VCC_RUNTIME_STUB_H5VCC_RUNTIME_IMPL_H_
 
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 
 namespace content {

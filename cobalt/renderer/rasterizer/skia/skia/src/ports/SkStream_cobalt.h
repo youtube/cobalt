@@ -15,6 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKSTREAM_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKSTREAM_COBALT_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -24,6 +27,7 @@
 #include "base/atomicops.h"
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "include/core/SkStream.h"
 #include "include/private/base/SkMutex.h"
 

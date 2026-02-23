@@ -17,6 +17,8 @@
 #include "build/build_config.h"
 #include "ui/views/buildflags.h"
 #include "ui/views/widget/native_widget_aura.h"
+#include "ui/views/widget/native_widget_delegate.h"
+#include "ui/views/widget/widget.h"
 
 #if BUILDFLAG(ENABLE_DESKTOP_AURA)
 #include "ui/views/widget/desktop_aura/desktop_native_widget_aura.h"

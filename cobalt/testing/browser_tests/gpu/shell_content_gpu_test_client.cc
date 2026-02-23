@@ -15,13 +15,15 @@
 #include "cobalt/testing/browser_tests/gpu/shell_content_gpu_test_client.h"
 
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
+#include "config/gpu_preferences.h"
 #include "content/public/child/child_thread.h"
+#include "content/public/gpu/content_gpu_client.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
-#include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace content {
 

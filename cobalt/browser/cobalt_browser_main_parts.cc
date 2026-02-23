@@ -15,14 +15,18 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 
 #include <memory>
+#include <utility>
 
+#include "base/check.h"
+#include "base/logging.h"
 #include "base/path_service.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "content/public/browser/browser_thread.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"

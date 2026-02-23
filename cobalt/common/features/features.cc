@@ -22,6 +22,8 @@
 
 #include "cobalt/common/features/features.h"
 
+#include "base/feature_list.h"
+
 #define STARBOARD_FEATURE(feature, name, default_state)                 \
   BASE_FEATURE(feature, name,                                           \
                default_state == true ? base::FEATURE_ENABLED_BY_DEFAULT \

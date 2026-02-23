@@ -4,10 +4,16 @@
 
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 
+#include "base/check.h"
+#include "base/command_line.h"
+#include "base/logging.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "content/public/browser/navigation_handle.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
+#include "url/url_constants.h"
 
 namespace {
 const char kSwitchValueTrue[] = "true";

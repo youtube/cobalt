@@ -19,6 +19,7 @@
 #include <optional>
 
 #include "cobalt/shell/app/shell_main_delegate.h"
+#include "content/public/app/content_main_delegate.h"
 
 namespace content {
 

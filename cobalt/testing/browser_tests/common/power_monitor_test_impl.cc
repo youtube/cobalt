@@ -17,7 +17,8 @@
 #include <memory>
 #include <utility>
 
-#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "base/check.h"
+#include "base/power_monitor/power_observer.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
 namespace content {

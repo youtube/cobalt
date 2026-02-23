@@ -14,7 +14,12 @@
 
 #include "cobalt/testing/browser_tests/browser/shell_browser_test_context.h"
 
-#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
+#include <memory>
+
+#include "cobalt/shell/browser/shell_browser_context.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "content/public/browser/background_sync_controller.h"
+#include "content/public/browser/reduce_accept_language_controller_delegate.h"
 #include "content/test/mock_background_sync_controller.h"
 #include "content/test/mock_reduce_accept_language_controller_delegate.h"
 

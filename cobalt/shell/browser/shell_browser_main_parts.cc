@@ -14,22 +14,21 @@
 
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
-#include "base/base_switches.h"
+#include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/strings/utf_string_conversions.h"
-#include "base/task/current_thread.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "cc/base/switches.h"
-#include "cobalt/shell/android/shell_descriptors.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
@@ -37,13 +36,10 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/performance_manager/embedder/graph_features.h"
 #include "components/performance_manager/embedder/performance_manager_lifetime.h"
-#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
-#include "content/public/browser/first_party_sets_handler.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/result_codes.h"
-#include "content/public/common/url_constants.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_module.h"

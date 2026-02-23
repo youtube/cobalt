@@ -14,6 +14,7 @@
 
 #include "cobalt/testing/browser_tests/browsing_data_browsertest_utils.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -22,11 +23,16 @@
 #include "base/command_line.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/notreached.h"
 #include "base/run_loop.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "components/network_session_configurator/common/network_switches.h"
-#include "content/browser/browsing_data/browsing_data_test_utils.h"
+#include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/service_worker/service_worker_version.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/network_service_util.h"
@@ -36,6 +42,7 @@
 #include "content/public/common/content_switches.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/url_util.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/network_service_test.mojom.h"

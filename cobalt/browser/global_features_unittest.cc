@@ -14,16 +14,18 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <memory>
+
+#include "base/base_paths_starboard.h"
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
-#include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
-#include "components/variations/pref_names.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

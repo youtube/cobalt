@@ -29,6 +29,7 @@
 #include "include/core/SkFontMgr.h"
 #include "include/core/SkTypeface.h"
 #include "include/private/base/SkTArray.h"
+#include "skia/config/SkUserConfig.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 
 // This class, which is thread-safe, is Cobalt's implementation of SkFontMgr. It

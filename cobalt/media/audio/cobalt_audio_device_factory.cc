@@ -14,9 +14,15 @@
 
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
 
+#include <string>
+
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
 #include "cobalt/media/audio/audio_helpers.h"
 #include "cobalt/media/audio/cobalt_audio_renderer_sink.h"
+#include "media/audio/audio_sink_parameters.h"
+#include "media/base/audio_renderer_sink.h"
+#include "media/base/output_device_info.h"
 
 namespace media {
 

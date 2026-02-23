@@ -17,6 +17,8 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "components/metrics/metrics_state_manager.h"

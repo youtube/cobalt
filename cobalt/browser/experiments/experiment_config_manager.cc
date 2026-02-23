@@ -14,12 +14,16 @@
 
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 
+#include <string>
 #include <vector>
 
+#include "base/check.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/time/time.h"
+#include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"

@@ -14,7 +14,14 @@
 
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 
+#include <cstdint>
+#include <memory>
+#include <utility>
+
+#include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 
 namespace cobalt {
 namespace browser {

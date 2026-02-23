@@ -6,7 +6,7 @@
 #define COBALT_MEDIA_SERVICE_VIDEO_GEOMETRY_SETTER_SERVICE_H_
 
 #include "base/containers/flat_map.h"
-#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/unguessable_token.h"
@@ -15,6 +15,9 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/overlay_transform.h"
 
 namespace base {
 class SequencedTaskRunner;

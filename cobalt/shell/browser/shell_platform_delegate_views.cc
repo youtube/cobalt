@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // clang-format off
+#include "base/check.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 // clang-format on
 
@@ -21,8 +22,9 @@
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <string>
+#include <utility>
 
-#include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -30,28 +32,34 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
-#include "content/public/browser/context_factory.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/aura/window_tree_host.h"
+#include "ui/base/accelerators/accelerator_manager.h"
 #include "ui/base/clipboard/clipboard.h"
+#include "ui/base/ime/text_input_type.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/events/types/event_type.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/layout/flex_layout_view.h"
+#include "ui/views/layout/layout_types.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/desktop_aura/desktop_screen.h"

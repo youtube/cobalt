@@ -14,12 +14,16 @@
 
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
+#include <memory>
+#include <optional>
 #include <string>
 
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
-#include "cobalt/shell/common/shell_switches.h"
+#include "build/buildflag.h"
+#include "cobalt/base/generated_resources_types.h"
 #include "cobalt/shell/common/url_constants.h"
+#include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"

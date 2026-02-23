@@ -14,6 +14,15 @@
 
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "content/public/browser/content_index_provider.h"
+#include "ui/gfx/geometry/size.h"
+#include "url/origin.h"
+
 namespace content {
 
 ShellContentIndexProvider::ShellContentIndexProvider()

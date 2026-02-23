@@ -15,18 +15,31 @@
 #ifndef COBALT_SHELL_BROWSER_SHELL_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_SHELL_BROWSER_SHELL_CONTENT_BROWSER_CLIENT_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
-#include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/frame_tree_node_id.h"
+#include "content/public/browser/generated_code_cache_settings.h"
+#include "content/public/browser/posix_file_descriptor_info.h"
+#include "media/mojo/mojom/media_service.mojom-forward.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom-forward.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
+#include "services/network/public/mojom/url_loader_factory.mojom.h"
 
 class PrefService;
 

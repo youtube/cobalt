@@ -18,7 +18,9 @@
 
 #include <memory>
 
+#include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_view_delegate.h"
 
 namespace content {
 

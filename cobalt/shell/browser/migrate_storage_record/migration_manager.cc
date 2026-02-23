@@ -14,31 +14,53 @@
 
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "base/base64url.h"
+#include "base/base_paths_starboard.h"
+#include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
+#include "base/location.h"
+#include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/values.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/url_matcher/url_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_access_result.h"
+#include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_options.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "starboard/common/storage.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
+#include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
 namespace cobalt {

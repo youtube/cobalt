@@ -15,17 +15,17 @@
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
 
 #include <memory>
+#include <utility>
 
+#include "base/check.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "cobalt/shell/browser/shell.h"
 #include "ui/aura/client/default_capture_client.h"
+#include "ui/aura/client/focus_client.h"
 #include "ui/aura/env.h"
 #include "ui/aura/layout_manager.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
-#include "ui/base/ime/init/input_method_factory.h"
-#include "ui/base/ime/input_method.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 #include "ui/wm/core/base_focus_rules.h"

@@ -14,8 +14,17 @@
 
 #include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
 
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/location.h"
+#include "build/buildflag.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/speech_recognition_event_listener.h"
+#include "content/public/browser/speech_recognition_manager_delegate.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 using base::OnceCallback;
 

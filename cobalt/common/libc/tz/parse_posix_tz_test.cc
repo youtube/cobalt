@@ -14,6 +14,7 @@
 
 #include "cobalt/common/libc/tz/parse_posix_tz.h"
 
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>

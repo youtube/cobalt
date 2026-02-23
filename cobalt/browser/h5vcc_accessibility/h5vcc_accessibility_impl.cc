@@ -14,12 +14,18 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 
+#include <cstring>
 #include <string>
+#include <utility>
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
+#include "base/threading/thread_checker.h"
 #include "build/build_config.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+#include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
+#include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "starboard/system.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/text_to_speech_helper.h"

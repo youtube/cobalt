@@ -14,13 +14,21 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <string_view>
+#include <utility>
 
+#include "base/check.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/location.h"
 #include "base/logging.h"
-#include "base/notreached.h"
-#include "base/posix/file_descriptor_shuffle.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -28,10 +36,14 @@
 #include "base/version.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/common/cobalt_thread_checker.h"
+#include "components/metrics/metrics_log.h"
+#include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/synthetic_trial_registry.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "url/gurl.h"

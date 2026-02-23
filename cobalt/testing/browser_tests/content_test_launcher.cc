@@ -12,23 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/base_paths.h"
+#include <cstddef>
+#include <string>
+
 #include "base/command_line.h"
-#include "base/i18n/icu_util.h"
-#include "base/process/memory.h"
-#include "base/system/sys_info.h"
 #include "base/test/launcher/test_launcher.h"
 #include "base/test/test_suite.h"
-#include "base/test/test_timeouts.h"
 #include "build/build_config.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
-#include "content/public/common/content_switches.h"
 #include "content/public/test/content_test_suite_base.h"
 #include "content/public/test/test_launcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/buildflags.h"
-#include "ui/base/ui_base_switches.h"
 
 namespace content {
 

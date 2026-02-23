@@ -16,6 +16,10 @@
 
 #include <utility>
 
+#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+
 namespace content {
 
 StubH5vccRuntimeImpl::StubH5vccRuntimeImpl() = default;

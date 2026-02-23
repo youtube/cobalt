@@ -19,7 +19,6 @@
 #include <cstdint>
 #include <string>
 
-#include "starboard/configuration.h"
 #include "url/gurl.h"
 
 namespace content {

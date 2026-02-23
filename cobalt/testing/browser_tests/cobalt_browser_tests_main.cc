@@ -16,19 +16,15 @@
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
-#include "base/logging.h"
 #include "base/process/process.h"
 #include "base/test/test_support_starboard.h"
 #include "base/test/test_timeouts.h"
-#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/test/test_launcher.h"
 #include "starboard/event.h"
-#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/linux/linux_ui.h"
 #include "ui/linux/linux_ui_factory.h"
-#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 namespace {
 // This delegate is the bridge between the content::LaunchTests function

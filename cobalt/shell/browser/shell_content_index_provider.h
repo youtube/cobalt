@@ -15,8 +15,10 @@
 #ifndef COBALT_SHELL_BROWSER_SHELL_CONTENT_INDEX_PROVIDER_H_
 #define COBALT_SHELL_BROWSER_SHELL_CONTENT_INDEX_PROVIDER_H_
 
+#include <cstdint>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "content/public/browser/content_index_provider.h"

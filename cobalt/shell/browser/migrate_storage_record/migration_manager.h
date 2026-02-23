@@ -21,11 +21,12 @@
 #include <utility>
 #include <vector>
 
-#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "net/cookies/canonical_cookie.h"
+#include "url/origin.h"
 
 namespace cobalt {
 namespace migrate_storage_record {

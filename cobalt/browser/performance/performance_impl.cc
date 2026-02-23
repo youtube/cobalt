@@ -14,17 +14,23 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 
+#include <cstdint>
+#include <utility>
+
+#include "base/notimplemented.h"
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
+#include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;
 #elif BUILDFLAG(IS_STARBOARD)
-#include "starboard/common/time.h"
 #endif
 
 namespace performance {

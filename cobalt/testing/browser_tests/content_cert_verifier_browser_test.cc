@@ -14,6 +14,8 @@
 
 #include "cobalt/testing/browser_tests/content_cert_verifier_browser_test.h"
 
+#include "base/command_line.h"
+
 namespace content {
 
 CertVerifierBrowserTest::CertVerifierBrowserTest() = default;

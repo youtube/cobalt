@@ -14,15 +14,13 @@
 
 #include "cobalt/browser/h5vcc_storage/h5vcc_storage_impl.h"
 
-#include "base/files/file_path.h"
-#include "base/files/file_util.h"
-#include "base/logging.h"
-#include "base/task/sequenced_task_runner.h"
-#include "base/task/single_thread_task_runner.h"
-#include "base/task/task_traits.h"
-#include "base/task/thread_pool.h"
-#include "base/threading/thread_restrictions.h"
+#include <utility>
+
+#include "base/threading/thread_checker.h"
 #include "build/build_config.h"
+#include "cobalt/browser/h5vcc_storage/public/mojom/h5vcc_storage.mojom.h"
+#include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/configuration_constants.h"  // nogncheck
 #endif

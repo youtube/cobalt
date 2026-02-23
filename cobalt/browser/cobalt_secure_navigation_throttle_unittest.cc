@@ -14,14 +14,18 @@
 
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 
+#include <memory>
+
 #include "base/command_line.h"
+#include "base/memory/scoped_refptr.h"
+#include "build/buildflag.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_response_headers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
-#include "url/url_constants.h"
 
 namespace cobalt {
 namespace browser {

@@ -14,19 +14,16 @@
 
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 
-#include "base/strings/string_number_conversions.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_devtools_bindings.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-#include "base/command_line.h"
-#include "cobalt/shell/common/shell_switches.h"
 #endif
 
 namespace content {

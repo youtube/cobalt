@@ -14,21 +14,24 @@
 
 #include "cobalt/testing/browser_tests/webrtc_content_browsertest_base.h"
 
+#include <string>
+#include <utility>
+
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "cobalt/testing/browser_tests/browser/test_shell.h"
+#include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
-#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/audio_service.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/audio/audio_system.h"
 #include "media/base/media_switches.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "url/gurl.h"
 
 namespace content {
 

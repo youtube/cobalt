@@ -17,14 +17,15 @@
 #include <memory>
 #include <utility>
 
+#include "base/base_paths_starboard.h"
 #include "base/command_line.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/metrics/user_metrics.h"
 #include "base/path_service.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
-#include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -33,7 +34,6 @@
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

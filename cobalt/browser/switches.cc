@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/switches.h"
 
+#include <string>
+
+#include "base/command_line.h"
 #include "cobalt/shell/common/shell_switches.h"
 
 namespace cobalt {

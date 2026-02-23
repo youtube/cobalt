@@ -17,8 +17,10 @@
 
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "cobalt/testing/browser_tests/app/shell_main_test_delegate.h"
+#include "content/public/app/content_main_delegate.h"
 
 namespace content {
 

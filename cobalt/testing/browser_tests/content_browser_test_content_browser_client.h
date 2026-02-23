@@ -17,7 +17,8 @@
 
 #include <string_view>
 
-#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "content/public/browser/content_browser_client.h"
 
 namespace content {
 

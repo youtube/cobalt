@@ -14,8 +14,12 @@
 
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 
-#include "base/check.h"
+#include <string>
+#include <utility>
+
 #include "base/no_destructor.h"
+#include "cobalt/common/cobalt_thread_checker.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 namespace cobalt {
 namespace browser {

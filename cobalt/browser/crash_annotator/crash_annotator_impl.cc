@@ -14,8 +14,12 @@
 
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
+#include <string>
+#include <utility>
+
+#include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
+#include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 

@@ -14,8 +14,13 @@
 
 #include "cobalt/shell/common/device_authentication.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
 #include "base/base64.h"
 #include "base/base64url.h"
+#include "base/check.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace content {

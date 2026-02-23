@@ -15,6 +15,8 @@
 #ifndef COBALT_SHELL_APP_SHELL_CRASH_REPORTER_CLIENT_H_
 #define COBALT_SHELL_APP_SHELL_CRASH_REPORTER_CLIENT_H_
 
+#include <string>
+
 #include "build/build_config.h"
 #include "components/crash/core/app/crash_reporter_client.h"
 

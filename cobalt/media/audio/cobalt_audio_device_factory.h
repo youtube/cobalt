@@ -15,7 +15,12 @@
 #ifndef COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H_
 #define COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H_
 
+#include <string>
+
+#include "base/memory/scoped_refptr.h"
+#include "media/audio/audio_sink_parameters.h"
 #include "media/base/media_export.h"
+#include "media/base/output_device_info.h"
 #include "third_party/blink/public/web/modules/media/audio/audio_device_factory.h"
 
 namespace media {

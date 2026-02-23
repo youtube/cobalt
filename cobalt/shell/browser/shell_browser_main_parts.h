@@ -17,7 +17,6 @@
 
 #include <memory>
 
-#include "base/metrics/field_trial.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "content/public/browser/browser_main_parts.h"

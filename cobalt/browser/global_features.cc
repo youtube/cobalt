@@ -14,11 +14,20 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include <memory>
+#include <utility>
+
+#include "base/base_paths_starboard.h"
+#include "base/check.h"
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"

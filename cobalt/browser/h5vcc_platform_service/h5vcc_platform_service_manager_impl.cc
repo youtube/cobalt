@@ -20,7 +20,10 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "cobalt/browser/h5vcc_platform_service/platform_service_impl.h"
+#include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
+#include "content/public/browser/document_user_data.h"
 #include "content/public/browser/render_frame_host.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/system.h"
 

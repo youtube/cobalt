@@ -14,11 +14,16 @@
 
 #include "cobalt/browser/h5vcc_metrics/histogram_fetcher.h"
 
+#include <cstdint>
+#include <string>
+#include <utility>
+
 #include "base/base64url.h"
-#include "base/logging.h"
+#include "base/check.h"
 #include "base/metrics/histogram.h"
-#include "base/metrics/sample_vector.h"
+#include "base/metrics/histogram_base.h"
 #include "base/metrics/statistics_recorder.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_service_client.h"
 #include "components/metrics/metrics_state_manager.h"

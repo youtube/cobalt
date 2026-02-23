@@ -16,7 +16,6 @@
 #define COBALT_TESTING_BROWSER_TESTS_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
 
 #include "cobalt/testing/browser_tests/common/main_frame_counter_test.mojom.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 
 namespace content {
 

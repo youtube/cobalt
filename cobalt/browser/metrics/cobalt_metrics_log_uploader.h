@@ -17,8 +17,11 @@
 
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
+#include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_log_uploader.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
 namespace metrics {

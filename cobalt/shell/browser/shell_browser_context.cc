@@ -17,29 +17,23 @@
 #include <memory>
 #include <utility>
 
+#include "base/check.h"
 #include "base/command_line.h"
-#include "base/environment.h"
-#include "base/files/file_util.h"
-#include "base/functional/bind.h"
-#include "base/logging.h"
 #include "base/path_service.h"
-#include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 #include "cobalt/shell/common/shell_paths.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "components/keyed_service/core/dependency_manager.h"
 #include "components/keyed_service/core/simple_dependency_manager.h"
 #include "components/keyed_service/core/simple_factory_key.h"
 #include "components/keyed_service/core/simple_key_map.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/browser/background_sync_controller.h"
-#include "content/public/browser/browser_task_traits.h"
-#include "content/public/browser/browser_thread.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/reduce_accept_language_controller_delegate.h"
 #include "content/public/browser/storage_partition.h"
-#include "content/public/common/content_switches.h"
 
 namespace content {
 

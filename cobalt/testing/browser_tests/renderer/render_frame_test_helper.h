@@ -17,8 +17,7 @@
 
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/testing/browser_tests/common/render_frame_test_helper.mojom.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/receiver.h"
+#include "content/public/renderer/render_frame.h"
 
 namespace content {
 

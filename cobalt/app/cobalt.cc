@@ -15,19 +15,20 @@
 #include <unistd.h>
 
 #include <array>
+#include <cstring>
+#include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
-#include "base/command_line.h"
-#include "base/files/file_path.h"
-#include "base/lazy_instance.h"
+#include "base/check.h"
 #include "base/logging.h"
+#include "base/logging/log_severity.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
-#include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -35,7 +36,6 @@
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/common/shell_paths.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"

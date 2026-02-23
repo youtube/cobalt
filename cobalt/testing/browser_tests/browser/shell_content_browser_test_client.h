@@ -15,7 +15,21 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_CONTENT_BROWSER_TEST_CLIENT_H_
 #define COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_CONTENT_BROWSER_TEST_CLIENT_H_
 
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "base/command_line.h"
+#include "base/functional/callback_forward.h"
+#include "base/time/time.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/clipboard_types.h"
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/frame_tree_node_id.h"
+#include "mojo/public/cpp/system/message_pipe.h"
 
 namespace content {
 

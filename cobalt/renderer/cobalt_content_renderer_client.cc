@@ -4,10 +4,23 @@
 
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
+#include <cstdint>
+#include <memory>
 #include <string>
+#include <type_traits>
+#include <utility>
 
+#include "base/check.h"
+#include "base/containers/flat_set.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/bind_post_task.h"
+#include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
+#include "build/buildflag.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -15,12 +28,19 @@
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
+#include "media/base/audio_codecs.h"
+#include "media/base/content_decryption_module.h"
+#include "media/base/eme_constants.h"
+#include "media/base/encryption_scheme.h"
+#include "media/base/key_system_info.h"
 #include "media/base/key_systems_support_registration.h"
-#include "media/base/media_log.h"
-#include "media/base/renderer_factory.h"
+#include "media/base/media_types.h"
+#include "media/base/starboard/renderer_factory_traits.h"
+#include "media/base/video_codecs.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/bind_host_receiver_callback.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"

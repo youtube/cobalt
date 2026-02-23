@@ -18,10 +18,11 @@
 #include <string>
 #include <vector>
 
-#include "base/files/file_util.h"
+#include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
 #include "base/time/time.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "services/network/public/mojom/fetch_api.mojom-data-view.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom.h"
 #include "url/gurl.h"
 

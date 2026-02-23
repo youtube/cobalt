@@ -16,6 +16,8 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTUTIL_COBALT_H_
 
 #include <bitset>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <utility>
 

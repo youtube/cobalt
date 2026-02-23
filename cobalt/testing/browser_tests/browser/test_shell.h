@@ -15,7 +15,16 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_BROWSER_TEST_SHELL_H_
 #define COBALT_TESTING_BROWSER_TESTS_BROWSER_TEST_SHELL_H_
 
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "base/functional/callback_forward.h"
+#include "base/memory/scoped_refptr.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/web_contents_delegate.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace content {
 

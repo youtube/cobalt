@@ -14,15 +14,22 @@
 
 #include "cobalt/browser/h5vcc_platform_service/platform_service_impl.h"
 
+#include <cstdint>
+#include <cstdlib>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/logging.h"
-#include "base/task/bind_post_task.h"
+#include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/document_service.h"
 #include "content/public/browser/render_frame_host.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/system.h"
 

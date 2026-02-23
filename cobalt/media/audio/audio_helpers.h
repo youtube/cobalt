@@ -15,6 +15,9 @@
 #ifndef COBALT_MEDIA_AUDIO_AUDIO_HELPERS_H_
 #define COBALT_MEDIA_AUDIO_AUDIO_HELPERS_H_
 
+#include <cstddef>
+#include <cstdint>
+
 #include "media/base/audio_parameters.h"
 #include "starboard/audio_sink.h"
 #include "starboard/media.h"

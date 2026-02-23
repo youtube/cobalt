@@ -20,6 +20,7 @@
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace cobalt {

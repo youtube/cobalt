@@ -14,10 +14,25 @@
 
 #include "cobalt/media/audio/cobalt_audio_renderer_sink.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <utility>
+
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "base/task/bind_post_task.h"
 #include "cobalt/media/audio/audio_helpers.h"
-#include "media/base/audio_glitch_info.h"
+#include "media/base/audio_parameters.h"
+#include "media/base/audio_renderer_sink.h"
+#include "media/base/audio_sample_types.h"
+#include "media/base/multi_channel_resampler.h"
+#include "media/base/output_device_info.h"
+#include "starboard/audio_sink.h"
+#include "starboard/media.h"
 
 namespace media {
 

@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_H5VCC_PLATFORM_SERVICE_PLATFORM_SERVICE_IMPL_H_
 #define COBALT_BROWSER_H5VCC_PLATFORM_SERVICE_PLATFORM_SERVICE_IMPL_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 

@@ -14,41 +14,39 @@
 
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
 
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
-#include "base/check_op.h"
-#include "base/command_line.h"
-#include "base/files/file.h"
 #include "base/functional/bind.h"
-#include "base/notreached.h"
+#include "base/location.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
+#include "components/web_cache/public/mojom/web_cache.mojom.h"
 #include "components/web_cache/renderer/web_cache_impl.h"
-#include "content/public/common/pseudonymization_util.h"
+#include "content/public/common/alternative_error_page_override_info.mojom-forward.h"
 #include "content/public/common/web_identity.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
+#include "media/base/key_system_info.h"
+#include "media/base/key_systems_support_registration.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/system/message_pipe.h"
 #include "net/base/net_errors.h"
 #include "ppapi/buildflags/buildflags.h"
-#include "sandbox/policy/sandbox.h"
 #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "third_party/blink/public/web/modules/credentialmanagement/throttle_helper.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_view.h"
-#include "v8/include/v8.h"
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-#include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(ENABLE_MOJO_CDM)

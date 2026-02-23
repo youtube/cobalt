@@ -15,11 +15,15 @@
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 
 #include <memory>
+#include <utility>
 
-#include "base/memory/ptr_util.h"
+#include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace cobalt {
 

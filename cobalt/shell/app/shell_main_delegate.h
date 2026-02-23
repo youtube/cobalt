@@ -17,12 +17,14 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <variant>
 
 #include "build/build_config.h"
 #include "cobalt/shell/buildflags.h"
 #include "components/memory_system/memory_system.h"
 #include "content/public/app/content_main_delegate.h"
+#include "content/public/common/main_function_params.h"
 
 namespace content {
 class ShellContentClient;

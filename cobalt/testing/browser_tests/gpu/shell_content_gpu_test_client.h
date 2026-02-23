@@ -15,8 +15,9 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_
 #define COBALT_TESTING_BROWSER_TESTS_GPU_SHELL_CONTENT_GPU_TEST_CLIENT_H_
 
+#include "base/task/single_thread_task_runner.h"
 #include "content/public/gpu/content_gpu_client.h"
-#include "services/network/public/mojom/network_service_test.mojom-forward.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 
 namespace content {
 

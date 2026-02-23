@@ -14,16 +14,19 @@
 
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 
-#include "base/base64url.h"
-#include "base/logging.h"
-#include "base/metrics/histogram.h"
-#include "base/metrics/statistics_recorder.h"
+#include <cstdint>
+#include <utility>
+
 #include "base/time/time.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
+#include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "components/metrics/metrics_log.h"
-#include "components/metrics/metrics_service.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/cobalt_uma_event.pb.h"
 

@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "content/public/common/content_client.h"
+#include "ui/base/resource/resource_scale_factor.h"
 
 namespace content {
 

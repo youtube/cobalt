@@ -15,17 +15,40 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
-#include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "base/feature_list.h"
+#include "base/files/file_path.h"
+#include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
+#include "build/buildflag.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/generated_code_cache_settings.h"
+#include "content/public/browser/storage_partition_config.h"
+#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "net/base/isolation_info.h"
+#include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom-forward.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/mojom/network_context.mojom-forward.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 #include "starboard/window.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
 
 class PrefService;

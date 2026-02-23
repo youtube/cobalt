@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -23,36 +24,35 @@
 
 #include "base/base_paths.h"
 #include "base/base_switches.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/cpu.h"
-#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/process/current_process.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
 #include "cobalt/shell/app/shell_crash_reporter_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_paths.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+#include "components/crash/core/app/crash_reporter_client.h"
+#include "content/public/app/content_main_delegate.h"
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/common/content_client.h"
+#include "content/public/renderer/content_renderer_client.h"
 #if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
 #endif
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
-#include "content/common/content_constants_internal.h"
 #include "content/public/app/initialize_mojo_core.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/main_function_params.h"
-#include "content/public/common/url_constants.h"
 #include "ipc/ipc_buildflags.h"
-#include "net/cookies/cookie_monster.h"
 #include "ui/base/resource/resource_bundle.h"
 
 #if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)

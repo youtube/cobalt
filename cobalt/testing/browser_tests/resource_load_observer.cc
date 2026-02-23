@@ -14,15 +14,25 @@
 
 #include "cobalt/testing/browser_tests/resource_load_observer.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
+#include "content/public/browser/global_request_id.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_paths.h"
+#include "net/base/load_timing_info.h"
+#include "services/network/public/mojom/fetch_api.mojom-data-view.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace content {

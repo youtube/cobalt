@@ -14,14 +14,13 @@
 
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 
+#include <cstdint>
+#include <cstring>
 #include <map>
 #include <memory>
+#include <optional>
+#include <string>
 
-#include "base/command_line.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
-#include "base/logging.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
@@ -31,6 +30,7 @@
 #include "cobalt/version.h"
 #include "starboard/common/system_property.h"
 #include "starboard/extension/platform_info.h"
+#include "starboard/system.h"
 #include "v8/include/v8-version-string.h"
 
 namespace cobalt {

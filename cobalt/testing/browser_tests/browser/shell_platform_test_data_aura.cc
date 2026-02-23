@@ -16,9 +16,13 @@
 
 #include <memory>
 
+#include "cobalt/shell/browser/shell_platform_data_aura.h"
 #include "ui/aura/client/cursor_shape_client.h"
+#include "ui/aura/client/focus_client.h"
+#include "ui/aura/client/window_parenting_client.h"
 #include "ui/aura/test/test_focus_client.h"
 #include "ui/aura/test/test_window_parenting_client.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/wm/core/cursor_loader.h"
 #include "ui/wm/core/default_activation_client.h"
 

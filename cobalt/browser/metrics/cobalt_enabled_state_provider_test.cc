@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 
+#include <memory>
+
 #include "base/command_line.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_switches.h"

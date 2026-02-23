@@ -15,6 +15,8 @@
 #ifndef COBALT_MEDIA_SERVICE_PLATFORM_WINDOW_PROVIDER_SERVICE_H_
 #define COBALT_MEDIA_SERVICE_PLATFORM_WINDOW_PROVIDER_SERVICE_H_
 
+#include <cstdint>
+
 #include "base/functional/callback.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 

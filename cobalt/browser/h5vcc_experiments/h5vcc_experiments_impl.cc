@@ -14,21 +14,25 @@
 
 #include "cobalt/browser/h5vcc_experiments/h5vcc_experiments_impl.h"
 
+#include <string>
+#include <utility>
+
 #include "base/feature_list.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
-#include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-data-view.h"
+#include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/version.h"
 #include "components/metrics/clean_exit_beacon.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
+#include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace h5vcc_experiments {
 

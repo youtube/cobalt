@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
+#include <cstdlib>
+#include <string>
+#include <utility>
+
+#include "base/logging.h"
 #include "base/notreached.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
+#include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom-data-view.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"

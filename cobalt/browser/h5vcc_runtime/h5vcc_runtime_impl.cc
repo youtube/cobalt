@@ -15,11 +15,16 @@
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 
 #include <string>
+#include <utility>
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
+#include "base/threading/thread_checker.h"
 #include "build/build_config.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+#include "content/public/browser/document_service.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"

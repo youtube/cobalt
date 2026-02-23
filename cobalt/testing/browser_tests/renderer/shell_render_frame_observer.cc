@@ -14,11 +14,14 @@
 
 #include "cobalt/testing/browser_tests/renderer/shell_render_frame_observer.h"
 
+#include <string>
+
 #include "base/command_line.h"
+#include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/testing/browser_tests/common/render_frame_test_helper.mojom.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
-#include "cobalt/testing/browser_tests/renderer/render_frame_test_helper.h"
 #include "content/public/renderer/render_frame.h"
+#include "mojo/public/cpp/system/message_pipe.h"
 #include "third_party/blink/public/web/web_testing_support.h"
 
 namespace content {

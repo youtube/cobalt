@@ -14,29 +14,30 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 
+#include <memory>
+
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/files/file.h"
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/task/current_thread.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
+#include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
-#include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/common/content_paths.h"
-#include "content/public/common/content_switches.h"
-#include "content/public/common/url_constants.h"
+#include "content/public/common/content_client.h"
+#include "content/public/test/browser_test_base.h"
 #include "content/public/test/test_browser_context.h"
-#include "content/test/test_content_client.h"
 #include "ui/events/platform/platform_event_source.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "base/apple/foundation_util.h"

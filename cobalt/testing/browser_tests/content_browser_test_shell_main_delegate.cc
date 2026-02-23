@@ -14,11 +14,14 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 
+#include <memory>
 #include <optional>
+#include <string_view>
 
 #include "base/test/task_environment.h"
-#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
+#include "cobalt/testing/browser_tests/app/shell_main_test_delegate.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
+#include "content/public/browser/content_browser_client.h"
 
 namespace content {
 

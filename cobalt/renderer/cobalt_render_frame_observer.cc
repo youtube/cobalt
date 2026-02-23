@@ -14,9 +14,11 @@
 
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 
-#include "base/command_line.h"
+#include <cstring>
+
 #include "cobalt/browser/switches.h"
 #include "content/public/renderer/render_frame.h"
+#include "content/public/renderer/render_frame_observer.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
 

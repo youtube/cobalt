@@ -24,7 +24,6 @@
 #define COBALT_COMMON_FEATURES_FEATURES_H_
 
 #include "base/feature_list.h"
-#include "base/metrics/field_trial_params.h"
 
 #define STARBOARD_FEATURE(feature, name, default_state) \
   BASE_DECLARE_FEATURE(feature);

@@ -14,6 +14,12 @@
 
 #include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 
+#include <utility>
+
+#include "base/check.h"
+#include "base/functional/callback_forward.h"
+#include "content/public/browser/web_contents.h"
+
 namespace content {
 
 SplashScreenWebContentsDelegate::SplashScreenWebContentsDelegate(

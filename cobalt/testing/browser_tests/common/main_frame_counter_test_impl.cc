@@ -16,7 +16,6 @@
 
 #include "base/no_destructor.h"
 #include "content/common/main_frame_counter.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 
 namespace content {
 

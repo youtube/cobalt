@@ -14,20 +14,23 @@
 
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/base_switches.h"
+#include "base/check.h"
 #include "base/command_line.h"
-#include "base/logging.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
-#include "base/strings/string_number_conversions.h"
+#include "base/version_info/channel.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/common/shell_controller.test-mojom.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
@@ -40,7 +43,6 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/platform_field_trials.h"
-#include "components/variations/pref_names.h"
 #include "components/variations/service/safe_seed_manager.h"
 #include "components/variations/service/variations_field_trial_creator.h"
 #include "components/variations/service/variations_service.h"
@@ -48,9 +50,13 @@
 #include "components/variations/synthetic_trial_registry.h"
 #include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/variations_switches.h"
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/frame_tree_node_id.h"
+#include "content/public/browser/navigation_ui_data.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "mojo/public/cpp/system/message_pipe.h"
 #include "services/network/public/cpp/features.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -58,9 +64,6 @@
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
-#include "components/crash/core/app/crash_switches.h"
-#include "components/crash/core/app/crashpad.h"
-#include "content/public/common/content_descriptors.h"
 #endif
 
 namespace content {
