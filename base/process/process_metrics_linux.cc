@@ -187,6 +187,11 @@ ProcessMetrics::GetMemoryInfo() const {
   dump.rss_anon_bytes = (resident_pages - shared_pages) * page_size;
   return dump;
 }
+#if BUILDFLAG(IS_COBALT)
+uint64_t ProcessMetrics::GetVmSizeBytes() const {
+  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmSize") * 1024;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 bool ProcessMetrics::GetPageFaultCounts(PageFaultCounts* counts) const {
   // We are not using internal::ReadStatsFileAndGetFieldAsInt64(), since it
