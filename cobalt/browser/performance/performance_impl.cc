@@ -56,7 +56,8 @@ void PerformanceImpl::MeasureUsedCpuMemory(
   std::move(callback).Run(used_memory);
 }
 
-void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
+void PerformanceImpl::GetAppStartupTimeStamp(
+    GetAppStartupTimeStampCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();

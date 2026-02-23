@@ -59,7 +59,7 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
   return used_memory;
 }
 
-ScriptPromise PerformanceExtensions::getAppStartupTime(
+ScriptPromise PerformanceExtensions::getAppStartupTimeStamp(
     ScriptState* script_state,
     const Performance& performance_obj,
     ExceptionState& exception_state) {
@@ -93,7 +93,8 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
 
   if (is_main_web_app) {
     int64_t startup_timestamp = 0;
-    BindRemotePerformance(script_state)->GetAppStartupTime(&startup_timestamp);
+    BindRemotePerformance(script_state)
+        ->GetAppStartupTimeStamp(&startup_timestamp);
 
     resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
         performance_obj.GetTimeOriginInternal(),
@@ -107,7 +108,7 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
     // its own timeline.
     resolver->Reject(MakeGarbageCollected<DOMException>(
         DOMExceptionCode::kNotAllowedError,
-        "getAppStartupTime is only available in the main application "
+        "getAppStartupTimeStamp is only available in the main application "
         "context."));
   }
 

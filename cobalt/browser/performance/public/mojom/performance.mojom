@@ -24,7 +24,7 @@ interface CobaltPerformance {
   [Sync]
   MeasureUsedCpuMemory() => (uint64 bytes);
 
-  // Get the application startup timestamp.
+  // Get the application startup timestamp in microseconds (us).
   [Sync]
-  GetAppStartupTime() => (int64 timestamp);
+  GetAppStartupTimeStamp() => (int64 timestamp);
 };
