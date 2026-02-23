@@ -156,7 +156,6 @@ void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
-  SB_LOG(INFO) << "OS::Allocate called";
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
