@@ -34,6 +34,10 @@ enum {
 
 namespace {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::atomic<int> g_max_pending_bytes_per_parse{StreamParser::kMaxPendingBytesPerParse};  // 128KiB
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 base::TimeDelta EndTimestamp(const StreamParser::BufferQueue& queue) {
   return queue.back()->timestamp() + queue.back()->duration();
 }
@@ -73,6 +77,13 @@ unsigned GetMSEBufferSizeLimitIfExists(base::StringPiece switch_string) {
 }
 
 }  // namespace
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+void SourceBufferState::SetMaxPendingBytesPerParseOverride(int max_bytes) {
+  g_max_pending_bytes_per_parse = max_bytes;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // List of time ranges for each SourceBuffer.
 // static
@@ -225,7 +236,7 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
   // and timestamp offset pointer. See http://crbug.com/351454.
   StreamParser::ParseStatus result =
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-      stream_parser_->Parse(StreamParser::g_max_pending_bytes_per_parse);
+      stream_parser_->Parse(g_max_pending_bytes_per_parse);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParse);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)

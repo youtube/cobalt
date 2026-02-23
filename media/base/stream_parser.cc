@@ -165,14 +165,4 @@ bool MergeBufferQueues(const StreamParser::BufferQueueMap& buffer_queue_map,
   return MergeBufferQueuesInternal(buffer_queues, merged_buffers);
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// static
-std::atomic<int> StreamParser::g_max_pending_bytes_per_parse{128 * 1024};  // 128KiB
-
-// static
-void StreamParser::SetMaxPendingBytesPerParseOverride(int max_bytes) {
-  g_max_pending_bytes_per_parse = max_bytes;
-}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // namespace media

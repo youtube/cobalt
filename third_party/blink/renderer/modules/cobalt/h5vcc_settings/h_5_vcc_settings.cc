@@ -18,7 +18,7 @@
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
-#include "media/base/stream_parser.h"
+#include "media/filters/source_buffer_state.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -38,10 +38,10 @@ namespace {
 
 constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
-constexpr char kMediaIncrementalParseLookAhead[] =
-    "Media.IncrementalParseLookAhead";
 constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
     "Media.ExperimentalMaxPendingBytesPerParse";
+constexpr char kMediaIncrementalParseLookAhead[] =
+    "Media.IncrementalParseLookAhead";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
 constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
@@ -159,6 +159,28 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
     return promise;
   }
 
+  if (name == kMediaExperimentalMaxPendingBytesPerParse) {
+    if (value->IsLong()) {
+      int experimental_value = value->GetAsLong();
+      if (experimental_value > 0) {
+        LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
+                  << " to " << experimental_value << " bytes.";
+        ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
+            experimental_value);
+        resolver->Resolve();
+        return promise;
+      }
+    }
+
+    LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
+                 << " must be set to a positive integer";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(),
+        kMediaExperimentalMaxPendingBytesPerParse +
+            String(" must be a positive integer.")));
+    return promise;
+  }
+
   if (name == kMediaIncrementalParseLookAhead) {
     if (value->IsLong()) {
       bool enable = (value->GetAsLong() != 0);
@@ -181,28 +203,6 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
                                           kMediaIncrementalParseLookAhead +
                                           "' must be a number."));
     }
-    return promise;
-  }
-
-  if (name == kMediaExperimentalMaxPendingBytesPerParse) {
-    if (value->IsLong()) {
-      int experimental_value = value->GetAsLong();
-      if (experimental_value > 0) {
-        LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
-                  << " to " << experimental_value << " bytes.";
-        ::media::StreamParser::SetMaxPendingBytesPerParseOverride(
-            experimental_value);
-        resolver->Resolve();
-        return promise;
-      }
-    }
-
-    LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
-                 << " must be set to a positive integer";
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(),
-        kMediaExperimentalMaxPendingBytesPerParse +
-            String(" must be a positive integer.")));
     return promise;
   }
 
