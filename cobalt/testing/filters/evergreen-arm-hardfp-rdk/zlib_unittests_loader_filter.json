@@ -1,0 +1,11 @@
+{
+  "failing_tests": [
+    "CompressionUtilsTest.GzipCompression",
+    "CompressionUtilsTest.InPlace",
+    "CompressionUtilsTest.LargeInput",
+    "ZipReaderTest.Iteration",
+    "ZipReaderTest.Open_EmptyFile",
+    "ZipReaderTest.PlatformFileIteration",
+    "ZipTest.ZipFiles"
+  ]
+}
