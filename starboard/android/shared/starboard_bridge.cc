@@ -305,20 +305,22 @@ base::android::ScopedJavaLocalRef<jobject> StarboardBridge::OpenCobaltService(
   SB_CHECK(env);
   return Java_StarboardBridge_openCobaltService(
       env, j_starboard_bridge_, native_service,
-      ConvertUTF8ToJavaString(env, service_name));
+      base::android::ConvertUTF8ToJavaString(env, service_name));
 }
 
 void StarboardBridge::CloseCobaltService(JNIEnv* env,
                                          const char* service_name) {
   SB_CHECK(env);
   Java_StarboardBridge_closeCobaltService(
-      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+      env, j_starboard_bridge_,
+      base::android::ConvertUTF8ToJavaString(env, service_name));
 }
 
 bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
   SB_CHECK(env);
   return Java_StarboardBridge_hasCobaltService(
-      env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+      env, j_starboard_bridge_,
+      base::android::ConvertUTF8ToJavaString(env, service_name));
 }
 
 void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {

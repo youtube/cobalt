@@ -17,7 +17,7 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
+import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -58,23 +58,26 @@ public abstract class CobaltService {
 
   // Service API
   /** Response to client from calls to receiveFromClient(). */
-  @SuppressWarnings("unused")
-  @UsedByNative
   public static class ResponseToClient {
     /** Indicate if the service was unable to receive data because it is in an invalid state. */
-    @SuppressWarnings("unused")
-    @UsedByNative
     public boolean invalidState;
 
     /** The synchronous response data from the service. */
-    @SuppressWarnings("unused")
-    @UsedByNative
     public byte[] data;
+
+    @CalledByNative("ResponseToClient")
+    public boolean getInvalidState() {
+      return invalidState;
+    }
+
+    @CalledByNative("ResponseToClient")
+    public byte[] getData() {
+      return data;
+    }
   }
 
   /** Receive data from client of the service. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public abstract ResponseToClient receiveFromClient(byte[] data);
 
   /**
@@ -83,8 +86,7 @@ public abstract class CobaltService {
    * <p>Once this function returns, it is invalid to call sendToClient for the nativeService, so
    * synchronization must be used to protect against this.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void onClose() {
     synchronized (lock) {
       if (!opened) {

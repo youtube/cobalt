@@ -47,7 +47,7 @@ namespace {
 
 bool Has(const char* name) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  return starboard::StarboardBridge::GetInstance()->HasCobaltService(env, name);
+  return StarboardBridge::GetInstance()->HasCobaltService(env, name);
 }
 
 CobaltExtensionPlatformService Open(void* context,
@@ -63,9 +63,8 @@ CobaltExtensionPlatformService Open(void* context,
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate(
           {context, receive_callback, name});
-  auto cobalt_service =
-      starboard::StarboardBridge::GetInstance()->OpenCobaltService(
-          env, reinterpret_cast<jlong>(service), name);
+  auto cobalt_service = StarboardBridge::GetInstance()->OpenCobaltService(
+      env, reinterpret_cast<jlong>(service), name);
   if (!cobalt_service) {
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
@@ -84,8 +83,8 @@ void Close(CobaltExtensionPlatformService service) {
       base::android::JavaParamRef<jobject>(env, service->cobalt_service);
   Java_CobaltService_onClose(env, j_cobalt_service);
 
-  starboard::StarboardBridge::GetInstance()->CloseCobaltService(
-      env, service->name.c_str());
+  StarboardBridge::GetInstance()->CloseCobaltService(env,
+                                                     service->name.c_str());
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
