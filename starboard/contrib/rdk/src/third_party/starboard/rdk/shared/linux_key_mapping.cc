@@ -131,6 +131,9 @@ struct LinuxKeyMappingImpl {
     SbKeyModifiers mapped_modifiers;
   };
 
+  // Default mapping for the Lima M1 RDK remote (t4h). It can be overridden at
+  // runtime via keymapping.json ($COBALT_CONTENT_DIR/app/cobalt/content/etc/keymapping.json)
+  // without rebuilding Cobalt—e.g. for testing or to use a different remote.
   std::vector<KeyMapping> key_mappings_ = {
     { KEY_M, kSbKeyModifiersCtrl, KEY_UNKNOWN,     kSbKeyModifiersNone },  // Menu
     { KEY_G, kSbKeyModifiersCtrl, KEY_UNKNOWN,     kSbKeyModifiersNone },  // Guide
@@ -159,6 +162,8 @@ struct LinuxKeyMappingImpl {
 
     { KEY_PAGEDOWN, kSbKeyModifiersNone, KEY_NEXTSONG,   kSbKeyModifiersNone },
     { KEY_PAGEUP, kSbKeyModifiersNone, KEY_PREVIOUSSONG, kSbKeyModifiersNone },
+    { KEY_BACKSPACE, kSbKeyModifiersNone, KEY_ESC, kSbKeyModifiersNone },
+    { KEY_SELECT, kSbKeyModifiersNone, KEY_ENTER, kSbKeyModifiersNone },
   };
 
   void UpdateKeyMapping(

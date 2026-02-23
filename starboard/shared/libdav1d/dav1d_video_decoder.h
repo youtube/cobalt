@@ -35,7 +35,8 @@ namespace starboard {
 
 class Dav1dVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  Dav1dVideoDecoder(SbMediaVideoCodec video_codec,
+  Dav1dVideoDecoder(JobQueue* job_queue,
+                    SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,
                     SbDecodeTargetGraphicsContextProvider*
                         decode_target_graphics_context_provider,

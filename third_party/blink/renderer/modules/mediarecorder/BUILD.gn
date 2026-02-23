@@ -45,4 +45,8 @@ blink_modules_sources("mediarecorder") {
     "//third_party/libyuv",
     "//third_party/opus",
   ]
+
+  if (is_starboard) {
+    deps -= [ "//third_party/libvpx" ]
+  }
 }

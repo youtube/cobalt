@@ -9,7 +9,7 @@
 #include "base/json/json_reader.h"
 #include "base/test/fuzztest_support.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/fuzztest/src/fuzztest/fuzztest.h"  // nogncheck
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 
 namespace content {
 

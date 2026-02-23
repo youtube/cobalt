@@ -127,7 +127,7 @@ static_library("starboard_platform") {
     "media/vp9_sw_av_video_sample_buffer_builder.mm",
     "media_can_play_mime_and_key_system.mm",
     "media_is_audio_supported.mm",
-    "media_is_supported.mm",
+    "media_is_key_system_supported.mm",
     "media_is_video_supported.mm",
     "observer_registry.cc",
     "observer_registry.h",
@@ -150,6 +150,16 @@ static_library("starboard_platform") {
     "uikit_media_session_client.h",
     "uikit_media_session_client.mm",
   ]
+
+  if (is_internal_build) {
+    # TODO(b/460479616): Update the source paths to the correct internal
+    # submodule location once the directory structure is finalized. These files
+    # are provided by the internal submodule and should not be checked in here.
+    sources += [
+      "media/vp9_hw_av_video_sample_buffer_builder.h",
+      "media/vp9_hw_av_video_sample_buffer_builder.mm",
+    ]
+  }
 
   sources += common_player_sources
 

@@ -63,7 +63,8 @@ class AudioRendererPcm : public AudioRenderer,
   //    longer accept more data.
   // |min_frames_per_append| is the min number of frames that the audio renderer
   // tries to append to the sink buffer at once.
-  AudioRendererPcm(std::unique_ptr<AudioDecoder> decoder,
+  AudioRendererPcm(JobQueue* job_queue,
+                   std::unique_ptr<AudioDecoder> decoder,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
                    const AudioStreamInfo& audio_stream_info,
                    int max_cached_frames,

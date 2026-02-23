@@ -18,10 +18,6 @@
 #include "starboard/shared/starboard/accessibility_internal.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
 
-using starboard::shared::starboard::GetClosestCaptionColorRGB;
-using starboard::shared::starboard::GetClosestFontSizePercentage;
-using starboard::shared::starboard::GetClosestOpacity;
-
 namespace starboard {
 namespace shared {
 namespace uikit {

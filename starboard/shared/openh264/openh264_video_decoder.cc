@@ -25,11 +25,13 @@
 namespace starboard {
 
 OpenH264VideoDecoder::OpenH264VideoDecoder(
+    JobQueue* job_queue,
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider)
-    : output_mode_(output_mode),
+    : JobOwner(job_queue),
+      output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider) {
   SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH264);
@@ -59,6 +61,7 @@ void OpenH264VideoDecoder::Reset() {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
     decoder_thread_->ScheduleAndWait(
         std::bind(&OpenH264VideoDecoder::TeardownCodec, this));
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 
@@ -131,7 +134,7 @@ void OpenH264VideoDecoder::WriteInputBuffers(
     return;
   }
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("openh264_video_decoder"));
+    decoder_thread_ = JobThread::Create("openh264_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
   const auto& input_buffer = input_buffers[0];

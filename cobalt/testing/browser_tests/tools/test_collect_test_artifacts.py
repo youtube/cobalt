@@ -130,5 +130,27 @@ class TestCollectTestArtifacts(unittest.TestCase):
     mock_chmod.assert_called_once_with('run.py', 0o755)
 
 
+class TestCollectTestArtifactsMain(unittest.TestCase):
+  """Tests for the main() entry point and argument parsing."""
+
+  @mock.patch('collect_test_artifacts.find_runtime_deps')
+  @mock.patch('os.makedirs')
+  @mock.patch('argparse.ArgumentParser.error')
+  def test_main_absolute_output_with_output_dir_fails(self, mock_error,
+                                                      unused_makedirs,
+                                                      unused_find_deps):
+    mock_error.side_effect = SystemExit
+    test_args = [
+        'collect_test_artifacts.py', 'out/dir', '--output_dir', '/tmp/out',
+        '--output', '/tmp/absolute/path.tar.gz'
+    ]
+    with mock.patch('sys.argv', test_args):
+      with self.assertRaises(SystemExit):
+        collect_test_artifacts.main()
+
+      mock_error.assert_called_once()
+      self.assertIn('cannot be an absolute path', mock_error.call_args[0][0])
+
+
 if __name__ == '__main__':
   unittest.main()

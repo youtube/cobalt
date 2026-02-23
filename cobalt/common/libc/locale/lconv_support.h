@@ -34,9 +34,13 @@ struct LconvImpl {
   std::string current_numeric_locale;
   std::string current_monetary_locale;
 
-  LconvImpl() { ResetToC(); }
+  LconvImpl() {
+    ResetNumericToC();
+    ResetMonetaryToC();
+  }
 
-  void ResetToC();
+  void ResetNumericToC();
+  void ResetMonetaryToC();
 };
 
 // Updates all lconv values tied to the LC_NUMERIC locale for a given LconvImpl

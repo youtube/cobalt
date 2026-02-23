@@ -15,7 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 
+#include <atomic>
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "starboard/common/log.h"
@@ -30,35 +32,34 @@
 namespace starboard {
 
 // This class implements a thread that holds a JobQueue.
+//
+// NOTE: It is the caller's responsibility to ensure that the JobThread object
+// remains valid while its methods are being called. This class does not
+// provide internal synchronization to prevent use-after-free if the object
+// is destroyed by one thread while another thread is calling its public
+// methods (e.g., Schedule()). Such lifetime management must be handled at the
+// caller level.
 class JobThread {
  public:
-  explicit JobThread(const char* thread_name,
-                     int64_t stack_size = 0,
-                     SbThreadPriority priority = kSbThreadPriorityNormal);
+  static std::unique_ptr<JobThread> Create(std::string_view thread_name);
+  static std::unique_ptr<JobThread> Create(std::string_view thread_name,
+                                           SbThreadPriority priority);
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
-    SB_DCHECK(job_queue_);
-
     return job_queue_->BelongsToCurrentThread();
   }
 
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
                               int64_t delay_usec = 0) {
-    SB_DCHECK(job_queue_);
-
     return job_queue_->Schedule(job, delay_usec);
   }
 
   JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
-    SB_DCHECK(job_queue_);
-
     return job_queue_->Schedule(std::move(job), delay_usec);
   }
 
   void ScheduleAndWait(const JobQueue::Job& job) {
-    SB_DCHECK(job_queue_);
-
     job_queue_->ScheduleAndWait(job);
   }
 
@@ -66,24 +67,37 @@ class JobThread {
   // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
   // occasionally running before ScheduleAndWait has finished.
   void ScheduleAndWait(JobQueue::Job&& job) {
-    SB_DCHECK(job_queue_);
-
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
   void RemoveJobByToken(JobQueue::JobToken job_token) {
-    SB_DCHECK(job_queue_);
-
     return job_queue_->RemoveJobByToken(job_token);
   }
 
+  JobQueue* job_queue() const { return job_queue_.get(); }
+
+  // Remove any pending tasks and stop scheduling any more tasks.
+  // This method returns only after the current running task is completed, if
+  // any. This can be called when call sites want to ensure that no pending
+  // tasks are running while the owning object is being destroyed.
+  // This is useful because tasks might access members of the owning object
+  // that could be destroyed before the JobThread member itself is destroyed.
+  // For example, a unique_ptr member holding the JobThread is set to nullptr
+  // as soon as its destruction begins, causing tasks that access it to see
+  // a null pointer even while the JobThread's destructor is still waiting
+  // for them to finish. For details, see http://b/477902972#comment2.
+  void Stop();
+
  private:
   class WorkerThread;
+  JobThread(std::unique_ptr<WorkerThread> thread,
+            std::unique_ptr<JobQueue> job_queue);
 
-  void RunLoop();
+  std::mutex stop_mutex_;
+  bool stopped_ = false;
 
-  std::unique_ptr<Thread> thread_;
-  std::unique_ptr<JobQueue> job_queue_;
+  const std::unique_ptr<WorkerThread> thread_;
+  const std::unique_ptr<JobQueue> job_queue_;
 };
 
 }  // namespace starboard

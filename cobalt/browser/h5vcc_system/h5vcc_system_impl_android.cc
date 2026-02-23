@@ -49,42 +49,42 @@ std::string GetTrackingAuthorizationStatusShared() {
 }  // namespace
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetAdvertisingIdShared());
 }
 
 void H5vccSystemImpl::GetAdvertisingIdSync(
     GetAdvertisingIdSyncCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetAdvertisingIdShared());
 }
 
 void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetLimitAdTrackingShared());
 }
 
 void H5vccSystemImpl::GetLimitAdTrackingSync(
     GetLimitAdTrackingSyncCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetLimitAdTrackingShared());
 }
 
 void H5vccSystemImpl::GetTrackingAuthorizationStatus(
     GetTrackingAuthorizationStatusCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetTrackingAuthorizationStatusShared());
 }
 
 void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
     GetTrackingAuthorizationStatusSyncCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetTrackingAuthorizationStatusShared());
 }
 
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO: b/395650827 - Connect to Starboard extension.
   NOTIMPLEMENTED();
   std::move(callback).Run(false);

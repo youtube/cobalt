@@ -27,18 +27,23 @@
 #include "api/media_types.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
+#include "build/build_config.h"
 #include "api/test/create_frame_generator.h"
 #include "api/video/builtin_video_bitrate_allocator_factory.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
+#if !BUILDFLAG(IS_STARBOARD)
+#include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h" //nogncheck
+#include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h" //nogncheck
+#endif
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
+#if !BUILDFLAG(IS_STARBOARD)
+#include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h" //nogncheck
+#include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h" //nogncheck
+#endif
 #include "call/call.h"
 #include "call/call_config.h"
 #include "call/video_send_stream.h"

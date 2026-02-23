@@ -44,7 +44,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       SbDecodeTargetGraphicsContextProvider* provider);
 
  private:
-  Result<void> Init(SbPlayer player,
+  Result<void> Init(JobQueue* job_queue,
+                    SbPlayer player,
                     UpdateMediaInfoCB update_media_info_cb,
                     GetPlayerStateCB get_player_state_cb,
                     UpdatePlayerStateCB update_player_state_cb,

@@ -19,11 +19,11 @@
 #include "starboard/media.h"
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
-bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                      SbMediaAudioCodec audio_codec,
-                      const char* key_system) {
+bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                               SbMediaAudioCodec audio_codec,
+                               const char* key_system) {
   if (strchr(key_system, ';')) {
     // TODO: Remove this check and enable key system with attributes support.
     return false;
@@ -52,4 +52,4 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
           audio_codec == kSbMediaAudioCodecAac);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

@@ -49,12 +49,14 @@ void ReleaseInputBuffer(const uint8_t* buf, void* context) {
 }  // namespace
 
 Dav1dVideoDecoder::Dav1dVideoDecoder(
+    JobQueue* job_queue,
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     bool may_reduce_quality_for_speed)
-    : may_reduce_quality_for_speed_(may_reduce_quality_for_speed),
+    : JobOwner(job_queue),
+      may_reduce_quality_for_speed_(may_reduce_quality_for_speed),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -92,7 +94,7 @@ void Dav1dVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("dav1d_video_decoder"));
+    decoder_thread_ = JobThread::Create("dav1d_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
 
@@ -128,6 +130,7 @@ void Dav1dVideoDecoder::Reset() {
     decoder_thread_->ScheduleAndWait(
         std::bind(&Dav1dVideoDecoder::TeardownCodec, this));
 
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 

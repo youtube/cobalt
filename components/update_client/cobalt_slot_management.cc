@@ -34,7 +34,7 @@ namespace update_client {
 namespace {
 bool CheckBadFileExists(const char* installation_path, const char* app_key) {
   std::string bad_app_key_file_path =
-      starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
+      loader_app::GetBadAppKeyFilePath(installation_path, app_key);
   SB_DCHECK(!bad_app_key_file_path.empty());
   struct stat file_info;
   bool file_exists = stat(bad_app_key_file_path.c_str(), &file_info) == 0;
@@ -263,9 +263,9 @@ bool CobaltFinishInstallation(
     const std::string& dir,
     const std::string& app_key) {
   std::string good_app_key_file_path =
-      starboard::loader_app::GetGoodAppKeyFilePath(dir, app_key);
+      loader_app::GetGoodAppKeyFilePath(dir, app_key);
   SB_CHECK(!good_app_key_file_path.empty());
-  if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
+  if (!loader_app::CreateAppKeyFile(good_app_key_file_path)) {
     LOG(WARNING) << "Failed to create good app key file";
   }
   DrainFileClearForApp(dir.c_str(), app_key.c_str());
@@ -325,7 +325,7 @@ bool CobaltQuickUpdate(
         cobalt::updater::ReadEvergreenVersion(installation_dir);
 
     std::string good_app_key_file_path =
-        starboard::loader_app::GetGoodAppKeyFilePath(
+        loader_app::GetGoodAppKeyFilePath(
             installation_dir.value().c_str(), app_key);
     struct stat file_info;
     if (!installed_version.IsValid()) {
@@ -339,7 +339,7 @@ bool CobaltQuickUpdate(
                     !CheckBadFileExists(installation_dir.value().c_str(),
                                         app_key) &&
                     stat(good_app_key_file_path.c_str(), &file_info) != 0 &&
-                    starboard::loader_app::AnyGoodAppKeyFile(
+                    loader_app::AnyGoodAppKeyFile(
                         installation_dir.value().c_str())))) {
       // Found a slot with newer version than the current version. It's either
       // the system image slot, or a writeable installation slot that's not
