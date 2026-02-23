@@ -13,16 +13,13 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
+#include "base/notreached.h"
+#include "build/build_config.h"
 
-#include "base/logging.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
-#include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/shell/common/url_constants.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
-#include "third_party/blink/renderer/core/frame/local_dom_window.h"
-#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
 namespace blink {
@@ -74,43 +71,23 @@ ScriptPromise PerformanceExtensions::getAppStartupTimeStamp(
       script_state, exception_state.GetContext());
   ScriptPromise promise = resolver->Promise();
 
-  bool is_main_web_app = false;
-  if (context->IsWindow()) {
-    auto* window = static_cast<LocalDOMWindow*>(context);
-    LocalFrame* frame = window->GetFrame();
-    if (frame && frame->IsMainFrame()) {
-      const KURL& url = window->document()->Url();
-      // We check for splash screen URLs to exclude them from being considered
-      // as the main web app.
-      bool is_splash_screen_content =
-          url.Protocol() == content::kH5vccEmbeddedScheme ||
-          url.GetString().StartsWith(switches::kSplashScreenURL);
-      if (url.ProtocolIsInHTTPFamily() && !is_splash_screen_content) {
-        is_main_web_app = true;
-      }
-    }
-  }
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/487001977: Reject when this fails.
+  NOTIMPLEMENTED();
+  resolver->Reject(MakeGarbageCollected<DOMException>(
+      DOMExceptionCode::kNotSupportedError, "Not implemented on iOS/tvOS."));
+  return promise;
+#endif
 
-  if (is_main_web_app) {
-    int64_t startup_timestamp = 0;
-    BindRemotePerformance(script_state)
-        ->GetAppStartupTimeStamp(&startup_timestamp);
+  int64_t startup_timestamp = 0;
+  BindRemotePerformance(script_state)
+      ->GetAppStartupTimeStamp(&startup_timestamp);
 
-    resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
-        performance_obj.GetTimeOriginInternal(),
-        base::TimeTicks::FromInternalValue(startup_timestamp),
-        true /* allow_negative_value */,
-        context->CrossOriginIsolatedCapability()));
-  } else {
-    // Only the main application should have access to startup metrics. For
-    // other contexts (like background service workers, iframes or the splash
-    // screen), we explicitly reject the promise as each of those contexts has
-    // its own timeline.
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kNotAllowedError,
-        "getAppStartupTimeStamp is only available in the main application "
-        "context."));
-  }
+  resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
+      performance_obj.GetTimeOriginInternal(),
+      base::TimeTicks::FromInternalValue(startup_timestamp),
+      true /* allow_negative_value */,
+      context->CrossOriginIsolatedCapability()));
 
   return promise;
 }
