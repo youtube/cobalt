@@ -16,6 +16,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
+#include "build/build_config.h"
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/common/process.h"
@@ -27,6 +28,10 @@
 #include "starboard/time_zone.h"
 
 #include "sys/mman.h"
+
+#if defined(ANDROID) || V8_OS_LINUX
+#include <sys/prctl.h>
+#endif
 
 namespace v8 {
 namespace base {
@@ -152,6 +157,7 @@ void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
+  SB_LOG(INFO) << "OS::Allocate called";
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
@@ -181,6 +187,15 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   }
 
   DCHECK_EQ(size, request_size);
+
+#if defined(ANDROID) || V8_OS_LINUX
+#if defined(PR_SET_VMA) && defined(PR_SET_VMA_ANON_NAME)
+  if (aligned_base != nullptr) {
+    prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, aligned_base, size, "v8");
+  }
+#endif
+#endif
+
   return static_cast<void*>(aligned_base);
 }
 
