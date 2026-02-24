@@ -31,12 +31,6 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
 }
 
 // static
-void DecoderBuffer::EnableAllocateOnDemand(bool enabled) {
-  CHECK(s_allocator);
-  s_allocator->SetAllocateOnDemand(enabled);
-}
-
-// static
 void DecoderBuffer::EnableMediaBufferPoolStrategy() {
   CHECK(s_allocator);
   s_allocator->EnableMediaBufferPoolStrategy();

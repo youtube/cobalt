@@ -75,7 +75,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   size_t GetCurrentMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
 
-  void SetAllocateOnDemand(bool enabled) override;
   void EnableMediaBufferPoolStrategy() override;
   void EnableInPlaceReuseAllocatorBase() override;
 
@@ -98,7 +97,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  bool is_memory_pool_allocated_on_demand_ GUARDED_BY(mutex_);
+  const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 

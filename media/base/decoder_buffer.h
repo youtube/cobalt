@@ -110,7 +110,6 @@ class MEDIA_EXPORT DecoderBuffer
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
 
-    virtual void SetAllocateOnDemand(bool enabled) = 0;
     virtual void EnableMediaBufferPoolStrategy() = 0;
     virtual void EnableInPlaceReuseAllocatorBase() = 0;
 
@@ -118,7 +117,6 @@ class MEDIA_EXPORT DecoderBuffer
     ~Allocator() {}
   };
 
-  static void EnableAllocateOnDemand(bool enabled);
   static void EnableMediaBufferPoolStrategy();
   static void EnableInPlaceReuseAllocatorBase();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
