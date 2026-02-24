@@ -16,6 +16,7 @@
 #include "starboard/player.h"
 // clang-format on
 
+#include "starboard/android/shared/video_decoder_experimental_features.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerDestroy(SbPlayer player) {

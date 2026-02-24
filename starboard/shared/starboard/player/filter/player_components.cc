@@ -94,9 +94,6 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
-    std::optional<int> video_initial_max_frames_in_decoder,
-    std::optional<int> video_max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -107,9 +104,6 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       max_video_input_size_(max_video_input_size),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
-      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
-      video_max_pending_input_frames_(video_max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -127,9 +121,6 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
-    std::optional<int> video_initial_max_frames_in_decoder,
-    std::optional<int> video_max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -141,9 +132,6 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       max_video_input_size_(max_video_input_size),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
-      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
-      video_max_pending_input_frames_(video_max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -161,10 +149,6 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->max_video_input_size_ = that.max_video_input_size_;
   this->flush_decoder_during_reset_ = that.flush_decoder_during_reset_;
   this->reset_audio_decoder_ = that.reset_audio_decoder_;
-  this->video_initial_max_frames_in_decoder_ =
-      that.video_initial_max_frames_in_decoder_;
-  this->video_max_pending_input_frames_ = that.video_max_pending_input_frames_;
-  this->video_decoder_poll_interval_ms_ = that.video_decoder_poll_interval_ms_;
   this->surface_view_ = that.surface_view_;
   this->decode_target_graphics_context_provider_ =
       that.decode_target_graphics_context_provider_;
