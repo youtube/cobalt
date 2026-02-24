@@ -117,7 +117,7 @@ void CobaltMetricsServiceClient::Initialize() {
 }
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   state_ = base::MakeRefCounted<State>(this);
   state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   state_->task_runner->PostTask(
