@@ -31,10 +31,15 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
       "width=1920; height=1080; framerate=15;";
   const bool enable_flush_during_seek = true;
   const bool enable_reset_audio_decoder = false;
+  const std::optional<int> video_decoder_initial_preroll_count = 10;
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
       audio_write_duration_remote, max_video_capabilities,
-      {enable_flush_during_seek, enable_reset_audio_decoder},
+      {enable_flush_during_seek, enable_reset_audio_decoder,
+       /*initial_max_frames_in_decoder=*/std::nullopt,
+       /*max_pending_input_frames=*/std::nullopt,
+       /*video_decoder_initial_preroll_count=*/
+       video_decoder_initial_preroll_count},
       gfx::Size(1920, 1080));
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
@@ -43,6 +48,8 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
             enable_flush_during_seek);
   EXPECT_EQ(config.experimental_features.enable_reset_audio_decoder,
             enable_reset_audio_decoder);
+  EXPECT_EQ(config.experimental_features.video_decoder_initial_preroll_count,
+            video_decoder_initial_preroll_count);
   EXPECT_EQ(config.viewport_size, gfx::Size(1920, 1080));
 }
 

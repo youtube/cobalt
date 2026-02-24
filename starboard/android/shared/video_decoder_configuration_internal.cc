@@ -26,6 +26,7 @@ namespace {
 
 pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
 pthread_key_t g_initial_max_frames_key = 0;
+pthread_key_t g_initial_preroll_count_key = 0;
 pthread_key_t g_max_pending_frames_key = 0;
 pthread_key_t g_video_decoder_poll_interval_key = 0;
 
@@ -53,6 +54,9 @@ std::optional<int> ReadIntFromThreadLocalStorage(pthread_key_t key) {
 void InitializeKeys() {
   int res =
       pthread_key_create(&g_initial_max_frames_key, /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_initial_preroll_count_key,
+                           /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_max_pending_frames_key,
                            /*destructor=*/nullptr);
@@ -98,6 +102,23 @@ void SetVideoMaxPendingInputFramesForCurrentThread(
   EnsureThreadLocalKeyInitedForDecoderConfig();
   WriteIntToThreadLocalStorage(g_max_pending_frames_key,
                                max_pending_input_frames);
+}
+
+std::optional<int> GetVideoDecoderInitialPrerollCountForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_initial_preroll_count_key);
+}
+
+void SetVideoDecoderInitialPrerollCountForCurrentThread(
+    int video_decoder_initial_preroll_count) {
+  if (video_decoder_initial_preroll_count <= 0) {
+    SB_LOG(WARNING) << "Invalid video_decoder_initial_preroll_count: "
+                    << video_decoder_initial_preroll_count;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_initial_preroll_count_key,
+                               video_decoder_initial_preroll_count);
 }
 
 std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread() {

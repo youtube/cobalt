@@ -223,6 +223,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetVideoMaxPendingInputFramesForCurrentThread()) {
     handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
   }
+  if (auto video_decoder_initial_preroll_count = starboard::android::shared::
+          GetVideoDecoderInitialPrerollCountForCurrentThread()) {
+    handler->SetVideoDecoderInitialPrerollCount(
+        *video_decoder_initial_preroll_count);
+  }
   if (auto video_decoder_poll_interval_ms = starboard::android::shared::
           GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
