@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 #define MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -32,7 +33,6 @@
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android_overlay_mojo_factory.h"
@@ -73,7 +73,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) override;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
-  void SetLatencyHint(absl::optional<TimeDelta> latency_hint) override {
+  void SetLatencyHint(std::optional<TimeDelta> latency_hint) override {
     // TODO(b/380935131): Consider to implement `LatencyHint` for SbPlayer.
     NOTIMPLEMENTED();
   }
@@ -198,7 +198,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
   // TODO(b/375274109): Investigate whether we should call
-  //                    `void OnVideoFrameRateChange(absl::optional<int> fps)`
+  //                    `void OnVideoFrameRateChange(std::optional<int> fps)`
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;

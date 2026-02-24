@@ -15,6 +15,7 @@
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -87,7 +88,7 @@ class MockStarboardRenderer : public StarboardRenderer {
                void(MediaResource* media_resource,
                     RendererClient* client,
                     PipelineStatusCallback& init_cb));
-  MOCK_METHOD1(SetLatencyHint, void(absl::optional<TimeDelta>));
+  MOCK_METHOD1(SetLatencyHint, void(std::optional<TimeDelta>));
   MOCK_METHOD1(SetPreservesPitch, void(bool));
   MOCK_METHOD1(SetWasPlayedWithUserActivation, void(bool));
   void Flush(base::OnceClosure flush_cb) override { OnFlush(flush_cb); }
