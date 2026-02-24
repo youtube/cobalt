@@ -252,10 +252,15 @@ public class ExoPlayerBridge {
      * @param type The type of the media source (audio or video).
      */
     @CalledByNative
-    public void writeSample(
-            ByteBuffer samples, int size, long timestamp, boolean isKeyFrame, int type) {
-        writeEncryptedSample(
-                samples, size, timestamp, isKeyFrame, type, 0, null, 0, 0, null, 0, null, null);
+    public void writeSample(ExoPlayerMediaSample sample) {
+        ExoPlayerMediaSource mediaSource =
+            sample.getType() == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
+        if (mediaSource == null || mIsReleasing) {
+            reportError(
+                String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
+                    sample.getType() == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+        }
+        mediaSource.writeSample(sample);
     }
 
     /**
@@ -269,23 +274,23 @@ public class ExoPlayerBridge {
      * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
      * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
      */
-    @CalledByNative
-    public void writeEncryptedSample(ByteBuffer samples, int size, long timestamp,
-            boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] key,
-            int encryptedBlocks, int clearBlocks, @Nullable byte[] initializationVector,
-            int ivSize, @Nullable int[] subsampleEncryptedBytes,
-            @Nullable int[] subsampleClearBytes) {
-        ExoPlayerMediaSource mediaSource =
-                type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-        if (mediaSource == null || mIsReleasing) {
-            reportError(
-                    String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
-                            type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
-        }
-        mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
-                encryptedBlocks, clearBlocks, initializationVector, ivSize,
-                subsampleEncryptedBytes, subsampleClearBytes);
-    }
+    // @CalledByNative
+    // public void writeEncryptedSample(ByteBuffer samples, int size, long timestamp,
+    //         boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] key,
+    //         int encryptedBlocks, int clearBlocks, @Nullable byte[] initializationVector,
+    //         int ivSize, @Nullable int[] subsampleEncryptedBytes,
+    //         @Nullable int[] subsampleClearBytes) {
+    //     ExoPlayerMediaSource mediaSource =
+    //             type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
+    //     if (mediaSource == null || mIsReleasing) {
+    //         reportError(
+    //                 String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
+    //                         type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+    //     }
+    //     mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
+    //             encryptedBlocks, clearBlocks, initializationVector, ivSize,
+    //             subsampleEncryptedBytes, subsampleClearBytes);
+    // }
 
     /**
      * Writes the end of the stream to the appropriate media source.

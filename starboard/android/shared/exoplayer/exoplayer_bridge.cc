@@ -55,6 +55,12 @@ using base::android::ToJavaByteArray;
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
 constexpr int kADTSHeaderSize = 7;
+
+// Must match the values in
+// https://developer.android.com/reference/androidx/media3/common/C.CryptoMode.
+constexpr int kCipherModeAesCtr = 1;  // CRYPTO_MODE_AES_CTR
+constexpr int kCipherModeAesCbc = 2;
+
 constexpr bool kForceTunneledPlayback = false;
 
 int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
@@ -402,6 +408,7 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
         env, env->NewDirectByteBuffer(
                  const_cast<uint8_t*>(input_buffer->data() + offset), size));
 
+    ScopedJavaLocalRef<jobject> j_sample;
     if (input_buffer->drm_info()) {
       const SbDrmSampleInfo* drm_sample_info = input_buffer->drm_info();
 
@@ -416,40 +423,40 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
       DrmSubsampleData subsample_data =
           GetDrmSubsampleData(env, *drm_sample_info, offset);
 
-      jint cipher_mode = 1;  // CRYPTO_MODE_AES_CTR
+      jint cipher_mode = kCipherModeAesCtr;
       jint blocks_to_encrypt = 0;
       jint blocks_to_skip = 0;
 
       if (drm_sample_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
-        cipher_mode = 2;  // CRYPTO_MODE_AES_CBC
+        cipher_mode = kCipherModeAesCbc;
         blocks_to_encrypt =
             drm_sample_info->encryption_pattern.crypt_byte_block;
         blocks_to_skip = drm_sample_info->encryption_pattern.skip_byte_block;
       }
 
-      ScopedJavaLocalRef<jobject> j_sample(
-          Java_ExoPlayerMediaSample_Constructor(
+      j_sample =
+          ScopedJavaLocalRef<jobject>(Java_ExoPlayerMediaSample_Constructor(
               env, sample_byte_buffer, size, input_buffer->timestamp(),
               is_key_frame, type, cipher_mode, j_key, blocks_to_encrypt,
               blocks_to_skip, j_iv, drm_sample_info->initialization_vector_size,
               subsample_data.encrypted_bytes, subsample_data.clear_bytes));
 
-      Java_ExoPlayerBridge_writeEncryptedSample(
-          env, j_exoplayer_bridge_, sample_byte_buffer, size,
-          input_buffer->timestamp(), is_key_frame, type, cipher_mode, j_key,
-          blocks_to_encrypt, blocks_to_skip, j_iv,
-          drm_sample_info->initialization_vector_size,
-          subsample_data.encrypted_bytes, subsample_data.clear_bytes);
-      return;
+      // Java_ExoPlayerBridge_writeEncryptedSample(
+      //     env, j_exoplayer_bridge_, sample_byte_buffer, size,
+      //     input_buffer->timestamp(), is_key_frame, type, cipher_mode, j_key,
+      //     blocks_to_encrypt, blocks_to_skip, j_iv,
+      //     drm_sample_info->initialization_vector_size,
+      //     subsample_data.encrypted_bytes, subsample_data.clear_bytes);
+      // return;
+    } else {
+      j_sample =
+          ScopedJavaLocalRef<jobject>(Java_ExoPlayerMediaSample_Constructor(
+              env, sample_byte_buffer, size, input_buffer->timestamp(),
+              is_key_frame, type, 0, nullptr, 0, 0, nullptr, 0, nullptr,
+              nullptr));
     }
 
-    ScopedJavaLocalRef<jobject> j_sample(Java_ExoPlayerMediaSample_Constructor(
-        env, sample_byte_buffer, size, input_buffer->timestamp(), is_key_frame,
-        type, 0, nullptr, 0, 0, nullptr, 0, nullptr, nullptr));
-
-    Java_ExoPlayerBridge_writeSample(
-        env, j_exoplayer_bridge_, sample_byte_buffer, size,
-        input_buffer->timestamp(), is_key_frame, type);
+    Java_ExoPlayerBridge_writeSample(env, j_exoplayer_bridge_, j_sample);
   }
 }
 

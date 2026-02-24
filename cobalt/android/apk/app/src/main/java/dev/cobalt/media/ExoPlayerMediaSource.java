@@ -137,15 +137,10 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
      * must be non-null when writing the first sample of the stream
      */
-    public void writeSample(ByteBuffer samples, int size, long timestamp, boolean isKeyFrame,
-            int encryptionMode, @Nullable byte[] key, int encryptedBlocks, int clearBlocks,
-            @Nullable byte[] initializationVector, int ivSize,
-            @Nullable int[] subsampleEncryptedBytes, @Nullable int[] subsampleClearBytes) {
+    public void writeSample(ExoPlayerMediaSample sample) {
         synchronized (mLock) {
             if (mMediaPeriod != null) {
-                mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
-                        encryptedBlocks, clearBlocks, initializationVector, ivSize,
-                        subsampleEncryptedBytes, subsampleClearBytes);
+                mMediaPeriod.writeSample(sample);
             }
         }
     }

@@ -30,23 +30,30 @@ import org.jni_zero.JNINamespace;
 @UnstableApi
 public final class ExoPlayerMediaSample {
   private final ByteBuffer mSamples;
-  private final int size;
-  private final long timestamp;
-  private final boolean isKeyFrame;
-  private final int type;
-  private final int encryptionMode;
-  private final byte[] key;
-  private final int encryptedBlocks;
-  private final int clearBlocks;
-  private final byte[] initializationVector;
-  private final int ivSize;
-  private final int[] subsampleEncryptedBytes;
-  private final int[] subsampleClearBytes;
+  private final int mSize;
+  private final long mTimestamp;
+  private final boolean mIsKeyFrame;
+  private final int mType;
+  private final int mEncryptionMode;
+  private final byte[] mKey;
+  private final int mEncryptedBlocks;
+  private final int mClearBlocks;
+  private final byte[] mInitializationVector;
+  private final int mIvSize;
+  private final int[] mSubsampleEncryptedBytes;
+  private final int[] mSubsampleClearBytes;
+
   private final CryptoData mCryptoData;
+  private final int mFlags;
+  private final int mTotalSize;
+  private final boolean mHasSubsamples;
+  private final ParsableByteArray mEncryptionSignalByte;
+  private final ParsableByteArray mIvData;
+  private final ParsableByteArray mSubsampleData;
 
   @CalledByNative
   public ExoPlayerMediaSample(
-      ByteBuffer mSamples,
+      ByteBuffer samples,
       int size,
       long timestamp,
       boolean isKeyFrame,
@@ -59,20 +66,70 @@ public final class ExoPlayerMediaSample {
       int ivSize,
       @Nullable int[] subsampleEncryptedBytes,
       @Nullable int[] subsampleClearBytes) {
-    this.mSamples = mSamples;
-    this.size = size;
-    this.timestamp = timestamp;
-    this.isKeyFrame = isKeyFrame;
-    this.type = type;
-    this.encryptionMode = encryptionMode;
-    this.key = key;
-    this.encryptedBlocks = encryptedBlocks;
-    this.clearBlocks = clearBlocks;
-    this.initializationVector = initializationVector;
-    this.ivSize = ivSize;
-    this.subsampleEncryptedBytes = subsampleEncryptedBytes;
-    this.subsampleClearBytes = subsampleClearBytes;
-    this.mCryptoData = key != null ? new CryptoData(encryptionMode, key, encryptedBlocks, clearBlocks) : null;
+    this.mSamples = samples;
+    this.mSize = size;
+    this.mTimestamp = timestamp;
+    this.mIsKeyFrame = isKeyFrame;
+    this.mType = type;
+    this.mEncryptionMode = encryptionMode;
+    this.mKey = key;
+    this.mEncryptedBlocks = encryptedBlocks;
+    this.mClearBlocks = clearBlocks;
+    this.mInitializationVector = initializationVector;
+    this.mIvSize = ivSize;
+    this.mSubsampleEncryptedBytes = subsampleEncryptedBytes;
+    this.mSubsampleClearBytes = subsampleClearBytes;
+
+    this.mHasSubsamples =
+        subsampleEncryptedBytes != null
+            && subsampleClearBytes != null
+            && subsampleEncryptedBytes.length > 0;
+
+    int flags = 0;
+    if (isKeyFrame) {
+      flags |= C.BUFFER_FLAG_KEY_FRAME;
+    }
+
+    if (key != null) {
+      flags |= C.BUFFER_FLAG_ENCRYPTED;
+      this.mCryptoData = new CryptoData(encryptionMode, key, encryptedBlocks, clearBlocks);
+
+      this.mEncryptionSignalByte = new ParsableByteArray(1);
+      this.mEncryptionSignalByte.getData()[0] = (byte) (ivSize | (mHasSubsamples ? 0x80 : 0));
+
+      this.mIvData = new ParsableByteArray(initializationVector, ivSize);
+
+      if (mHasSubsamples) {
+        int subsampleCount = subsampleEncryptedBytes.length;
+        int subsampleDataLength = 2 + 6 * subsampleCount;
+        ByteBuffer subsampleBuffer = ByteBuffer.allocate(subsampleDataLength);
+        subsampleBuffer.putShort((short) subsampleCount);
+        for (int i = 0; i < subsampleCount; i++) {
+          subsampleBuffer.putShort((short) subsampleClearBytes[i]);
+          subsampleBuffer.putInt(subsampleEncryptedBytes[i]);
+        }
+        this.mSubsampleData = new ParsableByteArray(subsampleBuffer.array());
+      } else {
+        this.mSubsampleData = null;
+      }
+    } else {
+      this.mCryptoData = null;
+      this.mEncryptionSignalByte = null;
+      this.mIvData = null;
+      this.mSubsampleData = null;
+    }
+    this.mFlags = flags;
+
+    int totalSize = size;
+    if (key != null) {
+      totalSize++; // signal byte
+      totalSize += ivSize;
+      if (mHasSubsamples) {
+        totalSize += 2; // subsample count
+        totalSize += 6 * subsampleEncryptedBytes.length;
+      }
+    }
+    this.mTotalSize = totalSize;
   }
 
   public ByteBuffer getSamples() {
@@ -80,51 +137,33 @@ public final class ExoPlayerMediaSample {
   }
 
   public int getSize() {
-    return size;
+    return mSize;
   }
 
   public long getTimestamp() {
-    return timestamp;
+    return mTimestamp;
   }
 
   public int getType() {
-    return type;
+    return mType;
   }
 
   public boolean isEncrypted() {
-    return key != null;
+    return mKey != null;
   }
 
-  private boolean hasSubsamples() {
-    return subsampleEncryptedBytes != null
-        && subsampleClearBytes != null
-        && subsampleEncryptedBytes.length > 0;
+  public boolean hasSubsamples() {
+    return mHasSubsamples;
   }
 
   /** Returns the sample flags, including keyframe and encryption flags. */
   public int getFlags() {
-    int flags = 0;
-    if (isKeyFrame) {
-      flags |= C.BUFFER_FLAG_KEY_FRAME;
-    }
-    if (isEncrypted()) {
-      flags |= C.BUFFER_FLAG_ENCRYPTED;
-    }
-    return flags;
+    return mFlags;
   }
 
   /** Returns the total size of the sample, including encryption preamble data. */
   public int getTotalSize() {
-    int totalSize = size;
-    if (isEncrypted()) {
-      totalSize++; // signal byte
-      totalSize += ivSize;
-      if (hasSubsamples()) {
-        totalSize += 2; // subsample count
-        totalSize += 6 * subsampleEncryptedBytes.length;
-      }
-    }
-    return totalSize;
+    return mTotalSize;
   }
 
   /** Returns the {@link CryptoData} for this sample, or null if it is not encrypted. */
@@ -136,21 +175,13 @@ public final class ExoPlayerMediaSample {
   /** Returns a {@link ParsableByteArray} containing the encryption signal byte. */
   @Nullable
   public ParsableByteArray getEncryptionSignalByte() {
-    if (!isEncrypted()) {
-      return null;
-    }
-    ParsableByteArray encryptionSignalByte = new ParsableByteArray(1);
-    encryptionSignalByte.getData()[0] = (byte) (ivSize | (hasSubsamples() ? 0x80 : 0));
-    return encryptionSignalByte;
+    return mEncryptionSignalByte;
   }
 
   /** Returns a {@link ParsableByteArray} containing the initialization vector. */
   @Nullable
   public ParsableByteArray getIvData() {
-    if (!isEncrypted()) {
-      return null;
-    }
-    return new ParsableByteArray(initializationVector, ivSize);
+    return mIvData;
   }
 
   /**
@@ -159,17 +190,6 @@ public final class ExoPlayerMediaSample {
    */
   @Nullable
   public ParsableByteArray getSubsampleData() {
-    if (!hasSubsamples()) {
-      return null;
-    }
-    int subsampleCount = subsampleEncryptedBytes.length;
-    int subsampleDataLength = 2 + 6 * subsampleCount;
-    ByteBuffer subsampleBuffer = ByteBuffer.allocate(subsampleDataLength);
-    subsampleBuffer.putShort((short) subsampleCount);
-    for (int i = 0; i < subsampleCount; i++) {
-      subsampleBuffer.putShort((short) subsampleClearBytes[i]);
-      subsampleBuffer.putInt(subsampleEncryptedBytes[i]);
-    }
-    return new ParsableByteArray(subsampleBuffer.array());
+    return mSubsampleData;
   }
 }
