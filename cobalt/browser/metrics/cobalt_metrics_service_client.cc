@@ -39,21 +39,6 @@
 
 namespace cobalt {
 
-<<<<<<< HEAD
-namespace {
-
-void OnMemoryDumpDone(
-    bool success,
-    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
-  if (success && global_dump) {
-    CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-  }
-}
-
-}  // namespace
-
-=======
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 struct CobaltMetricsServiceClient::State
     : public base::RefCountedThreadSafe<CobaltMetricsServiceClient::State> {
   explicit State(CobaltMetricsServiceClient* parent) : parent_(parent) {}
@@ -97,18 +82,10 @@ struct CobaltMetricsServiceClient::State
       return;
     }
 
-<<<<<<< HEAD
-    auto* instrumentation =
-        memory_instrumentation::MemoryInstrumentation::GetInstance();
-    if (instrumentation) {
-      instrumentation->RequestGlobalDump({}, base::BindOnce(&OnMemoryDumpDone));
-    }
-=======
     scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
         parent_->CreateMemoryMetricsEmitter();
     emitter->FetchAndEmitProcessMemoryMetrics();
 
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
     RecordMemoryMetricsAfterDelay();
   }
 
@@ -141,13 +118,8 @@ void CobaltMetricsServiceClient::Initialize() {
 }
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
-<<<<<<< HEAD
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  state_ = base::MakeRefCounted<State>();
-=======
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   state_ = base::MakeRefCounted<State>(this);
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
   state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   state_->task_runner->PostTask(
       FROM_HERE, base::BindOnce(&State::RecordMemoryMetricsAfterDelay,
@@ -367,31 +339,6 @@ void CobaltMetricsServiceClient::SetMetricsListener(
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
 
-<<<<<<< HEAD
-// static
-void CobaltMetricsServiceClient::RecordMemoryMetrics(
-    memory_instrumentation::GlobalMemoryDump* global_dump) {
-  uint64_t total_private_footprint_kb = 0;
-  uint64_t total_resident_kb = 0;
-
-  // TODO(482357006): Re-add process-specific memory metrics (Browser,
-  // Renderer, GPU) when moving to multi-process architecture.
-  for (const auto& process_dump : global_dump->process_dumps()) {
-    total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
-    total_resident_kb += process_dump.os_dump().resident_set_kb;
-  }
-
-  if (total_private_footprint_kb > 0) {
-    uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
-    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
-                                total_private_footprint_mb);
-  }
-
-  if (total_resident_kb > 0) {
-    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.Resident",
-                                total_resident_kb / 1024);
-  }
-=======
 void CobaltMetricsServiceClient::ScheduleRecordForTesting(
     base::OnceClosure done_callback) {
   scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
@@ -403,7 +350,6 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
 scoped_refptr<CobaltMemoryMetricsEmitter>
 CobaltMetricsServiceClient::CreateMemoryMetricsEmitter() {
   return base::MakeRefCounted<CobaltMemoryMetricsEmitter>();
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 }
 
 }  // namespace cobalt

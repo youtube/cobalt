@@ -307,7 +307,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
-      std::optional<uint64_t> value =
+      absl::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
         EmitProcessUma(ptype, item, value.value());
