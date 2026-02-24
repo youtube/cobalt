@@ -23,8 +23,10 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
@@ -76,6 +78,11 @@
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
 namespace cobalt {
 
 namespace {
@@ -93,6 +100,11 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+// This value is expected by offline data processing and should not be changed.
+constexpr const char kUserAgentAnnotationKey[] = "user_agent_string";
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 void BindPlatformWindowProviderService(
     uint64_t window_handle,
@@ -573,6 +585,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  UMA_HISTOGRAM_BOOLEAN(
+      "Cobalt.Features.TestFinchFeature",
+      base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  base::UmaHistogramSparse("Cobalt.Features.TestFinchFeatureParam",
+                           base::Hash(features::kTestFinchFeatureParam.Get()));
   LOG(INFO) << "CobaltCommandLine: enable_features=["
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["
@@ -585,5 +602,30 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();
 }
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+// TODO: b/411198914 - Consider making this implementation platform-agnostic by
+// using the mojom::CrashAnnotator interface.
+void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
+  std::string user_agent_string = GetUserAgent();
+  if (user_agent_string.empty()) {
+    LOG(ERROR) << "Not setting the user agent annotation because the string is "
+               << "empty";
+    return;
+  }
+
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2) {
+    crash_handler_extension->SetString(kUserAgentAnnotationKey,
+                                       user_agent_string.c_str());
+  } else {
+    LOG(ERROR) << "The plaform does not implement (the required version of) "
+               << "the CrashHandler Starboard extension; not setting the user "
+               << "agent annotation";
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt
