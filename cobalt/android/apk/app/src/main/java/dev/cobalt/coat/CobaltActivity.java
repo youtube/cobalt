@@ -36,7 +36,6 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
-import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -158,48 +157,15 @@ public abstract class CobaltActivity extends Activity {
       args.add("--disable-splash-screen");
     }
 
-    return args.toArray(new String[0]);
-  }
-
-  private Bundle getActivityMetaData() {
-    ComponentName componentName = getIntent().getComponent();
-    if (componentName == null) {
-      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
-      return null;
-    }
-    ActivityInfo ai;
-    try {
-      ai = getPackageManager()
-                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
-    } catch (NameNotFoundException e) {
-      Log.e(TAG, "Error getting activity info", e);
-      return null;
-    }
-    if (ai == null) {
-      return null;
-    }
-    return ai.metaData;
-  }
-
-  @VisibleForTesting
-  static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
-    if (metaData == null) {
-      return commandLineArgs;
-    }
-
     String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
-    if (TextUtils.isEmpty(enableFeatures)) {
-      return commandLineArgs;
-    }
+    if (!TextUtils.isEmpty(enableFeatures)) {
+      // CommandLineOverrideHelper will merge this with other --enable-features flags
+      // It also accepts semi-colon-separated list of features.
+      // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/Com
+mandLineOverrideHelper.java#L139-L167
+      args.add("--enable-features=" + enableFeatures);
+   }
 
-    List<String> args = new ArrayList<>();
-    if (commandLineArgs != null) {
-      args.addAll(Arrays.asList(commandLineArgs));
-    }
-    // CommandLineOverrideHelper will merge this with other --enable-features flags
-    // It also accepts semi-colon-separated list of features.
-    // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
-    args.add("--enable-features=" + enableFeatures);
     return args.toArray(new String[0]);
   }
 
@@ -216,7 +182,7 @@ public abstract class CobaltActivity extends Activity {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
 
-      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
+      commandLineArgs = appendArgsFromMetaData(getActivityMetaData(), commandLineArgs);
 
       List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
 
@@ -297,7 +263,7 @@ public abstract class CobaltActivity extends Activity {
     if (!TextUtils.isEmpty(mStartupUrl)) {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
     }
-XX
+
     StartupGuard.getInstance().setStartupMilestone(8);
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
