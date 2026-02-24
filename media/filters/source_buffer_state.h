@@ -9,6 +9,7 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
@@ -32,6 +33,18 @@ class MEDIA_EXPORT SourceBufferState {
   using CreateDemuxerStreamCB =
       base::RepeatingCallback<ChunkDemuxerStream*(DemuxerStream::Type)>;
 
+<<<<<<< HEAD
+=======
+  using NewTextTrackCB = base::RepeatingCallback<void(ChunkDemuxerStream*,
+                                                      const TextTrackConfig&)>;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Overrides the maximum number of bytes that a single call to Parse() will
+  // inspect from the pending buffer.
+  static void SetMaxPendingBytesPerParseOverride(int max_bytes);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+>>>>>>> e4f62b02a7 (media: Connect kMaxPendingBytesPerParse to h5vcc (#9114))
   SourceBufferState(std::unique_ptr<StreamParser> stream_parser,
                     std::unique_ptr<FrameProcessor> frame_processor,
                     CreateDemuxerStreamCB create_demuxer_stream_cb,

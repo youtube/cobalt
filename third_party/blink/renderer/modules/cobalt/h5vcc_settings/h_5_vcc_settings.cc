@@ -20,9 +20,14 @@
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
+<<<<<<< HEAD
 #include "media/base/stream_parser.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
+=======
+#include "media/filters/source_buffer_state.h"
+#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+>>>>>>> e4f62b02a7 (media: Connect kMaxPendingBytesPerParse to h5vcc (#9114))
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
@@ -41,6 +46,8 @@ namespace {
 
 constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
+constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
+    "Media.ExperimentalMaxPendingBytesPerParse";
 constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
@@ -163,6 +170,28 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           String("The value for '") + kMediaAppendFirstSegmentSynchronously +
               "' must be a number."));
     }
+    return promise;
+  }
+
+  if (name == kMediaExperimentalMaxPendingBytesPerParse) {
+    if (value->IsLong()) {
+      int experimental_value = value->GetAsLong();
+      if (experimental_value > 0) {
+        LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
+                  << " to " << experimental_value << " bytes.";
+        ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
+            experimental_value);
+        resolver->Resolve();
+        return promise;
+      }
+    }
+
+    LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
+                 << " must be set to a positive integer";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(),
+        kMediaExperimentalMaxPendingBytesPerParse +
+            String(" must be a positive integer.")));
     return promise;
   }
 
