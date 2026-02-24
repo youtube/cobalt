@@ -13,8 +13,6 @@
 // limitations under the License.
 
 #include "cobalt/browser/performance/performance_impl.h"
-#include "cobalt/browser/cobalt_browser_main_parts.h"
-#include "cobalt/browser/cobalt_content_browser_client.h"
 
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
@@ -32,15 +30,19 @@ using ::starboard::StarboardBridge;
 namespace performance {
 
 PerformanceImpl::PerformanceImpl(
+    absl::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver)
     : content::DocumentService<mojom::CobaltPerformance>(render_frame_host,
-                                                         std::move(receiver)) {}
+                                                         std::move(receiver)),
+      app_startup_timestamp_(app_startup_timestamp) {}
 
 void PerformanceImpl::Create(
+    absl::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::CobaltPerformance> receiver) {
-  new PerformanceImpl(*render_frame_host, std::move(receiver));
+  new PerformanceImpl(app_startup_timestamp, *render_frame_host,
+                      std::move(receiver));
 }
 
 void PerformanceImpl::MeasureAvailableCpuMemory(
@@ -59,16 +61,17 @@ void PerformanceImpl::MeasureUsedCpuMemory(
 void PerformanceImpl::GetAppStartupTimeStamp(
     GetAppStartupTimeStampCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  auto startup_timestamp = starboard_bridge->GetAppStartTimestamp(env);
-#elif BUILDFLAG(IS_STARBOARD)
-  auto startup_timestamp =
-      cobalt::CobaltContentBrowserClient::Get()->GetAppStartupTimestamp();
-#else
-#error Unsupported platform.
+  if (!app_startup_timestamp_.has_value()) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    app_startup_timestamp_ =
+        StarboardBridge::GetInstance()->GetAppStartTimestamp(env);
+  }
 #endif
-  std::move(callback).Run(startup_timestamp);
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/487001977: Implement this method.
+  NOTIMPLEMENTED();
+#endif
+  std::move(callback).Run(app_startup_timestamp_.value_or(0));
 }
 
 }  // namespace performance

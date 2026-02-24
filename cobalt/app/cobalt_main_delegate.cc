@@ -30,8 +30,9 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(int64_t startup_timestamp,
-                                       bool is_content_browsertests)
+CobaltMainDelegate::CobaltMainDelegate(
+    absl::optional<int64_t> startup_timestamp,
+    bool is_content_browsertests)
     : content::ShellMainDelegate(is_content_browsertests),
       startup_timestamp_(startup_timestamp) {}
 

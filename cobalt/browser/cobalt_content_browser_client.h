@@ -62,15 +62,13 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  CobaltContentBrowserClient(int64_t startup_time);
+  CobaltContentBrowserClient(absl::optional<int64_t> startup_time);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
       delete;
 
   ~CobaltContentBrowserClient() override;
-
-  int64_t GetAppStartupTimestamp() const { return startup_timestamp_; }
 
   static CobaltContentBrowserClient* Get();
 
@@ -149,7 +147,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void CreateVideoGeometrySetterService();
   void OnSbWindowCreated(SbWindow window);
 
-  const int64_t startup_timestamp_;
+  const absl::optional<int64_t> startup_timestamp_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
