@@ -36,7 +36,8 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-quic");
     assertThat(args).contains("--enable-low-end-device-mode");
     assertThat(args).contains("--disable-rgba-4444-textures");
-    assertThat(args).hasSize(3);
+    assertThat(args).contains("--js-flags=--optimize-for-size");
+    assertThat(args).hasSize(4);
   }
 
   @Test
@@ -72,13 +73,14 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--initial-old-space-size=128");
     assertThat(args).contains("--js-flags=--max-old-space-size=256");
     assertThat(args).contains("--js-flags=--max-semi-space-size=16");
+    assertThat(args).contains("--js-flags=--optimize-for-size");
     assertThat(args).contains("--disable-splash-screen");
     assertThat(args).contains("--force-image-splash-screen");
     assertThat(args).contains("--num-raster-threads=4");
     assertThat(args).contains("--disable-features=PartitionAllocBackupRefPtr");
     assertThat(args).contains("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
     assertThat(args).contains("--enable-features=SkiaFontCache");
-    assertThat(args).hasSize(13);
+    assertThat(args).hasSize(14);
   }
 
   @Test
@@ -102,5 +104,15 @@ public class JavaSwitchesTest {
 
     assertThat(args).contains("--js-flags=--gc-interval=1000");
     assertThat(args).contains("--js-flags=--initial-old-space-size=128");
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_DisableV8OptimizeForSize() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.V8_DISABLE_OPTIMIZE_FOR_SIZE, "true");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).doesNotContain("--js-flags=--optimize-for-size");
   }
 }

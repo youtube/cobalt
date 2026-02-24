@@ -131,10 +131,15 @@ RenderProcessImpl::RenderProcessImpl()
   }
 #endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
 
+  // In Cobalt, the --optimize-for-size flag is managed through Cobalt's own
+  // configuration system (e.g., JavaSwitches on Android), allowing for
+  // more granular control and experimentation.
+#if !BUILDFLAG(IS_COBALT)
   if (base::SysInfo::IsLowEndDevice()) {
     std::string optimize_flag("--optimize-for-size");
     v8::V8::SetFlagsFromString(optimize_flag.c_str(), optimize_flag.size());
   }
+#endif
 
   /////////////////////////////////////////////////////////////////////////////
   // V8 flags are typically set in gin/v8_initializer.cc. Only those flags

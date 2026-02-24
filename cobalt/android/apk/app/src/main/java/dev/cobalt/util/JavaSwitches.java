@@ -38,6 +38,9 @@ public class JavaSwitches {
   /** V8 flag to enable write protection for code memory. Value type: Boolean (presence means true) */
   public static final String V8_WRITE_PROTECT_CODE_MEMORY = "V8WriteProtectCodeMemory";
 
+  /** V8 flag to disable optimize for size. Value type: Boolean (presence means true) */
+  public static final String V8_DISABLE_OPTIMIZE_FOR_SIZE = "V8DisableOptimizeForSize";
+
   /** V8 flag to set the GC interval. Value type: Integer */
   public static final String V8_GC_INTERVAL = "V8GcInterval";
 
@@ -110,6 +113,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+
+    if (!javaSwitches.containsKey(JavaSwitches.V8_DISABLE_OPTIMIZE_FOR_SIZE)) {
+      extraCommandLineArgs.add("--js-flags=--optimize-for-size");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {

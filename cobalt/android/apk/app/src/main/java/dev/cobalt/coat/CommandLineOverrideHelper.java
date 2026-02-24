@@ -67,9 +67,6 @@ public final class CommandLineOverrideHelper {
     public static StringJoiner getDefaultJsFlagOverridesList() {
         StringJoiner paramOverrides = new StringJoiner(",");
 
-        // Trades a little V8 performance for significant memory savings.
-        paramOverrides.add("--optimize-for-size");
-
         return paramOverrides;
     }
 
@@ -163,16 +160,24 @@ public final class CommandLineOverrideHelper {
         }
         CommandLine.getInstance().appendSwitchesAndArguments(
             cliOverrides.toArray(new String[0]));
-        CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--js-flags=" + jsFlagOverrides.toString() });
-        CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--enable-features="
-            + enableFeatureOverrides.toString() });
-        CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--disable-features="
-            + disableFeatureOverrides.toString() });
-        CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--enable-blink-features="
-            + blinkEnableFeatureOverrides.toString() });
+        if (jsFlagOverrides.length() > 0) {
+            CommandLine.getInstance().appendSwitchesAndArguments(
+                new String[]{"--js-flags=" + jsFlagOverrides.toString() });
+        }
+        if (enableFeatureOverrides.length() > 0) {
+            CommandLine.getInstance().appendSwitchesAndArguments(
+                new String[]{"--enable-features="
+                + enableFeatureOverrides.toString() });
+        }
+        if (disableFeatureOverrides.length() > 0) {
+            CommandLine.getInstance().appendSwitchesAndArguments(
+                new String[]{"--disable-features="
+                + disableFeatureOverrides.toString() });
+        }
+        if (blinkEnableFeatureOverrides.length() > 0) {
+            CommandLine.getInstance().appendSwitchesAndArguments(
+                new String[]{"--enable-blink-features="
+                + blinkEnableFeatureOverrides.toString() });
+        }
     }
 }
