@@ -107,6 +107,10 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
     return tunnel_mode_audio_session_id_ != -1;
   }
 
+  bool AllowDirectPlaybackRateSetting() const override {
+    return tunnel_mode_audio_session_id_ != -1;
+  }
+
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
@@ -382,6 +386,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
              "tunneled playback.";
       SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
                    << tunnel_mode_audio_session_id << '.';
+      is_tunnel_mode_used_ = true;
     }
 
     bool enable_reset_audio_decoder =
@@ -510,12 +515,27 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
     // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
-    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-        creation_parameters.audio_stream_info().number_of_channels,
+    const auto sample_type =
         SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
             ? kSbMediaAudioSampleTypeFloat32
-            : kSbMediaAudioSampleTypeInt16Deprecated,
+            : kSbMediaAudioSampleTypeInt16Deprecated;
+
+    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+        creation_parameters.audio_stream_info().number_of_channels, sample_type,
         creation_parameters.audio_stream_info().samples_per_second);
+
+    if (is_tunnel_mode_used_) {
+      // AudioTrack.setPlaybackParams() might need extra buffer to support
+      // playback speed greater than 1.0x.
+      const double kMaxPlaybackSpeed = 2.0;
+      min_frames_required = std::max<int>(
+          min_frames_required,
+          AudioTrackBridge::GetMinBufferSizeInFrames(sample_type,
+              creation_parameters.audio_stream_info().number_of_channels,
+              creation_parameters.audio_stream_info().samples_per_second) *
+              kMaxPlaybackSpeed);
+    }
+
     // On Android 5.0, the size of audio renderer sink buffer need to be two
     // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
     // stop working after pause.
@@ -724,6 +744,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         << ", and audio buffer frames:" << max_cached_frames;
     return nullptr;
   }
+
+private:
+  bool is_tunnel_mode_used_ = false;
 };
 
 }  // namespace

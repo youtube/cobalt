@@ -24,6 +24,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
@@ -174,13 +175,19 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_GE(playback_rate, 0.0);
-  if (playback_rate != 0.0 && playback_rate != 1.0) {
-    SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
-                           "currently supported.";
-    playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
+  SB_DLOG(INFO) << "Set playback rate to " << playback_rate;
+
+  {
+    std::lock_guard lock(mutex_);
+    playback_rate_ = playback_rate;
   }
-  std::lock_guard lock(mutex_);
-  playback_rate_ = playback_rate;
+
+  // AudioTrack doesn't support playback speed of 0.
+  if (playback_rate > 0.0) {
+    // AudioTrackBridge.setPlaybackRate() currently is only enabled for tunnel
+    // mode. It will be no-op for non tunnel player.
+    bridge_.SetPlaybackRate(playback_rate);
+  }
 }
 
 // static

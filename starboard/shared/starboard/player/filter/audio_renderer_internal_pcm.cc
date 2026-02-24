@@ -212,10 +212,13 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
 
   playback_rate_ = playback_rate;
 
-  audio_renderer_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
+  double adjusted_playback_rate = playback_rate_ > 0.0 ? 1.0 : 0.0;
+  if (audio_renderer_sink_->AllowDirectPlaybackRateSetting()) {
+    adjusted_playback_rate = playback_rate_;
+  }
+
+  audio_renderer_sink_->SetPlaybackRate(adjusted_playback_rate);
   if (audio_renderer_sink_->HasStarted()) {
-    // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
-    // support play/pause.
     if (playback_rate_ > 0.0) {
       if (process_audio_data_job_token_.is_valid()) {
         RemoveJobByToken(process_audio_data_job_token_);
@@ -332,14 +335,12 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
-#if BUILDFLAG(IS_ANDROID)
     if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
       // A simple workaround to handle silence frames for tunnel mode player.
       // |playback_rate| is ignored as tunnel mode doesn't support
       // vsp.
       frames_played += audio_frame_tracker_.GetOverflowedFrames();
     }
-#endif  // BUILDFLAG(IS_ANDROID)
     media_time =
         seeking_to_time_ + frames_played * 1'000'000LL / samples_per_second;
     if (media_time < last_media_time_) {
@@ -488,7 +489,6 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
       frames_consumed_set_at_ = system_time_on_consume_frames;
     }
 
-#if BUILDFLAG(IS_ANDROID)
     if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
       auto silence_frames_consumed =
           frames_consumed_on_sink_thread_ - non_silence_frames_consumed;
@@ -496,7 +496,6 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
           silence_frames_consumed;
       frames_consumed_set_at_ = system_time_on_consume_frames;
     }
-#endif  // BUILDFLAG(IS_ANDROID)
 
     consume_frames_called_ = true;
     frames_consumed_on_sink_thread_ = 0;
@@ -721,8 +720,13 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   int offset_to_append = total_frames_sent_to_sink_ % max_cached_frames_;
 
+  double adjusted_playback_rate = playback_rate_;
+  if (audio_renderer_sink_->AllowDirectPlaybackRateSetting()) {
+    adjusted_playback_rate = 1.0;
+  }
+
   scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
-      max_cached_frames_ - frames_in_buffer, playback_rate_);
+      max_cached_frames_ - frames_in_buffer, adjusted_playback_rate);
   SB_DCHECK(decoded_audio);
 
   {
@@ -730,7 +734,8 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
     if (decoded_audio->frames() == 0 && eos_state_ == kEOSDecoded) {
       eos_state_ = kEOSSentToSink;
     }
-    audio_frame_tracker_.AddFrames(decoded_audio->frames(), playback_rate_);
+    audio_frame_tracker_.AddFrames(decoded_audio->frames(),
+                                   adjusted_playback_rate);
   }
 
   // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
