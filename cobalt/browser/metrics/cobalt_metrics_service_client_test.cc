@@ -344,25 +344,6 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   base::HistogramTester histogram_tester;
 
-<<<<<<< HEAD
-  // Prepare a dummy GlobalMemoryDump.
-  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
-      memory_instrumentation::mojom::GlobalMemoryDump::New();
-  dump_ptr->process_dumps.push_back(
-      memory_instrumentation::mojom::ProcessMemoryDump::New());
-  dump_ptr->process_dumps[0]->os_dump =
-      memory_instrumentation::mojom::OSMemDump::New();
-  // 10240 KB = 10 MB.
-  dump_ptr->process_dumps[0]->os_dump->private_footprint_kb = 10240;
-
-  auto global_dump =
-      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
-
-  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-
-  histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
-                                      1);
-=======
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
   client_->ScheduleRecordForTesting(run_loop.QuitClosure());
@@ -385,7 +366,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
           .GetAllSamples("Memory.Experimental.Browser2.Malloc.AllocatedObjects")
           .size(),
       1u);
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 }
 
 TEST_F(CobaltMetricsServiceClientTest,

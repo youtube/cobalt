@@ -117,13 +117,8 @@ void CobaltMetricsServiceClient::Initialize() {
 }
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
-<<<<<<< HEAD
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  state_ = base::MakeRefCounted<State>();
-=======
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   state_ = base::MakeRefCounted<State>(this);
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
   state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   state_->task_runner->PostTask(
       FROM_HERE, base::BindOnce(&State::RecordMemoryMetricsAfterDelay,
@@ -348,25 +343,9 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
   emitter->FetchAndEmitProcessMemoryMetrics();
 }
 
-<<<<<<< HEAD
-// static
-void CobaltMetricsServiceClient::RecordMemoryMetrics(
-    memory_instrumentation::GlobalMemoryDump* global_dump) {
-  uint64_t total_private_footprint_kb = 0;
-  for (const auto& process_dump : global_dump->process_dumps()) {
-    total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
-  }
-
-  if (total_private_footprint_kb > 0) {
-    uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
-    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
-                                total_private_footprint_mb);
-  }
-=======
 scoped_refptr<CobaltMemoryMetricsEmitter>
 CobaltMetricsServiceClient::CreateMemoryMetricsEmitter() {
   return base::MakeRefCounted<CobaltMemoryMetricsEmitter>();
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 }
 
 }  // namespace cobalt
