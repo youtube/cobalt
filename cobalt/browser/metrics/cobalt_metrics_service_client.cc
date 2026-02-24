@@ -18,6 +18,7 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/posix/file_descriptor_shuffle.h"
 #include "base/strings/string_number_conversions.h"
@@ -25,6 +26,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/version.h"
+#include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_service.h"
@@ -37,6 +39,7 @@
 
 namespace cobalt {
 
+<<<<<<< HEAD
 namespace {
 
 void OnMemoryDumpDone(
@@ -49,9 +52,14 @@ void OnMemoryDumpDone(
 
 }  // namespace
 
+=======
+>>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 struct CobaltMetricsServiceClient::State
     : public base::RefCountedThreadSafe<CobaltMetricsServiceClient::State> {
-  State() = default;
+  explicit State(CobaltMetricsServiceClient* parent) : parent_(parent) {}
+
+  // Parent pointer.
+  raw_ptr<CobaltMetricsServiceClient> parent_;
 
   // Task runner for background memory metrics collection.
   scoped_refptr<base::SequencedTaskRunner> task_runner;
@@ -89,11 +97,18 @@ struct CobaltMetricsServiceClient::State
       return;
     }
 
+<<<<<<< HEAD
     auto* instrumentation =
         memory_instrumentation::MemoryInstrumentation::GetInstance();
     if (instrumentation) {
       instrumentation->RequestGlobalDump({}, base::BindOnce(&OnMemoryDumpDone));
     }
+=======
+    scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
+        parent_->CreateMemoryMetricsEmitter();
+    emitter->FetchAndEmitProcessMemoryMetrics();
+
+>>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
     RecordMemoryMetricsAfterDelay();
   }
 
@@ -126,8 +141,13 @@ void CobaltMetricsServiceClient::Initialize() {
 }
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
+<<<<<<< HEAD
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   state_ = base::MakeRefCounted<State>();
+=======
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  state_ = base::MakeRefCounted<State>(this);
+>>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
   state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   state_->task_runner->PostTask(
       FROM_HERE, base::BindOnce(&State::RecordMemoryMetricsAfterDelay,
@@ -337,6 +357,7 @@ void CobaltMetricsServiceClient::SetUploadInterval(base::TimeDelta interval) {
 CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
   if (state_) {
     state_->stop_logging = true;
+    state_->parent_ = nullptr;
   }
 }
 
@@ -346,6 +367,7 @@ void CobaltMetricsServiceClient::SetMetricsListener(
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
 
+<<<<<<< HEAD
 // static
 void CobaltMetricsServiceClient::RecordMemoryMetrics(
     memory_instrumentation::GlobalMemoryDump* global_dump) {
@@ -369,6 +391,19 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
     MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.Resident",
                                 total_resident_kb / 1024);
   }
+=======
+void CobaltMetricsServiceClient::ScheduleRecordForTesting(
+    base::OnceClosure done_callback) {
+  scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
+      CreateMemoryMetricsEmitter();
+  emitter->set_callback_for_testing(std::move(done_callback));
+  emitter->FetchAndEmitProcessMemoryMetrics();
+}
+
+scoped_refptr<CobaltMemoryMetricsEmitter>
+CobaltMetricsServiceClient::CreateMemoryMetricsEmitter() {
+  return base::MakeRefCounted<CobaltMemoryMetricsEmitter>();
+>>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 }
 
 }  // namespace cobalt
