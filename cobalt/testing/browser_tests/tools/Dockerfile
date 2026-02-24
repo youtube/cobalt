@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/cobalt_browsertests
 
 # Add and extract the artifacts tarball.
-# Expects cobalt_browsertests_deps.tar.gz to be in the build context.
-ADD cobalt_browsertests_deps.tar.gz .
+# Expects cobalt_browsertests_deps.tar.* to be in the build context.
+ADD cobalt_browsertests_deps.tar* .
 
 ENTRYPOINT ["python3", "run_tests.py"]

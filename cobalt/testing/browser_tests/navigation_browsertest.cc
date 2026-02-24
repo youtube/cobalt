@@ -563,6 +563,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure that renderer initiated cross-site navigations work.
 // TODO: b/432503432 - Investigate test failure
+// TODO: b/432503432 - Investigate test failure on Starboard.
 #if BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_RendererInitiatedCrossSiteNavigation \
   RendererInitiatedCrossSiteNavigation
@@ -617,6 +618,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure navigation failures are handled.
 // TODO: b/432503432 - Investigate test failure
+// TODO: b/432503432 - Investigate test failure on Starboard.
 #if BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_FailedNavigation FailedNavigation
 #else
@@ -709,6 +711,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure that content initiated navigations to googlechrome: URLs are blocked.
 // TODO: b/432503432 - Investigate test failure
+// TODO: b/432503432 - Investigate test failure on Starboard.
 #if BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_GoogleChromeNavigation_RendererInitiated \
   GoogleChromeNavigation_RendererInitiated

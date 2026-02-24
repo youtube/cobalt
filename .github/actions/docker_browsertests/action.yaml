@@ -43,7 +43,7 @@ runs:
         REGISTRY_REGION="us-west1"
         REGISTRY_PROJECT="ytlr-image-hosting"
         REGISTRY_REPOSITORY="integration-test-images"
-        DOCKER_IMAGE_NAME="avvall-service-test"
+        DOCKER_IMAGE_NAME="cobalt-browsertest-runner"
         # For now, keeping the tag as in the previous implementation for compatibility
         # though we could transition to DOCKER_CONTENT_SHA based tagging.
         IMAGE_BASE="${REGISTRY_REGION}-docker.pkg.dev/${REGISTRY_PROJECT}/${REGISTRY_REPOSITORY}/${DOCKER_IMAGE_NAME}"

@@ -225,7 +225,12 @@ jobs:
           # Also export just the target strings for the results matrix.
           PLATFORM="${{ inputs.platform }}"
           if [[ "$PLATFORM" == *linux* ]]; then
-             browser_test_targets_json='["cobalt/testing/browser_tests:cobalt_browsertests_runner"]'
+             # For Linux host, the target is in the primary 'targets' list.
+             if cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -e '.targets[] | select(contains("cobalt_browsertests_runner"))' > /dev/null; then
+               browser_test_targets_json='["cobalt/testing/browser_tests:cobalt_browsertests_runner"]'
+             else
+               browser_test_targets_json='[]'
+             fi
           else
              browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
           fi
@@ -672,63 +677,12 @@ jobs:
           test_targets: '${{ needs.initialize.outputs.browser_test_targets }}'
       - name: Run Browser Tests (Linux)
         if: needs.initialize.outputs.test_on_host == 'true'
-        env:
-          TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-          XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
-        run: |
-          set -eux
-          mkdir -p results
-          # Download artifacts using action
-          echo "Downloading artifacts with key: ${TEST_ARTIFACTS_KEY}"
-          mkdir -p artifacts
-        shell: bash
-      - name: Download Artifacts
-        if: needs.initialize.outputs.test_on_host == 'true'
-        uses: actions/download-artifact@v4
+        uses: ./.github/actions/linux_browser_tests
         with:
-          name: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-          path: artifacts
-      - name: Run Browser Tests (Linux) Execution
-        if: needs.initialize.outputs.test_on_host == 'true'
-        env:
-          XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
-        run: |
-          set -eux
-          mkdir -p unit_test/
-          cd unit_test/
-          tar -I 'zstd -T0' -xf ../artifacts/test_artifacts.tar.zstd
-
-          out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
-          LD_LIBRARY_PATH="${out_dir}/starboard"
-          LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
-          export LD_LIBRARY_PATH
-
-          # Linux runner is located in the out directory.
-          # It needs to be run via xvfb.
-          RUNNER="./out/${{ matrix.platform }}_${{ matrix.config }}/cobalt_browsertests_runner"
-
-          # Apply test filter if exists
-          TEST_FILTER_JSON="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/cobalt_browsertests_runner_filter.json"
-          TEST_FILTER=""
-          if [ -f "${TEST_FILTER_JSON}" ]; then
-              FAILING_TESTS=$(jq -r '.failing_tests | join(":")' "${TEST_FILTER_JSON}")
-              if [ -n "${FAILING_TESTS}" ]; then
-                  TEST_FILTER="--gtest_filter=-${FAILING_TESTS}"
-              fi
-          fi
-
-          xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-              stdbuf -i0 -o0 -e0 "${RUNNER}" \
-              ${TEST_FILTER} \
-              --gtest_output="xml:${GITHUB_WORKSPACE}/results/cobalt_browsertests_result.xml" \
-              2>&1 | tee "${GITHUB_WORKSPACE}/results/cobalt_browsertests_log.txt"
-        shell: bash
-      - name: Archive Linux Browser Test Results
-        if: always() && needs.initialize.outputs.test_on_host == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
-          path: results/*
+          test_artifacts_key: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+          test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
     outputs:
       # Browser tests are fixed to a single target.
       test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
@@ -856,11 +810,10 @@ jobs:
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
   test-results:
-    needs: [initialize, build, on-device-test, browser-test, on-host-test]
+    needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
         (
           needs.on-device-test.result != 'skipped' ||
-          needs.browser-test.result != 'skipped' ||
           needs.on-host-test.result != 'skipped'
         )
     permissions: {}
@@ -874,7 +827,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || (needs.initialize.outputs.test_browser == 'true' && needs.initialize.outputs.browser_test_targets_json) || '[]') }}
+        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || '[]') }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -915,7 +868,6 @@ jobs:
       - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/process_test_results
-        continue-on-error: ${{ contains(matrix.test_target, 'browser_test') }}
         with:
           target_name: ${{ matrix.test_target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
@@ -940,8 +892,64 @@ jobs:
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
 
+  browser-test-results:
+    needs: [initialize, build, browser-test]
+    if: always() && needs.browser-test.result != 'skipped'
+    permissions: {}
+    runs-on: ubuntu-latest
+    name: ${{ matrix.test_target }}
+    env:
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+        test_target: ${{ fromJson(needs.initialize.outputs.browser_test_targets_json || '[]') }}
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Extract Test Target Name
+        id: extract-target-name
+        env:
+          test_target_with_path: ${{ matrix.test_target }}
+        run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Download Test Results
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.TEST_RESULTS_KEY }}
+          path: results/
+      - name: Test Results
+        uses: ./.github/actions/process_test_results
+        continue-on-error: true
+        with:
+          target_name: ${{ matrix.test_target }}
+          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
+          datadog_api_key: ${{ secrets.datadog_api_key }}
+          num_gtest_shards: 1
+      - name: ${{ matrix.test_target }} Device Logs
+        if: always() && needs.initialize.outputs.test_on_device == 'true'
+        continue-on-error: true
+        uses: ./.github/actions/print_logs
+        with:
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
+          symbolize: 'false'
+      - name: ${{ matrix.test_target }} Test Logs
+        if: always()
+        uses: ./.github/actions/print_logs
+        with:
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
+          symbolize: 'false'
+
   validate-test-result:
-    needs: [initialize, build, test-results]
+    needs: [initialize, build, test-results, browser-test-results]
     if: always()
     permissions: {}
     runs-on: ubuntu-latest
@@ -960,16 +968,29 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Download Test Results
+      - name: Download Unit Test Results
         uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
+      - name: Download Browser Test Results
+        uses: actions/download-artifact@v5
+        continue-on-error: true
+        with:
+          name: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
+          path: results/
       - name: Failed Tests
-        if: needs.test-results.result == 'failure'
+        if: needs.test-results.result == 'failure' || needs.browser-test-results.result == 'failure'
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
           python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
-          exit 1
+
+          # Only exit 1 if the unit tests failed.
+          # Browser tests are non-blocking due to continue-on-error in their own job,
+          # but if browser-test-results.result is failure (e.g. infra error), we might want to know.
+          # Actually, if browser-test-results has continue-on-error: true, its result is NEVER failure.
+          if [[ "${{ needs.test-results.result }}" == "failure" ]]; then
+            exit 1
+          fi
         shell: bash

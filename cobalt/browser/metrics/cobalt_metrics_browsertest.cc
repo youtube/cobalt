@@ -39,6 +39,8 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
   }
 };
 
+// TODO: b/483460300 - Investigate memory metrics recording failures on
+// Starboard.
 #if BUILDFLAG(IS_STARBOARD)
 #define MAYBE_RecordsMemoryMetrics DISABLED_RecordsMemoryMetrics
 #else
@@ -115,6 +117,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 }
 
+// TODO: b/483460300 - Investigate periodic memory metrics recording failures on
+// Starboard.
 #if BUILDFLAG(IS_STARBOARD)
 #define MAYBE_PeriodicRecordsMemoryMetrics DISABLED_PeriodicRecordsMemoryMetrics
 #else
