@@ -18,7 +18,6 @@
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/statistics_recorder.h"
-#include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -51,7 +50,7 @@ void H5vccMetricsImpl::Create(
 
 void H5vccMetricsImpl::AddListener(
     ::mojo::PendingRemote<mojom::MetricsListener> listener) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   cobalt::GlobalFeatures::GetInstance()
       ->metrics_services_manager_client()
       ->metrics_service_client()
@@ -59,7 +58,7 @@ void H5vccMetricsImpl::AddListener(
 }
 
 void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto global_features = cobalt::GlobalFeatures::GetInstance();
   auto enabled_state_provider =
       global_features->metrics_services_manager_client()
@@ -72,7 +71,7 @@ void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {
 void H5vccMetricsImpl::SetMetricEventInterval(
     uint64_t interval_seconds,
     SetMetricEventIntervalCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   cobalt::GlobalFeatures::GetInstance()
       ->metrics_services_manager_client()
       ->metrics_service_client()
@@ -81,7 +80,7 @@ void H5vccMetricsImpl::SetMetricEventInterval(
 }
 
 void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Synchronously fetch subprocess histograms that live in shared memory.
   // This is the only mechanism available to embedders like Cobalt, as the
   // fully async HistogramSynchronizer is a content internal implementation.

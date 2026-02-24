@@ -41,15 +41,28 @@
 
 namespace cobalt {
 
+<<<<<<< HEAD
 CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
     : content::ShellMainDelegate(is_content_browsertests) {}
+=======
+CobaltMainDelegate::CobaltMainDelegate() : content::ShellMainDelegate() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
 
-CobaltMainDelegate::~CobaltMainDelegate() {}
+CobaltMainDelegate::~CobaltMainDelegate() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
 
+<<<<<<< HEAD
 absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(14);
 #endif
+=======
+std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -59,32 +72,40 @@ absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
   return browser_client_.get();
 }
 
 content::ContentGpuClient* CobaltMainDelegate::CreateContentGpuClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   gpu_client_ = std::make_unique<CobaltContentGpuClient>();
   return gpu_client_.get();
 }
 
 content::ContentRendererClient*
 CobaltMainDelegate::CreateContentRendererClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   renderer_client_ = std::make_unique<CobaltContentRendererClient>();
   return renderer_client_.get();
 }
 
 content::ContentUtilityClient*
 CobaltMainDelegate::CreateContentUtilityClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   utility_client_ = std::make_unique<CobaltContentUtilityClient>();
   return utility_client_.get();
 }
 
 absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
+<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(15);
 #endif
+=======
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -125,9 +146,13 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
+<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(16);
 #endif
+=======
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+>>>>>>> 271811b62f (cobalt: Introduce CobaltThreadChecker (#8905))
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
     return std::move(main_function_params);
@@ -168,10 +193,12 @@ void CobaltMainDelegate::PreSandboxStartup() {
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void CobaltMainDelegate::Shutdown() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   main_runner_->Shutdown();
 }
 
 void CobaltMainDelegate::InitializeHangWatcher() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const base::CommandLine* const command_line =
       base::CommandLine::ForCurrentProcess();
   std::string process_type =
