@@ -17,11 +17,9 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.DataReader;
 import androidx.media3.common.Format;
-import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
@@ -31,7 +29,6 @@ import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
 import androidx.media3.extractor.TrackOutput;
-import androidx.media3.extractor.TrackOutput.CryptoData;
 import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -93,17 +90,6 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     /**
-     * Queues samples to decode, along with related flags and relevant metadata.
-     * @param samples The sample data.
-     * @param size The size of the sample data.
-     * @param timestamp The timestamp of the sample in microseconds.
-     * @param isKeyFrame Whether the sample is a keyframe.
-     */
-    // public void writeSample(ByteBuffer samples, int size, long timestamp, boolean isKeyFrame) {
-    //     writeSample(samples, size, timestamp, isKeyFrame, null, null, 0, null, null);
-    // }
-
-    /**
      * Queues encrypted samples to decode, along with related flags and relevant metadata.
      * @param samples The sample data.
      * @param size The size of the sample data.
@@ -122,51 +108,6 @@ public class ExoPlayerSampleStream implements SampleStream {
             }
         }
 
-        // int flags = 0;
-        // if (isKeyFrame) {
-        //     flags |= C.BUFFER_FLAG_KEY_FRAME;
-        // }
-        //
-        // int totalSize = size;
-        // if (cryptoData != null) {
-        //     flags |= C.BUFFER_FLAG_ENCRYPTED;
-        //     ParsableByteArray encryptionSignalByte = new ParsableByteArray(1);
-        //     // If subsamples are present, set the 0x80 bit.
-        //     boolean hasSubsamples = subsampleEncryptedBytes != null && subsampleClearBytes != null
-        //             && subsampleEncryptedBytes.length > 0;
-        //     encryptionSignalByte.getData()[0] = (byte) (ivSize | (hasSubsamples ? 0x80 : 0));
-        //     encryptionSignalByte.setPosition(0);
-        //     mSampleQueue.sampleData(
-        //             encryptionSignalByte, 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-        //     totalSize++;
-        //
-        //     ParsableByteArray ivData = new ParsableByteArray(initializationVector, ivSize);
-        //     mSampleQueue.sampleData(ivData, ivSize, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-        //     totalSize += ivSize;
-        //
-        //     if (hasSubsamples) {
-        //         int subsampleCount = subsampleEncryptedBytes.length;
-        //         ParsableByteArray subsampleCountData = new ParsableByteArray(2);
-        //         subsampleCountData.getData()[0] = (byte) (subsampleCount >> 8);
-        //         subsampleCountData.getData()[1] = (byte) (subsampleCount & 0xFF);
-        //         subsampleCountData.setPosition(0);
-        //         mSampleQueue.sampleData(
-        //                 subsampleCountData, 2, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-        //         totalSize += 2;
-        //
-        //         int subsampleDataLength = 6 * subsampleCount;
-        //         ByteBuffer subsampleBuffer = ByteBuffer.allocate(subsampleDataLength);
-        //         for (int i = 0; i < subsampleCount; i++) {
-        //             subsampleBuffer.putShort((short) subsampleClearBytes[i]);
-        //             subsampleBuffer.putInt(subsampleEncryptedBytes[i]);
-        //         }
-        //         ParsableByteArray subsampleData = new ParsableByteArray(subsampleBuffer.array());
-        //         mSampleQueue.sampleData(subsampleData, subsampleDataLength,
-        //                 TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-        //         totalSize += subsampleDataLength;
-        //     }
-        // }
-
         try {
             ByteBufferDataReader dataReader = new ByteBufferDataReader(sample.getSamples());
             int bytesWritten = 0;
@@ -181,7 +122,7 @@ public class ExoPlayerSampleStream implements SampleStream {
             Log.e(TAG, "Failed to write sample data to SampleQueue", e);
             return;
         }
-        mSampleQueue.sampleMetadata(sample.getTimestamp(), sample.getFlags(), sample.getTotalSize(), 0, sample.getCryptoData());
+        mSampleQueue.sampleMetadata(sample.getTimestampUsec(), sample.getFlags(), sample.getTotalSize(), 0, sample.getCryptoData());
     }
 
     public void writeEndOfStream() {

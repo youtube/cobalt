@@ -61,7 +61,6 @@ public class ExoPlayerBridge {
     private final ExoPlayerListener mPlayerListener;
     private final DroppedFramesListener mDroppedFramesListener;
 
-    // Duration after which an error is raised if the player doesn't release its resources.
     private static final long PLAYER_RELEASE_TIMEOUT_MS = 2000; // 2 seconds.
     private static final int MIN_BUFFER_DURATION_MS = 1000; // 1 second.
     private static final int MAX_BUFFER_DURATION_MS = 5000; // 5 seconds
@@ -69,10 +68,6 @@ public class ExoPlayerBridge {
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
-            if (mIsReleasing) {
-                return;
-            }
-
             switch (playbackState) {
                 case Player.STATE_BUFFERING:
                 case Player.STATE_IDLE:
@@ -88,19 +83,11 @@ public class ExoPlayerBridge {
 
         @Override
         public void onTracksChanged(Tracks tracks) {
-            if (mIsReleasing) {
-                return;
-            }
-
             ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
         }
 
         @Override
         public synchronized void onIsPlayingChanged(boolean isPlaying) {
-            if (mIsReleasing) {
-                return;
-            }
-
             mIsProgressing = isPlaying;
             ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
         }
@@ -118,10 +105,6 @@ public class ExoPlayerBridge {
         @Override
         public void onDroppedVideoFrames(
                 @NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
-            if (mIsReleasing) {
-                return;
-            }
-
             ExoPlayerBridgeJni.get().onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
         }
     }
@@ -262,35 +245,6 @@ public class ExoPlayerBridge {
         }
         mediaSource.writeSample(sample);
     }
-
-    /**
-     * Writes a sample to the appropriate media source.
-     * @param samples The sample data.
-     * @param size The size of the sample data.
-     * @param timestamp The timestamp of the sample in microseconds.
-     * @param isKeyFrame Whether the sample is a keyframe.
-     * @param type The type of the media source (audio or video).
-     * @param encryptionMode Signals the type of Widevine encryption.
-     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
-     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
-     */
-    // @CalledByNative
-    // public void writeEncryptedSample(ByteBuffer samples, int size, long timestamp,
-    //         boolean isKeyFrame, int type, int encryptionMode, @Nullable byte[] key,
-    //         int encryptedBlocks, int clearBlocks, @Nullable byte[] initializationVector,
-    //         int ivSize, @Nullable int[] subsampleEncryptedBytes,
-    //         @Nullable int[] subsampleClearBytes) {
-    //     ExoPlayerMediaSource mediaSource =
-    //             type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-    //     if (mediaSource == null || mIsReleasing) {
-    //         reportError(
-    //                 String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
-    //                         type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
-    //     }
-    //     mediaSource.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, key,
-    //             encryptedBlocks, clearBlocks, initializationVector, ivSize,
-    //             subsampleEncryptedBytes, subsampleClearBytes);
-    // }
 
     /**
      * Writes the end of the stream to the appropriate media source.

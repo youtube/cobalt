@@ -441,13 +441,6 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
               blocks_to_skip, j_iv, drm_sample_info->initialization_vector_size,
               subsample_data.encrypted_bytes, subsample_data.clear_bytes));
 
-      // Java_ExoPlayerBridge_writeEncryptedSample(
-      //     env, j_exoplayer_bridge_, sample_byte_buffer, size,
-      //     input_buffer->timestamp(), is_key_frame, type, cipher_mode, j_key,
-      //     blocks_to_encrypt, blocks_to_skip, j_iv,
-      //     drm_sample_info->initialization_vector_size,
-      //     subsample_data.encrypted_bytes, subsample_data.clear_bytes);
-      // return;
     } else {
       j_sample =
           ScopedJavaLocalRef<jobject>(Java_ExoPlayerMediaSample_Constructor(

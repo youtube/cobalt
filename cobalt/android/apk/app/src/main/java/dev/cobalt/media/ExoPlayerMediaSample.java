@@ -30,21 +30,14 @@ import org.jni_zero.JNINamespace;
 @UnstableApi
 public final class ExoPlayerMediaSample {
   private final ByteBuffer mSamples;
+  // The size of the media data written by the native ExoPlayerBridge.
   private final int mSize;
-  private final long mTimestamp;
-  private final boolean mIsKeyFrame;
+  private final long mTimestampUsec;
   private final int mType;
-  private final int mEncryptionMode;
   private final byte[] mKey;
-  private final int mEncryptedBlocks;
-  private final int mClearBlocks;
-  private final byte[] mInitializationVector;
-  private final int mIvSize;
-  private final int[] mSubsampleEncryptedBytes;
-  private final int[] mSubsampleClearBytes;
-
   private final CryptoData mCryptoData;
   private final int mFlags;
+  // The total size of the data written to the ExoPlayerSampleStream after adding encryption data.
   private final int mTotalSize;
   private final boolean mHasSubsamples;
   private final ParsableByteArray mEncryptionSignalByte;
@@ -68,18 +61,9 @@ public final class ExoPlayerMediaSample {
       @Nullable int[] subsampleClearBytes) {
     this.mSamples = samples;
     this.mSize = size;
-    this.mTimestamp = timestamp;
-    this.mIsKeyFrame = isKeyFrame;
+    this.mTimestampUsec = timestamp;
     this.mType = type;
-    this.mEncryptionMode = encryptionMode;
     this.mKey = key;
-    this.mEncryptedBlocks = encryptedBlocks;
-    this.mClearBlocks = clearBlocks;
-    this.mInitializationVector = initializationVector;
-    this.mIvSize = ivSize;
-    this.mSubsampleEncryptedBytes = subsampleEncryptedBytes;
-    this.mSubsampleClearBytes = subsampleClearBytes;
-
     this.mHasSubsamples =
         subsampleEncryptedBytes != null
             && subsampleClearBytes != null
@@ -140,8 +124,8 @@ public final class ExoPlayerMediaSample {
     return mSize;
   }
 
-  public long getTimestamp() {
-    return mTimestamp;
+  public long getTimestampUsec() {
+    return mTimestampUsec;
   }
 
   public int getType() {
