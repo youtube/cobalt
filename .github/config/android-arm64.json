@@ -46,6 +46,18 @@
       "test_attempts": "6"
     }
   ],
+  "browser_test_targets": [
+    {
+      "target": "testing/container/browser_tests:cobalt_browser_test",
+      "test_attempts": "3"
+    }
+  ],
+  "yts_wpt_test_targets": [
+    {
+      "target": "testing/container/wpt:wpt_yts_test",
+      "test_attempts": "3"
+    }
+  ],
   "includes": [
     {
       "name": "arm64",
