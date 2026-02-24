@@ -57,9 +57,38 @@ public final class ExoMediaDrmWrapper implements ExoMediaDrm {
     mFrameworkMediaDrm.setOnEventListener(listener);
   }
 
+  // The default KeyStatusChangeListener provide by the player.
+  private OnKeyStatusChangeListener mExoPlayerOnKeyStatusChangeListener;
+  // Intercepts Key Status changed events to notify the native DrmSystem.
+  private OnKeyStatusChangeListener mCobaltOnKeyStatusChangeListener;
+
   @Override
   public void setOnKeyStatusChangeListener(@Nullable OnKeyStatusChangeListener listener) {
-    mFrameworkMediaDrm.setOnKeyStatusChangeListener(listener);
+    mExoPlayerOnKeyStatusChangeListener = listener;
+    updateOnKeyStatusChangeListener();
+  }
+
+  public void setCobaltOnKeyStatusChangeListener(@Nullable OnKeyStatusChangeListener listener) {
+    mCobaltOnKeyStatusChangeListener = listener;
+    updateOnKeyStatusChangeListener();
+  }
+
+  private void updateOnKeyStatusChangeListener() {
+    if (mExoPlayerOnKeyStatusChangeListener == null && mCobaltOnKeyStatusChangeListener == null) {
+      mFrameworkMediaDrm.setOnKeyStatusChangeListener(null);
+      return;
+    }
+    mFrameworkMediaDrm.setOnKeyStatusChangeListener(
+        (mediaDrm, sessionId, keyInformation, hasNewUsableKey) -> {
+          if (mExoPlayerOnKeyStatusChangeListener != null) {
+            mExoPlayerOnKeyStatusChangeListener.onKeyStatusChange(
+                this, sessionId, keyInformation, hasNewUsableKey);
+          }
+          if (mCobaltOnKeyStatusChangeListener != null) {
+            mCobaltOnKeyStatusChangeListener.onKeyStatusChange(
+                this, sessionId, keyInformation, hasNewUsableKey);
+          }
+        });
   }
 
   @Override

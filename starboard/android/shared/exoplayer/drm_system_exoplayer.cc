@@ -16,9 +16,12 @@
 
 #include <atomic>
 #include <chrono>
+#include <vector>
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
+#include "starboard/android/shared/drm_common.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #pragma GCC diagnostic push
@@ -34,6 +37,9 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
+using starboard::android::shared::RequestType;
+using starboard::android::shared::ToSbDrmKeyStatus;
+using starboard::android::shared::ToSbDrmSessionRequestType;
 
 constexpr int kWaitForInitializedTimeoutUsec = 5000000;  // 5 s.
 constexpr char kNoUrl[] = "";
@@ -119,7 +125,6 @@ void DrmSystemExoPlayer::UpdateSession(int ticket,
       ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(key), key_size);
   Java_ExoPlayerDrmBridge_setKeyRequestResponse(env, j_exoplayer_drm_bridge_,
                                                 j_response);
-  // TODO: Get the status when the key is set.
   session_updated_callback_(this, context_, ticket, kSbDrmStatusSuccess, "",
                             session_id, session_id_size);
 }
@@ -171,7 +176,7 @@ const void* DrmSystemExoPlayer::GetMetrics(int* size) {
   return metrics_.data();
 }
 
-void DrmSystemExoPlayer::ExecuteKeyRequest(
+void DrmSystemExoPlayer::OnKeyRequest(
     JNIEnv* env,
     const jint request_type,
     const JavaParamRef<jbyteArray>& j_message,
@@ -194,6 +199,41 @@ void DrmSystemExoPlayer::ExecuteKeyRequest(
     //                                drm_key_ids.data(),
     //                                drm_key_statuses.data());
   }
+}
+
+void DrmSystemExoPlayer::OnKeyStatusChanged(
+    JNIEnv* env,
+    const JavaParamRef<jbyteArray>& session_id,
+    const JavaParamRef<jobjectArray>& key_information) {
+  SB_LOG(INFO) << "CALLING ON KEY STATUS CHANGED";
+  // From //starboard/android/shared/media_drm_bridge.cc.
+  std::string session_id_bytes = JavaByteArrayToString(env, session_id);
+
+  // nullptr array indicates key status isn't supported (i.e. Android API < 23).
+  jsize length =
+      (key_information == nullptr) ? 0 : env->GetArrayLength(key_information);
+  std::vector<SbDrmKeyId> drm_key_ids(length);
+  std::vector<SbDrmKeyStatus> drm_key_statuses(length);
+
+  for (jsize i = 0; i < length; ++i) {
+    ScopedJavaLocalRef<jobject> j_key_status(
+        env, env->GetObjectArrayElement(key_information.obj(), i));
+    ScopedJavaLocalRef<jbyteArray> j_key_id =
+        Java_ExoKeyStatus_getKeyId(env, j_key_status);
+    std::string key_id = JavaByteArrayToString(env, j_key_id);
+
+    SB_CHECK_LE(key_id.size(), sizeof(drm_key_ids[i].identifier));
+    memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
+    drm_key_ids[i].identifier_size = key_id.size();
+
+    drm_key_statuses[i] =
+        ToSbDrmKeyStatus(Java_ExoKeyStatus_getStatusCode(env, j_key_status));
+  }
+
+  key_statuses_changed_callback_(this, context_, session_id_bytes.data(),
+                                 session_id_bytes.size(),
+                                 static_cast<int>(drm_key_ids.size()),
+                                 drm_key_ids.data(), drm_key_statuses.data());
 }
 
 std::vector<uint8_t> DrmSystemExoPlayer::GetInitializationData() {

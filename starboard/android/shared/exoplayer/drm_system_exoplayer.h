@@ -77,15 +77,19 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
   const void* GetMetrics(int* size) override;
   // SbDrmSystemPrivate override ends.
 
-  void ExecuteKeyRequest(
-      JNIEnv* env,
-      const jint request_type,
-      const base::android::JavaParamRef<jbyteArray>& j_session_id,
-      const base::android::JavaParamRef<jbyteArray>& j_message);
-  void ExecuteProvisionRequest(
+  void OnKeyRequest(JNIEnv* env,
+                    const jint request_type,
+                    const base::android::JavaParamRef<jbyteArray>& j_session_id,
+                    const base::android::JavaParamRef<jbyteArray>& j_message);
+  // TODO: Enable app provisioning.
+  void OnProvisionRequest(
       JNIEnv* env,
       const base::android::JavaParamRef<jbyteArray>& j_session_id,
       const base::android::JavaParamRef<jbyteArray>& j_message) {}
+  void OnKeyStatusChanged(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jbyteArray>& session_id,
+      const base::android::JavaParamRef<jobjectArray>& key_information);
   std::vector<uint8_t> GetInitializationData();
 
   base::android::ScopedJavaGlobalRef<jobject> get_exoplayer_drm_bridge() const {

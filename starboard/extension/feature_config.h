@@ -148,7 +148,7 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 
 // Enables the ExoPlayer-based SbPlayer for playback.
-STARBOARD_FEATURE(kEnableExoPlayer, "EnableExoPlayer", false)
+STARBOARD_FEATURE(kEnableExoPlayer, "EnableExoPlayer", true)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 

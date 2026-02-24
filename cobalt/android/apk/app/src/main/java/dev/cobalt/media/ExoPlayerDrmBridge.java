@@ -21,8 +21,6 @@ import android.os.Build;
 import android.util.Base64;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.ExoMediaDrm;
-import androidx.media3.exoplayer.drm.ExoMediaDrm.KeyRequest;
-import androidx.media3.exoplayer.drm.ExoMediaDrm.ProvisionRequest;
 import androidx.media3.exoplayer.drm.MediaDrmCallback;
 import androidx.media3.exoplayer.drm.MediaDrmCallbackException;
 import androidx.media3.exoplayer.drm.UnsupportedDrmException;
@@ -53,7 +51,12 @@ public class ExoPlayerDrmBridge {
     private ExoMediaDrmWrapper mMediaDrm;
     private byte[] mSessionId;
 
-  private static final UUID WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+    // Arbitrarily chosen durations to wait for a response from the license server.
+    private static final long PROVISION_REQUEST_TIMEOUT_MS = 2000;
+    private static final long KEY_REQUEST_TIMEOUT_MS = 2000;
+
+    private static final UUID WIDEVINE_UUID =
+            UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
 
     private final class NativeMediaDrmCallback implements MediaDrmCallback {
         private CompletableFuture<byte[]> mPendingProvisionRequestResponse;
@@ -68,20 +71,21 @@ public class ExoPlayerDrmBridge {
          * @throws MediaDrmCallbackException If an error occurs.
          */
         @Override
-        public byte[] executeProvisionRequest(UUID uuid, ProvisionRequest request)
+        public byte[] executeProvisionRequest(UUID uuid, androidx.media3.exoplayer.drm.ExoMediaDrm.ProvisionRequest request)
                 throws MediaDrmCallbackException {
-            Log.i(TAG, "Called executeProvisionRequest()");
+            Log.i(TAG, "Called onProvisionRequest()");
 
             if (mMediaDrm != null) {
-              mSessionId = mMediaDrm.getSessionId();
+                mSessionId = mMediaDrm.getSessionId();
             }
 
             mPendingProvisionRequestResponse = new CompletableFuture<>();
-            ExoPlayerDrmBridgeJni.get().executeProvisionRequest(
+            ExoPlayerDrmBridgeJni.get().onProvisionRequest(
                     mNativeDrmSystemExoplayer, request.getData(), mSessionId);
 
             try {
-                return mPendingProvisionRequestResponse.get(10, TimeUnit.SECONDS);
+                return mPendingProvisionRequestResponse.get(
+                        PROVISION_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -96,24 +100,25 @@ public class ExoPlayerDrmBridge {
          * @throws MediaDrmCallbackException If an error occurs.
          */
         @Override
-        public byte[] executeKeyRequest(UUID uuid, KeyRequest request)
+        public byte[] executeKeyRequest(UUID uuid, androidx.media3.exoplayer.drm.ExoMediaDrm.KeyRequest request)
                 throws MediaDrmCallbackException {
-            Log.i(TAG, "Called executeKeyRequest()");
+            Log.i(TAG, "Called onKeyRequest()");
 
-          if (mMediaDrm != null) {
-            mSessionId = mMediaDrm.getSessionId();
-          }
+            if (mMediaDrm != null) {
+                mSessionId = mMediaDrm.getSessionId();
+            }
 
-          if (mSessionId == null) {
-            Log.e(TAG, "Key request fired but mSessionId is still null!");
-          }
+            if (mSessionId == null) {
+                Log.e(TAG, "Key request fired but mSessionId is still null!");
+            }
 
             mPendingKeyRequestResponse = new CompletableFuture<>();
-            ExoPlayerDrmBridgeJni.get().executeKeyRequest(
-                    mNativeDrmSystemExoplayer, request.getRequestType(), request.getData(), mSessionId);
+            ExoPlayerDrmBridgeJni.get().onKeyRequest(mNativeDrmSystemExoplayer,
+                    request.getRequestType(), request.getData(), mSessionId);
 
             try {
-                return mPendingKeyRequestResponse.get(10, TimeUnit.SECONDS);
+                return mPendingKeyRequestResponse.get(
+                        KEY_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -121,18 +126,39 @@ public class ExoPlayerDrmBridge {
 
         public void setProvisionRequestResponse(byte[] response) {
             if (mPendingProvisionRequestResponse == null) {
-              Log.e(TAG, "Recieved NULL provision request response.");
-              return;
+                Log.e(TAG, "Received NULL provision request response.");
+                return;
             }
-          mPendingProvisionRequestResponse.complete(response);
+            mPendingProvisionRequestResponse.complete(response);
         }
 
         public void setKeyRequestResponse(byte[] response) {
-          if (mPendingKeyRequestResponse == null) {
-            Log.e(TAG, "Recieved NULL key request response.");
-            return;
-          }
-          mPendingKeyRequestResponse.complete(response);
+            if (mPendingKeyRequestResponse == null) {
+                Log.e(TAG, "Received NULL key request response.");
+                return;
+            }
+            mPendingKeyRequestResponse.complete(response);
+        }
+    }
+
+    /** A wrapper of the android MediaDrm.KeyStatus class to be used by JNI. */
+    public static class ExoKeyStatus {
+        private final byte[] mKeyId;
+        private final int mStatusCode;
+
+        public ExoKeyStatus(byte[] keyId, int statusCode) {
+            mKeyId = (keyId == null) ? null : keyId.clone();
+            mStatusCode = statusCode;
+        }
+
+        @CalledByNative("ExoKeyStatus")
+        private byte[] getKeyId() {
+            return (mKeyId == null) ? null : mKeyId.clone();
+        }
+
+        @CalledByNative("ExoKeyStatus")
+        private int getStatusCode() {
+            return mStatusCode;
         }
     }
 
@@ -141,11 +167,19 @@ public class ExoPlayerDrmBridge {
         public ExoMediaDrm acquireExoMediaDrm(UUID uuid) {
             try {
                 mMediaDrm = new ExoMediaDrmWrapper(uuid);
+                mMediaDrm.setCobaltOnKeyStatusChangeListener(
+                        (mediaDrm, sessionId, keyInformation, hasNewUsableKey) -> {
+                            ExoPlayerDrmBridgeJni.get().onKeyStatusChanged(
+                                    mNativeDrmSystemExoplayer, sessionId,
+                                    keyInformation.stream()
+                                            .map(keyStatus
+                                                    -> new ExoKeyStatus(keyStatus.getKeyId(),
+                                                            keyStatus.getStatusCode()))
+                                            .toArray(ExoKeyStatus[] ::new));
+                        });
                 return mMediaDrm;
             } catch (UnsupportedDrmException e) {
-                Log.e(TAG,
-                        String.format(
-                                "Could not create mediaDrm instance, error: %s", e));
+                Log.e(TAG, String.format("Could not create MediaDrm instance, error: %s", e));
                 throw new RuntimeException("Failed to instantiate MediaDrm", e);
             }
         }
@@ -174,7 +208,7 @@ public class ExoPlayerDrmBridge {
     @CalledByNative
     public void release() {
         if (mDrmSessionManager != null) {
-          mDrmSessionManager.release();
+            mDrmSessionManager.release();
         }
     }
 
@@ -213,8 +247,12 @@ public class ExoPlayerDrmBridge {
 
     @NativeMethods
     interface Natives {
-        void executeProvisionRequest(long nativeDrmSystemExoPlayer, byte[] data, byte[] sessionId);
+        void onProvisionRequest(long nativeDrmSystemExoPlayer, byte[] data, byte[] sessionId);
 
-        void executeKeyRequest(long nativeDrmSystemExoPlayer, int requestType, byte[] data, byte[] sessionId);
+        void onKeyRequest(
+                long nativeDrmSystemExoPlayer, int requestType, byte[] data, byte[] sessionId);
+
+        void onKeyStatusChanged(
+                long nativeDrmSystemExoPlayer, byte[] sessionId, ExoKeyStatus[] keyInformation);
     }
 }
