@@ -226,7 +226,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler),
-      android_context.release());
+      android_context.get());
 
   if (SbPlayerIsValid(player)) {
     if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
@@ -235,6 +235,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
       // don't matter.
       SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
     }
+    // Ownership of the context is transferred to the player.
+    android_context.release();
     return player;
   }
 
