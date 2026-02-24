@@ -304,12 +304,15 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   // Prepare a dummy GlobalMemoryDump.
   memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
       memory_instrumentation::mojom::GlobalMemoryDump::New();
-  dump_ptr->process_dumps.push_back(
-      memory_instrumentation::mojom::ProcessMemoryDump::New());
-  dump_ptr->process_dumps[0]->os_dump =
-      memory_instrumentation::mojom::OSMemDump::New();
-  // 10240 KB = 10 MB.
-  dump_ptr->process_dumps[0]->os_dump->private_footprint_kb = 10240;
+
+  // Browser process dump
+  auto browser_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+  browser_dump->process_type =
+      memory_instrumentation::mojom::ProcessType::BROWSER;
+  browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+  browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
+  browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
+  dump_ptr->process_dumps.push_back(std::move(browser_dump));
 
   auto global_dump =
       memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
@@ -318,6 +321,9 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
 
   histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
                                       1);
+  histogram_tester.ExpectUniqueSample("Memory.Total.Resident", 20, 1);
+  // TODO(482357006): Re-add process-specific memory metrics (Browser,
+  // Renderer, GPU) when moving to multi-process architecture.
 }
 
 TEST_F(CobaltMetricsServiceClientTest,
