@@ -188,6 +188,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
   }
 
   if (!GetPlatform()->IsVisible()) {
+    // Notify the WebContents that it is starting in a hidden state so that it
+    // can optimize resource usage (e.g. by lowering its process priority).
     web_contents_->WasHidden();
   }
 
