@@ -20,6 +20,10 @@ import os
 import stat
 
 _TEMPLATE = """#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+
 # TODO: Remove when lab devices are updated to RDK_V6_20251218+.
 os.environ.update({{
     "HOME": "{target_dir}/home",
@@ -50,10 +54,6 @@ import time
 time.sleep(2)
 
 subprocess.run(['rdkDisplay', 'create'])
-
-import os
-import subprocess
-import sys
 
 command = [
     os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
