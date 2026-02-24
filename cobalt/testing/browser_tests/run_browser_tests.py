@@ -9,8 +9,23 @@ and iterate them.
 """
 import argparse
 import os
+import re
+import shutil
 import subprocess
 import sys
+import tempfile
+
+
+def sanitize_filename(filename):
+  """Sanitizes a filename by replacing invalid characters with underscores."""
+  # Replace characters not allowed in filenames on most systems (e.g. NTFS).
+  return re.sub(r"[\\/*?:\"<>|]", "_", filename)
+
+
+def is_valid_test_name(name):
+  """Checks if a string looks like a valid gtest case name."""
+  # Gtest names usually contain alphanumerics and underscores.
+  return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name))
 
 
 def main():
@@ -60,6 +75,8 @@ def main():
     list_cmd = [
         binary_path, "--gtest_list_tests", f"--gtest_filter={gtest_filter}"
     ]
+    # Ensure standard flags for listing if needed by the binary
+    list_cmd += ["--ozone-platform=starboard", "--no-sandbox"]
     output = subprocess.check_output(list_cmd, text=True)
   except subprocess.CalledProcessError as e:
     print("Failed to list tests.", file=sys.stderr)
@@ -76,9 +93,11 @@ def main():
       continue
 
     if line.endswith("."):
-      current_suite = line
+      potential_suite = line[:-1]
+      if is_valid_test_name(potential_suite):
+        current_suite = line
     else:
-      if current_suite:
+      if current_suite and is_valid_test_name(line):
         full_test_name = f"{current_suite}{line}"
         if "DISABLED_" not in full_test_name:
           tests.append(full_test_name)
@@ -109,21 +128,23 @@ def main():
 
   for i, test in enumerate(tests):
     print(f"[{i+1}/{len(tests)}] Running {test}...")
+    temp_user_data_dir = tempfile.mkdtemp(prefix="cobalt_browser_test_")
     try:
       current_test_args = list(new_runner_args)
 
       # Handle gtest_output if provided. We want each test to have its own XML.
       if gtest_output:
+        safe_test_name = sanitize_filename(test)
         if gtest_output.startswith("xml:"):
           base_xml = gtest_output[4:]
           if base_xml.endswith(".xml"):
-            test_xml = f"{base_xml[:-4]}_{test}.xml"
+            test_xml = f"{base_xml[:-4]}_{safe_test_name}.xml"
           else:
-            test_xml = f"{base_xml}_{test}.xml"
+            test_xml = f"{base_xml}_{safe_test_name}.xml"
           current_test_args.append(f"--gtest_output=xml:{test_xml}")
         else:
-          # Fallback if it's just a path
-          current_test_args.append(f"--gtest_output={gtest_output}_{test}")
+          current_test_args.append(
+              f"--gtest_output={gtest_output}_{safe_test_name}")
 
       cmd = [
           binary_path,
@@ -133,6 +154,7 @@ def main():
           "--single-process",
           "--no-zygote",
           "--ozone-platform=starboard",
+          f"--user-data-dir={temp_user_data_dir}",
       ] + current_test_args
 
       retcode = subprocess.run(cmd, check=False).returncode
@@ -149,6 +171,8 @@ def main():
     except Exception as e:  # pylint: disable=broad-exception-caught
       print(f"Error running {test}: {e}")
       failed_tests.append(test)
+    finally:
+      shutil.rmtree(temp_user_data_dir, ignore_errors=True)
 
   print("\n" + "=" * 40)
   print(f"Total: {len(tests)}, Passed: {passed_count}, "
