@@ -66,6 +66,9 @@ public class JavaSwitches {
   /** flag to enable SkiaFontCache */
   public static final String SKIA_FONT_CACHE = "SkiaFontCache";
 
+  /** flag to lower the priority of the network service thread */
+  public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY = "LowerNetworkServiceThreadPriority";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -143,6 +146,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
       extraCommandLineArgs.add("--enable-features=SkiaFontCache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
+      extraCommandLineArgs.add("--enable-features=LowerNetworkServiceThreadPriority");
     }
 
     return extraCommandLineArgs;
