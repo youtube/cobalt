@@ -12,35 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/accessibility.h"
-#include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/ifa.h"
-#include "starboard/extension/media/player_configuration.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/player_configuration.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
-#include "starboard/tvos/shared/configuration.h"
 #include "starboard/tvos/shared/crash_handler.h"
-#include "starboard/tvos/shared/graphics.h"
 #include "starboard/tvos/shared/media/player_configuration.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
-    return starboard::shared::uikit::GetGraphicsApi();
-  }
-  if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::shared::uikit::GetConfigurationApi();
+    // Copied from Android's system_get_extensions.cc:
+    // TODO: b/377052944 - Check if this is needed, likely can be
+    // deleted.
+    // return starboard::GetGraphicsApi();
+    return nullptr;
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
-    return starboard::shared::uikit::GetMediaSessionApi();
+    // Copied from Android's system_get_extensions.cc:
+    // TODO: b/377019873 - Re-enable
+    // return starboard::GetMediaSessionApi();
+    return nullptr;
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::shared::uikit::GetCrashHandlerApi();
+    // TODO: b/477518757 - Re-enable once Crashpad support is in and if it
+    // needs to be exposed as an extension.
+    // return starboard::GetCrashHandlerApi();
+    return nullptr;
   }
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     SB_LOG(INFO) << "The platform service extension is not supported on tvOS";
@@ -48,13 +53,19 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionIfaName) == 0) {
     SB_LOG(INFO) << "IFA is not supported via Starboard.";
-    return NULL;
+    return nullptr;
   }
   if (strcmp(name, kStarboardExtensionPlayerConfigurationName) == 0) {
-    return starboard::shared::uikit::GetPlayerConfigurationApi();
+    // TODO: b/447334535 - This depends on decode to texture mode being
+    // implemented.
+    // return starboard::GetPlayerConfigurationApi();
+    return nullptr;
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
-    return starboard::shared::uikit::GetAccessibilityApi();
+    // TODO: b/478127016 - This will be enabled separately with the rest of
+    // VoiceOver support code.
+    // return starboard::GetAccessibilityApi();
+    return nullptr;
   }
-  return NULL;
+  return nullptr;
 }
