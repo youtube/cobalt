@@ -58,7 +58,8 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  explicit CobaltContentBrowserClient(const std::string& deep_link);
+  explicit CobaltContentBrowserClient(const std::string& deep_link,
+                                      bool is_visible = true);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -143,6 +144,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void OnSbWindowCreated(SbWindow window);
 
   const std::string deep_link_;
+  bool is_visible_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 
