@@ -109,7 +109,13 @@ template("evergreen_final_target") {
   }
 
   action("${original_target_name}_runfile_gen") {
-    script = "//starboard/build/util/generate_runfile.py"
+    # TODO: Investigate why starboard_target_platform is not defined for evergreen-arm.
+    if (defined(starboard_target_platform) &&
+        starboard_target_platform == "rdk-arm") {
+      script = "//starboard/rdk/generate_runfile.py"
+    } else {
+      script = "//starboard/build/util/generate_runfile.py"
+    }
     outputs = [ "$root_out_dir/${original_target_name}_loader.py" ]
     args = [
       "--output",

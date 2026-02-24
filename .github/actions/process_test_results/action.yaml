@@ -31,6 +31,11 @@ runs:
 
     - name: Check Failed Tests
       if: always()
+      env:
+        NUM_FAILED: ${{ steps.test-summary.outputs.failed }}
+        RESULTS_GLOB: ${{ inputs.results_glob }}
+        NUM_GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
+        TARGET_NAME: ${{ inputs.target_name }}
       run: |
         # Check test status.
         exit_code=0
@@ -40,18 +45,18 @@ runs:
         shopt -s globstar nullglob
 
         # Workaround for nplb not supporting sharding.
-        num_shards=${{ inputs.num_gtest_shards }}
-        if [[ "${{ inputs.results_glob }}" =~ nplb ]]; then
+        num_shards=${NUM_GTEST_SHARDS}
+        if [[ "${RESULTS_GLOB}" =~ nplb ]]; then
           num_shards=1
         fi
 
-        result_xmls=(${{ inputs.results_glob }})
+        result_xmls=(${RESULTS_GLOB})
         if [ ${#result_xmls[@]} -ne ${num_shards} ]; then
-          echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${{ inputs.num_gtest_shards }}). Did a test shard crash?"
+          echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${NUM_GTEST_SHARDS}). Did a test shard crash?"
           exit_code=1
         fi
 
-        if [ ${{ steps.test-summary.outputs.failed }} -gt 0 ]; then
+        if [ ${NUM_FAILED:-0} -gt 0 ]; then
           # Print failed tests.
           echo
           echo " _____ _____ ____ _____   ____ _____   _   _____ _   _  ____  "
@@ -61,9 +66,9 @@ runs:
           echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
           echo
 
-          python3 cobalt/tools/junit_mini_parser.py ${{ inputs.results_glob }}
+          python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB}
 
-          echo "::error::${{ inputs.target_name }} has ${{ steps.test-summary.outputs.failed }} failed test(s)."
+          echo "::error::${TARGET_NAME} has ${NUM_FAILED} failed test(s)."
           exit_code=1
         fi
 
@@ -95,9 +100,10 @@ runs:
         DD_SERVICE: ${{ github.event.repository.name }}
         DD_TAGS: os.platform:${{ matrix.platform }}
         DD_ENV: ci
+        RESULTS_GLOB: ${{ inputs.results_glob }}
       run: |
         set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml
         shopt -s globstar
-        ./datadog-ci junit upload --service ${DD_SERVICE} ${{ inputs.results_glob }}
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_GLOB}
       shell: bash
