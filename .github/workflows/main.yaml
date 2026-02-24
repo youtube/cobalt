@@ -923,7 +923,7 @@ jobs:
       - name: Download Test Results
         uses: actions/download-artifact@v5
         with:
-          name: ${{ env.TEST_RESULTS_KEY }}
+          pattern: ${{ env.TEST_RESULTS_KEY }}
           path: results/
       - name: Test Results
         uses: ./.github/actions/process_test_results
@@ -977,7 +977,7 @@ jobs:
         uses: actions/download-artifact@v5
         continue-on-error: true
         with:
-          name: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
+          pattern: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
           path: results/
       - name: Failed Tests
         if: needs.test-results.result == 'failure' || needs.browser-test-results.result == 'failure'
