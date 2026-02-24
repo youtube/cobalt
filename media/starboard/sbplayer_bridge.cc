@@ -838,10 +838,10 @@ void SbPlayerBridge::CreatePlayer() {
           ->SetVideoInitialMaxFramesInDecoderForCurrentThread(
               *initial_max_frames_in_decoder_);
     }
-    if (initial_preroll_count_) {
+    if (video_decoder_initial_preroll_count_) {
       video_decoder_configuration_extension
           ->SetVideoDecoderInitialPrerollCountForCurrentThread(
-              *initial_preroll_count_);
+              *video_decoder_initial_preroll_count_);
     }
     if (max_pending_input_frames_) {
       video_decoder_configuration_extension
