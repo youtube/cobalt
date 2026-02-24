@@ -62,6 +62,7 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
       std::move(callback).Run();
       return;
   }
+
   global_features->SetSettings(name, setting_value);
   std::move(callback).Run();
 }
