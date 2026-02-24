@@ -53,6 +53,9 @@ public class JavaSwitches {
   /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
   public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
 
+  /** V8 flag to set the heap growing percent. Value type: Integer */
+  public static final String V8_HEAP_GROWING_PERCENT = "V8HeapGrowingPercent";
+
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
   /** CC flag to set the number of raster threads. Value type: Integer */
@@ -116,6 +119,11 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_HEAP_GROWING_PERCENT)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--heap-growing-percent="
+              + javaSwitches.get(JavaSwitches.V8_HEAP_GROWING_PERCENT).replaceAll("[^0-9]", ""));
     }
 
     if (!javaSwitches.containsKey(JavaSwitches.V8_DISABLE_OPTIMIZE_FOR_SIZE)) {
