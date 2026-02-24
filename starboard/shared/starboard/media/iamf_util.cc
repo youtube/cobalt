@@ -18,10 +18,10 @@
 #include <cstdlib>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/common/string.h"
-#include "third_party/abseil-cpp/absl/types/span.h"
 
 namespace starboard {
 namespace {
@@ -31,14 +31,15 @@ constexpr uint8_t kIamfSequenceHeaderObu = 31;
 // A lightweight, forward-only reader for a raw byte buffer.
 class BufferReader {
  public:
-  explicit BufferReader(const uint8_t* data, size_t size) : span_(data, size) {}
+  explicit BufferReader(const uint8_t* data, size_t size)
+      : view_(reinterpret_cast<const char*>(data), size) {}
 
   std::optional<uint8_t> ReadByte() {
-    if (span_.empty()) {
+    if (view_.empty()) {
       return std::nullopt;
     }
-    const uint8_t byte = span_.front();
-    span_.remove_prefix(1);
+    const uint8_t byte = static_cast<const uint8_t>(view_.front());
+    view_.remove_prefix(1);
     return byte;
   }
 
@@ -71,16 +72,18 @@ class BufferReader {
     if (BytesRemaining() < bytes_to_skip) {
       return false;
     }
-    span_.remove_prefix(bytes_to_skip);
+    view_.remove_prefix(bytes_to_skip);
     return true;
   }
 
-  const uint8_t* CurrentData() const { return span_.data(); }
+  const uint8_t* CurrentData() const {
+    return reinterpret_cast<const uint8_t*>(view_.data());
+  }
 
-  size_t BytesRemaining() const { return span_.size(); }
+  size_t BytesRemaining() const { return view_.size(); }
 
  private:
-  absl::Span<const uint8_t> span_;
+  std::string_view view_;
 };
 
 // Checks if |input| is a valid IAMF profile value, and stores the converted
