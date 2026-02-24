@@ -53,11 +53,11 @@ public class ExoPlayerBridge {
     // The following variables are accessed on both the Handler and native threads
     private volatile long mLastPlaybackPosUsec = 0;
     private volatile long mPlaybackPosLastUpdatedMsec = 0;
-    private volatile float mPlaybackRate = 0.0f;
+    private volatile float mPlaybackRate = 1.0f;
     private volatile boolean mIsProgressing = false;
     private volatile boolean mIsReleasing = false;
+    private volatile long mSeekTimeUsec = 0;
 
-    private long mSeekTimeUsec = 0;
     private final ExoPlayerListener mPlayerListener;
     private final DroppedFramesListener mDroppedFramesListener;
 
@@ -88,8 +88,21 @@ public class ExoPlayerBridge {
 
         @Override
         public synchronized void onIsPlayingChanged(boolean isPlaying) {
+            updatePositionAnchor();
             mIsProgressing = isPlaying;
             ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
+        }
+
+        @Override
+        public void onPositionDiscontinuity(
+                Player.PositionInfo oldPosition, Player.PositionInfo newPosition, int reason) {
+            updatePositionAnchor();
+        }
+
+        @Override
+        public void onPlaybackParametersChanged(PlaybackParameters playbackParameters) {
+            updatePositionAnchor();
+            mPlaybackRate = playbackParameters.speed;
         }
 
         @Override
@@ -173,20 +186,15 @@ public class ExoPlayerBridge {
             mPlayer.setMediaSource(playbackMediaSource);
             mPlayer.setVideoSurface(surface);
             mPlayer.prepare();
-            updatePlaybackPos();
             mPlayer.play();
         });
     }
 
-    private synchronized void updatePlaybackPos() {
-        if (mPlayer == null) {
-            return;
+    private synchronized void updatePositionAnchor() {
+        if (mPlayer != null) {
+            mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
+            mPlaybackPosLastUpdatedMsec = SystemClock.elapsedRealtime();
         }
-
-        // getCurrentPosition() returns milliseconds, convert to microseconds
-        mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
-        mPlaybackPosLastUpdatedMsec = SystemClock.elapsedRealtime();
-        mExoplayerHandler.postDelayed(this::updatePlaybackPos, 150);
     }
 
     @CalledByNative
@@ -206,8 +214,6 @@ public class ExoPlayerBridge {
             mAudioMediaSource = null;
             mVideoMediaSource = null;
         });
-
-        mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
     }
 
     /**
@@ -222,6 +228,7 @@ public class ExoPlayerBridge {
         }
         mExoplayerHandler.post(() -> {
           mPlayer.seekTo(seekToTimeUsec / 1000);
+          updatePositionAnchor();
         });
         mSeekTimeUsec = seekToTimeUsec;
     }
@@ -268,10 +275,9 @@ public class ExoPlayerBridge {
             reportError("Cannot pause with NULL or releasing ExoPlayer");
             return;
         }
-        mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
         mExoplayerHandler.post(() -> {
             mPlayer.pause();
-            mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
+            updatePositionAnchor();
         });
     }
 
@@ -284,7 +290,7 @@ public class ExoPlayerBridge {
         mExoplayerHandler.post(() -> {
             if (!mPlayer.isPlaying() && mPlaybackRate > 0.0) {
                 mPlayer.play();
-                updatePlaybackPos();
+                updatePositionAnchor();
             }
         });
     }
@@ -324,9 +330,9 @@ public class ExoPlayerBridge {
                     "Cannot stop with NULL or releasing ExoPlayer. Assuming stopped successfully.");
             return;
         }
-        mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
         mExoplayerHandler.post(() -> {
           mPlayer.stop();
+          updatePositionAnchor();
         });
     }
 
@@ -351,13 +357,13 @@ public class ExoPlayerBridge {
      */
     @CalledByNative
     private synchronized long getCurrentPositionUsec() {
+        long currentPositionUsec = mLastPlaybackPosUsec;
         if (mIsProgressing) {
-            return mLastPlaybackPosUsec
-                    + (long) ((SystemClock.elapsedRealtime() - mPlaybackPosLastUpdatedMsec)
+            currentPositionUsec += (long) ((SystemClock.elapsedRealtime() - mPlaybackPosLastUpdatedMsec)
                             * mPlaybackRate * 1000);
         }
 
-        return Math.max(mLastPlaybackPosUsec, mSeekTimeUsec);
+        return Math.max(currentPositionUsec, mSeekTimeUsec);
     }
 
     private void reportError(String errorMessage) {
