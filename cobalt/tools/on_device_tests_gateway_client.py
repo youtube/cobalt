@@ -246,10 +246,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-<<<<<<< HEAD
-      files = [f'cobalt_path={args.cobalt_path}']
-      params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
-=======
       files = []
       if test_type in ('browser_test', 'yts_wpt_test'):
         test_type = 'e2e_test'
@@ -265,7 +261,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
             params.append('app=dev.cobalt.coat')
           else:
             files.append(f'cobalt_path={bigstore_path}')
->>>>>>> 3fe656a6b9 (Add Browser Tests and YTS WPT Tests to Presubmit (#9052))
 
     else:
       raise ValueError(f'Unsupported test type: {test_type}')
