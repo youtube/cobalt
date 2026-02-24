@@ -23,7 +23,7 @@
 #include "api/video_codecs/video_decoder_factory.h"
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
-#if !BUILDFLAG(IS_STARBOARD)
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
 #include "modules/video_coding/codecs/vp8/include/vp8.h"  // nogncheck
 #include "modules/video_coding/codecs/vp9/include/vp9.h"  // nogncheck
 #endif
@@ -50,7 +50,7 @@ std::unique_ptr<VideoDecoder> CreateDav1dDecoder(const Environment& env) {
 std::vector<SdpVideoFormat> InternalDecoderFactory::GetSupportedFormats()
     const {
   std::vector<SdpVideoFormat> formats;
-#if !BUILDFLAG(IS_STARBOARD)
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
   formats.push_back(SdpVideoFormat::VP8());
   for (const SdpVideoFormat& format : SupportedVP9DecoderCodecs())
     formats.push_back(format);
@@ -93,7 +93,7 @@ std::unique_ptr<VideoDecoder> InternalDecoderFactory::Create(
     return nullptr;
   }
 
-#if !BUILDFLAG(IS_STARBOARD)
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
   if (absl::EqualsIgnoreCase(format.name, kVp8CodecName))
     return CreateVp8Decoder(env);
   if (absl::EqualsIgnoreCase(format.name, kVp9CodecName))

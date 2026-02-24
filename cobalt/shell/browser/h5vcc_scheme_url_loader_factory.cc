@@ -19,6 +19,7 @@
 
 #include "base/base64.h"
 #include "base/containers/contains.h"
+#include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -231,10 +232,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       resource_key = std::move(fallback);
     }
 
-    if (base::Contains(resource_map, resource_key)) {
-      FileContents file_contents = resource_map.at(resource_key);
-      content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
-                             file_contents.size);
+    if (const FileContents* file_contents_ptr =
+            base::FindOrNull(resource_map, resource_key)) {
+      content_ =
+          std::string(reinterpret_cast<const char*>(file_contents_ptr->data),
+                      file_contents_ptr->size);
     } else {
       LOG(WARNING) << "Resource not found: " << resource_key;
     }
