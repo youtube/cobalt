@@ -12,17 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+Generate runfiles for evergreen on rdk.
+"""
+import argparse
 import os
-import sys
+import stat
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-import starboard.build.util.generate_runfile
-
-_RDK_PRE_RUN = """
+_TEMPLATE = """#!/usr/bin/env python3
 # TODO: Remove when lab devices are updated to RDK_V6_20251218+.
-os.environ.update({
+os.environ.update({{
     "HOME": "{target_dir}/home",
     "XDG_RUNTIME_DIR": "/run",
     "LD_PRELOAD": "/usr/lib/libwesteros_gl.so.0.0.0",
@@ -41,8 +40,8 @@ os.environ.update({
     "AVPK_SKIP_HDMI_VALIDATION": "1",
     "WAYLAND_DISPLAY": "wayland-0",
     # TODO: Move?
-    # "ASAN_OPTIONS": "exitcode=0",
-})
+    "ASAN_OPTIONS": "exitcode=0",
+}})
 
 # TODO: Remove this when westeros-init is started by default.
 if subprocess.run(['pgrep', 'westeros-init'], capture_output=True).returncode != 0:
@@ -51,18 +50,11 @@ import time
 time.sleep(2)
 
 subprocess.run(['rdkDisplay', 'create'])
-"""
 
-_RDK_POST_RUN = """
-subprocess.run(['rdkDisplay', 'remove'])
-"""
-
-_TEMPLATE = """#!/usr/bin/env python3
 import os
 import subprocess
 import sys
 
-{pre_run}
 command = [
     os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
     '--evergreen_content=.', '--evergreen_library={library}.so'
@@ -76,7 +68,8 @@ except subprocess.CalledProcessError:
 except Exception as e:
     print("An unexpected error occurred: " + str(e), file=sys.stderr)
     sys.exit(1)
-{post_run}
+
+subprocess.run(['rdkDisplay', 'remove'])
 """
 
 parser = argparse.ArgumentParser()
@@ -85,7 +78,8 @@ parser.add_argument('--library', type=str, required=True)
 args = parser.parse_args()
 
 with open(args.output, 'w', encoding='utf-8') as f:
-  f.write(_TEMPLATE.format(library=args.library))
+  target_dir = os.path.dirname(args.output)
+  f.write(_TEMPLATE.format(target_dir=target_dir, library=args.library))
 current_permissions = stat.S_IMODE(os.stat(args.output).st_mode)
 new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
 os.chmod(args.output, new_permissions)
