@@ -92,6 +92,8 @@ void SetExperimentalFeaturesForCurrentThread(
       ToOptional(experimental_features->initial_max_frames_in_decoder);
   features.max_pending_input_frames =
       ToOptional(experimental_features->max_pending_input_frames);
+  features.video_decoder_initial_preroll_count =
+      ToOptional(experimental_features->video_decoder_initial_preroll_count);
   features.video_decoder_poll_interval_ms =
       ToOptional(experimental_features->video_decoder_poll_interval_ms);
 }

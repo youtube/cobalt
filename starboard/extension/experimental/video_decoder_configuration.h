@@ -28,6 +28,7 @@ extern "C" {
 typedef struct StarboardVideoDecoderExperimentalFeatures {
   const int* initial_max_frames_in_decoder;
   const int* max_pending_input_frames;
+  const int* video_decoder_initial_preroll_count;
   const int* video_decoder_poll_interval_ms;
 } StarboardVideoDecoderExperimentalFeatures;
 
