@@ -126,8 +126,6 @@ jobs:
           set -x
           test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
-<<<<<<< HEAD
-=======
       - name: Set YTS Playback tests
         id: set-test-yts-playback
         shell: bash
@@ -156,7 +154,6 @@ jobs:
           set -x
           web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
           echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
->>>>>>> 3fe656a6b9 (Add Browser Tests and YTS WPT Tests to Presubmit (#9052))
       - name: Set root target for unit tests
         id: set-test-root-target
         shell: bash
@@ -242,13 +239,10 @@ jobs:
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
       test_yts: ${{ steps.set-test-yts.outputs.test_yts }}
-<<<<<<< HEAD
-=======
       test_yts_playback: ${{ steps.set-test-yts-playback.outputs.test_yts_playback }}
       test_browser: ${{ steps.set-test-browser.outputs.test_browser }}
       test_yts_wpt: ${{ steps.set-test-yts-wpt.outputs.test_yts_wpt }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
->>>>>>> 3fe656a6b9 (Add Browser Tests and YTS WPT Tests to Presubmit (#9052))
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
