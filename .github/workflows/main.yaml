@@ -922,6 +922,7 @@ jobs:
         shell: bash
       - name: Download Test Results
         uses: actions/download-artifact@v5
+        continue-on-error: true
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}
           path: results/
