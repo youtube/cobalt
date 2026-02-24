@@ -141,6 +141,7 @@ static_library("starboard_platform") {
     "storage_internal.mm",
     "storage_open_record.mm",
     "storage_read_record.mm",
+    "system_get_extensions.cc",
     "system_get_number_of_processors.mm",
     "system_get_path.mm",
     "system_get_property.mm",
@@ -174,9 +175,6 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
     "//starboard/shared/stub/drm_update_server_certificate.cc",
     "//starboard/shared/stub/drm_update_session.cc",
-
-    # TODO: b/470021310 - get the tvOS version of this file to build.
-    "//starboard/shared/stub/system_get_extensions.cc",
   ]
 
   sources -= [

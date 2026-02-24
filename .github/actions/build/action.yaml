@@ -33,8 +33,12 @@ runs:
         run: |
           cd cobalt/src
           gn_flags=()
+          if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+            # TvOS does not use RBE unless it's sccache
+            gn_flags+=(--no-rbe --no-check)
+          fi
           if [[ $ENABLE_SCCACHE == "true" ]]; then
-            gn_flags+=(--no-rbe --no-check --use-sccache)
+            gn_flags+=(--use-sccache)
           fi
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
         shell: bash
