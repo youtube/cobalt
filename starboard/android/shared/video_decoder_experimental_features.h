@@ -25,10 +25,6 @@ struct VideoDecoderExperimentalFeatures {
   std::optional<int> video_decoder_poll_interval_ms;
 };
 
-struct AndroidPlayerContext {
-  VideoDecoderExperimentalFeatures experimental_features;
-};
-
 }  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_EXPERIMENTAL_FEATURES_H_

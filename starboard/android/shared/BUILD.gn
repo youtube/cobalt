@@ -238,6 +238,7 @@ static_library("starboard_platform") {
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
+    "player_android.h",
     "player_components_factory.cc",
     "player_configurate_seek.cc",
     "player_configurate_seek.h",

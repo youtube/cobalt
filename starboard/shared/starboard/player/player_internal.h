@@ -56,13 +56,11 @@ struct SbPlayerPrivate {
   virtual bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
-
-  virtual void* GetPlatformContext() { return nullptr; }
 };
 
 namespace starboard::shared::starboard::player {
 
-class SbPlayerPrivateImpl final : public SbPlayerPrivate {
+class SbPlayerPrivateImpl : public SbPlayerPrivate {
  public:
   typedef ::starboard::shared::starboard::media::AudioSampleInfo
       AudioSampleInfo;
@@ -75,29 +73,26 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler,
-      void* platform_context = nullptr);
+      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  void Seek(int64_t seek_to_time, int ticket) final;
+  ~SbPlayerPrivateImpl() override;
+
+  void Seek(int64_t seek_to_time, int ticket) override;
   void WriteSamples(const SbPlayerSampleInfo* sample_infos,
-                    int number_of_sample_infos) final;
-  void WriteEndOfStream(SbMediaType stream_type) final;
-  void SetBounds(int z_index, int x, int y, int width, int height) final;
-  void GetInfo(SbPlayerInfo* out_player_info) final;
-  void SetPause(bool pause) final;
-  void SetPlaybackRate(double playback_rate) final;
-  void SetVolume(double volume) final;
+                    int number_of_sample_infos) override;
+  void WriteEndOfStream(SbMediaType stream_type) override;
+  void SetBounds(int z_index, int x, int y, int width, int height) override;
+  void GetInfo(SbPlayerInfo* out_player_info) override;
+  void SetPause(bool pause) override;
+  void SetPlaybackRate(double playback_rate) override;
+  void SetVolume(double volume) override;
 
-  SbDecodeTarget GetCurrentDecodeTarget() final;
+  SbDecodeTarget GetCurrentDecodeTarget() override;
   bool GetAudioConfiguration(
       int index,
-      SbMediaAudioConfiguration* out_audio_configuration) final;
+      SbMediaAudioConfiguration* out_audio_configuration) override;
 
-  void* GetPlatformContext() final { return platform_context_; }
-
-  ~SbPlayerPrivateImpl() final;
-
- private:
+ protected:
   SbPlayerPrivateImpl(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
@@ -106,9 +101,11 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
       void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler,
-      void* platform_context);
+      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
+  std::unique_ptr<PlayerWorker> worker_;
+
+ private:
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
@@ -116,7 +113,6 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
-  void* const platform_context_;
 
   std::mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
@@ -132,8 +128,6 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   // Used to determine if |worker_| is progressing with playback so that
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
-
-  std::unique_ptr<PlayerWorker> worker_;
 
   std::mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;

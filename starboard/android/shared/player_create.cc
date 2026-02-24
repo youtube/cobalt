@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "starboard/android/shared/configurate_seek.h"
+#include "starboard/android/shared/player_android.h"
 #include "starboard/android/shared/video_decoder_configuration_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
@@ -30,11 +31,9 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
-#include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
 using starboard::shared::starboard::player::PlayerWorker;
-using starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 
@@ -219,14 +218,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
 
-  auto android_context = std::make_unique<
-      starboard::android::shared::AndroidPlayerContext>(
-      starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
-
-  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
+  SbPlayer player = starboard::android::shared::SbPlayerAndroid::Create(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler),
-      android_context.get());
+      starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
 
   if (SbPlayerIsValid(player)) {
     if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
@@ -235,8 +230,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
       // don't matter.
       SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
     }
-    // Ownership of the context is transferred to the player.
-    android_context.release();
     return player;
   }
 

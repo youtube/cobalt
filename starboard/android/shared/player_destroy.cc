@@ -24,8 +24,5 @@ void SbPlayerDestroy(SbPlayer player) {
     return;
   }
 
-  delete static_cast<starboard::android::shared::AndroidPlayerContext*>(
-      player->GetPlatformContext());
-
   delete player;
 }

@@ -31,6 +31,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/player_android.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/android/shared/video_decoder_experimental_features.h"
 #include "starboard/common/check_op.h"
@@ -578,16 +579,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    VideoDecoder::ExperimentalFeatures experimental_features;
-    auto* android_context = static_cast<AndroidPlayerContext*>(
-        creation_parameters.player()->GetPlatformContext());
-    SB_CHECK(android_context);
-    experimental_features.initial_max_frames_in_decoder =
-        android_context->experimental_features.initial_max_frames_in_decoder;
-    experimental_features.max_pending_input_frames =
-        android_context->experimental_features.max_pending_input_frames;
-    experimental_features.video_decoder_poll_interval_ms =
-        android_context->experimental_features.video_decoder_poll_interval_ms;
+    auto* android_player =
+        static_cast<SbPlayerAndroid*>(creation_parameters.player());
+    SB_CHECK(android_player);
+    const VideoDecoder::ExperimentalFeatures& experimental_features =
+        android_player->experimental_features();
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
