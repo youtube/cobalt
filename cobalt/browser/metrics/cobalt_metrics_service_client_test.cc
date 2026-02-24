@@ -351,7 +351,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
 
   // Wait for the dump to be processed.
   task_environment_.FastForwardBy(base::Seconds(3));
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
   // Verify process-specific and region-specific metrics.
   // Note: we check for >= 1 sample because periodic collection might also fire.

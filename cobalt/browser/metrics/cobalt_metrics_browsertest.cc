@@ -60,19 +60,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       run_loop.QuitClosure());
   run_loop.Run();
 
-<<<<<<< HEAD
   // We expect at least one sample in the private memory footprint histogram.
   // The exact value depends on the environment, but it should be > 0.
   // Note: on some environments it might take a bit longer for the dump to
   // be processed by the service, but RunUntilIdle should cover it.
   base::RunLoop().RunUntilIdle();
-
-  EXPECT_GE(
-      histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
-          .size(),
-      1u);
-=======
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
   auto check_histogram = [](const std::string& name) {
     auto* histogram = base::StatisticsRecorder::FindHistogram(name);
@@ -122,7 +115,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfFrames");
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
@@ -145,7 +137,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   static_cast<CobaltMetricsServiceClient*>(client)->ScheduleRecordForTesting(
       run_loop.QuitClosure());
   run_loop.Run();
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::RunLoop().RunUntilIdle();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
   auto check_histogram = [](const std::string& name) {
     auto* histogram = base::StatisticsRecorder::FindHistogram(name);
@@ -157,14 +150,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   };
 
   // We expect at least one sample from the periodic collection.
-<<<<<<< HEAD
-  base::RunLoop().RunUntilIdle();
   // We don't care about the exact value, just that it's been recorded.
-  EXPECT_GE(
-      histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
-          .size(),
-      1u);
-=======
   EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.Malloc"));
 #if BUILDFLAG(IS_ANDROID)
   EXPECT_TRUE(check_histogram("Memory.Experimental.Browser2.JavaHeap"));
@@ -191,7 +177,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
->>>>>>> 210c237df7 (cobalt/metrics: Port chrome memory metrics emitter to Cobalt (#9128))
 }
 
 }  // namespace cobalt
