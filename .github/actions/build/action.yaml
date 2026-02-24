@@ -20,7 +20,9 @@ runs:
   steps:
       - name: Clean out dir from previous runner
         run: |
+          echo "::group:: Clean out dir from previous runner"
           rm -rf cobalt/src/out
+          echo "::endgroup::"
         shell: bash
       - name: Install sccache
         if: inputs.enable_sccache == 'true'
@@ -31,17 +33,21 @@ runs:
         env:
           ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
         run: |
+          echo "::group:: GN gen"
           cd cobalt/src
           gn_flags=()
           if [[ $ENABLE_SCCACHE == "true" ]]; then
             gn_flags+=(--no-rbe --no-check --use-sccache)
           fi
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
+          echo "::endgroup::"
         shell: bash
       - name: List GN args
         run: |
+          echo "::group:: List GN args"
           cd cobalt/src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
+          echo "::endgroup::"
         shell: bash
       - name: Get list of changed files
         if: github.event_name == 'pull_request'
@@ -49,6 +55,7 @@ runs:
         env:
           CHANGED_FILES_LIST: changed_files.txt
         run: |
+          echo "::group:: Get list of changed files"
           set -x
           cd cobalt/src
           # GitHub's actions/checkout action, by default, checks out the merge commit when
@@ -59,6 +66,7 @@ runs:
           # TODO(b/382508397): Disabled for now.
           # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
           # cat ${CHANGED_FILES_LIST}
+          echo "::endgroup::"
         shell: bash
       - name: Calculate test targets
         # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
@@ -71,6 +79,7 @@ runs:
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
+          echo "::group:: Calculate test targets"
           set -x
           cd cobalt/src
 
@@ -107,6 +116,7 @@ runs:
 
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
         shell: bash
       - name: Archive test target JSON
         uses: actions/upload-artifact@v4
@@ -117,16 +127,19 @@ runs:
         if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
         run: |
+          echo "::group:: Ninja build test targets"
           set -ex
           cd cobalt/src
           test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
+          echo "::endgroup::"
         shell: bash
       - name: Ninja build
         env:
           TARGETS_JSON: ${{ inputs.targets }}
           USE_SCCACHE: ${{ inputs.enable_sccache }}
         run: |
+          echo "::group:: Ninja build"
           set -ex
           cd cobalt/src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
@@ -134,6 +147,7 @@ runs:
           if [[ $USE_SCCACHE == "true" ]]; then
             sccache --show-stats
           fi
+          echo "::endgroup::"
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'

@@ -17,16 +17,19 @@ runs:
     - name: Extract Artifacts
       shell: bash
       run: |
+        echo "::group:: Extract Artifacts"
         set -x
         # The web tests fail when not run from the source folder. Use the existing checkout.
         cd cobalt/src/
         tar -I 'zstd -T0' -xf ${GITHUB_WORKSPACE}/test_artifacts.tar.zstd
+        echo "::endgroup::"
     - name: Run Web Tests
       id: run-tests
       shell: bash
       env:
         TEST_PATH: wpt_internal/cobalt
       run: |
+        echo "::group:: Run Web Tests"
         set -x
         env
         cd cobalt/src/
@@ -43,6 +46,7 @@ runs:
           ${TEST_PATH}
 
         echo "Finished running tests..."
+        echo "::endgroup::"
     - name: Archive Test Results
       if: always() && contains(fromJson('["success", "failed"]'), steps.run-tests.outcome)
       uses: actions/upload-artifact@v4

@@ -26,11 +26,13 @@ runs:
       env:
         USE_CACHE: ${{ inputs.use_cache }}
       run: |
+        echo "::group::Set Cache Path"
         if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
           echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
         else
           echo "path=" >> ${GITHUB_OUTPUT}
         fi
+        echo "::endgroup::"
 
     - name: Set Up Runner Cache
       id: setup-cache
@@ -40,6 +42,7 @@ runs:
         RUNNER_CACHE_FOLDER: ${{ steps.cache-path.outputs.path }}
       shell: bash
       run: |
+        echo "::group::Set Up Runner Cache"
         set -ex
         # Extract the last path segment and remove any trailing .git, then add back .git.
         cache_path="${RUNNER_CACHE_FOLDER}/git-cache/$(basename "${REPO_URL}" .git).git"
@@ -64,6 +67,8 @@ runs:
 
         # Allow git to operate on bare repos without specifying --git-dir.
         git config --global safe.bareRepository all
+        set +x
+        echo "::endgroup::"
 
     - name: Clone Repo
       env:
@@ -74,6 +79,7 @@ runs:
         CACHE_PATH: ${{ steps.setup-cache.outputs.path }}
       shell: bash
       run: |
+        echo "::group::Clone Repo"
         set -ex
 
         depth_arg=()
@@ -93,3 +99,5 @@ runs:
 
         git -C "${DEST_PATH}" fetch "${deptch_arg[@]}" origin "${REF}"
         git -C "${DEST_PATH}" checkout "${REF}"
+        set +x
+        echo "::endgroup::"

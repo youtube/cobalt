@@ -22,6 +22,7 @@ jobs:
         REPO_NAME: ${{ github.event.repository.full_name }}
         PR_NUMBER: ${{ github.event.number }}
       run: |
+        echo "::group:: Check if PR author is outside collaborator"
         PERMISSION_LEVEL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           "https://api.github.com/repos/$REPO_NAME/collaborators/$PR_AUTHOR_LOGIN/permission" | jq -r .role_name)
 
@@ -33,3 +34,4 @@ jobs:
             -d '["outside collaborator"]' \
             "https://api.github.com/repos/$REPO_NAME/issues/$PR_NUMBER/labels"
         fi
+        echo "::endgroup::"

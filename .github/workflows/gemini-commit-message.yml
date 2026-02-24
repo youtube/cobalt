@@ -79,6 +79,7 @@ jobs:
       - name: 'Get PR Diff'
         id: diff
         run: |
+          echo "::group:: Get PR Diff"
           set -eux
           # Logic: Concatenate both URLs. Since events are exclusive, one will be empty.
           # PR Event URL + Issue Comment URL
@@ -91,6 +92,7 @@ jobs:
             echo "$diff_content"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
 
       # --- Step 2: Call Gemini API ---
       - name: 'Generate Commit Message with Gemini'
@@ -104,6 +106,7 @@ jobs:
           PR_DIFF: ${{ steps.diff.outputs.diff_content }}
           GEMINI_SECRET: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
         run: |
+          echo "::group:: Generate Commit Message with Gemini"
           set -eux
 
           # Use jq to safely combine the instructions with the variables
@@ -133,6 +136,7 @@ jobs:
             echo "$gemini_text_response"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
 
       # --- Step 3: Post Comment ---
       - name: 'Post Commit Message as Comment'

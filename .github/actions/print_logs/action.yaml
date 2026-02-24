@@ -22,18 +22,23 @@ runs:
       if: inputs.symbolize == 'true'
       id: gcs-project
       run: |
+        echo "::group:: Set GCS Project Name"
         echo "name=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+        echo "::endgroup::"
       shell: bash
     - name: Download Test Symbols
       if: inputs.symbolize == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
+        echo "::group:: Download Test Symbols"
         gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
           "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
+        echo "::endgroup::"
       shell: bash
     - name: Print Logs and Test Summary
       run: |
+        echo "::group:: Print Logs and Test Summary"
         # Print logs and failing tests.
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullopt to returns empty string if the glob matches no files.
@@ -54,4 +59,5 @@ runs:
             fi
           done
         fi
+        echo "::endgroup::"
       shell: bash

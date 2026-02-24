@@ -29,6 +29,7 @@ jobs:
           WORKFLOW: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
+          echo "::group:: Rerun Failing Tests"
           set +x
           # Max number of times the tests should run. Must match number of
           # retries in on_host_tests and on_device_tests actions.
@@ -51,3 +52,4 @@ jobs:
           # Rerun all failed jobs under the workflow all in one go. One by one throws an error.
           echo "Rerunning failed jobs under https://github.com/${REPO}/actions/runs/${WORKFLOW}"
           gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
+          echo "::endgroup::"

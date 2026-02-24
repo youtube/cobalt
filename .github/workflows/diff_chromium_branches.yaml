@@ -34,6 +34,7 @@ jobs:
           UPSTREAM_BRANCHES: ${{ inputs.upstream_branches }}
         shell: bash
         run: |
+          echo "::group:: Set upstream branches"
           set -eux
           # If upstream branches are provided as input, we are manually triggered
           if [[ -n "${UPSTREAM_BRANCHES}" ]]; then
@@ -48,6 +49,7 @@ jobs:
           JQ_QUERY="[.stable_branches[] | select(.milestone | IN($DIFF_LABELS))]"
           export UPSTREAM_BRANCHES=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c "${JQ_QUERY}")
           echo "upstream_branches=${UPSTREAM_BRANCHES}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set downstream branch
         id: set-downstream-branch
         env:
@@ -55,6 +57,7 @@ jobs:
           EVENT_ACTION: ${{ github.event.action }}
         shell: bash
         run: |
+          echo "::group:: Set downstream branch"
           set -eux
           if [[ -n "${{ inputs.downstream_branch }}" ]]; then
             # Get the trimmed downstream branch directly from inputs
@@ -64,13 +67,16 @@ jobs:
             DOWNSTREAM_BRANCH="${{ github.ref }}"
           fi
           echo "downstream_branch=${DOWNSTREAM_BRANCH}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set code ownership
         id: set-code-ownership
         shell: bash
         run: |
+          echo "::group:: Set code ownership"
           set -eux
           CODE_OWNERSHIP=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c .code_ownership)
           echo "code_ownership=${CODE_OWNERSHIP}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
     outputs:
       upstream_branches: ${{ steps.set-upstream-branches.outputs.upstream_branches }}
       downstream_branch: ${{ steps.set-downstream-branch.outputs.downstream_branch }}
@@ -93,6 +99,7 @@ jobs:
           DOWNSTREAM_REF: ${{ needs.initialize.outputs.downstream_branch }}
           CODE_OWNERSHIP: ${{ needs.initialize.outputs.code_ownership }}
         run: |
+          echo "::group:: Calculate main diff"
           set -eux
           git fetch origin "$DOWNSTREAM_REF"
           git config set diff.renameLimit 100000
@@ -108,11 +115,13 @@ jobs:
           # Diff downstream to checked out branch (upstream)
           readarray -t EXCLUDE_PATHS_ARRAY <<< "$EXCLUDE_PATHS_FOR_MAIN_DIFF"
           git diff HEAD..FETCH_HEAD -- . "${EXCLUDE_PATHS_ARRAY[@]}" > main_diff.diff
+          echo "::endgroup::"
       - name: Check for downstream deletions in excluded folders
         env:
           DOWNSTREAM_REF: ${{ needs.initialize.outputs.downstream_branch }}
           CODE_OWNERSHIP: ${{ needs.initialize.outputs.code_ownership }}
         run: |
+          echo "::group:: Check for downstream deletions in excluded folders"
           set -eux
           DOWNSTREAM_OWNED_FOLDER_TO_CHECK=$(echo "$CODE_OWNERSHIP" | jq -r '
             .ours +
@@ -124,8 +133,10 @@ jobs:
           ')
           readarray -t PATHS_TO_CHECK_ARRAY <<< "$DOWNSTREAM_OWNED_FOLDER_TO_CHECK"
           git diff --diff-filter=D HEAD..FETCH_HEAD -- ${PATHS_TO_CHECK_ARRAY[@]} > downstream_removal.diff
+          echo "::endgroup::"
       - name: Report Diffs
         run: |
+          echo "::group:: Report Diffs"
           echo "This is will be replaced with proper logging later"
           echo "--------------------------------------------------"
           echo "SUMMARY OF MAIN DIFFS"
@@ -138,3 +149,4 @@ jobs:
           echo "--------------------------------------------------"
           echo ""
           git diff --stat downstream_removal.diff
+          echo "::endgroup::"

@@ -9,20 +9,27 @@ runs:
   steps:
   - name: Install sccache
     shell: bash
-    run: brew install sccache
+    run: |
+      echo "::group:: Install sccache"
+      brew install sccache
+      echo "::endgroup::"
   - name: Configure sccache
     shell: bash
     env:
       SCCACHE_GCS_KEY: ${{ inputs.sccache_gcs_key }}
     run: |
+      echo "::group:: Configure sccache"
       printf "%s" "$SCCACHE_GCS_KEY" > "${HOME}/gcloud.json"
       echo "SCCACHE_GCS_RW_MODE=READ_WRITE" >> $GITHUB_ENV
       echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
       echo "SCCACHE_GCS_BUCKET=cobalt-sccache-tvos-bucket" >> $GITHUB_ENV
       echo "SCCACHE=1" >> $GITHUB_ENV
       echo "SCCACHE_IDLE_TIMEOUT=0" >> $GITHUB_ENV
+      echo "::endgroup::"
   - name: Start sccache server
     shell: bash
     run: |
+      echo "::group:: Start sccache server"
       sccache --stop-server || true
       sccache --start-server
+      echo "::endgroup::"

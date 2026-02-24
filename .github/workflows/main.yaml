@@ -69,38 +69,47 @@ jobs:
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
         run: |
+          echo "::group:: Remove runtest if exists"
           set +e
           curl \
             -X DELETE \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
+          echo "::endgroup::"
         shell: bash
       - name: Set platforms
         id: set-platforms
         shell: bash
         run: |
+          echo "::group:: Set platforms"
           set -x
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Select build runners
         id: set-build-runners
         shell: bash
         run: |
+          echo "::group:: Select build runners"
           set -x
           build_runners=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.build_runners // ["self-hosted", "chrobalt-linux-runner"]' )
           echo "build_runners=${build_runners}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set build targets
         id: set-targets
         shell: bash
         run: |
+          echo "::group:: Set build targets"
           set -x
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets')
           echo "targets=${targets}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set build configs
         id: set-build-configs
         shell: bash
         run: |
+          echo "::group:: Set build configs"
           set -x
           # Attempt to load build configs from JSON. If not present use default.
           build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
@@ -108,150 +117,192 @@ jobs:
             build_configs='["devel", "qa", "gold"]'
           fi
           echo "build_configs=${build_configs}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set platform extra includes
         id: set-includes
         shell: bash
         run: |
+          echo "::group:: Set platform extra includes"
           set -x
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
           echo "includes=${includes}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set Docker service
         id: set-docker-service
         shell: bash
         run: |
+          echo "::group:: Set Docker service"
           set -x
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service // empty')
           echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set on-host tests
         id: set-test-on-host
         shell: bash
         run: |
+          echo "::group:: Set on-host tests"
           set -x
           test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
           echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set on-device tests
         id: set-test-on-device
         shell: bash
         run: |
+          echo "::group:: Set on-device tests"
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set test package
         id: set-test-package
         shell: bash
         run: |
+          echo "::group:: Set test package"
           set -x
           test_package=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_package')
           echo "test_package=${test_package}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set e2e tests
         id: set-test-e2e
         shell: bash
         run: |
+          echo "::group:: Set e2e tests"
           set -x
           test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
           echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set YTS tests
         id: set-test-yts
         shell: bash
         run: |
+          echo "::group:: Set YTS tests"
           set -x
           test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set YTS Playback tests
         id: set-test-yts-playback
         shell: bash
         run: |
+          echo "::group:: Set YTS Playback tests"
           set -x
           test_yts_playback=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_playback')
           echo "test_yts_playback=${test_yts_playback}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set Browser tests
         id: set-test-browser
         shell: bash
         run: |
+          echo "::group:: Set Browser tests"
           set -x
           test_browser=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_browser')
           echo "test_browser=${test_browser}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set YTS WPT tests
         id: set-test-yts-wpt
         shell: bash
         run: |
+          echo "::group:: Set YTS WPT tests"
           set -x
           test_yts_wpt=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts_wpt')
           echo "test_yts_wpt=${test_yts_wpt}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set web tests
         id: set-web-tests
         shell: bash
         run: |
+          echo "::group:: Set web tests"
           set -x
           web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
           echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set root target for unit tests
         id: set-test-root-target
         shell: bash
         run: |
+          echo "::group:: Set root target for unit tests"
           set -x
           test_root_target=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_root_target')
           echo "test_root_target=${test_root_target}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set E2E test device type
         id: set-test-device-family
         shell: bash
         run: |
+          echo "::group:: Set E2E test device type"
           set -x
           test_device_family=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_device_family // empty')
           echo "test_device_family=${test_device_family}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set YTS test targets
         id: set-yts-test-targets
         shell: bash
         run: |
+          echo "::group:: Set YTS test targets"
           set -x
           yts_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_test_targets // []')
           echo "yts_test_targets=${yts_test_targets}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set YTS Playback test targets
         id: set-yts-playback-test-targets
         shell: bash
         run: |
+          echo "::group:: Set YTS Playback test targets"
           set -x
           yts_playback_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_playback_test_targets // []')
           echo "yts_playback_test_targets=${yts_playback_test_targets}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set Browser test targets
         id: set-browser-test-targets
         shell: bash
         run: |
+          echo "::group:: Set Browser test targets"
           set -x
           browser_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.browser_test_targets // []')
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set YTS WPT test targets
         id: set-yts-wpt-test-targets
         shell: bash
         run: |
+          echo "::group:: Set YTS WPT test targets"
           set -x
           yts_wpt_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_wpt_test_targets // []')
           echo "yts_wpt_test_targets=${yts_wpt_test_targets}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set E2E test targets
         id: set-e2e-test-targets
         shell: bash
         run: |
+          echo "::group:: Set E2E test targets"
           set -x
           e2e_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.e2e_test_targets // []')
           echo "e2e_test_targets=${e2e_test_targets}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set test device dimensions
         id: set-test-dimensions
         shell: bash
         run: |
+          echo "::group:: Set test device dimensions"
           set -x
           test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
           echo "test_dimensions=${test_dimensions}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set test attempts
         id: set-test-attempts
         shell: bash
         run: |
+          echo "::group:: Set test attempts"
           set -x
           test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_attempts // empty')
           echo "test_attempts=${test_attempts}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set number of on-host unit test shards
         id: set-gtest-shards
         shell: bash
         run: |
+          echo "::group:: Set number of on-host unit test shards"
           set -x
           # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
           num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards // 1' )
@@ -260,20 +311,25 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set enable sccache
         id: set-enable-sccache
         shell: bash
         run: |
+          echo "::group:: Set enable sccache"
           set -x
           enable_sccache=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.enable_sccache')
           echo "enable_sccache=${enable_sccache}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - name: Set Docker files checksum
         id: set-docker-hash
         shell: bash
         run: |
+          echo "::group:: Set Docker files checksum"
           set -x
           docker_content_sha=$(find cobalt/docker docker-compose.yaml -type f -exec sha256sum -b {} + | LC_ALL=C sort | sha256sum | head -c 64)
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
@@ -399,6 +455,7 @@ jobs:
       - name: Set TMPDIR
         shell: bash
         run: |
+          echo "::group:: Set TMPDIR"
           set -x
           if [[ -w /__w/_temp/ ]]; then
             # We want temp folder to be on tmpfs which makes workloads faster.
@@ -408,6 +465,7 @@ jobs:
           else
             echo "TMPDIR=${{ runner.temp }}" >> $GITHUB_ENV
           fi
+          echo "::endgroup::"
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
@@ -783,11 +841,15 @@ jobs:
         id: extract-target-name
         env:
           test_target_with_path: ${{ matrix.test_target }}
-        run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
+        run: |
+          echo "::group:: Extract Test Target Name"
+          echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
         shell: bash
       - name: Check if ${{ matrix.test_target }} is skipped in test filters
         id: filter
         run: |
+          echo "::group:: Check if ${{ matrix.test_target }} is skipped in test filters"
           set -x
           # Get first entry in test filters file.
           test_filter=""
@@ -802,6 +864,7 @@ jobs:
               echo "skipped=false" >> $GITHUB_OUTPUT
             fi
           fi
+          echo "::endgroup::"
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
@@ -864,8 +927,10 @@ jobs:
       - name: Failed Tests
         if: needs.test-results.result == 'failure'
         run: |
+          echo "::group:: Failed Tests"
           # Print test result summary.
           shopt -s globstar nullglob
           python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
           exit 1
+          echo "::endgroup::"
         shell: bash

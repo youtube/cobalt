@@ -20,6 +20,7 @@ jobs:
           persist-credentials: false
       - name: Trigger Nightly
         run: |
+          echo "::group:: Trigger Nightly"
           set -x
           gh workflow run android_25.lts.1+ --ref 25.lts.1+ -f nightly=true
           gh workflow run evergreen_25.lts.1+ --ref 25.lts.1+ -f nightly=true
@@ -27,5 +28,6 @@ jobs:
           gh workflow run raspi-2_25.lts.1+ --ref 25.lts.1+ -f nightly=true
           gh workflow run win32_25.lts.1+ --ref 25.lts.1+ -f nightly=true
           gh workflow run xb1_25.lts.1+ --ref 25.lts.1+ -f nightly=true
+          echo "::endgroup::"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
