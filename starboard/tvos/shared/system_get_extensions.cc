@@ -62,10 +62,7 @@ const void* SbSystemGetExtension(const char* name) {
     return nullptr;
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
-    // TODO: b/478127016 - This will be enabled separately with the rest of
-    // VoiceOver support code.
-    // return starboard::GetAccessibilityApi();
-    return nullptr;
+    return starboard::GetAccessibilityApi();
   }
   return nullptr;
 }
