@@ -20,16 +20,19 @@ runs:
     - name: Extract Artifacts
       shell: bash
       run: |
+        echo "::group:: Extract Artifacts"
         set -x
         mkdir -p unit_test/
         cd unit_test/
         tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
+        echo "::endgroup::"
     - name: Run Tests
       id: run-tests
       shell: bash
       env:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
       run: |
+        echo "::group:: Run Tests"
         set -x
         env
 
@@ -105,6 +108,7 @@ runs:
           # Fail the job so it's easy to retrigger.
           exit 1
         fi
+        echo "::endgroup::"
     - name: Archive Test Results
       if: success() || failure()
       uses: actions/upload-artifact@v4
@@ -114,11 +118,16 @@ runs:
     - name: Get Deflake Max Attempts
       id: deflake-attempts
       run: |
+        echo "::group:: Get Deflake Max Attempts"
         MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
         echo "max_attempts=${MAX_ATTEMPTS}" >> $GITHUB_OUTPUT
+        echo "::endgroup::"
       shell: bash
     - name: Run Nightly Deflake
       # Deflake workflow retries MAX_ATTEMPTS times. Pass the last to keep dashboard green.
       if: github.event_name == 'schedule' && github.run_attempt != steps.deflake-attempts.outputs.max_attempts
-      run: echo "::warning::Triggering deflaking run by failing." && exit 1
+      run: |
+        echo "::group:: Run Nightly Deflake"
+        echo "::warning::Triggering deflaking run by failing." && exit 1
+        echo "::endgroup::"
       shell: bash

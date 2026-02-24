@@ -21,11 +21,13 @@ runs:
       env:
         USE_CACHE: ${{ inputs.use_cache }}
       run: |
+        echo "::group:: Set Cache Path"
         if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
           echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
         else
           echo "path=" >> ${GITHUB_OUTPUT}
         fi
+        echo "::endgroup::"
 
     - name: Clone Depot Tools
       uses: ./.github/actions/checkout
@@ -37,22 +39,33 @@ runs:
         use_cache: ${{ inputs.use_cache }}
 
     - name: Add Depot Tools to PATH
-      run: echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+      run: |
+        echo "::group:: Add Depot Tools to PATH"
+        echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+        echo "::endgroup::"
       shell: bash
 
     - name: Set CIPD Cache Directory
       if: steps.cache-path.outputs.path != ''
-      run: echo "CIPD_CACHE_DIR=${{ steps.cache-path.outputs.path }}/cipd-cache" >> ${GITHUB_ENV}
+      run: |
+        echo "::group:: Set CIPD Cache Directory"
+        echo "CIPD_CACHE_DIR=${{ steps.cache-path.outputs.path }}/cipd-cache" >> ${GITHUB_ENV}
+        echo "::endgroup::"
       shell: bash
 
     - name: Bootstrap Bundled python3
       run: |
+        echo "::group:: Bootstrap Bundled python3"
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
         source ${GITHUB_WORKSPACE}/depot_tools/bootstrap_python3 && bootstrap_python3
+        echo "::endgroup::"
       shell: bash
 
     - name: Disable Chromium client side build telemetry
-      run: build_telemetry opt-out
+      run: |
+        echo "::group:: Disable Chromium client side build telemetry"
+        build_telemetry opt-out
+        echo "::endgroup::"
       shell: bash
 
     - name: Run gclient config
@@ -61,6 +74,7 @@ runs:
         REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
         CACHE_PATH: ${{ steps.cache-path.outputs.path }}
       run: |
+        echo "::group:: Run gclient config"
         set -x
         cd cobalt
 
@@ -74,11 +88,13 @@ runs:
           --custom-var=download_remoteexec_cfg=True \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           "${REPOSITORY}"
+        echo "::endgroup::"
       shell: bash
 
     - name: Set target OS
       shell: bash
       run: |
+        echo "::group:: Set target OS"
         cd cobalt
         if [[ "${{ matrix.platform }}" == *"android"* ]]; then
           echo "target_os=['android']" >> .gclient
@@ -86,12 +102,14 @@ runs:
           echo "target_os=['ios']" >> .gclient
         fi
         gclient validate
+        echo "::endgroup::"
 
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
       env:
         REF: ${{ github.sha }}
       run: |
+        echo "::group:: Run gclient sync"
         cd cobalt
         gclient sync \
           --verbose \
@@ -101,11 +119,14 @@ runs:
           --force \
           --delete_unversioned_trees \
           --revision "${REF}"
+        echo "::endgroup::"
       shell: bash
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'
       run: |
+        echo "::group:: Run gclient runhooks"
         cd cobalt
         gclient runhooks --verbose
+        echo "::endgroup::"
       shell: bash

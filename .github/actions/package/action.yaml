@@ -13,6 +13,7 @@ runs:
         MATRIX_CONFIG: ${{ matrix.config }}
         PACKAGE_DIR: ${{ inputs.package_dir }}
       run: |
+        echo "::group:: Package Cobalt"
         set -x
         cd cobalt/src/
 
@@ -32,4 +33,5 @@ runs:
           --json_path=cobalt/build/${BUILD_PLATFORM}/package.json \
           --out_dir=out/${MATRIX_PLATFORM}_${MATRIX_CONFIG} \
           --package_dir=${PACKAGE_DIR}
+        echo "::endgroup::"
       shell: bash

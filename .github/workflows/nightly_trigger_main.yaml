@@ -20,8 +20,10 @@ jobs:
           persist-credentials: false
       - name: Trigger Nightly
         run: |
+          echo "::group:: Trigger Nightly"
           set -x
           gh workflow run android --ref main -f nightly=true
           gh workflow run linux --ref main -f nightly=true
+          echo "::endgroup::"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

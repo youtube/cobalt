@@ -22,20 +22,26 @@ runs:
   steps:
     - name: Install Requirements
       run: |
+        echo "::group:: Install Requirements"
         pip3 install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/cobalt/tools/requirements.txt
+        echo "::endgroup::"
       shell: bash
     - name: Generate gRPC files
       run: |
+        echo "::group:: Generate gRPC files"
         python -m grpc_tools.protoc -I${GITHUB_WORKSPACE}/cobalt/tools/ \
             --python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
+        echo "::endgroup::"
       shell: bash
     - name: Set Up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set GCS Project Name
       run: |
+        echo "::group:: Set GCS Project Name"
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "::endgroup::"
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
@@ -58,6 +64,7 @@ runs:
         TEST_TYPE: ${{ inputs.test_type }}
         TEST_RETRY_LEVEL: FAIL
       run: |
+        echo "::group:: Run Tests on ${{ matrix.platform }} Platform"
         set -x
 
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
@@ -91,4 +98,5 @@ runs:
             exit 1
           }
         echo "Finished running tests..."
+        echo "::endgroup::"
       shell: bash

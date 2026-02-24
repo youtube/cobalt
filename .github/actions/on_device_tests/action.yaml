@@ -25,20 +25,26 @@ runs:
   steps:
     - name: Install Requirements
       run: |
+        echo "::group:: Install Requirements"
         pip3 install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/cobalt/tools/requirements.txt
+        echo "::endgroup::"
       shell: bash
     - name: Generate gRPC files
       run: |
+        echo "::group:: Generate gRPC files"
         python -m grpc_tools.protoc -I${GITHUB_WORKSPACE}/cobalt/tools/ \
             --python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             --grpc_python_out=${GITHUB_WORKSPACE}/cobalt/tools/ \
             ${GITHUB_WORKSPACE}/cobalt/tools/on_device_tests_gateway.proto
+        echo "::endgroup::"
       shell: bash
     - name: Set Up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set GCS Project Name
       run: |
+        echo "::group:: Set GCS Project Name"
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "::endgroup::"
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
@@ -62,6 +68,7 @@ runs:
         TEST_ATTEMPTS: ${{ inputs.test_attempts }}
         TEST_TYPE: unit_test
       run: |
+        echo "::group:: Run Tests on ${{ matrix.platform }} Platform"
         set -x
 
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
@@ -98,12 +105,14 @@ runs:
             exit 1
           }
         echo "Finished running tests..."
+        echo "::endgroup::"
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
+        echo "::group:: Download ${{ matrix.platform }} Test Results from GCS"
         set -uxe
         shopt -s globstar nullglob
 
@@ -139,6 +148,7 @@ runs:
             exit 1
           fi
         done
+        echo "::endgroup::"
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
@@ -149,11 +159,16 @@ runs:
     - name: Get Deflake Max Attempts
       id: deflake-attempts
       run: |
+        echo "::group:: Get Deflake Max Attempts"
         MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
         echo "max_attempts=${MAX_ATTEMPTS}" >> $GITHUB_OUTPUT
+        echo "::endgroup::"
       shell: bash
     - name: Run Nightly Deflake
       # Deflake workflow retries MAX_ATTEMPTS times. Pass the last to keep dashboard green.
       if: github.event_name == 'schedule' && github.run_attempt != steps.deflake-attempts.outputs.max_attempts
-      run: echo "::warning::Triggering deflaking run by failing." && exit 1
+      run: |
+        echo "::group:: Run Nightly Deflake"
+        echo "::warning::Triggering deflaking run by failing." && exit 1
+        echo "::endgroup::"
       shell: bash

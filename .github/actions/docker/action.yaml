@@ -28,6 +28,7 @@ runs:
       env:
         DOCKER_SERVICE: ${{ inputs.docker_service }}
       run: |
+        echo "::group:: Set Docker Build Vars"
         # Set Docker Build Vars
         set -x
 
@@ -39,10 +40,12 @@ runs:
         FLOATING_TAG="${FLOATING_TAG%.1[+,-]}"
 
         echo "DOCKER_FLOATING_TAG=${FLOATING_TAG}" >> $GITHUB_ENV
+        echo "::endgroup::"
       shell: bash
 
     - name: Login to GAR
       run: |
+        echo "::group:: Login to GAR"
         # Login to GAR
         TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
         ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
@@ -54,6 +57,7 @@ runs:
 
         # Login to Marketplace GAR to be able to pull base images.
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
+        echo "::endgroup::"
       shell: bash
 
     - name: Login to GitHub Docker Registry
@@ -72,6 +76,7 @@ runs:
         DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         IS_PR: ${{ inputs.is_pr }}
       run: |
+        echo "::group:: Pull Existing Docker Image"
         # Pull Existing Docker Image
         set -x
         DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${{ github.repository }}/${DOCKER_SERVICE}"
@@ -98,6 +103,7 @@ runs:
 
         # Make the compose image tag available to the build step below.
         echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> $GITHUB_ENV
+        echo "::endgroup::"
       shell: bash
 
     - name: Build and Push Docker Image
@@ -106,6 +112,7 @@ runs:
         DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         DOCKER_SERVICE: ${{ inputs.docker_service }}
       run: |
+        echo "::group:: Build and Push Docker Image"
         # Build and Push Docker Image
         set -x
         docker compose build ${DOCKER_SERVICE}
@@ -114,4 +121,5 @@ runs:
         docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
         docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
         docker push --all-tags "${DOCKER_COMPOSE_IMAGE}"
+        echo "::endgroup::"
       shell: bash

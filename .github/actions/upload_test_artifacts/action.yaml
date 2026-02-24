@@ -20,25 +20,31 @@ runs:
   using: "composite"
   steps:
     - name: Create Artifacts Directory
-      run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+      run: |
+        echo "::group:: Create Artifacts Directory"
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        echo "::endgroup::"
       shell: bash
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
+        echo "::group:: Copy Runnables to Artifacts"
         set -eux
         cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
+        echo "::endgroup::"
       shell: bash
     - name: Archive Test Dependencies
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
+        echo "::group:: Archive Test Dependencies"
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd cobalt/src/
@@ -59,6 +65,7 @@ runs:
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
           ${FLAGS}
+        echo "::endgroup::"
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
@@ -75,12 +82,13 @@ runs:
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
+        echo "::group:: Upload On-Device Test Artifacts to GCS"
         set -eux
         project_name=$(gcloud config get-value project)
 
         # Add Cobalt release artifacts for smoke tests.
         if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
-          mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
+          mv ${GITHUB_WORKSPACE}/artifacts/* \
              ${GITHUB_WORKSPACE}/artifacts/
         fi
 
@@ -92,4 +100,5 @@ runs:
 
         gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
+        echo "::endgroup::"
       shell: bash

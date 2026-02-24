@@ -11,9 +11,11 @@ runs:
     - name: Test target count
       id: parse-json
       run: |
+        echo "::group:: Test target count"
         test_targets_json="$(cat test_targets.json | jq -cr '.test_targets')"
         echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
         echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+        echo "::endgroup::"
       shell: bash
 outputs:
   test_targets_count:
