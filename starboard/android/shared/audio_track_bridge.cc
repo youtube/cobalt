@@ -19,6 +19,7 @@
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -239,6 +240,21 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
     return bytes_written;
   }
   return bytes_written;
+}
+
+void AudioTrackBridge::SetPlaybackRate(
+    double playback_rate,
+    JNIEnv* env /*= AttachCurrentThread()*/) {
+  SB_DCHECK(env);
+  SB_DCHECK(is_valid());
+  // AudioTrack doesn't support playback speed of 0.
+  SB_DCHECK_GT(playback_rate, 0.0);
+
+  jboolean status = Java_AudioTrackBridge_setPlaybackRate(
+      env, j_audio_track_bridge_, static_cast<float>(playback_rate));
+  if (!status) {
+    SB_LOG(ERROR) << "Failed to set playback rate to " << playback_rate;
+  }
 }
 
 void AudioTrackBridge::SetVolume(double volume,
