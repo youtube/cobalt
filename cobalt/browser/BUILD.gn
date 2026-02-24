@@ -30,6 +30,8 @@ source_set("browser") {
     "cobalt_secure_navigation_throttle.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "performance/performance_impl.cc",
+    "performance/performance_impl.h",
   ]
 
   if (is_androidtv) {
@@ -63,7 +65,6 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/browser/h5vcc_updater",
     "//cobalt/browser/h5vcc_updater/public/mojom",
-    "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
     "//cobalt/common/features",
