@@ -3,7 +3,7 @@
     "BoxTest.*",
     "ConnectTest.*",
     "IPCChannelBadMessageTest.BadMessage",
-    "IPCChannelMojoSharedMemoryRegionTypedTest/*.Send",
+    "IPCChannelMojoSharedMemoryRegionTypedTest/*",
     "IPCChannelMojoTest.*",
     "IPCChannelProxyMojoTest.*",
     "IPCChannelProxyTest.BadMessageOnIPCThread",

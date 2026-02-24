@@ -25,6 +25,7 @@
     "PKCS12Test.*",
     "PKCS7Test.*",
     "Poly1305Test.TestVectors",
+    "RandTest.Fork",
     "ScryptTest.TestVectors",
     "SipHash.Vectors",
     "SLHDSATest.*",
