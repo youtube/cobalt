@@ -37,6 +37,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 #include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
+#include "cobalt/android/jni_headers/ExoPlayerMediaSample_jni.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
@@ -53,8 +54,6 @@ using base::android::ToJavaByteArray;
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
 
-constexpr int kWaitForInitializedTimeoutUsec = 25000000;  // 25 s.
-constexpr int kMaxSampleBufferSize = 6 * 1024 * 1024;     // 6 MB.
 constexpr int kADTSHeaderSize = 7;
 constexpr bool kForceTunneledPlayback = false;
 
@@ -428,6 +427,13 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
         blocks_to_skip = drm_sample_info->encryption_pattern.skip_byte_block;
       }
 
+      ScopedJavaLocalRef<jobject> j_sample(
+          Java_ExoPlayerMediaSample_Constructor(
+              env, sample_byte_buffer, size, input_buffer->timestamp(),
+              is_key_frame, type, cipher_mode, j_key, blocks_to_encrypt,
+              blocks_to_skip, j_iv, drm_sample_info->initialization_vector_size,
+              subsample_data.encrypted_bytes, subsample_data.clear_bytes));
+
       Java_ExoPlayerBridge_writeEncryptedSample(
           env, j_exoplayer_bridge_, sample_byte_buffer, size,
           input_buffer->timestamp(), is_key_frame, type, cipher_mode, j_key,
@@ -436,6 +442,10 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
           subsample_data.encrypted_bytes, subsample_data.clear_bytes);
       return;
     }
+
+    ScopedJavaLocalRef<jobject> j_sample(Java_ExoPlayerMediaSample_Constructor(
+        env, sample_byte_buffer, size, input_buffer->timestamp(), is_key_frame,
+        type, 0, nullptr, 0, 0, nullptr, 0, nullptr, nullptr));
 
     Java_ExoPlayerBridge_writeSample(
         env, j_exoplayer_bridge_, sample_byte_buffer, size,

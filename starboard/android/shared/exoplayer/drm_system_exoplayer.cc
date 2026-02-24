@@ -201,6 +201,13 @@ void DrmSystemExoPlayer::OnKeyRequest(
   }
 }
 
+void DrmSystemExoPlayer::OnProvisionRequest(
+    JNIEnv* env,
+    const JavaParamRef<jbyteArray>& j_session_id,
+    const JavaParamRef<jbyteArray>& j_message) const {
+  SB_NOTREACHED() << "App provisioning is unsupported for ExoPlayer.";
+}
+
 void DrmSystemExoPlayer::OnKeyStatusChanged(
     JNIEnv* env,
     const JavaParamRef<jbyteArray>& session_id,
@@ -219,15 +226,15 @@ void DrmSystemExoPlayer::OnKeyStatusChanged(
     ScopedJavaLocalRef<jobject> j_key_status(
         env, env->GetObjectArrayElement(key_information.obj(), i));
     ScopedJavaLocalRef<jbyteArray> j_key_id =
-        Java_ExoKeyStatus_getKeyId(env, j_key_status);
+        Java_ExoPlayerKeyStatus_getKeyId(env, j_key_status);
     std::string key_id = JavaByteArrayToString(env, j_key_id);
 
     SB_CHECK_LE(key_id.size(), sizeof(drm_key_ids[i].identifier));
     memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
     drm_key_ids[i].identifier_size = key_id.size();
 
-    drm_key_statuses[i] =
-        ToSbDrmKeyStatus(Java_ExoKeyStatus_getStatusCode(env, j_key_status));
+    drm_key_statuses[i] = ToSbDrmKeyStatus(
+        Java_ExoPlayerKeyStatus_getStatusCode(env, j_key_status));
   }
 
   key_statuses_changed_callback_(this, context_, session_id_bytes.data(),

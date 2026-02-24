@@ -85,7 +85,7 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
   void OnProvisionRequest(
       JNIEnv* env,
       const base::android::JavaParamRef<jbyteArray>& j_session_id,
-      const base::android::JavaParamRef<jbyteArray>& j_message) {}
+      const base::android::JavaParamRef<jbyteArray>& j_message) const;
   void OnKeyStatusChanged(
       JNIEnv* env,
       const base::android::JavaParamRef<jbyteArray>& session_id,

@@ -142,21 +142,21 @@ public class ExoPlayerDrmBridge {
     }
 
     /** A wrapper of the android MediaDrm.KeyStatus class to be used by JNI. */
-    public static class ExoKeyStatus {
+    public static class ExoPlayerKeyStatus {
         private final byte[] mKeyId;
         private final int mStatusCode;
 
-        public ExoKeyStatus(byte[] keyId, int statusCode) {
+        public ExoPlayerKeyStatus(byte[] keyId, int statusCode) {
             mKeyId = (keyId == null) ? null : keyId.clone();
             mStatusCode = statusCode;
         }
 
-        @CalledByNative("ExoKeyStatus")
+        @CalledByNative("ExoPlayerKeyStatus")
         private byte[] getKeyId() {
             return (mKeyId == null) ? null : mKeyId.clone();
         }
 
-        @CalledByNative("ExoKeyStatus")
+        @CalledByNative("ExoPlayerKeyStatus")
         private int getStatusCode() {
             return mStatusCode;
         }
@@ -173,9 +173,9 @@ public class ExoPlayerDrmBridge {
                                     mNativeDrmSystemExoplayer, sessionId,
                                     keyInformation.stream()
                                             .map(keyStatus
-                                                    -> new ExoKeyStatus(keyStatus.getKeyId(),
+                                                    -> new ExoPlayerKeyStatus(keyStatus.getKeyId(),
                                                             keyStatus.getStatusCode()))
-                                            .toArray(ExoKeyStatus[] ::new));
+                                            .toArray(ExoPlayerKeyStatus[] ::new));
                         });
                 return mMediaDrm;
             } catch (UnsupportedDrmException e) {
@@ -228,15 +228,6 @@ public class ExoPlayerDrmBridge {
     }
 
     /**
-     * Passes a provision request response to the drm callback.
-     * @param response Response data.
-     */
-    @CalledByNative
-    void setProvisionRequestResponse(byte[] response) {
-        mMediaDrmCallback.setProvisionRequestResponse(response);
-    }
-
-    /**
      * Passes a key request response to the drm callback.
      * @param response Response data.
      */
@@ -253,6 +244,6 @@ public class ExoPlayerDrmBridge {
                 long nativeDrmSystemExoPlayer, int requestType, byte[] data, byte[] sessionId);
 
         void onKeyStatusChanged(
-                long nativeDrmSystemExoPlayer, byte[] sessionId, ExoKeyStatus[] keyInformation);
+                long nativeDrmSystemExoPlayer, byte[] sessionId, ExoPlayerKeyStatus[] keyInformation);
     }
 }
