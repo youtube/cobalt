@@ -409,7 +409,9 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
-      number_of_preroll_frames_(kInitialPrerollFrameCount) {
+      number_of_preroll_frames_(
+          experimental_features.video_decoder_initial_preroll_count.value_or(
+              kInitialPrerollFrameCount)) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -439,13 +441,14 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
     }
   }
 
-  SB_LOG(INFO) << "Created VideoDecoder for codec "
-               << GetMediaVideoCodecName(video_codec_) << ", with output mode "
-               << GetPlayerOutputModeName(output_mode_)
-               << ", max pending input size " << max_pending_inputs_size_
-               << ", max video capabilities \"" << max_video_capabilities_
-               << "\", and tunnel mode audio session id "
-               << tunnel_mode_audio_session_id_;
+  SB_LOG(INFO) << "Created VideoDecoder for codec="
+               << GetMediaVideoCodecName(video_codec_)
+               << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
+               << ", max pending input size=" << max_pending_inputs_size_
+               << ", max video capabilities=\"" << max_video_capabilities_
+               << "\", tunnel mode audio session id="
+               << tunnel_mode_audio_session_id_
+               << ", preroll count=" << number_of_preroll_frames_;
 }
 
 VideoDecoder::~VideoDecoder() {
