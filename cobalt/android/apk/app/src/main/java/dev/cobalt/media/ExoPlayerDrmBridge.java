@@ -169,13 +169,16 @@ public class ExoPlayerDrmBridge {
                 mMediaDrm = new ExoMediaDrmWrapper(uuid);
                 mMediaDrm.setCobaltOnKeyStatusChangeListener(
                         (mediaDrm, sessionId, keyInformation, hasNewUsableKey) -> {
+                            ExoPlayerKeyStatus[] keyStatuses =
+                                    new ExoPlayerKeyStatus[keyInformation.size()];
+                            for (int i = 0; i < keyInformation.size(); i++) {
+                                ExoMediaDrm.KeyStatus keyStatus = keyInformation.get(i);
+                                keyStatuses[i] = new ExoPlayerKeyStatus(
+                                        keyStatus.getKeyId(), keyStatus.getStatusCode());
+                            }
+
                             ExoPlayerDrmBridgeJni.get().onKeyStatusChanged(
-                                    mNativeDrmSystemExoplayer, sessionId,
-                                    keyInformation.stream()
-                                            .map(keyStatus
-                                                    -> new ExoPlayerKeyStatus(keyStatus.getKeyId(),
-                                                            keyStatus.getStatusCode()))
-                                            .toArray(ExoPlayerKeyStatus[] ::new));
+                                    mNativeDrmSystemExoplayer, sessionId, keyStatuses);
                         });
                 return mMediaDrm;
             } catch (UnsupportedDrmException e) {

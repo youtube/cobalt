@@ -44,6 +44,29 @@ public final class ExoPlayerMediaSample {
   private final ParsableByteArray mIvData;
   private final ParsableByteArray mSubsampleData;
 
+  // Reusable ParsableByteArray instances to avoid frequent memory allocations on the hot path
+  // (e.g., during 60fps playback). These are stored in ThreadLocal to ensure thread safety
+  // while allowing memory reuse for encryption-related metadata.
+  private static final ThreadLocal<ParsableByteArray> sEncryptionSignalByte = new ThreadLocal<>();
+  private static final ThreadLocal<ParsableByteArray> sIvData = new ThreadLocal<>();
+  private static final ThreadLocal<ParsableByteArray> sSubsampleData = new ThreadLocal<>();
+  private static final ThreadLocal<ByteBuffer> sSubsampleBuffer = new ThreadLocal<>();
+
+  private static ParsableByteArray getParsableByteArray(
+      ThreadLocal<ParsableByteArray> threadLocal, int requiredSize) {
+    ParsableByteArray byteArray = threadLocal.get();
+    if (byteArray == null) {
+      byteArray = new ParsableByteArray(requiredSize);
+      threadLocal.set(byteArray);
+    } else if (byteArray.capacity() < requiredSize) {
+      byteArray.reset(requiredSize);
+    } else {
+      byteArray.setPosition(0);
+      byteArray.setLimit(requiredSize);
+    }
+    return byteArray;
+  }
+
   @CalledByNative
   public ExoPlayerMediaSample(
       ByteBuffer samples,
@@ -78,21 +101,37 @@ public final class ExoPlayerMediaSample {
       flags |= C.BUFFER_FLAG_ENCRYPTED;
       this.mCryptoData = new CryptoData(encryptionMode, key, encryptedBlocks, clearBlocks);
 
-      this.mEncryptionSignalByte = new ParsableByteArray(1);
+      // Acquire a reused buffer for the encryption signal byte.
+      // This byte contains the IV size and a flag indicating if subsamples are present.
+      this.mEncryptionSignalByte = getParsableByteArray(sEncryptionSignalByte, 1);
+      // Top bit (0x80) signals presence of subsamples; remaining bits are the IV size.
       this.mEncryptionSignalByte.getData()[0] = (byte) (ivSize | (mHasSubsamples ? 0x80 : 0));
 
-      this.mIvData = new ParsableByteArray(initializationVector, ivSize);
+      // Re-use or resize the IV buffer to avoid allocation.
+      this.mIvData = getParsableByteArray(sIvData, 0);
+      this.mIvData.reset(initializationVector, ivSize);
 
       if (mHasSubsamples) {
         int subsampleCount = subsampleEncryptedBytes.length;
+        // 2 bytes for count + 6 bytes per subsample (2 for clear, 4 for encrypted).
         int subsampleDataLength = 2 + 6 * subsampleCount;
-        ByteBuffer subsampleBuffer = ByteBuffer.allocate(subsampleDataLength);
-        subsampleBuffer.putShort((short) subsampleCount);
-        for (int i = 0; i < subsampleCount; i++) {
-          subsampleBuffer.putShort((short) subsampleClearBytes[i]);
-          subsampleBuffer.putInt(subsampleEncryptedBytes[i]);
+        this.mSubsampleData = getParsableByteArray(sSubsampleData, subsampleDataLength);
+
+        // We use a ThreadLocal ByteBuffer to provide a readable 'put' API over the
+        // raw reused byte array.
+        ByteBuffer buffer = sSubsampleBuffer.get();
+        // If the ParsableByteArray was reallocated due to size requirements, we must
+        // re-wrap our ByteBuffer to point to the new underlying array.
+        if (buffer == null || buffer.array() != mSubsampleData.getData()) {
+          buffer = ByteBuffer.wrap(mSubsampleData.getData());
+          sSubsampleBuffer.set(buffer);
         }
-        this.mSubsampleData = new ParsableByteArray(subsampleBuffer.array());
+        buffer.clear();
+        buffer.putShort((short) subsampleCount);
+        for (int i = 0; i < subsampleCount; i++) {
+          buffer.putShort((short) subsampleClearBytes[i]);
+          buffer.putInt(subsampleEncryptedBytes[i]);
+        }
       } else {
         this.mSubsampleData = null;
       }
