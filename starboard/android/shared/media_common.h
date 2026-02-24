@@ -173,6 +173,8 @@ inline int GetAudioFormatSampleType(
 }
 
 inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
+  // Convenience HDR mastering metadata.
+  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
   return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
          color_metadata.transfer == kSbMediaTransferIdBt709 &&
          color_metadata.matrix == kSbMediaMatrixIdBt709 &&

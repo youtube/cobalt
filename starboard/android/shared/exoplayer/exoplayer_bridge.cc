@@ -25,7 +25,6 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
 #include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -132,7 +131,7 @@ ExoPlayerBridge::ExoPlayerBridge(
 
   ScopedJavaLocalRef<jobject> j_exoplayer_bridge =
       Java_ExoPlayerManager_createExoPlayerBridge(
-          env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
+          env, j_exoplayer_manager, reinterpret_cast<jlong>(this),
           j_audio_media_source, j_video_media_source, j_drm_bridge,
           j_output_surface,
           (video_stream_info.codec != kSbMediaVideoCodecNone &&
@@ -200,8 +199,7 @@ void ExoPlayerBridge::Seek(int64_t timestamp) {
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
-                                   SbMediaType type,
-                                   std::vector<uint8_t>& drm_init_data) {
+                                   SbMediaType type) {
   // TODO: It's possible that a video sample may contain valid
   // SbMediaColorMetadata after codec creation. When that happens,
   // we should recreate the video decoder to use the new metadata.
@@ -392,8 +390,6 @@ void ExoPlayerBridge::ReportError(const std::string& msg) const {
 void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
                                            const InputBuffers& input_buffers,
                                            SbMediaType type) {
-  JNIEnv* env = AttachCurrentThread();
-
   for (auto& input_buffer : input_buffers) {
     bool is_key_frame = type == kSbMediaTypeAudio
                             ? true
@@ -401,11 +397,9 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
     int offset = GetSampleOffset(type, input_buffer);
     int size = input_buffer->size() - offset;
 
-    env->SetByteArrayRegion(
-        static_cast<jbyteArray>(j_sample_data_.obj()), 0, size,
-        reinterpret_cast<const jbyte*>(input_buffer->data() + offset));
-    ScopedJavaLocalRef<jbyteArray> sample_data_local_ref(
-        env, static_cast<jbyteArray>(env->NewLocalRef(j_sample_data_.obj())));
+    ScopedJavaLocalRef<jobject> sample_byte_buffer(
+        env, env->NewDirectByteBuffer(
+                 const_cast<uint8_t*>(input_buffer->data() + offset), size));
 
     if (input_buffer->drm_info()) {
       const SbDrmSampleInfo* drm_sample_info = input_buffer->drm_info();
@@ -415,14 +409,6 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
                           drm_sample_info->initialization_vector_size);
       ScopedJavaLocalRef<jbyteArray> j_key = ToJavaByteArray(
           env, drm_sample_info->identifier, drm_sample_info->identifier_size);
-      ScopedJavaLocalRef<jbyteArray> j_init_data;
-
-      if (drm_init_data.size() > 0) {
-        j_init_data =
-            ToJavaByteArray(env, drm_init_data.data(), drm_init_data.size());
-      } else {
-        j_init_data = NULL;
-      }
 
       // Reshape the sub sample mapping like this:
       // [(c0, e0), (c1, e1), ...] -> [c0, c1, ...] and [e0, e1, ...]
@@ -441,7 +427,7 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
       }
 
       Java_ExoPlayerBridge_writeEncryptedSample(
-          env, j_exoplayer_bridge_, sample_data_local_ref, size,
+          env, j_exoplayer_bridge_, sample_byte_buffer, size,
           input_buffer->timestamp(), is_key_frame, type, cipher_mode, j_key,
           blocks_to_encrypt, blocks_to_skip, j_iv,
           drm_sample_info->initialization_vector_size,
@@ -450,13 +436,13 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
     }
 
     Java_ExoPlayerBridge_writeSample(
-        env, j_exoplayer_bridge_, sample_data_local_ref, size,
+        env, j_exoplayer_bridge_, sample_byte_buffer, size,
         input_buffer->timestamp(), is_key_frame, type);
   }
+}
 
-  void ExoPlayerBridge::WriteEOSInternal(JNIEnv * env, SbMediaType type) const {
-    Java_ExoPlayerBridge_writeEndOfStream(env, j_exoplayer_bridge_,
-                                          static_cast<jint>(type));
-  }
-
+void ExoPlayerBridge::WriteEOSInternal(JNIEnv* env, SbMediaType type) const {
+  Java_ExoPlayerBridge_writeEndOfStream(env, j_exoplayer_bridge_,
+                                        static_cast<jint>(type));
+}
 }  // namespace starboard

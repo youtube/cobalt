@@ -21,8 +21,6 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
-
-#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
@@ -119,7 +117,7 @@ void DrmSystemExoPlayer::UpdateSession(int ticket,
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_response =
       ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(key), key_size);
-  Java_ExoPlayerDrmBridge_SetKeyRequestResponse(env, j_exoplayer_drm_bridge_,
+  Java_ExoPlayerDrmBridge_setKeyRequestResponse(env, j_exoplayer_drm_bridge_,
                                                 j_response);
   // TODO: Get the status when the key is set.
   session_updated_callback_(this, context_, ticket, kSbDrmStatusSuccess, "",

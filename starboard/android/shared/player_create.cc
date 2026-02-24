@@ -204,9 +204,9 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
   }
 
-  bool should_use_exoplayer = starboard::features::FeatureList::IsEnabled(
+  bool use_exoplayer = starboard::features::FeatureList::IsEnabled(
       starboard::features::kEnableExoPlayer);
-  if (should_use_exoplayer &&
+  if (use_exoplayer &&
       creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
     SB_LOG(WARNING) << "ExoPlayer does not support decode-to-texture mode, "
                        "defaulting to FilterBasedPlayerWorkerHandler.";

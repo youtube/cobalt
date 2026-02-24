@@ -35,7 +35,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
       const SbPlayerCreationParam* creation_param);
 
  private:
-  Result<void> Init(SbPlayer player,
+  Result<void> Init(JobQueue* job_queue,
+                    SbPlayer player,
                     UpdateMediaInfoCB update_media_info_cb,
                     GetPlayerStateCB get_player_state_cb,
                     UpdatePlayerStateCB update_player_state_cb,
@@ -81,7 +82,7 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
 
-  SbPlayerCreationParam creation_param_;
+  // SbPlayerCreationParam creation_param_;
   DrmSystemExoPlayer* drm_system_;
   bool drm_initialized_ = false;
 };

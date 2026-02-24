@@ -47,6 +47,7 @@ ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
 }
 
 Result<void> ExoPlayerPlayerWorkerHandler::Init(
+    JobQueue* job_queue,
     SbPlayer player,
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
@@ -65,16 +66,15 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
   update_player_state_cb_ = update_player_state_cb;
   update_player_error_cb_ = update_player_error_cb;
 
-  AttachToCurrentThread();
+  Attach(job_queue);
 
   std::vector<uint8_t> drm_init_data;
-  if (!drm_initialized_ && drm_system_) {
+  if (drm_system_) {
     drm_init_data = drm_system_->GetInitializationData();
 
     if (drm_init_data.size() == 0) {
-      return Failure("Did not get init data in time");
+      return Failure("Did not get DRM init data.");
     }
-    drm_initialized_ = true;
   }
 
   bridge_ = std::make_unique<ExoPlayerBridge>(
@@ -122,8 +122,6 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
     SB_DCHECK(input_buffer);
   }
 
-  std::vector<uint8_t> drm_init_data;
-
   SbMediaType sample_type = input_buffers.front()->sample_type();
   *samples_written = 0;
   if (IsEOSWritten(sample_type)) {
@@ -132,7 +130,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
                     << " sample after EOS is written.";
   } else {
     if (bridge_->CanAcceptMoreData(sample_type)) {
-      bridge_->WriteSamples(input_buffers, sample_type, drm_init_data);
+      bridge_->WriteSamples(input_buffers, sample_type);
       *samples_written = static_cast<int>(input_buffers.size());
     }
   }
