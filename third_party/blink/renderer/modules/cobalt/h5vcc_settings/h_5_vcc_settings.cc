@@ -47,51 +47,57 @@ constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
 constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
 
-struct ScriptContext {
+struct SettingContext {
   ScriptState* script_state;
   const ExceptionContext& exception_context;
+  const V8UnionLongOrString* value;
+  const String& name;
 };
 
 using Result = base::expected<void, String>;
 
-template <typename T, typename Callback>
-ScriptPromise ProcessSettingAs(const ScriptContext& context,
-                               const V8UnionLongOrString* value,
-                               const String& name,
-                               Callback callback) {
+ScriptPromise Reject(const SettingContext& context, const String& error) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       context.script_state, context.exception_context);
+  resolver->Reject(V8ThrowException::CreateTypeError(
+      context.script_state->GetIsolate(), error));
+  return resolver->Promise();
+}
 
-  if (!value->IsLong()) {
-    LOG(WARNING) << "The value for '" << name << "' must be a number.";
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        context.script_state->GetIsolate(),
-        "The value for '" + name + "' must be a number."));
-    return resolver->Promise();
-  }
-
-  Result result = callback(static_cast<T>(value->GetAsLong()));
-  if (!result.has_value()) {
-    LOG(WARNING) << "Failed to set " << name << " to " << value->GetAsLong()
-                 << ": " << result.error();
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        context.script_state->GetIsolate(), result.error()));
-    return resolver->Promise();
-  }
-
-  LOG(INFO) << name << " is set to " << value->GetAsLong();
+ScriptPromise Resolve(const SettingContext& context) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      context.script_state, context.exception_context);
   resolver->Resolve();
   return resolver->Promise();
 }
 
+template <typename T, typename Callback>
+ScriptPromise ProcessSettingAs(const SettingContext& context,
+                               Callback callback) {
+  if (!context.value->IsLong()) {
+    LOG(WARNING) << "The value for '" << context.name << "' must be a number.";
+    return Reject(context,
+                  "The value for '" + context.name + "' must be a number.");
+  }
+  const int32_t value = context.value->GetAsLong();
+
+  Result result = callback(static_cast<T>(value));
+  if (!result.has_value()) {
+    LOG(WARNING) << "Failed to set " << context.name << " to " << value << ": "
+                 << result.error();
+    return Reject(context, result.error());
+  }
+
+  LOG(INFO) << context.name << " is set to " << value;
+  return Resolve(context);
+}
+
 template <typename ActionCallback>
-ScriptPromise ProcessEnableOnlySetting(const ScriptContext& context,
-                                       const V8UnionLongOrString* value,
-                                       const String& name,
+ScriptPromise ProcessEnableOnlySetting(const SettingContext& context,
                                        ActionCallback action) {
   return ProcessSettingAs<bool>(
-      context, value, name,
-      [name, action = std::move(action)](bool enable) -> Result {
+      context,
+      [name = context.name, action = std::move(action)](bool enable) -> Result {
         if (!enable) {
           return base::unexpected(name + " cannot be disabled.");
         }
@@ -115,7 +121,8 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
                                  const WTF::String& name,
                                  const V8UnionLongOrString* value,
                                  ExceptionState& exception_state) {
-  ScriptContext context{script_state, exception_state.GetContext()};
+  SettingContext context{script_state, exception_state.GetContext(), value,
+                         name};
 
   // Use StringView to enable template-based comparison with string literals.
   // This allows the compiler to use the literal's size at compile-time (via
@@ -123,24 +130,23 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
   // checks.
   WTF::StringView name_view(name);
   if (name_view == kEnableMediaBufferPoolAllocatorStrategy) {
-    return ProcessEnableOnlySetting(context, value, name, [] {
+    return ProcessEnableOnlySetting(context, [] {
       ::media::DecoderBuffer::EnableMediaBufferPoolStrategy();
     });
   }
   if (name_view == kEnableInPlaceReuseAllocatorBase) {
-    return ProcessEnableOnlySetting(context, value, name, [] {
+    return ProcessEnableOnlySetting(context, [] {
       ::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase();
     });
   }
   if (name_view == kMediaAppendFirstSegmentSynchronously) {
-    return ProcessSettingAs<bool>(
-        context, value, name, [this](bool enable) -> Result {
-          append_first_segment_synchronously_ = enable;
-          return base::ok();
-        });
+    return ProcessSettingAs<bool>(context, [this](bool enable) -> Result {
+      append_first_segment_synchronously_ = enable;
+      return base::ok();
+    });
   }
   if (name_view == kMediaExperimentalMaxPendingBytesPerParse) {
-    return ProcessSettingAs<int>(context, value, name, [](int value) -> Result {
+    return ProcessSettingAs<int>(context, [](int value) -> Result {
       if (value <= 0) {
         return base::unexpected(kMediaExperimentalMaxPendingBytesPerParse +
                                 String(" must be a positive integer."));
@@ -151,7 +157,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
     });
   }
   if (name_view == kMediaIncrementalParseLookAhead) {
-    return ProcessEnableOnlySetting(context, value, name, [] {
+    return ProcessEnableOnlySetting(context, [] {
       ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
     });
   }
