@@ -204,7 +204,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
-  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
+  SbPlayer player = new starboard::SbPlayerPrivateImpl(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 
@@ -218,10 +218,10 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     return player;
   }
 
-  SB_LOG(ERROR)
-      << "Invalid player returned by SbPlayerPrivateImpl::CreateInstance().";
+  SB_LOG(ERROR) << "Invalid player returned by "
+                   "SbPlayerPrivateImpl::SbPlayerPrivateImpl().";
   player_error_func(
       kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-      "Invalid player returned by SbPlayerPrivateImpl::CreateInstance()");
+      "Invalid player returned by SbPlayerPrivateImpl::SbPlayerPrivateImpl()");
   return kSbPlayerInvalid;
 }

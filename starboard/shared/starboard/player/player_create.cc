@@ -206,7 +206,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
           creation_param, provider);
 
-  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
+  SbPlayer player = new starboard::SbPlayerPrivateImpl(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 
