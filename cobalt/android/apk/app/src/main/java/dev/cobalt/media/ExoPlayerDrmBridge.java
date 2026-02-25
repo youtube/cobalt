@@ -22,12 +22,17 @@ import android.util.Base64;
 import androidx.media3.common.C;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.ExoMediaDrm;
+import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
 import androidx.media3.exoplayer.drm.MediaDrmCallback;
 import androidx.media3.exoplayer.drm.MediaDrmCallbackException;
 import androidx.media3.exoplayer.drm.UnsupportedDrmException;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 import dev.cobalt.util.Log;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -49,13 +54,75 @@ public class ExoPlayerDrmBridge {
     private final NativeMediaDrmCallback mMediaDrmCallback;
     private final DefaultDrmSessionManager mDrmSessionManager;
     private final MediaSource.Factory mMediaSourceFactory;
-    private ExoMediaDrmWrapper mMediaDrm;
+    private CobaltExoMediaDrm mMediaDrm;
     private byte[] mSessionId;
 
     // Arbitrarily chosen durations to wait for a response from the license server.
     private static final long PROVISION_REQUEST_TIMEOUT_MS = 2000;
     private static final long KEY_REQUEST_TIMEOUT_MS = 2000;
 
+    /** Interface to allow the proxy to expose internal state and custom listeners. */
+    private interface CobaltExoMediaDrm extends ExoMediaDrm {
+        byte[] getSessionId();
+        void setCobaltOnKeyStatusChangeListener(OnKeyStatusChangeListener listener);
+    }
+
+    /**
+     * A Dynamic Proxy handler that delegates to FrameworkMediaDrm while intercepting
+     * session-related calls.
+     */
+    private static class ExoMediaDrmInvocationHandler implements InvocationHandler {
+        private final FrameworkMediaDrm mRealDrm;
+        private byte[] mSessionId;
+        private ExoMediaDrm.OnKeyStatusChangeListener mExoListener;
+        private ExoMediaDrm.OnKeyStatusChangeListener mCobaltListener;
+
+        public ExoMediaDrmInvocationHandler(FrameworkMediaDrm realDrm) {
+            mRealDrm = realDrm;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            String methodName = method.getName();
+            try {
+                if (methodName.equals("openSession")) {
+                    mSessionId = (byte[]) method.invoke(mRealDrm, args);
+                    return mSessionId;
+                } else if (methodName.equals("getSessionId")) {
+                    return mSessionId;
+                } else if (methodName.equals("setOnKeyStatusChangeListener")) {
+                    mExoListener = (ExoMediaDrm.OnKeyStatusChangeListener) args[0];
+                    updateOnKeyStatusChangeListener(proxy);
+                    return null;
+                } else if (methodName.equals("setCobaltOnKeyStatusChangeListener")) {
+                    mCobaltListener = (ExoMediaDrm.OnKeyStatusChangeListener) args[0];
+                    updateOnKeyStatusChangeListener(proxy);
+                    return null;
+                }
+                return method.invoke(mRealDrm, args);
+            } catch (InvocationTargetException e) {
+                throw e.getCause();
+            }
+        }
+
+        private void updateOnKeyStatusChangeListener(Object proxy) {
+            if (mExoListener == null && mCobaltListener == null) {
+                mRealDrm.setOnKeyStatusChangeListener(null);
+                return;
+            }
+            mRealDrm.setOnKeyStatusChangeListener(
+                    (mediaDrm, sessionId, keyInformation, hasNewUsableKey) -> {
+                        if (mExoListener != null) {
+                            mExoListener.onKeyStatusChange(
+                                    (ExoMediaDrm) proxy, sessionId, keyInformation, hasNewUsableKey);
+                        }
+                        if (mCobaltListener != null) {
+                            mCobaltListener.onKeyStatusChange(
+                                    (ExoMediaDrm) proxy, sessionId, keyInformation, hasNewUsableKey);
+                        }
+                    });
+        }
+    }
 
     private final class NativeMediaDrmCallback implements MediaDrmCallback {
         private volatile CompletableFuture<byte[]> mPendingProvisionRequestResponse;
@@ -165,7 +232,13 @@ public class ExoPlayerDrmBridge {
         @Override
         public ExoMediaDrm acquireExoMediaDrm(UUID uuid) {
             try {
-                mMediaDrm = new ExoMediaDrmWrapper(uuid);
+                FrameworkMediaDrm realDrm = FrameworkMediaDrm.newInstance(uuid);
+                ExoMediaDrmInvocationHandler handler = new ExoMediaDrmInvocationHandler(realDrm);
+                mMediaDrm = (CobaltExoMediaDrm) Proxy.newProxyInstance(
+                        ExoPlayerDrmBridge.class.getClassLoader(),
+                        new Class<?>[] {CobaltExoMediaDrm.class},
+                        handler);
+
                 mMediaDrm.setCobaltOnKeyStatusChangeListener(
                         (mediaDrm, sessionId, keyInformation, hasNewUsableKey) -> {
                             ExoPlayerKeyStatus[] keyStatuses =
