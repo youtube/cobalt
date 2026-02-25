@@ -33,14 +33,14 @@
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
-#if !BUILDFLAG(IS_STARBOARD)
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h" //nogncheck
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h" //nogncheck
 #endif
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
-#if !BUILDFLAG(IS_STARBOARD)
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h" //nogncheck
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h" //nogncheck
 #endif

@@ -19,6 +19,7 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/posix/file_descriptor_shuffle.h"
 #include "base/strings/string_number_conversions.h"
@@ -26,6 +27,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/version.h"
+#include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_service.h"
@@ -38,26 +40,12 @@
 
 namespace cobalt {
 
-namespace {
-
-void OnMemoryDumpDone(
-    base::OnceClosure done_callback,
-    bool success,
-    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
-  if (success && global_dump) {
-    CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
-  }
-
-  if (done_callback) {
-    std::move(done_callback).Run();
-  }
-}
-
-}  // namespace
-
 struct CobaltMetricsServiceClient::State
     : public base::RefCountedThreadSafe<CobaltMetricsServiceClient::State> {
-  State() = default;
+  explicit State(CobaltMetricsServiceClient* parent) : parent_(parent) {}
+
+  // Parent pointer.
+  raw_ptr<CobaltMetricsServiceClient> parent_;
 
   // Task runner for background memory metrics collection.
   scoped_refptr<base::SequencedTaskRunner> task_runner;
@@ -95,12 +83,10 @@ struct CobaltMetricsServiceClient::State
       return;
     }
 
-    auto* instrumentation =
-        memory_instrumentation::MemoryInstrumentation::GetInstance();
-    if (instrumentation) {
-      instrumentation->RequestGlobalDump(
-          {}, base::BindOnce(&OnMemoryDumpDone, base::OnceClosure()));
-    }
+    scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
+        parent_->CreateMemoryMetricsEmitter();
+    emitter->FetchAndEmitProcessMemoryMetrics();
+
     RecordMemoryMetricsAfterDelay();
   }
 
@@ -134,7 +120,7 @@ void CobaltMetricsServiceClient::Initialize() {
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  state_ = base::MakeRefCounted<State>();
+  state_ = base::MakeRefCounted<State>(this);
   state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   state_->task_runner->PostTask(
       FROM_HERE, base::BindOnce(&State::RecordMemoryMetricsAfterDelay,
@@ -341,6 +327,7 @@ void CobaltMetricsServiceClient::SetUploadInterval(base::TimeDelta interval) {
 CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
   if (state_) {
     state_->stop_logging = true;
+    state_->parent_ = nullptr;
   }
 }
 
@@ -352,50 +339,15 @@ void CobaltMetricsServiceClient::SetMetricsListener(
 
 void CobaltMetricsServiceClient::ScheduleRecordForTesting(
     base::OnceClosure done_callback) {
-  state_->task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](scoped_refptr<State> state, base::OnceClosure done_callback) {
-            if (state->stop_logging) {
-              std::move(done_callback).Run();
-              return;
-            }
-            auto* instrumentation =
-                memory_instrumentation::MemoryInstrumentation::GetInstance();
-            if (instrumentation) {
-              instrumentation->RequestGlobalDump(
-                  {},
-                  base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
-            } else {
-              std::move(done_callback).Run();
-            }
-          },
-          state_, std::move(done_callback)));
+  scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
+      CreateMemoryMetricsEmitter();
+  emitter->set_callback_for_testing(std::move(done_callback));
+  emitter->FetchAndEmitProcessMemoryMetrics();
 }
 
-// static
-void CobaltMetricsServiceClient::RecordMemoryMetrics(
-    memory_instrumentation::GlobalMemoryDump* global_dump) {
-  uint64_t total_private_footprint_kb = 0;
-  uint64_t total_resident_kb = 0;
-
-  // TODO(482357006): Re-add process-specific memory metrics (Browser,
-  // Renderer, GPU) when moving to multi-process architecture.
-  for (const auto& process_dump : global_dump->process_dumps()) {
-    total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
-    total_resident_kb += process_dump.os_dump().resident_set_kb;
-  }
-
-  if (total_private_footprint_kb > 0) {
-    uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
-    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
-                                total_private_footprint_mb);
-  }
-
-  if (total_resident_kb > 0) {
-    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.Resident",
-                                total_resident_kb / 1024);
-  }
+scoped_refptr<CobaltMemoryMetricsEmitter>
+CobaltMetricsServiceClient::CreateMemoryMetricsEmitter() {
+  return base::MakeRefCounted<CobaltMemoryMetricsEmitter>();
 }
 
 }  // namespace cobalt

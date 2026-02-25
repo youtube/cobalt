@@ -215,6 +215,8 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
 
     std::string result = EvalJs(shell(), fetch_script).ExtractString();
     EXPECT_EQ(expected_content, result);
+
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
   }
 
   void VerifySplashVideoFromCache(const std::string& cache_name,
