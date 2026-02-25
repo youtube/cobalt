@@ -134,7 +134,7 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
 
   static int number_of_players_;
 
-  //  worker_ should be placed last, so that it is destroyed first.
+  // |worker_| should be placed last, so that it is destroyed first.
   std::unique_ptr<PlayerWorker> worker_;
 };
 
