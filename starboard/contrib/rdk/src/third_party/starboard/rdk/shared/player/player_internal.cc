@@ -44,6 +44,7 @@
 #include <unistd.h>
 
 #include "starboard/common/once.h"
+#include "starboard/common/media.h"
 #include <optional>
 #include <sys/resource.h>
 #include "starboard/common/thread.h"
@@ -51,6 +52,7 @@
 #include "starboard/drm.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 #include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
 #include "third_party/starboard/rdk/shared/hang_detector.h"
 #include "third_party/starboard/rdk/shared/drm/gst_decryptor_ocdm.h"
@@ -874,12 +876,72 @@ static int CompareColorMetadata(const SbMediaColorMetadata& lhs, const SbMediaCo
   return memcmp(&lhs, &rhs, sizeof(SbMediaColorMetadata));
 }
 
+static void AddVideoMimeToGstCaps(GstCaps* caps, const char* mime) {
+  if (!mime || !mime[0]) {
+    GST_DEBUG("Empty mime string.");
+    return;
+  }
+
+  const ::starboard::shared::starboard::media::MimeType mime_type { mime };
+  if (!mime_type.is_valid()) {
+    GST_DEBUG("Invalid mime_type.");
+    return;
+  }
+
+  const auto& codecs = mime_type.GetCodecs();
+  if (codecs.size() != 1) {
+    GST_DEBUG("Incorrect codecs size.");
+    return;
+  }
+
+  const char* codec_string = codecs[0].c_str();
+
+  bool is_dv_codec =
+    strncmp(codec_string, "dvhe.", 5) == 0 ||
+    strncmp(codec_string, "dav1.", 5) == 0 ||
+    strncmp(codec_string, "dvh1.", 5) == 0;
+
+  if (is_dv_codec) {
+    // signal dolby vision
+    gst_caps_set_simple (caps, "dovi-stream", G_TYPE_BOOLEAN, TRUE, NULL);
+
+    // try parsing profile and level from codec string
+    SbMediaVideoCodec video_codec;
+    int profile = -1;
+    int level = -1;
+    int bit_depth = 8;
+    SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
+    SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
+    SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
+
+    if (::starboard::ParseVideoCodec(codec_string, &video_codec, &profile, &level,
+                                     &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
+      GST_DEBUG("Got video codec: %u, bit_depth: %d, profile: %d, level: %d.",
+                video_codec, bit_depth, profile, level);
+      gst_caps_set_simple (
+        caps,
+        "dv_profile", G_TYPE_INT, profile,
+        "dv_level",  G_TYPE_INT, level,
+        NULL);
+    } else {
+      GST_WARNING("Couldn't parse video codec info from mime type '%s'.", mime);
+    }
+  }
+}
+
 static void AddVideoInfoToGstCaps(const SbMediaVideoStreamInfo& info, GstCaps* caps) {
   AddColorMetadataToGstCaps(caps, info.color_metadata);
+
   gst_caps_set_simple (caps,
     "width", G_TYPE_INT, info.frame_width,
     "height", G_TYPE_INT, info.frame_height,
     NULL);
+
+  if (info.codec == kSbMediaVideoCodecH264 ||
+      info.codec == kSbMediaVideoCodecH265 ||
+      info.codec == kSbMediaVideoCodecAv1) {
+    AddVideoMimeToGstCaps(caps, info.mime);
+  }
 
   if (info.max_video_capabilities && *info.max_video_capabilities) {
     MaxVideoCapabilities max_caps;
@@ -958,7 +1020,6 @@ static GstElement* CreatePayloader() {
 
   return gst_element_factory_create(factory, nullptr);
 }
-
 
 static GstElement* CreateGstElement(const gchar* factory_name, const gchar* name_format, ...) {
   GstElement *result;
@@ -2317,7 +2378,7 @@ bool PlayerImpl::UpdateSrcCaps(const SbPlayerSampleInfo& sample_info) {
           gst_caps_set_simple(gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
       }
 
-      GST_INFO_OBJECT(pipeline_, "caps: %" GST_PTR_FORMAT, gst_caps);
+      GST_INFO_OBJECT(pipeline_, "mime: '%s', caps: %" GST_PTR_FORMAT, info.mime, gst_caps);
       gst_app_src_set_caps(GST_APP_SRC(video_appsrc_), gst_caps);
       gst_caps_replace(&video_caps_, gst_caps);
       gst_caps_unref(gst_caps);
@@ -2338,7 +2399,7 @@ bool PlayerImpl::UpdateSrcCaps(const SbPlayerSampleInfo& sample_info) {
           gst_caps_set_simple (gst_caps, kDecryptToHostFieldName, G_TYPE_BOOLEAN, TRUE, nullptr);
       }
 
-      GST_INFO_OBJECT(pipeline_, "caps: %" GST_PTR_FORMAT, gst_caps);
+      GST_INFO_OBJECT(pipeline_, "mime: '%s', caps: %" GST_PTR_FORMAT, audio_info.mime, gst_caps);
       gst_app_src_set_caps(GST_APP_SRC(audio_appsrc_), gst_caps);
       if (audio_codec_ == kSbMediaAudioCodecVorbis || audio_codec_ == kSbMediaAudioCodecFlac)
         PushStreamHeaders(GST_APP_SRC(audio_appsrc_), gst_caps);
