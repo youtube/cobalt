@@ -251,6 +251,10 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
+  RunMigrationTasks(web_contents);
+}
+
+void MigrationManager::RunMigrationTasks(content::WebContents* web_contents) {
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
