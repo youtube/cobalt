@@ -43,7 +43,7 @@ class SbPlayerAndroid
         audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
         player_status_func, player_error_func, context,
         std::move(player_worker_handler), experimental_features));
-    if (!player->worker_) {
+    if (!player->is_valid()) {
       return nullptr;
     }
     return player.release();

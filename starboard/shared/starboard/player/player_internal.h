@@ -103,7 +103,7 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  std::unique_ptr<PlayerWorker> worker_;
+  bool is_valid() const { return worker_ != nullptr; }
 
  private:
   void UpdateMediaInfo(int64_t media_time,
@@ -133,6 +133,9 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
 
   static int number_of_players_;
+
+  //  worker_ should be placed last, so that it is destroyed first.
+  std::unique_ptr<PlayerWorker> worker_;
 };
 
 }  // namespace starboard::shared::starboard::player
