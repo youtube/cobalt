@@ -14,8 +14,7 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
-#include "base/functional/callback.h"
-#include "base/no_destructor.h"
+#include "base/types/expected.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/stream_parser.h"
@@ -32,7 +31,6 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
-#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -70,7 +68,16 @@ ScriptPromise ProcessSettingAs(const ScriptContext& context,
         "The value for '" + name + "' must be a number."));
     return resolver->Promise();
   }
-  callback(resolver, static_cast<T>(value->GetAsLong()));
+
+  base::expected<void, String> result =
+      callback(static_cast<T>(value->GetAsLong()));
+  if (result.has_value()) {
+    resolver->Resolve();
+  } else {
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        context.script_state->GetIsolate(), result.error()));
+  }
+
   return resolver->Promise();
 }
 
@@ -81,75 +88,16 @@ ScriptPromise ProcessEnableOnlySetting(const ScriptContext& context,
                                        ActionCallback action) {
   return ProcessSettingAs<bool>(
       context, value, name,
-      [&context, name, action = std::move(action)](
-          ScriptPromiseResolver* resolver, bool enable) {
+      [name, action = std::move(action)](
+          bool enable) -> base::expected<void, String> {
         if (!enable) {
           LOG(WARNING) << name << " cannot be disabled.";
-          resolver->Reject(V8ThrowException::CreateTypeError(
-              context.script_state->GetIsolate(),
-              name + " cannot be disabled."));
-          return;
+          return base::unexpected(name + " cannot be disabled.");
         }
 
         LOG(INFO) << "Enabling " << name << ".";
         action();
-        resolver->Resolve();
-      });
-}
-
-constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
-    "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
-static_assert(
-    std::string_view(kEnableMediaBufferPoolAllocatorStrategy)
-        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
-    kDecoderBufferSettingPrefix);
-
-using EnableFunction = void (*)();
-using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
-
-const SettingsMap& GetDecoderBufferSettings() {
-  static const base::NoDestructor<SettingsMap> settings({
-      {kEnableDecommitableAllocatorStrategy,
-       &::media::DecoderBufferAllocator::EnableDecommitableAllocatorStrategy},
-      {kEnableInPlaceReuseAllocatorBase,
-       &::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase},
-      {kEnableMediaBufferPoolAllocatorStrategy,
-       &::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy},
-  });
-  return *settings;
-}
-
-// Ideally this function should be moved to decoder_buffer.h.  It's kept here as
-// H5vccSettings will soon be deprecated and it's easier to remove from here.
-ScriptPromise ProcessDecoderBufferSettings(const ScriptContext& context,
-                                           const WTF::String& name,
-                                           const V8UnionLongOrString* value) {
-  DCHECK(name.StartsWith(kDecoderBufferSettingPrefix));
-
-  return ProcessSettingAs<bool>(
-      context, value, name, [&](ScriptPromiseResolver* resolver, bool enable) {
-        const auto& settings = GetDecoderBufferSettings();
-        auto it = settings.find(name);
-
-        if (it == settings.end()) {
-          LOG(WARNING) << name << " isn't a supported setting.";
-          // An unknown setting leads to TypeError.
-          resolver->Reject(V8ThrowException::CreateTypeError(
-              context.script_state->GetIsolate(),
-              name + " isn't a supported setting."));
-          return;
-        }
-
-        if (enable) {
-          LOG(INFO) << "Enabling " << name << ".";
-          it->value();
-          resolver->Resolve();
-        } else {
-          LOG(WARNING) << name << " cannot be disabled.";
-          resolver->Reject(V8ThrowException::CreateTypeError(
-              context.script_state->GetIsolate(),
-              name + " cannot be disabled."));
-        }
+        return base::ok();
       });
 }
 
@@ -174,15 +122,25 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
   // sizeof), avoiding runtime length calculations (strlen) during equality
   // checks.
   WTF::StringView name_view(name);
-
-  if (name_view.StartsWith(kDecoderBufferSettingPrefix)) {
-    return ProcessDecoderBufferSettings(context, name, value);
+  if (name_view == kEnableMediaBufferPoolAllocatorStrategy) {
+    return ProcessEnableOnlySetting(context, value, name, [] {
+      ::media::DecoderBuffer::EnableMediaBufferPoolStrategy();
+    });
   }
-
+  if (name_view == kEnableInPlaceReuseAllocatorBase) {
+    return ProcessEnableOnlySetting(context, value, name, [] {
+      ::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase();
+    });
+  }
+  if (name_view == kMediaIncrementalParseLookAhead) {
+    return ProcessEnableOnlySetting(context, value, name, [] {
+      ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+    });
+  }
   if (name_view == kMediaAppendFirstSegmentSynchronously) {
     return ProcessSettingAs<bool>(
         context, value, name,
-        [&](ScriptPromiseResolver* resolver, bool enable) {
+        [this](bool enable) -> base::expected<void, String> {
           append_first_segment_synchronously_ = enable;
           if (enable) {
             LOG(INFO)
@@ -191,30 +149,26 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
             LOG(INFO) << "Disable synchronous append of first media source"
                       << " segment.";
           }
-          resolver->Resolve();
+          return base::ok();
         });
   }
-
   if (name_view == kMediaExperimentalMaxPendingBytesPerParse) {
     return ProcessSettingAs<int>(
-        context, value, name, [&](ScriptPromiseResolver* resolver, int value) {
+        context, value, name, [](int value) -> base::expected<void, String> {
           if (value > 0) {
             LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
                       << " to " << value << " bytes.";
             ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
                 value);
-            resolver->Resolve();
+            return base::ok();
           } else {
             LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
                          << " must be set to a positive integer";
-            resolver->Reject(V8ThrowException::CreateTypeError(
-                context.script_state->GetIsolate(),
-                kMediaExperimentalMaxPendingBytesPerParse +
-                    String(" must be a positive integer.")));
+            return base::unexpected(kMediaExperimentalMaxPendingBytesPerParse +
+                                    String(" must be a positive integer."));
           }
         });
   }
-
   if (name_view == kMediaIncrementalParseLookAhead) {
     return ProcessEnableOnlySetting(context, value, name, [] {
       ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
