@@ -1,7 +1,6 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
-  "_disabled_test_targets": [
-    "TODO: Passes tests but crashes on exit.",
+  "TODO(b/486053854): Tests pass but crashes on exit": [
     "gpu:gl_tests_loader",
     "gpu:gpu_unittests_loader",
     "ipc:ipc_tests_loader",
@@ -9,9 +8,9 @@
     "third_party/boringssl:boringssl_crypto_tests_loader",
     "third_party/boringssl:boringssl_ssl_tests_loader",
     "url:url_unittests_loader",
-    "third_party/zlib:zlib_unittests_loader",
-    "------------------------------",
-    "TODO: Crashes on missing SbEventHandle",
+    "third_party/zlib:zlib_unittests_loader"
+  ],
+  "TODO(b/486053350): Crashes on missing SbEventHandle": [
     "compositor:compositor_unittests_loader",
     "examples:views_examples_unittests_loader",
     "gl:gl_unittests_loader",
