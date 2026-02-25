@@ -10,15 +10,29 @@ runs:
   - name: Install sccache
     shell: bash
     run: brew install sccache
+  # - name: 'Set up Cloud SDK'
+  #   if: inputs.sccache_gcs_key == ''
+  #   uses: 'google-github-actions/setup-gcloud@v3'
+  #   with:
+  #     version: '>= 363.0.0'
   - name: Configure sccache
     shell: bash
     env:
       SCCACHE_GCS_KEY: ${{ inputs.sccache_gcs_key }}
     run: |
-      printf "%s" "$SCCACHE_GCS_KEY" > "${HOME}/gcloud.json"
-      echo "SCCACHE_GCS_RW_MODE=READ_WRITE" >> $GITHUB_ENV
-      echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
-      echo "SCCACHE_GCS_BUCKET=cobalt-sccache-tvos-bucket" >> $GITHUB_ENV
+      if [[ -n "$SCCACHE_GCS_KEY" ]]; then
+        # If we have a GCS key we use READ_WRITE
+        printf "%s" "$SCCACHE_GCS_KEY" > "${HOME}/gcloud.json"
+        echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
+        echo "SCCACHE_GCS_RW_MODE=READ_WRITE" >> $GITHUB_ENV
+        echo "SCCACHE_GCS_BUCKET=cobalt-sccache-tvos-bucket" >> $GITHUB_ENV
+      else
+        # Read only
+        echo "SCCACHE_BUCKET=cobalt-sccache-tvos-bucket" >> $GITHUB_ENV
+        echo "SCCACHE_ENDPOINT=https://storage.googleapis.com" >> $GITHUB_ENV
+        echo "SCCACHE_S3_NO_CREDENTIALS=true" >> $GITHUB_ENV
+        echo "SCCACHE_REGION=auto" >> $GITHUB_ENV
+      fi
       echo "SCCACHE=1" >> $GITHUB_ENV
       echo "SCCACHE_IDLE_TIMEOUT=0" >> $GITHUB_ENV
   - name: Start sccache server
