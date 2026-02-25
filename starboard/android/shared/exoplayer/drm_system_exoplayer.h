@@ -17,9 +17,7 @@
 
 #include <jni.h>
 
-#include <atomic>
 #include <condition_variable>
-#include <memory>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -30,7 +28,6 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
-#include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 
@@ -92,8 +89,8 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
   SbDrmSessionUpdatedFunc session_updated_callback_;
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  std::mutex mutex_;
-  std::atomic_bool init_data_available_ = false;
+  mutable std::mutex mutex_;
+  bool init_data_available_ = false;
   // Guarded by |mutex_|.
   std::condition_variable init_data_available_cv_;
 
@@ -103,7 +100,8 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_drm_bridge_;
 
-  int ticket_;
+  int ticket_ = 0;
+  std::unordered_map<std::string, int> session_id_to_ticket_;
 };
 
 }  // namespace starboard

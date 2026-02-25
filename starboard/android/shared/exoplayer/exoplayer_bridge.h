@@ -18,7 +18,6 @@
 #include <jni.h>
 
 #include <atomic>
-#include <condition_variable>
 #include <mutex>
 
 #include "base/android/jni_android.h"

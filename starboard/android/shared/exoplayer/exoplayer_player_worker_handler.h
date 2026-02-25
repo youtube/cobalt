@@ -85,7 +85,6 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
 
-  // SbPlayerCreationParam creation_param_;
   DrmSystemExoPlayer* drm_system_;
 
   // Prevents additional errors from being reported after the first, as only one

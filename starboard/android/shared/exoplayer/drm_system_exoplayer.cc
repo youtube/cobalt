@@ -14,12 +14,10 @@
 
 #include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 
-#include <atomic>
 #include <chrono>
 #include <vector>
 
 #include "base/android/jni_array.h"
-#include "base/android/jni_string.h"
 #include "starboard/android/shared/drm_common.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
@@ -103,12 +101,13 @@ void DrmSystemExoPlayer::GenerateSessionUpdateRequest(
     const char* type,
     const void* initialization_data,
     int initialization_data_size) {
+  std::lock_guard<std::mutex> lock(mutex_);
   ticket_ = ticket;
   initialization_data_ = std::vector<uint8_t>(
       reinterpret_cast<const uint8_t*>(initialization_data),
       reinterpret_cast<const uint8_t*>(initialization_data) +
           initialization_data_size);
-  init_data_available_.store(true);
+  init_data_available_ = true;
   init_data_available_cv_.notify_one();
 }
 
@@ -120,13 +119,19 @@ void DrmSystemExoPlayer::UpdateSession(int ticket,
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_response =
       ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(key), key_size);
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    session_id_to_ticket_[std::string(reinterpret_cast<const char*>(session_id),
+                                      session_id_size)] = ticket;
+  }
+
   Java_ExoPlayerDrmBridge_setKeyRequestResponse(env, j_exoplayer_drm_bridge_,
                                                 j_response);
   session_updated_callback_(this, context_, ticket, kSbDrmStatusSuccess, "",
                             session_id, session_id_size);
 }
 
-// No-op as the player handles the destruction of the session.
 void DrmSystemExoPlayer::CloseSession(const void* session_id_data,
                                       int session_id_size) {}
 
@@ -163,10 +168,13 @@ const void* DrmSystemExoPlayer::GetMetrics(int* size) {
   }
   jsize metrics_size = base::android::SafeGetArrayLength(env, j_metrics);
 
-  metrics_.assign(metrics_elements, metrics_elements + metrics_size);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    metrics_.assign(metrics_elements, metrics_elements + metrics_size);
+    *size = static_cast<int>(metrics_.size());
+  }
 
   env->ReleaseByteArrayElements(j_metrics.obj(), metrics_elements, JNI_ABORT);
-  *size = static_cast<int>(metrics_.size());
 
   return metrics_.data();
 }
@@ -178,8 +186,20 @@ void DrmSystemExoPlayer::OnKeyRequest(
     const JavaParamRef<jbyteArray>& j_session_id) {
   std::string session_id = JavaByteArrayToString(env, j_session_id);
   std::string message = JavaByteArrayToString(env, j_message);
+
+  int ticket;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = session_id_to_ticket_.find(session_id);
+    if (it != session_id_to_ticket_.end()) {
+      ticket = it->second;
+    } else {
+      ticket = ticket_;
+    }
+  }
+
   update_request_callback_(
-      this, context_, ticket_, kSbDrmStatusSuccess,
+      this, context_, ticket, kSbDrmStatusSuccess,
       ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       nullptr, session_id.data(), session_id.size(), message.data(),
       message.size(), kNoUrl);
@@ -196,10 +216,8 @@ void DrmSystemExoPlayer::OnKeyStatusChanged(
     JNIEnv* env,
     const JavaParamRef<jbyteArray>& session_id,
     const JavaParamRef<jobjectArray>& key_information) {
-  // From //starboard/android/shared/media_drm_bridge.cc.
   std::string session_id_bytes = JavaByteArrayToString(env, session_id);
 
-  // nullptr array indicates key status isn't supported (i.e. Android API < 23).
   jsize length =
       (key_information == nullptr) ? 0 : env->GetArrayLength(key_information);
   std::vector<SbDrmKeyId> drm_key_ids(length);
@@ -227,13 +245,10 @@ void DrmSystemExoPlayer::OnKeyStatusChanged(
 }
 
 std::vector<uint8_t> DrmSystemExoPlayer::GetInitializationData() {
-  bool received_init_data;
-  {
-    std::unique_lock<std::mutex> lock(mutex_);
-    received_init_data = init_data_available_cv_.wait_for(
-        lock, std::chrono::microseconds(kWaitForInitializedTimeoutUsec),
-        [this] { return init_data_available_.load(); });
-  }
+  std::unique_lock<std::mutex> lock(mutex_);
+  bool received_init_data = init_data_available_cv_.wait_for(
+      lock, std::chrono::microseconds(kWaitForInitializedTimeoutUsec),
+      [this] { return init_data_available_; });
 
   if (!received_init_data) {
     return std::vector<uint8_t>();

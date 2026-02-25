@@ -18,7 +18,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <mutex>
 #include <string>
 
@@ -86,14 +85,10 @@ ExoPlayerBridge::ExoPlayerBridge(
   if (SbDrmSystemIsValid(drm_system)) {
     DrmSystemExoPlayer* drm_system_exoplayer =
         reinterpret_cast<DrmSystemExoPlayer*>(drm_system);
-    SB_LOG(INFO) << "GETTING DRM BRIDGE";
     j_drm_bridge = ScopedJavaLocalRef<jobject>(
         env, drm_system_exoplayer->get_exoplayer_drm_bridge());
-    SB_LOG(INFO) << "GOT DRM BRIDGE";
     if (!j_drm_bridge.is_null()) {
-      SB_LOG(INFO) << "GETTING SESSION MANAGER";
       j_session_manager = drm_system_exoplayer->GetDrmSessionManager();
-      SB_LOG(INFO) << "GOT SESSION MANAGER";
     }
   }
 
