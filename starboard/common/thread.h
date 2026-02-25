@@ -23,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
@@ -33,13 +34,9 @@ class Semaphore;
 
 class Thread {
  public:
-  explicit Thread(const std::string& name) : Thread(name, /*stack_size=*/0) {}
-  explicit Thread(const std::string& name, int64_t stack_size);
+  explicit Thread(std::string_view name);
   template <size_t N>
-  explicit Thread(char const (&name)[N]) : Thread(name, /*stack_size=*/0) {}
-  template <size_t N>
-  explicit Thread(char const (&name)[N], int64_t stack_size)
-      : Thread(std::string(name), stack_size) {
+  explicit Thread(char const (&name)[N]) : Thread(std::string_view(name)) {
     // Common to all user code, limited by Linux pthreads default
     static_assert(N <= 16, "Thread name too long, max 16");
   }
@@ -72,7 +69,7 @@ class Thread {
   std::atomic_bool* joined_bool();
 
   struct Data;
-  std::unique_ptr<Data> d_;
+  const std::unique_ptr<Data> d_;
 
   Thread(const Thread&) = delete;
   void operator=(const Thread&) = delete;

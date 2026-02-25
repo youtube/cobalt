@@ -16,10 +16,6 @@ import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 source_set("browser") {
-  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # cobalt_shell_lib.
-  testonly = true
-
   sources = [
     "cobalt_browser_interface_binders.cc",
     "cobalt_browser_interface_binders.h",
@@ -40,7 +36,10 @@ source_set("browser") {
     ]
   }
 
-  public_deps = [ "//content/public/browser" ]
+  public_deps = [
+    "//cobalt/browser/h5vcc_metrics",
+    "//content/public/browser",
+  ]
 
   deps = [
     ":command_line_logger",
@@ -55,8 +54,9 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//cobalt/browser/h5vcc_experiments",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
-    "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_platform_service",
+    "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
     "//cobalt/browser/h5vcc_storage",
@@ -72,7 +72,6 @@ source_set("browser") {
     "//cobalt/shell:cobalt_shell_lib",
     "//components/embedder_support:user_agent",
     "//components/metrics",
-    "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
@@ -84,9 +83,14 @@ source_set("browser") {
     deps += [
       "//cobalt/android:browser_jni_headers",
       "//cobalt/android:jni_headers",
+      "//components/variations:variations_associated_data",
     ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
   }
 }
 
@@ -133,6 +137,8 @@ source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
+    "metrics/cobalt_memory_metrics_emitter.cc",
+    "metrics/cobalt_memory_metrics_emitter.h",
     "metrics/cobalt_metrics_log_uploader.cc",
     "metrics/cobalt_metrics_log_uploader.h",
     "metrics/cobalt_metrics_service_client.cc",
@@ -141,6 +147,7 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
+    ":switches",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/metrics_services_manager",
@@ -148,6 +155,7 @@ source_set("metrics") {
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
     "//third_party/metrics_proto",
     "//url",
   ]

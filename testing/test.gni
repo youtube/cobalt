@@ -1028,16 +1028,11 @@ template("test") {
     # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
     # is_starboard as a toolchain arg.
   } else if (is_starboard && use_custom_libc) {
-    ignored_variables = TESTONLY_AND_VISIBILITY + [ "use_xvfb" ]
-
-    # TODO: b/452367792 - Cobalt: Evaluate if we want to support fuzztest targets.
-    if (enable_cobalt_hermetic_hacks) {
-      ignored_variables += [ "fuzztests", "fuzztest_stack_limit_kb" ]
-    }
-    modular_executable(target_name) {
+    mixed_test(target_name) {
+      target_type = "modular_executable"
       forward_variables_from(invoker,
                              "*",
-                             ignored_variables)
+                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
       testonly = true
     }
   } else if (!is_nacl) {

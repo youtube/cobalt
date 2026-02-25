@@ -87,16 +87,17 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
-          fake_graphics_context_provider_.decoder_target_provider());
+          max_video_input_size_, dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider(),
+          &job_queue_);
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
           factory->CreateComponents(creation_parameters).value();
     } else if (audio_reader_) {
       // Audio only
-      CreationParameters creation_parameters(
-          audio_reader_->audio_stream_info());
+      CreationParameters creation_parameters(audio_reader_->audio_stream_info(),
+                                             &job_queue_);
       player_components_ =
           factory->CreateComponents(creation_parameters).value();
     } else {
@@ -104,8 +105,9 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
-          fake_graphics_context_provider_.decoder_target_provider());
+          max_video_input_size_, dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider(),
+          &job_queue_);
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
@@ -475,6 +477,7 @@ class PlayerComponentsTest
   const std::string video_filename_;
   const SbPlayerOutputMode output_mode_;
   const int max_video_input_size_;
+  void* dummy_surface_view_ = nullptr;
   JobQueue job_queue_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   unique_ptr<VideoDmpReader> audio_reader_;

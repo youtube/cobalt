@@ -82,9 +82,13 @@ int AlignUp(int value, int alignment) {
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
     const AudioStreamInfo& audio_stream_info,
+    JobQueue* job_queue,
     SbDrmSystem drm_system)
-    : audio_stream_info_(audio_stream_info), drm_system_(drm_system) {
+    : audio_stream_info_(audio_stream_info),
+      job_queue_(job_queue),
+      drm_system_(drm_system) {
   SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
+  SB_CHECK(job_queue_);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
@@ -92,19 +96,24 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
+    JobQueue* job_queue,
     SbDrmSystem drm_system)
     : video_stream_info_(video_stream_info),
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
+      job_queue_(job_queue),
       drm_system_(drm_system) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK_NE(output_mode_, kSbPlayerOutputModeInvalid);
+  SB_CHECK(job_queue_);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
@@ -113,19 +122,24 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
+    JobQueue* job_queue,
     SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info),
       video_stream_info_(video_stream_info),
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
+      job_queue_(job_queue),
       drm_system_(drm_system) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
+  SB_CHECK(job_queue_);
 }
 
 NonNullResult<std::unique_ptr<PlayerComponents>>
@@ -133,6 +147,7 @@ PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
+  SB_CHECK(creation_parameters.job_queue());
 
   bool use_stub_audio_decoder = false;
   bool use_stub_video_decoder = false;
@@ -188,7 +203,7 @@ PlayerComponents::Factory::CreateComponents(
                            &min_frames_per_append);
 
     audio_renderer = std::make_unique<AudioRendererPcm>(
-        std::move(components.audio.decoder),
+        creation_parameters.job_queue(), std::move(components.audio.decoder),
         std::move(components.audio.renderer_sink),
         creation_parameters.audio_stream_info(), max_cached_frames,
         min_frames_per_append);
@@ -203,12 +218,13 @@ PlayerComponents::Factory::CreateComponents(
       media_time_provider = audio_renderer.get();
     } else {
       media_time_provider_impl = std::make_unique<MediaTimeProviderImpl>(
+          creation_parameters.job_queue(),
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
     video_renderer = std::make_unique<VideoRendererImpl>(
-        std::move(components.video.decoder), media_time_provider,
-        std::move(components.video.render_algorithm),
+        creation_parameters.job_queue(), std::move(components.video.decoder),
+        media_time_provider, std::move(components.video.render_algorithm),
         std::move(components.video.renderer_sink));
   }
 
@@ -223,13 +239,14 @@ PlayerComponents::Factory::CreateStubAudioComponents(
     const CreationParameters& creation_parameters) {
   PlayerComponents::Factory::AudioComponents components;
 
-  auto decoder_creator = [](const AudioStreamInfo& audio_stream_info,
-                            SbDrmSystem drm_system) {
-    return std::make_unique<StubAudioDecoder>(audio_stream_info);
+  JobQueue* job_queue = creation_parameters.job_queue();
+  auto decoder_creator = [job_queue](const AudioStreamInfo& audio_stream_info,
+                                     SbDrmSystem drm_system) {
+    return std::make_unique<StubAudioDecoder>(job_queue, audio_stream_info);
   };
   components.decoder = std::make_unique<AdaptiveAudioDecoder>(
-      creation_parameters.audio_stream_info(), creation_parameters.drm_system(),
-      decoder_creator);
+      job_queue, creation_parameters.audio_stream_info(),
+      creation_parameters.drm_system(), decoder_creator);
   components.renderer_sink = std::make_unique<AudioRendererSinkImpl>();
   return components;
 }
@@ -240,7 +257,8 @@ PlayerComponents::Factory::CreateStubVideoComponents(
   const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
 
   PlayerComponents::Factory::VideoComponents components;
-  components.decoder = std::make_unique<StubVideoDecoder>();
+  components.decoder =
+      std::make_unique<StubVideoDecoder>(creation_parameters.job_queue());
   components.render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
   components.renderer_sink = make_scoped_refptr<PunchoutVideoRendererSink>(
       creation_parameters.player(), kVideoSinkRenderIntervalUsec);

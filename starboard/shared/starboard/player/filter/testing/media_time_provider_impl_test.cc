@@ -80,8 +80,9 @@ class MediaTimeProviderImplTest : public ::testing::Test {
         // is passed to and owned by |media_time_provider_impl_|, so the tests
         // can adjust expectation on it.  This is safe in the context of the
         // tests.
-        media_time_provider_impl_(std::unique_ptr<MonotonicSystemTimeProvider>(
-            system_time_provider_)) {
+        media_time_provider_impl_(&job_queue_,
+                                  std::unique_ptr<MonotonicSystemTimeProvider>(
+                                      system_time_provider_)) {
     media_time_provider_impl_.SetPlaybackRate(1.0);
   }
 

@@ -255,7 +255,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
-  REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
@@ -267,7 +266,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
-  REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(pause);
   REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
@@ -284,7 +282,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rename);
-  REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_get_priority_max);
   REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
@@ -295,7 +292,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(srand);
   REGISTER_SYMBOL(symlink);
-  REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(write);
 
@@ -327,6 +323,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(fcntl);
   REGISTER_WRAPPER(fdopendir);
   REGISTER_WRAPPER(fstat);
+  REGISTER_WRAPPER(fstatat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
   REGISTER_WRAPPER(gai_strerror);
@@ -338,14 +335,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrlimit);
   REGISTER_WRAPPER(lseek);
-
-  // TODO: Cobalt - b/424001809.
-  // Add tests for lstat. The wrapper is added to allow running
-  // on raspi-2 as without the wrapper the lstat symbol is not found in
-  // the fallback dlsym call.
-  REGISTER_WRAPPER(lstat);
-
   REGISTER_WRAPPER(mmap);
+  REGISTER_WRAPPER(openat);
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
@@ -424,10 +415,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
-  REGISTER_WRAPPER(stat);
   REGISTER_WRAPPER(statvfs);
   REGISTER_WRAPPER(sysconf);
   REGISTER_WRAPPER(uname);
+  REGISTER_WRAPPER(unlinkat);
   REGISTER_WRAPPER(utimensat);
   REGISTER_WRAPPER(writev);
 

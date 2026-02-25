@@ -38,7 +38,7 @@ namespace starboard {
 
 class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  explicit OpenMaxVideoDecoder(SbMediaVideoCodec video_codec);
+  OpenMaxVideoDecoder(JobQueue* job_queue, SbMediaVideoCodec video_codec);
   ~OpenMaxVideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,

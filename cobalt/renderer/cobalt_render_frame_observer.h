@@ -39,13 +39,6 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver {
 
   // Overridden so that the observer has the same lifetime as the RenderFrame.
   void OnDestruct() override;
-
-#if defined(RUN_BROWSER_TESTS)
-  // Overridden for Cobalt-specific responses to this particular notification.
-  // See blink::WebLocalFrameClient.DidClearWindowObject() for details about
-  // when it's sent.
-  void DidClearWindowObject() override;
-#endif  // defined(RUN_BROWSER_TESTS)
 };
 
 }  // namespace cobalt

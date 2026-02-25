@@ -121,8 +121,9 @@ class AudioDecoderTest
       const AudioStreamInfo& audio_stream_info,
       std::unique_ptr<AudioDecoder>* audio_decoder,
       std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
-    if (CreateAudioComponents(using_stub_decoder_, audio_stream_info,
-                              audio_decoder, audio_renderer_sink)) {
+    if (CreateAudioComponents(using_stub_decoder_, &job_queue_,
+                              audio_stream_info, audio_decoder,
+                              audio_renderer_sink)) {
       SB_CHECK(*audio_decoder);
       (*audio_decoder)
           ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),

@@ -57,9 +57,10 @@ bool HasRemoteAudioOutput() {
 
 }  // namespace
 
-AVSBAudioRenderer::AVSBAudioRenderer(const AudioStreamInfo& audio_stream_info,
+AVSBAudioRenderer::AVSBAudioRenderer(JobQueue* job_queue,
+                                     const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system)
-    : audio_stream_info_(audio_stream_info) {
+    : JobOwner(job_queue), audio_stream_info_(audio_stream_info) {
   if (drm_system && DrmSystemPlatform::IsSupported(drm_system)) {
     drm_system_ = static_cast<DrmSystemPlatform*>(drm_system);
   }

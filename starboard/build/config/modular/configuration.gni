@@ -29,11 +29,6 @@ gtest_target_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"
 starboard_level_gtest_target_type = "shared_library"
 
-speed_config_path = "//starboard/build/config/modular:speed"
-if (!sb_is_evergreen) {
-  size_config_path = "//starboard/build/config/modular:size"
-}
-
 pedantic_warnings_config_path =
     "//starboard/build/config/modular:pedantic_warnings"
 no_pedantic_warnings_config_path =

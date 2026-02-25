@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/shared/enhanced_audio/enhanced_audio.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
@@ -119,6 +118,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/linux/system_symbolize.cc",
     "//starboard/shared/linux/thread_get_id.cc",
     "//starboard/shared/linux/time_zone_get_name.cc",
+    "//starboard/shared/linux/time_zone_monitor.cc",
+    "//starboard/shared/linux/time_zone_monitor.h",
     "//starboard/shared/openh264/openh264_library_loader.cc",
     "//starboard/shared/openh264/openh264_library_loader.h",
     "//starboard/shared/openh264/openh264_video_decoder.cc",
@@ -250,6 +251,13 @@ static_library("starboard_platform_sources") {
     ]
   }
 
+  if (!cobalt_is_release_build) {
+    sources += [
+      "//starboard/linux/shared/echo_service.cc",
+      "//starboard/linux/shared/echo_service.h",
+    ]
+  }
+
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//third_party/dav1d:public_dav1d_config",
@@ -278,7 +286,7 @@ static_library("starboard_platform_sources") {
       "//starboard/shared/starboard/drm/drm_update_session.cc",
       "//starboard/shared/widevine/drm_system_widevine.cc",
       "//starboard/shared/widevine/drm_system_widevine.h",
-      "//starboard/shared/widevine/media_is_supported.cc",
+      "//starboard/shared/widevine/media_is_key_system_supported.cc",
       "//starboard/shared/widevine/widevine_storage.cc",
       "//starboard/shared/widevine/widevine_storage.h",
       "//starboard/shared/widevine/widevine_timer.cc",
@@ -299,7 +307,7 @@ static_library("starboard_platform_sources") {
       "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
       "//starboard/shared/stub/drm_update_server_certificate.cc",
       "//starboard/shared/stub/drm_update_session.cc",
-      "//starboard/shared/stub/media_is_supported.cc",
+      "//starboard/shared/stub/media_is_key_system_supported.cc",
     ]
   }
 

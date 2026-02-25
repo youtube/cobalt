@@ -32,9 +32,13 @@
     "MP4StreamParserTest.*",
     "MPEG1AudioStreamParserTest.*",
     "SimpleSources.*",
+    "StarboardRendererWrapperTest.*",
     "Vp8ParserTest.*",
     "Vp9ParserTest.*",
     "WebMStreamParserTest.*",
     "WebPParserTest.*"
+  ],
+  "_filtered_b/467135717": [
+    "StarboardRendererWrapperTest.*"
   ]
 }

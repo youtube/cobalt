@@ -39,8 +39,8 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 
-  if (!starboard::MediaIsSupported(kSbMediaVideoCodecNone,
-                                   kSbMediaAudioCodecNone, key_system)) {
+  if (!starboard::MediaIsKeySystemSupported(
+          kSbMediaVideoCodecNone, kSbMediaAudioCodecNone, key_system)) {
     return kSbDrmSystemInvalid;
   }
 

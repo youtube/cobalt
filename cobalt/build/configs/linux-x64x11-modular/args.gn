@@ -17,3 +17,6 @@ enable_library_cdms = false
 # is respected with LTO.
 is_cfi = false
 use_thin_lto = false
+
+# We don't currently use sandboxes in Cobalt Evergreen.
+v8_enable_sandbox = false

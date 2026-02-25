@@ -26,6 +26,7 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/thread.h"
 #include "starboard/media.h"
@@ -73,30 +74,58 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     ~Host() {}
   };
 
-  MediaCodecDecoder(Host* host,
+  static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
+      JobQueue* job_queue,
+      Host* host,
+      const AudioStreamInfo& audio_stream_info,
+      SbDrmSystem drm_system);
+  static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForVideo(
+      JobQueue* job_queue,
+      Host* host,
+      SbMediaVideoCodec video_codec,
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
+      const Size& frame_size_hint,
+      const std::optional<Size>& max_frame_size,
+      int fps,
+      jobject j_output_surface,
+      SbDrmSystem drm_system,
+      const SbMediaColorMetadata* color_metadata,
+      bool require_software_codec,
+      const FrameRenderedCB& frame_rendered_cb,
+      const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+      int tunnel_mode_audio_session_id,
+      bool force_big_endian_hdr_metadata,
+      int max_video_input_size,
+      int64_t flush_delay_usec);
+
+  MediaCodecDecoder(PassKey<MediaCodecDecoder>,
+                    JobQueue* job_queue,
+                    Host* host,
                     const AudioStreamInfo& audio_stream_info,
-                    SbDrmSystem drm_system);
-  MediaCodecDecoder(Host* host,
-                    SbMediaVideoCodec video_codec,
-                    // `width_hint` and `height_hint` are used to create the
-                    // Android video format, which don't have to be directly
-                    // related to the resolution of the video.
-                    int width_hint,
-                    int height_hint,
-                    std::optional<int> max_width,
-                    std::optional<int> max_height,
-                    int fps,
-                    jobject j_output_surface,
                     SbDrmSystem drm_system,
-                    const SbMediaColorMetadata* color_metadata,
-                    bool require_software_codec,
-                    const FrameRenderedCB& frame_rendered_cb,
-                    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-                    int tunnel_mode_audio_session_id,
-                    bool force_big_endian_hdr_metadata,
-                    int max_video_input_size,
-                    int64_t flush_delay_usec,
                     std::string* error_message);
+  MediaCodecDecoder(
+      PassKey<MediaCodecDecoder>,
+      JobQueue* job_queue,
+      Host* host,
+      SbMediaVideoCodec video_codec,
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
+      const Size& frame_size_hint,
+      const std::optional<Size>& max_frame_size,
+      int fps,
+      jobject j_output_surface,
+      SbDrmSystem drm_system,
+      const SbMediaColorMetadata* color_metadata,
+      bool require_software_codec,
+      const FrameRenderedCB& frame_rendered_cb,
+      const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+      int tunnel_mode_audio_session_id,
+      bool force_big_endian_hdr_metadata,
+      int max_video_input_size,
+      int64_t flush_delay_usec,
+      std::string* error_message);
   ~MediaCodecDecoder();
 
   void Initialize(const ErrorCB& error_cb);
@@ -108,8 +137,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   size_t GetNumberOfPendingInputs() const {
     return number_of_pending_inputs_.load();
   }
-
-  bool is_valid() const { return media_codec_bridge_ != NULL; }
 
   bool Flush();
 
@@ -214,6 +241,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   // Working thread to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
+  // Factory method guarantees that media_codec_bridge_ is non-null.
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 

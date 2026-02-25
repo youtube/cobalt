@@ -39,7 +39,8 @@ namespace starboard {
 
 class VpxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  VpxVideoDecoder(SbMediaVideoCodec video_codec,
+  VpxVideoDecoder(JobQueue* job_queue,
+                  SbMediaVideoCodec video_codec,
                   SbPlayerOutputMode output_mode,
                   SbDecodeTargetGraphicsContextProvider*
                       decode_target_graphics_context_provider);
