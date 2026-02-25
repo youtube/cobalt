@@ -36,22 +36,23 @@
 namespace blink {
 namespace {
 
-static constexpr char kEnableInPlaceReuseAllocatorBase[] =
+constexpr char kEnableInPlaceReuseAllocatorBase[] =
     "DecoderBuffer.EnableInPlaceReuseAllocatorBase";
-static constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
+constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
     "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
-static constexpr char kMediaAppendFirstSegmentSynchronously[] =
+constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
-static constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
+constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
     "Media.ExperimentalMaxPendingBytesPerParse";
-static constexpr char kMediaIncrementalParseLookAhead[] =
+constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
-static constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
 struct ScriptContext {
   ScriptState* script_state;
   const ExceptionContext& exception_context;
 };
+
+using Result = base::expected<void, String>;
 
 template <typename T, typename Callback>
 ScriptPromise ProcessSettingAs(const ScriptContext& context,
@@ -69,15 +70,17 @@ ScriptPromise ProcessSettingAs(const ScriptContext& context,
     return resolver->Promise();
   }
 
-  base::expected<void, String> result =
-      callback(static_cast<T>(value->GetAsLong()));
-  if (result.has_value()) {
-    resolver->Resolve();
-  } else {
+  Result result = callback(static_cast<T>(value->GetAsLong()));
+  if (!result.has_value()) {
+    LOG(WARNING) << "Failed to set " << name << " to " << value->GetAsLong()
+                 << ": " << result.error();
     resolver->Reject(V8ThrowException::CreateTypeError(
         context.script_state->GetIsolate(), result.error()));
+    return resolver->Promise();
   }
 
+  LOG(INFO) << name << " is set to " << value->GetAsLong();
+  resolver->Resolve();
   return resolver->Promise();
 }
 
@@ -88,14 +91,11 @@ ScriptPromise ProcessEnableOnlySetting(const ScriptContext& context,
                                        ActionCallback action) {
   return ProcessSettingAs<bool>(
       context, value, name,
-      [name, action = std::move(action)](
-          bool enable) -> base::expected<void, String> {
+      [name, action = std::move(action)](bool enable) -> Result {
         if (!enable) {
-          LOG(WARNING) << name << " cannot be disabled.";
           return base::unexpected(name + " cannot be disabled.");
         }
 
-        LOG(INFO) << "Enabling " << name << ".";
         action();
         return base::ok();
       });
@@ -132,42 +132,23 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       ::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase();
     });
   }
-  if (name_view == kMediaIncrementalParseLookAhead) {
-    return ProcessEnableOnlySetting(context, value, name, [] {
-      ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
-    });
-  }
   if (name_view == kMediaAppendFirstSegmentSynchronously) {
     return ProcessSettingAs<bool>(
-        context, value, name,
-        [this](bool enable) -> base::expected<void, String> {
+        context, value, name, [this](bool enable) -> Result {
           append_first_segment_synchronously_ = enable;
-          if (enable) {
-            LOG(INFO)
-                << "Enable synchronous append of first media source segment.";
-          } else {
-            LOG(INFO) << "Disable synchronous append of first media source"
-                      << " segment.";
-          }
           return base::ok();
         });
   }
   if (name_view == kMediaExperimentalMaxPendingBytesPerParse) {
-    return ProcessSettingAs<int>(
-        context, value, name, [](int value) -> base::expected<void, String> {
-          if (value > 0) {
-            LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
-                      << " to " << value << " bytes.";
-            ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
-                value);
-            return base::ok();
-          } else {
-            LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
-                         << " must be set to a positive integer";
-            return base::unexpected(kMediaExperimentalMaxPendingBytesPerParse +
-                                    String(" must be a positive integer."));
-          }
-        });
+    return ProcessSettingAs<int>(context, value, name, [](int value) -> Result {
+      if (value <= 0) {
+        return base::unexpected(kMediaExperimentalMaxPendingBytesPerParse +
+                                String(" must be a positive integer."));
+      }
+
+      ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(value);
+      return base::ok();
+    });
   }
   if (name_view == kMediaIncrementalParseLookAhead) {
     return ProcessEnableOnlySetting(context, value, name, [] {
