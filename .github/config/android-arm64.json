@@ -7,12 +7,8 @@
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
-<<<<<<< add-browsertest-runners-to-ci
-  "test_yts": false,
-  "test_browser": false,
-=======
   "test_yts": true,
->>>>>>> main
+  "test_browser": false,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "test_dimensions": {
     "device_type": "nvidia_shield",
