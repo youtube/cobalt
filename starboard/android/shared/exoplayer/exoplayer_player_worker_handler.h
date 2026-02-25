@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 
+#include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -34,7 +35,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
       const SbPlayerCreationParam* creation_param);
 
  private:
-  Result<void> Init(SbPlayer player,
+  Result<void> Init(JobQueue* job_queue,
+                    SbPlayer player,
                     UpdateMediaInfoCB update_media_info_cb,
                     GetPlayerStateCB get_player_state_cb,
                     UpdatePlayerStateCB update_player_state_cb,
@@ -49,6 +51,7 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   Result<void> SetBounds(const Bounds& bounds) override { return Success(); }
 
   void SetMaxVideoInputSize(int max_video_input_size) override {}
+  void SetVideoSurfaceView(void* surface_view) override {}
   void Stop() override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override {
@@ -56,6 +59,9 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   }
 
   void Update();
+
+  // The following functions must be called only on the ExoPlayer's internal
+  // Looper thread.
   void OnError(SbPlayerError error, const std::string& error_message);
   void OnPrerolled();
   void OnEnded();
@@ -72,10 +78,18 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   JobQueue::JobToken update_job_token_;
   const std::function<void()> update_job_;
 
-  const std::unique_ptr<ExoPlayerBridge> bridge_;
+  std::unique_ptr<ExoPlayerBridge> bridge_;
+
+  const SbPlayerCreationParam creation_param_;
 
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
+
+  DrmSystemExoPlayer* drm_system_;
+
+  // Prevents additional errors from being reported after the first, as only one
+  // error needs to be reported to tear down the player.
+  bool reported_error_ = false;
 };
 
 }  // namespace starboard
