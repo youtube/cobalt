@@ -620,19 +620,18 @@ jobs:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_playback_test_targets }}'
 
-  browser-test:
-    needs: [initialize, docker-unittest-image, build]
+  browser-test-on-device:
+    needs: [initialize, build]
     if: |
       needs.initialize.outputs.test_browser == 'true' &&
+      needs.initialize.outputs.test_on_device == 'true' &&
       (
         (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
         ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
         (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
       )
     runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_browser_tests
-    container:
-      image: ${{ matrix.platform == 'linux-x64x11' && needs.docker-unittest-image.outputs.docker_tag || '' }}
+    name: ${{ matrix.name }}_browser_tests_on_device
     strategy:
       fail-fast: false
       matrix:
@@ -653,9 +652,6 @@ jobs:
         uses: ./.github/actions/test_targets_json
       - name: Build and Push Browser Test Docker Image
         id: build-docker-image
-        if: |
-          needs.initialize.outputs.test_on_device == 'true' &&
-          needs.initialize.outputs.test_browser == 'true'
         uses: ./.github/actions/docker_browsertests
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -665,7 +661,6 @@ jobs:
           config: ${{ matrix.config }}
           workflow: ${{ github.workflow }}
       - name: Run Browser Tests (Android)
-        if: needs.initialize.outputs.test_on_device == 'true'
         uses: ./.github/actions/browser_tests
         with:
           test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_test_results_browsertests
@@ -675,8 +670,35 @@ jobs:
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
           docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
           test_targets: '${{ needs.initialize.outputs.browser_test_targets }}'
+
+  browser-test-on-host:
+    needs: [initialize, build, docker-unittest-image]
+    if: |
+      needs.initialize.outputs.test_browser == 'true' &&
+      needs.initialize.outputs.test_on_host == 'true' &&
+      (
+        (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+      )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_browser_tests_on_host
+    container:
+      image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Run Browser Tests (Linux)
-        if: needs.initialize.outputs.test_on_host == 'true'
         uses: ./.github/actions/linux_browser_tests
         with:
           test_artifacts_key: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -893,8 +915,8 @@ jobs:
           symbolize: 'false'
 
   browser-test-results:
-    needs: [initialize, build, browser-test]
-    if: always() && needs.browser-test.result != 'skipped'
+    needs: [initialize, build, browser-test-on-device, browser-test-on-host]
+    if: always() && (needs.browser-test-on-device.result != 'skipped' || needs.browser-test-on-host.result != 'skipped')
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
