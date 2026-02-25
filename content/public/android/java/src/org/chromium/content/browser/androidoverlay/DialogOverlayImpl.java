@@ -4,6 +4,7 @@
 
 package org.chromium.content.browser.androidoverlay;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.IBinder;
 import android.view.Surface;
@@ -273,7 +274,8 @@ public class DialogOverlayImpl
         if (window == null) return;
 
         Context context = window.getContext().get();
-        if (ContextUtils.activityFromContext(context) == null) return;
+        Activity activity = ContextUtils.activityFromContext(context);
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
 
         mDialogCore = new DialogOverlayCore();
         mDialogCore.initialize(context, mConfig, DialogOverlayImpl.this, mAsPanel);
