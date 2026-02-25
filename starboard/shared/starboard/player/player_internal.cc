@@ -31,11 +31,6 @@
 namespace starboard {
 namespace {
 
-using std::placeholders::_1;
-using std::placeholders::_2;
-using std::placeholders::_3;
-using std::placeholders::_4;
-
 int64_t CalculateMediaTime(int64_t media_time,
                            int64_t media_time_update_time,
                            double playback_rate) {
@@ -63,12 +58,7 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
           audio_codec,
           video_codec,
           std::move(player_worker_handler),
-          std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo,
-                    this,
-                    _1,
-                    _2,
-                    _3,
-                    _4),
+          [this](auto... args) { UpdateMediaInfo(args...); },
           decoder_status_func,
           player_status_func,
           player_error_func,
