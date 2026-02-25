@@ -310,11 +310,11 @@ bool ExoPlayerBridge::CanAcceptMoreData(SbMediaType type) {
   if (!initialized_.load()) {
     std::lock_guard lock(mutex_);
     if (!initialized_.load()) {
-      const auto& pending_samples = type == kSbMediaTypeAudio
-                                        ? pending_audio_samples_
-                                        : pending_video_samples_;
-      // Arbitrary limit of 256 samples to provide back-pressure during init.
-      return pending_samples.size() < 256;
+      // Arbitrary limits of 8 frames for video and 256 frames for audio.
+      if (type == kSbMediaTypeAudio) {
+        return pending_audio_samples_.size() < 256;
+      }
+      return pending_video_samples_.size() < 8;
     }
   }
 

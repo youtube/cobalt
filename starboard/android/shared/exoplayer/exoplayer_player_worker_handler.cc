@@ -220,11 +220,14 @@ void ExoPlayerPlayerWorkerHandler::Update() {
 void ExoPlayerPlayerWorkerHandler::OnError(SbPlayerError error,
                                            const std::string& error_message) {
   SB_CHECK(update_player_error_cb_);
-  RunOnWorker([this, error, error_message]() {
-    update_player_error_cb_(error, error_message.empty()
-                                       ? "ExoPlayerPlayerWorkerHandler error"
-                                       : error_message);
-  });
+  if (!reported_error_) {
+    RunOnWorker([this, error, error_message]() {
+      update_player_error_cb_(error, error_message.empty()
+                                         ? "ExoPlayerPlayerWorkerHandler error"
+                                         : error_message);
+    });
+    reported_error_ = true;
+  }
 }
 
 void ExoPlayerPlayerWorkerHandler::OnPrerolled() {

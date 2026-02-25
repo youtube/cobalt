@@ -59,6 +59,9 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   }
 
   void Update();
+
+  // The following functions must be called only on the ExoPlayer's internal
+  // Looper thread.
   void OnError(SbPlayerError error, const std::string& error_message);
   void OnPrerolled();
   void OnEnded();
@@ -84,7 +87,10 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   // SbPlayerCreationParam creation_param_;
   DrmSystemExoPlayer* drm_system_;
-  bool drm_initialized_ = false;
+
+  // Prevents additional errors from being reported after the first, as only one
+  // error needs to be reported to tear down the player.
+  bool reported_error_ = false;
 };
 
 }  // namespace starboard

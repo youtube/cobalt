@@ -34,19 +34,6 @@
 
 namespace starboard {
 
-// Must match the values returned my MediaDrm.keyRequest.getRequestType().
-// https://developer.android.com/reference/android/media/MediaDrm.KeyRequest#getRequestType().
-enum RequestType {
-  REQUEST_TYPE_UNKNOWN = -2147483648,
-  REQUEST_TYPE_INITIAL = 0,
-  REQUEST_TYPE_RENEWAL = 1,
-  REQUEST_TYPE_RELEASE = 2,
-  REQUEST_TYPE_NONE = 3,
-  REQUEST_TYPE_UPDATE = 4,
-
-  REQUEST_TYPE_MAX = REQUEST_TYPE_UPDATE,
-};
-
 class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
  public:
   DrmSystemExoPlayer(
@@ -103,12 +90,12 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
   SbDrmSessionUpdatedFunc session_updated_callback_;
-  // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
   std::mutex mutex_;
   std::atomic_bool init_data_available_ = false;
-  std::condition_variable init_data_available_cv_;  // Guarded by |mutex_|..
+  // Guarded by |mutex_|.
+  std::condition_variable init_data_available_cv_;
 
   std::vector<uint8_t> initialization_data_;
 
