@@ -25,10 +25,14 @@ namespace starboard {
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info);
 
 base::android::ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
-    const SbMediaAudioStreamInfo& stream_info);
+    const SbMediaAudioStreamInfo& stream_info,
+    jobject j_drm_session_manager,
+    const std::vector<uint8_t>& drm_init_data);
 
 base::android::ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
-    const SbMediaVideoStreamInfo& stream_info);
+    const SbMediaVideoStreamInfo& stream_info,
+    jobject j_drm_session_manager,
+    const std::vector<uint8_t>& drm_init_data);
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_UTIL_H_
