@@ -202,7 +202,12 @@ public class StarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
       closeAllServices();
+<<<<<<< HEAD
       System.exit(0);
+=======
+      advertisingId.shutdown();
+      activity.finishAndRemoveTask();
+>>>>>>> e909b6967b (android: Fix ClientLogInfo and AdvertisingId leaks (#9089))
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
@@ -612,7 +617,15 @@ public class StarboardBridge {
 
   @CalledByNative
   public void closeCobaltService(String serviceName) {
+<<<<<<< HEAD
     mCobaltServices.remove(serviceName);
+=======
+    CobaltService service = cobaltServices.get(serviceName);
+    if(service != null) {
+      service.onClose();
+      cobaltServices.remove(serviceName);
+    }
+>>>>>>> e909b6967b (android: Fix ClientLogInfo and AdvertisingId leaks (#9089))
     Log.i(TAG, String.format("Closed platform service %s.", serviceName));
   }
 
