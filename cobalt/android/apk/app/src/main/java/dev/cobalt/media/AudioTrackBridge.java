@@ -20,7 +20,6 @@ import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
-import android.media.PlaybackParams;
 import android.os.Build;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.RequiresApi;
@@ -228,34 +227,11 @@ public class AudioTrackBridge {
     mAvSyncPacketBytesRemaining = 0;
   }
 
-
-  @CalledByNative
-  public boolean setPlaybackRate(float playbackRate) {
-    if (mAudioTrack == null) {
-      Log.e(TAG, "Unable to setPlaybackRate with NULL audio track.");
-      return false;
-    }
-    if (!mTunnelModeEnabled) {
-      Log.i(TAG, "Skip SetPlaybackRate for non tunnel mode tracks.");
-      return true;
-    }
-
-    try {
-      PlaybackParams params = mAudioTrack.getPlaybackParams();
-      params.setSpeed(playbackRate);
-      mAudioTrack.setPlaybackParams(params);
-    } catch (IllegalArgumentException | IllegalStateException e) {
-      Log.e(TAG, String.format("Unable to setPlaybackRate, error: %s", e.toString()));
-      return false;
-    }
-    return true;
-  }
-
   @CalledByNative
   public int setVolume(float gain) {
     if (mAudioTrack == null) {
       Log.e(TAG, "Unable to setVolume with NULL audio track.");
-      return AudioTrack.ERROR_INVALID_OPERATION;
+      return 0;
     }
     return mAudioTrack.setVolume(gain);
   }

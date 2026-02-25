@@ -41,8 +41,11 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 
 /**
- * Passes the app Context to the ExoPlayerBridge upon creation, and implements utility functions
- * for initializing the player.
+ * Entry point for creating ExoPlayer components from the native layer.
+ *
+ * <p>This manager provides factory methods for creating the {@link ExoPlayerBridge},
+ * DRM components, and various {@link MediaSource} instances tailored for Starboard's
+ * playback requirements.
  */
 @JNINamespace("starboard")
 public class ExoPlayerManager {
@@ -50,7 +53,16 @@ public class ExoPlayerManager {
     private final DefaultRenderersFactory mRenderersFactory;
     private static final int PASSTHROUGH_CODEC_BITRATE = 384000;
 
-    /** Filters software video codecs from ExoPlayer codec selection for non-emulator devices, as well as enforces passthrough only AC3 and EAC3 support. */
+    /**
+     * A {@link MediaCodecSelector} that enforces Cobalt's decoding policies.
+     *
+     * <p>Policies:
+     * <ul>
+     *   <li>Enforces hardware-only video decoding on non-emulator devices to ensure performance.
+     *   <li>Disables internal software decoders for AC3, E-AC3, and E-AC3-JOC, as these
+     *       must be handled via passthrough.
+     * </ul>
+     */
     private static final class FilteringMediaCodecSelector implements MediaCodecSelector {
         @Override
         public List<MediaCodecInfo> getDecoderInfos(
@@ -132,14 +144,6 @@ public class ExoPlayerManager {
         return new ExoPlayerDrmBridge(mContext, nativeDrmSystem);
     }
 
-    /**
-     * Creates an audio MediaSource for playback.
-     * @param mime The audio mime type.
-     * @param audioConfigurationData The audio configuration data for Opus or AAC.
-     * @param sampleRate The audio sample rate.
-     * @param channelCount The number of audio channels.
-     * @return A new ExoPlayerMediaSource instance.
-     */
     @OptIn(markerClass = UnstableApi.class)
     @CalledByNative
     public static ExoPlayerMediaSource createAudioMediaSource(String mime,
@@ -180,16 +184,6 @@ public class ExoPlayerManager {
         return new ExoPlayerMediaSource(builder.build(), drmSessionManager);
     }
 
-    /**
-     * Creates a video MediaSource for playback.
-     * @param mime The video mime type.
-     * @param width The video width.
-     * @param height The video height.
-     * @param fps The video frame rate.
-     * @param bitrate The video bitrate.
-     * @param colorInfo The video color info.
-     * @return A new ExoPlayerMediaSource instance.
-     */
     @CalledByNative
     public static ExoPlayerMediaSource createVideoMediaSource(String mime, int width, int height,
             int fps, int bitrate, ColorInfo colorInfo, DrmSessionManager drmSessionManager,
@@ -223,23 +217,10 @@ public class ExoPlayerManager {
     }
 
     /**
-     * Creates a ColorInfo object from the given HDR metadata.
-     * @param colorRange The color range.
-     * @param colorSpace The color space.
-     * @param colorTransfer The color transfer.
-     * @param primaryRChromaticityX The red primary chromaticity x-coordinate.
-     * @param primaryRChromaticityY The red primary chromaticity y-coordinate.
-     * @param primaryGChromaticityX The green primary chromaticity x-coordinate.
-     * @param primaryGChromaticityY The green primary chromaticity y-coordinate.
-     * @param primaryBChromaticityX The blue primary chromaticity x-coordinate.
-     * @param primaryBChromaticityY The blue primary chromaticity y-coordinate.
-     * @param whitePointChromaticityX The white point chromaticity x-coordinate.
-     * @param whitePointChromaticityY The white point chromaticity y-coordinate.
-     * @param maxMasteringLuminance The maximum mastering luminance.
-     * @param minMasteringLuminance The minimum mastering luminance.
-     * @param maxCll The maximum content light level.
-     * @param maxFall The maximum frame-average light level.
-     * @return A new ColorInfo instance.
+     * Creates a {@link ColorInfo} object including HDR static metadata.
+     *
+     * <p>The HDR metadata is parsed into the CTA-861.3 binary format required by {@link
+     * android.media.MediaFormat}.
      */
     @CalledByNative
     public static ColorInfo createExoPlayerColorInfo(int colorRange, int colorSpace,

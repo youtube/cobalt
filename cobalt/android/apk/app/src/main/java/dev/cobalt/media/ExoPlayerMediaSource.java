@@ -32,7 +32,13 @@ import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/** Writes encoded media from the native app to the SampleStream */
+/**
+ * A custom {@link BaseMediaSource} that receives encoded media data from the native Starboard
+ * layer and provides it to ExoPlayer.
+ *
+ * <p>This source is designed for a single-period lifecycle, mapping to a single audio or video
+ * stream provided by the native application.
+ */
 @UnstableApi
 public final class ExoPlayerMediaSource extends BaseMediaSource {
     private final Format mFormat;
@@ -76,20 +82,9 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
         return this.mMediaItem;
     }
 
-    /**
-     * Throws an error if the source info could not be refreshed.
-     * @throws IOException If an error occurred.
-     */
     @Override
     public void maybeThrowSourceInfoRefreshError() throws IOException {}
 
-    /**
-     * Creates a media period for this media source.
-     * @param id The media period id.
-     * @param allocator The allocator to be used for the media period.
-     * @param startPositionUs The start position in microseconds.
-     * @return The media period.
-     */
     @Override
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
         synchronized (mLock) {
@@ -103,10 +98,6 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
                 "Called MediaSource.createPeriod when the MediaPeriod already exists");
     }
 
-    /**
-     * Releases a media period.
-     * @param mediaPeriod The media period to be released.
-     */
     @Override
     public void releasePeriod(MediaPeriod mediaPeriod) {
         synchronized (mLock) {
@@ -126,17 +117,6 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
                 "Called MediaSource.releasePeriod() after period was already released");
     }
 
-    /**
-     * Writes a sample to the media period.
-     * @param samples The sample data.
-     * @param size The size of the sample data.
-     * @param timestamp The timestamp of the sample in microseconds.
-     * @param isKeyFrame Whether the sample is a keyframe.
-     * @param encryptionMode Signals the type of Widevine encryption.
-     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
-     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
-     * must be non-null when writing the first sample of the stream
-     */
     public void writeSample(ExoPlayerMediaSample sample) {
         synchronized (mLock) {
             if (mMediaPeriod != null) {

@@ -51,41 +51,23 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
         }
     }
 
-    /**
-     * Prepares the media period.
-     * @param callback The callback to be notified when preparation is complete.
-     * @param positionUs The position in microseconds to prepare from.
-     */
     @Override
     public void prepare(Callback callback, long positionUs) {
         callback.onPrepared(this);
     }
 
-    /**
-     * Throws an error if preparation has failed.
-     * @throws IOException If an error occurred during preparation.
-     */
     @Override
     public void maybeThrowPrepareError() throws IOException {}
 
-    /**
-     * Returns the track groups for this media period.
-     * @return The track groups.
-     */
     @Override
     public TrackGroupArray getTrackGroups() {
         return new TrackGroupArray(new TrackGroup(mFormat));
     }
 
     /**
-     * Selects tracks for playback.
-     * @param selections The track selections.
-     * @param mayRetainStreamFlags Flags indicating whether the corresponding stream may be
-     *         retained.
-     * @param streams The streams to be updated with the selected tracks.
-     * @param streamResetFlags Flags indicating whether the corresponding stream has been reset.
-     * @param positionUs The position in microseconds to start playback from.
-     * @return The actual position in microseconds where playback will start.
+     * Initializes the {@link ExoPlayerSampleStream} for the selected track.
+     *
+     * <p>Cobalt's implementation assumes a single track per period (either audio or video).
      */
     @Override
     public long selectTracks(ExoTrackSelection[] selections, boolean[] mayRetainStreamFlags,
@@ -108,11 +90,6 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
         return positionUs;
     }
 
-    /**
-     * Discards buffered data up to a specified position.
-     * @param positionUs The position in microseconds to discard to.
-     * @param toKeyframe Whether to discard to the keyframe before or at the specified position.
-     */
     @Override
     public void discardBuffer(long positionUs, boolean toKeyframe) {
         if (mStream != null) {
@@ -120,72 +97,37 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
         }
     }
 
-    /**
-     * Reads a discontinuity, which can occur after seeking. This is ignored as it's handled in
-     * native code.
-     * @return The position of the discontinuity in microseconds, or C.TIME_UNSET if no
-     *     discontinuity was read.
-     */
     @Override
     public long readDiscontinuity() {
         return C.TIME_UNSET;
     }
 
-    /**
-     * Seeks to a specified position.
-     * @param positionUs The position in microseconds to seek to.
-     * @return The actual position in microseconds that was sought to.
-     */
     @Override
     public long seekToUs(long positionUs) {
         mStream.seek(positionUs, mFormat);
         return positionUs;
     }
 
-    /**
-     * Returns the adjusted seek position, in cases where the requested seek position is not
-     * available.
-     * @param positionUs The requested seek position in microseconds.
-     * @param seekParameters The seek parameters.
-     * @return The adjusted seek position in microseconds.
-     */
     @Override
     public long getAdjustedSeekPositionUs(long positionUs, SeekParameters seekParameters) {
         return positionUs;
     }
 
-    /**
-     * Returns the buffered position in microseconds.
-     * @return The buffered position in microseconds.
-     */
     @Override
     public long getBufferedPositionUs() {
         return mStream != null ? mStream.getBufferedPositionUs() : 0L;
     }
 
-    /**
-     * Returns the next load position in microseconds.
-     * @return The next load position in microseconds.
-     */
     @Override
     public long getNextLoadPositionUs() {
         return getBufferedPositionUs();
     }
 
-    /**
-     * Returns whether loading should continue.
-     * @param loadingInfo The loading information.
-     * @return Whether loading should continue.
-     */
     @Override
     public boolean continueLoading(@NonNull LoadingInfo loadingInfo) {
         return mStream == null || (!mStream.endOfStreamWritten() && mStream.canAcceptMoreData());
     }
 
-    /**
-     * Returns whether the media period is currently loading.
-     * @return Whether the media period is currently loading.
-     */
     @Override
     public boolean isLoading() {
         return mStream == null || !mStream.endOfStreamWritten();

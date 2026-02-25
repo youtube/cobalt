@@ -17,9 +17,12 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
+import android.content.Context;
+import android.net.Uri;
 import android.os.Build;
 import android.util.Base64;
 import androidx.media3.common.C;
+import androidx.media3.datasource.DataSpec;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.ExoMediaDrm;
 import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
@@ -33,6 +36,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -128,67 +132,73 @@ public class ExoPlayerDrmBridge {
         private volatile CompletableFuture<byte[]> mPendingProvisionRequestResponse;
         private volatile CompletableFuture<byte[]> mPendingKeyRequestResponse;
 
-        /**
-         * Executes a provisioning request.
-         *
-         * @param uuid The UUID of the content protection scheme.
-         * @param request The provisioning request.
-         * @return The response data.
-         * @throws MediaDrmCallbackException If an error occurs.
-         */
-        @Override
-        public byte[] executeProvisionRequest(UUID uuid, androidx.media3.exoplayer.drm.ExoMediaDrm.ProvisionRequest request)
-                throws MediaDrmCallbackException {
-            Log.i(TAG, "Called onProvisionRequest()");
+    /**
+     * Executes a provisioning request by forwarding it to the native Starboard layer.
+     *
+     * <p>This method blocks until a response is received from the native layer or the timeout
+     * is reached.
+     */
+    @Override
+    public byte[] executeProvisionRequest(UUID uuid, androidx.media3.exoplayer.drm.ExoMediaDrm.ProvisionRequest request)
+            throws MediaDrmCallbackException {
+        Log.i(TAG, "Called onProvisionRequest()");
 
-            if (mMediaDrm != null) {
-                mSessionId = mMediaDrm.getSessionId();
-            }
-
-            mPendingProvisionRequestResponse = new CompletableFuture<>();
-            ExoPlayerDrmBridgeJni.get().onProvisionRequest(
-                    mNativeDrmSystemExoplayer, request.getData(), mSessionId);
-
-            try {
-                return mPendingProvisionRequestResponse.get(
-                        PROVISION_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        if (mMediaDrm != null) {
+            mSessionId = mMediaDrm.getSessionId();
         }
 
-        /**
-         * Executes a key request.
-         *
-         * @param uuid The UUID of the content protection scheme.
-         * @param request The key request.
-         * @return The response data.
-         * @throws MediaDrmCallbackException If an error occurs.
-         */
-        @Override
-        public byte[] executeKeyRequest(UUID uuid, androidx.media3.exoplayer.drm.ExoMediaDrm.KeyRequest request)
-                throws MediaDrmCallbackException {
-            Log.i(TAG, "Called onKeyRequest()");
+        mPendingProvisionRequestResponse = new CompletableFuture<>();
+        ExoPlayerDrmBridgeJni.get().onProvisionRequest(
+                mNativeDrmSystemExoplayer, request.getData(), mSessionId);
 
-            if (mMediaDrm != null) {
-                mSessionId = mMediaDrm.getSessionId();
-            }
-
-            if (mSessionId == null) {
-                Log.e(TAG, "Key request fired but mSessionId is still null!");
-            }
-
-            mPendingKeyRequestResponse = new CompletableFuture<>();
-            ExoPlayerDrmBridgeJni.get().onKeyRequest(mNativeDrmSystemExoplayer,
-                    request.getRequestType(), request.getData(), mSessionId);
-
-            try {
-                return mPendingKeyRequestResponse.get(
-                        KEY_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            return mPendingProvisionRequestResponse.get(
+                    PROVISION_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
+        } catch (Exception e) {
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
         }
+    }
+
+    /**
+     * Executes a key request by forwarding it to the native Starboard layer.
+     *
+     * <p>This method blocks until a response is received from the native layer or the timeout
+     * is reached.
+     */
+    @Override
+    public byte[] executeKeyRequest(UUID uuid, androidx.media3.exoplayer.drm.ExoMediaDrm.KeyRequest request)
+            throws MediaDrmCallbackException {
+        Log.i(TAG, "Called onKeyRequest()");
+
+        if (mMediaDrm != null) {
+            mSessionId = mMediaDrm.getSessionId();
+        }
+
+        if (mSessionId == null) {
+            Log.e(TAG, "Key request fired but mSessionId is still null!");
+        }
+
+        mPendingKeyRequestResponse = new CompletableFuture<>();
+        ExoPlayerDrmBridgeJni.get().onKeyRequest(mNativeDrmSystemExoplayer,
+                request.getRequestType(), request.getData(), mSessionId);
+
+        try {
+            return mPendingKeyRequestResponse.get(
+                    KEY_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
+        } catch (Exception e) {
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
+        }
+    }
 
         public void setProvisionRequestResponse(byte[] response) {
             if (mPendingProvisionRequestResponse == null) {
@@ -229,6 +239,13 @@ public class ExoPlayerDrmBridge {
     }
 
     private class MediaDrmProvider implements ExoMediaDrm.Provider {
+        /**
+         * Acquires an {@link ExoMediaDrm} instance wrapped in a Dynamic Proxy.
+         *
+         * <p>The proxy intercepts session lifecycle events (like openSession) to track the active
+         * session ID and multiplexes key status changes to both ExoPlayer's internal listeners
+         * and the native Starboard layer.
+         */
         @Override
         public ExoMediaDrm acquireExoMediaDrm(UUID uuid) {
             try {
