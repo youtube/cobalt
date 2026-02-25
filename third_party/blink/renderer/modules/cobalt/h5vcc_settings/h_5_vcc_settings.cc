@@ -190,12 +190,13 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   ongoing_requests_.insert(resolver);
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
       WTF::BindOnce(&H5vccSettings::OnSetValueFinished, WrapPersistent(this),
                     WrapPersistent(resolver)));
-  return resolver->Promise();
+  return promise;
 }
 
 void H5vccSettings::OnSetValueFinished(ScriptPromiseResolver* resolver) {
