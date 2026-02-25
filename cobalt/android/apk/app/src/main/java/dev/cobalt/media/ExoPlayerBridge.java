@@ -36,7 +36,6 @@ import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import dev.cobalt.util.Log;
-import java.nio.ByteBuffer;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -55,7 +54,7 @@ public class ExoPlayerBridge {
     private volatile long mPlaybackPosLastUpdatedMsec = 0;
     private volatile float mPlaybackRate = 1.0f;
     private volatile boolean mIsProgressing = false;
-    private volatile boolean mIsReleasing = false;
+    private volatile boolean mIsReleased = false;
     private volatile long mSeekTimeUsec = 0;
 
     private final ExoPlayerListener mPlayerListener;
@@ -124,13 +123,15 @@ public class ExoPlayerBridge {
 
     /**
      * Initializes a new ExoPlayerBridge.
-     * @param nativeExoPlayerBridge The pointer to the native ExoPlayerBridge.
+     *
+     * @param nativeExoPlayerBridge The pointer to the native Starboard ExoPlayerBridge.
      * @param context The application context.
-     * @param renderersFactory The factory for creating renderers.
-     * @param audioSource The audio source.
-     * @param videoSource The video source.
-     * @param surface The rendering surface.
-     * @param enableTunnelMode Whether to enable tunnel mode.
+     * @param renderersFactory The factory for creating media renderers.
+     * @param audioSource The audio MediaSource, or null if audio-only playback.
+     * @param videoSource The video MediaSource, or null if video-only playback.
+     * @param drmBridge The DRM bridge for protected content, or null if clear.
+     * @param surface The rendering surface for video.
+     * @param enableTunnelMode Whether to enable low-latency tunneling mode.
      */
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context,
             DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
@@ -199,7 +200,7 @@ public class ExoPlayerBridge {
 
     @CalledByNative
     public void release() {
-        mIsReleasing = true;
+        mIsReleased = true;
         if (mPlayer == null) {
             Log.w(TAG, "Attempted to destroy ExoPlayer after it has already been released.");
             return;
@@ -216,13 +217,9 @@ public class ExoPlayerBridge {
         });
     }
 
-    /**
-     * Seeks to a specified position.
-     * @param seekToTimeUsec The position in microseconds to seek to.
-     */
     @CalledByNative
     private void seek(long seekToTimeUsec) {
-        if (mPlayer == null || mIsReleasing) {
+        if (mPlayer == null || mIsReleased) {
             reportError("Cannot seek with NULL or releasing ExoPlayer.");
             return;
         }
@@ -233,19 +230,11 @@ public class ExoPlayerBridge {
         mSeekTimeUsec = seekToTimeUsec;
     }
 
-    /**
-     * Writes a sample to the appropriate media source.
-     * @param samples The sample data.
-     * @param size The size of the sample data.
-     * @param timestamp The timestamp of the sample in microseconds.
-     * @param isKeyFrame Whether the sample is a keyframe.
-     * @param type The type of the media source (audio or video).
-     */
     @CalledByNative
     public void writeSample(ExoPlayerMediaSample sample) {
         ExoPlayerMediaSource mediaSource =
             sample.getType() == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-        if (mediaSource == null || mIsReleasing) {
+        if (mediaSource == null || mIsReleased) {
             reportError(
                 String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
                     sample.getType() == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
@@ -253,15 +242,11 @@ public class ExoPlayerBridge {
         mediaSource.writeSample(sample);
     }
 
-    /**
-     * Writes the end of the stream to the appropriate media source.
-     * @param type The type of the media source (audio or video).
-     */
     @CalledByNative
     public void writeEndOfStream(int type) {
         ExoPlayerMediaSource mediaSource =
                 type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
-        if (mediaSource == null || mIsReleasing) {
+        if (mediaSource == null || mIsReleased) {
             reportError(String.format(
                     "Tried to write %s EOS sample while ExoPlayer is in an invalid state",
                     type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
@@ -271,7 +256,7 @@ public class ExoPlayerBridge {
 
     @CalledByNative
     private void pause() {
-        if (mPlayer == null || mIsReleasing) {
+        if (mPlayer == null || mIsReleased) {
             reportError("Cannot pause with NULL or releasing ExoPlayer");
             return;
         }
@@ -283,7 +268,7 @@ public class ExoPlayerBridge {
 
     @CalledByNative
     private void play() {
-        if (mPlayer == null || mIsReleasing) {
+        if (mPlayer == null || mIsReleased) {
             reportError("Cannot play with NULL or releasing ExoPlayer");
             return;
         }
@@ -297,7 +282,7 @@ public class ExoPlayerBridge {
 
     @CalledByNative
     private void setPlaybackRate(float playbackRate) {
-        if (mPlayer == null || mIsReleasing) {
+        if (mPlayer == null || mIsReleased) {
             reportError("Cannot set playback rate with NULL or releasing ExoPlayer");
             return;
         }
@@ -313,7 +298,7 @@ public class ExoPlayerBridge {
 
     @CalledByNative
     private void setVolume(float volume) {
-        if (mPlayer == null || mIsReleasing) {
+        if (mPlayer == null || mIsReleased) {
             reportError("Cannot set volume with NULL or releasing ExoPlayer");
             return;
         }
@@ -325,7 +310,7 @@ public class ExoPlayerBridge {
 
     @CalledByNative
     private void stop() {
-        if (mPlayer == null || mIsReleasing) {
+        if (mPlayer == null || mIsReleased) {
             Log.e(TAG,
                     "Cannot stop with NULL or releasing ExoPlayer. Assuming stopped successfully.");
             return;
@@ -336,14 +321,9 @@ public class ExoPlayerBridge {
         });
     }
 
-    /**
-     * Returns whether the appropriate media source can accept more data.
-     * @param type The type of the media source (audio or video).
-     * @return Whether the media source can accept more data.
-     */
     @CalledByNative
     public boolean canAcceptMoreData(int type) {
-        if (mIsReleasing) {
+        if (mIsReleased) {
             return false;
         }
         ExoPlayerMediaSource mediaSource =
@@ -353,7 +333,11 @@ public class ExoPlayerBridge {
 
     /**
      * Returns the current playback position in microseconds.
-     * @return The current playback position in microseconds.
+     *
+     * <p>This method provides a high-resolution estimate of the playback position. Since ExoPlayer
+     * only provides millisecond precision via {@link ExoPlayer#getCurrentPosition()}, this method
+     * interpolates the position based on the time elapsed since the last anchor update from the
+     * player thread, adjusted by the current playback rate.
      */
     @CalledByNative
     private synchronized long getCurrentPositionUsec() {
@@ -369,7 +353,7 @@ public class ExoPlayerBridge {
     private void reportError(String errorMessage) {
         Log.e(TAG, errorMessage);
 
-        if (mIsReleasing) {
+        if (mIsReleased) {
             return;
         }
 

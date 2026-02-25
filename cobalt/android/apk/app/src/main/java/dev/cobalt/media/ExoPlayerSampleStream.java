@@ -33,7 +33,12 @@ import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/** Queues encoded media to be retrieved by the player renderers */
+/**
+ * Buffers and provides media samples to ExoPlayer's renderers.
+ *
+ * <p>This stream maintains an internal {@link SampleQueue} and provides a thread-safe bridge
+ * for the native layer to write encoded samples.
+ */
 @UnstableApi
 public class ExoPlayerSampleStream implements SampleStream {
     // The player maintains a copy of each sample in the SampleQueue to read asynchronously.
@@ -93,14 +98,11 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     /**
-     * Queues encrypted samples to decode, along with related flags and relevant metadata.
-     * @param samples The sample data.
-     * @param size The size of the sample data.
-     * @param timestamp The timestamp of the sample in microseconds.
-     * @param isKeyFrame Whether the sample is a keyframe.
-     * @param cryptoData The information required to decrypt this sample.
-     * @param initializationVector The initialization vector for this sample.
-     * @param ivSize The size of the initialization vector.
+     * Queues a sample to the {@link SampleQueue}.
+     *
+     * <p>This method handles both clear and encrypted samples. For encrypted samples, it
+     * writes the encryption preamble (signal byte, IV, and optional subsample data) as
+     * supplemental data before the main sample payload.
      */
     public void writeSample(ExoPlayerMediaSample sample) {
         synchronized (mLock) {
@@ -144,10 +146,6 @@ public class ExoPlayerSampleStream implements SampleStream {
         }
     }
 
-    /**
-     * Returns whether the sample queue is ready to provide samples.
-     * @return Whether the sample queue is ready.
-     */
     @Override
     public boolean isReady() {
         synchronized (mLock) {
@@ -155,20 +153,9 @@ public class ExoPlayerSampleStream implements SampleStream {
         }
     }
 
-    /**
-     * Throws an error if the sample stream has failed.
-     * @throws IOException If an error occurred.
-     */
     @Override
     public void maybeThrowError() throws IOException {}
 
-    /**
-     * Reads data from the sample queue.
-     * @param formatHolder A holder for the format of the data.
-     * @param buffer The buffer to write the data to.
-     * @param readFlags Flags controlling the read operation.
-     * @return The result of the read operation.
-     */
     @Override
     public int readData(
             @NonNull FormatHolder formatHolder, @NonNull DecoderInputBuffer buffer, int readFlags) {
@@ -191,11 +178,6 @@ public class ExoPlayerSampleStream implements SampleStream {
         }
     }
 
-    /**
-     * Skips data in the sample queue.
-     * @param positionUs The position in microseconds to skip to.
-     * @return The number of samples skipped.
-     */
     @Override
     public int skipData(long positionUs) {
         synchronized (mLock) {
@@ -216,10 +198,9 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     /**
-     * Attempts to seek within all queued samples to the seek position. If this fails, the queue is
-     * reset to prepare for new samples.
-     * @param timestampUs The position in microseconds to seek to.
-     * @param format The format of the samples.
+     * Attempts to seek within the currently queued samples.
+     *
+     * <p>If the seek position is not found in the queue, the queue is reset.
      */
     public void seek(long timestampUs, Format format) {
         synchronized (mLock) {
@@ -239,9 +220,11 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     /**
-     * Returns true if the queue can accept more samples. Returns false if the queue size approaches
-     * its maximum to allow time for samples to be dequeued before queueing new ones.
-     * @return Whether the queue can accept more data.
+     * Returns true if the queue has enough capacity to accept more samples.
+     *
+     * <p>Capacity is determined by the duration of media currently buffered in the queue. If the
+     * duration exceeds a threshold, this returns false to signal the native layer to pause
+     * sample production.
      */
     public boolean canAcceptMoreData() {
         synchronized (mLock) {

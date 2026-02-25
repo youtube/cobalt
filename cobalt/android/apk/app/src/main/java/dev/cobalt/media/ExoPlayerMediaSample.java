@@ -67,6 +67,13 @@ public final class ExoPlayerMediaSample {
     return byteArray;
   }
 
+  /**
+   * Creates a new media sample and prepares its encryption metadata.
+   *
+   * <p>If the sample is encrypted, this constructor initializes the encryption preamble data
+   * (signal byte, IV, and subsamples) using reused {@link ParsableByteArray} instances from
+   * {@link ThreadLocal} storage to minimize memory allocations.
+   */
   @CalledByNative
   public ExoPlayerMediaSample(
       ByteBuffer samples,
@@ -179,38 +186,29 @@ public final class ExoPlayerMediaSample {
     return mHasSubsamples;
   }
 
-  /** Returns the sample flags, including keyframe and encryption flags. */
   public int getFlags() {
     return mFlags;
   }
 
-  /** Returns the total size of the sample, including encryption preamble data. */
   public int getTotalSize() {
     return mTotalSize;
   }
 
-  /** Returns the {@link CryptoData} for this sample, or null if it is not encrypted. */
   @Nullable
   public CryptoData getCryptoData() {
     return mCryptoData;
   }
 
-  /** Returns a {@link ParsableByteArray} containing the encryption signal byte. */
   @Nullable
   public ParsableByteArray getEncryptionSignalByte() {
     return mEncryptionSignalByte;
   }
 
-  /** Returns a {@link ParsableByteArray} containing the initialization vector. */
   @Nullable
   public ParsableByteArray getIvData() {
     return mIvData;
   }
 
-  /**
-   * Returns a {@link ParsableByteArray} containing the subsample count and subsample data,
-   * or null if there are no subsamples.
-   */
   @Nullable
   public ParsableByteArray getSubsampleData() {
     return mSubsampleData;
