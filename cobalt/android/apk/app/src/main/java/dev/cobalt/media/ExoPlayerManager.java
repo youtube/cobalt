@@ -152,11 +152,6 @@ public class ExoPlayerManager {
 
         if (audioConfigurationData != null) {
             if (mime.equals(MimeTypes.AUDIO_OPUS)) {
-                if (audioConfigurationData == null) {
-                    Log.e(TAG, "Opus stream is missing configuration data.");
-                    return null;
-                }
-
                 byte[][] csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
                         sampleRate, audioConfigurationData);
                 if (csds == null) {
@@ -215,7 +210,6 @@ public class ExoPlayerManager {
         }
 
         if (drmSessionManager != null) {
-            Log.i(TAG, "CREATED ENCRYPTED VIDEO MEDIA SOURCE");
             builder.setCryptoType(C.CRYPTO_TYPE_FRAMEWORK);
             String schemeMimeType = "video/mp4";
             if (mime.equals(MimeTypes.VIDEO_VP9)) {

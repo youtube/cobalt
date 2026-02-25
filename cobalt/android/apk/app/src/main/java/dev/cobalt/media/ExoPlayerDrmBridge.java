@@ -19,6 +19,7 @@ import static dev.cobalt.media.Log.TAG;
 import android.content.Context;
 import android.os.Build;
 import android.util.Base64;
+import androidx.media3.common.C;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.ExoMediaDrm;
 import androidx.media3.exoplayer.drm.MediaDrmCallback;
@@ -55,12 +56,10 @@ public class ExoPlayerDrmBridge {
     private static final long PROVISION_REQUEST_TIMEOUT_MS = 2000;
     private static final long KEY_REQUEST_TIMEOUT_MS = 2000;
 
-    private static final UUID WIDEVINE_UUID =
-            UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
 
     private final class NativeMediaDrmCallback implements MediaDrmCallback {
-        private CompletableFuture<byte[]> mPendingProvisionRequestResponse;
-        private CompletableFuture<byte[]> mPendingKeyRequestResponse;
+        private volatile CompletableFuture<byte[]> mPendingProvisionRequestResponse;
+        private volatile CompletableFuture<byte[]> mPendingKeyRequestResponse;
 
         /**
          * Executes a provisioning request.
@@ -193,7 +192,7 @@ public class ExoPlayerDrmBridge {
         mMediaDrmCallback = new NativeMediaDrmCallback();
         mDrmSessionManager =
                 new DefaultDrmSessionManager.Builder()
-                        .setUuidAndExoMediaDrmProvider(WIDEVINE_UUID, new MediaDrmProvider())
+                        .setUuidAndExoMediaDrmProvider(C.WIDEVINE_UUID, new MediaDrmProvider())
                         .build(mMediaDrmCallback);
         mMediaSourceFactory = new DefaultMediaSourceFactory(context).setDrmSessionManagerProvider(
                 mediaItem -> mDrmSessionManager);

@@ -38,6 +38,7 @@ import java.nio.ByteBuffer;
 public class ExoPlayerSampleStream implements SampleStream {
     // The player maintains a copy of each sample in the SampleQueue to read asynchronously.
     private final SampleQueue mSampleQueue;
+    private final Object mLock = new Object();
     private volatile boolean mEndOfStream = false;
 
     /**
@@ -86,7 +87,9 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     void discardBuffer(long positionUs, boolean toKeyframe) {
-        mSampleQueue.discardTo(positionUs, toKeyframe, false);
+        synchronized (mLock) {
+            mSampleQueue.discardTo(positionUs, toKeyframe, false);
+        }
     }
 
     /**
@@ -100,35 +103,45 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @param ivSize The size of the initialization vector.
      */
     public void writeSample(ExoPlayerMediaSample sample) {
-        if (sample.isEncrypted()) {
-            mSampleQueue.sampleData(sample.getEncryptionSignalByte(), 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-            mSampleQueue.sampleData(sample.getIvData(), sample.getIvData().limit(), TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-            if (sample.hasSubsamples()) {
-                mSampleQueue.sampleData(sample.getSubsampleData(), sample.getSubsampleData().limit(), TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-            }
-        }
-
-        try {
-            ByteBufferDataReader dataReader = new ByteBufferDataReader(sample.getSamples());
-            int bytesWritten = 0;
-            while (bytesWritten < sample.getSize()) {
-                int result = mSampleQueue.sampleData(dataReader, sample.getSize() - bytesWritten, true);
-                if (result == C.RESULT_END_OF_INPUT) {
-                    throw new IOException("Unexpected end of input from ByteBuffer");
+        synchronized (mLock) {
+            if (sample.isEncrypted()) {
+                mSampleQueue.sampleData(
+                        sample.getEncryptionSignalByte(), 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+                mSampleQueue.sampleData(sample.getIvData(), sample.getIvData().limit(),
+                        TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
+                if (sample.hasSubsamples()) {
+                    mSampleQueue.sampleData(sample.getSubsampleData(),
+                            sample.getSubsampleData().limit(),
+                            TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
                 }
-                bytesWritten += result;
             }
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to write sample data to SampleQueue", e);
-            return;
+
+            try {
+                ByteBufferDataReader dataReader = new ByteBufferDataReader(sample.getSamples());
+                int bytesWritten = 0;
+                while (bytesWritten < sample.getSize()) {
+                    int result =
+                            mSampleQueue.sampleData(dataReader, sample.getSize() - bytesWritten, true);
+                    if (result == C.RESULT_END_OF_INPUT) {
+                        throw new IOException("Unexpected end of input from ByteBuffer");
+                    }
+                    bytesWritten += result;
+                }
+            } catch (IOException e) {
+                Log.e(TAG, "Failed to write sample data to SampleQueue", e);
+                return;
+            }
+            mSampleQueue.sampleMetadata(sample.getTimestampUsec(), sample.getFlags(),
+                    sample.getTotalSize(), 0, sample.getCryptoData());
         }
-        mSampleQueue.sampleMetadata(sample.getTimestampUsec(), sample.getFlags(), sample.getTotalSize(), 0, sample.getCryptoData());
     }
 
     public void writeEndOfStream() {
-        mSampleQueue.sampleMetadata(mSampleQueue.getLargestQueuedTimestampUs(),
-                C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
-        mEndOfStream = true;
+        synchronized (mLock) {
+            mSampleQueue.sampleMetadata(mSampleQueue.getLargestQueuedTimestampUs(),
+                    C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
+            mEndOfStream = true;
+        }
     }
 
     /**
@@ -137,7 +150,9 @@ public class ExoPlayerSampleStream implements SampleStream {
      */
     @Override
     public boolean isReady() {
-        return mSampleQueue.isReady(mEndOfStream);
+        synchronized (mLock) {
+            return mSampleQueue.isReady(mEndOfStream);
+        }
     }
 
     /**
@@ -157,21 +172,23 @@ public class ExoPlayerSampleStream implements SampleStream {
     @Override
     public int readData(
             @NonNull FormatHolder formatHolder, @NonNull DecoderInputBuffer buffer, int readFlags) {
-        if (!mSampleQueue.isReady(mEndOfStream)) {
-            return C.RESULT_NOTHING_READ;
-        }
+        synchronized (mLock) {
+            if (!mSampleQueue.isReady(mEndOfStream)) {
+                return C.RESULT_NOTHING_READ;
+            }
 
-        int read = C.RESULT_NOTHING_READ;
-        try {
-            read = mSampleQueue.read(formatHolder, buffer, readFlags, mEndOfStream);
-        } catch (DecoderInputBuffer.InsufficientCapacityException e) {
-            Log.i(TAG,
-                    String.format(
-                            "Caught DecoderInputBuffer.InsufficientCapacityException from read() %s",
-                            e));
-        }
+            int read = C.RESULT_NOTHING_READ;
+            try {
+                read = mSampleQueue.read(formatHolder, buffer, readFlags, mEndOfStream);
+            } catch (DecoderInputBuffer.InsufficientCapacityException e) {
+                Log.i(TAG,
+                        String.format(
+                                "Caught DecoderInputBuffer.InsufficientCapacityException from read() %s",
+                                e));
+            }
 
-        return read;
+            return read;
+        }
     }
 
     /**
@@ -181,9 +198,11 @@ public class ExoPlayerSampleStream implements SampleStream {
      */
     @Override
     public int skipData(long positionUs) {
-        int skipCount = mSampleQueue.getSkipCount(positionUs, mEndOfStream);
-        mSampleQueue.skip(skipCount);
-        return skipCount;
+        synchronized (mLock) {
+            int skipCount = mSampleQueue.getSkipCount(positionUs, mEndOfStream);
+            mSampleQueue.skip(skipCount);
+            return skipCount;
+        }
     }
 
     /**
@@ -191,7 +210,9 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @return The buffered position in microseconds.
      */
     public long getBufferedPositionUs() {
-        return mEndOfStream ? C.TIME_END_OF_SOURCE : mSampleQueue.getLargestQueuedTimestampUs();
+        synchronized (mLock) {
+            return mEndOfStream ? C.TIME_END_OF_SOURCE : mSampleQueue.getLargestQueuedTimestampUs();
+        }
     }
 
     /**
@@ -201,16 +222,20 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @param format The format of the samples.
      */
     public void seek(long timestampUs, Format format) {
-        if (!mSampleQueue.seekTo(timestampUs, true)) {
-            mSampleQueue.reset();
-            mSampleQueue.format(format);
+        synchronized (mLock) {
+            if (!mSampleQueue.seekTo(timestampUs, true)) {
+                mSampleQueue.reset();
+                mSampleQueue.format(format);
+            }
+            mEndOfStream = false;
         }
-        mEndOfStream = false;
     }
 
     public void destroy() {
-        mSampleQueue.reset();
-        mSampleQueue.release();
+        synchronized (mLock) {
+            mSampleQueue.reset();
+            mSampleQueue.release();
+        }
     }
 
     /**
@@ -219,9 +244,14 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @return Whether the queue can accept more data.
      */
     public boolean canAcceptMoreData() {
-        long bufferedDurationUs =
-                mSampleQueue.getLargestQueuedTimestampUs() - mSampleQueue.getFirstTimestampUs();
-        return bufferedDurationUs < MAX_BUFFER_DURATION_US - MEMORY_PRESSURE_THRESHOLD_US;
+        synchronized (mLock) {
+            if (mSampleQueue.getWriteIndex() == mSampleQueue.getReadIndex()) {
+                return true;
+            }
+            long bufferedDurationUs =
+                    mSampleQueue.getLargestQueuedTimestampUs() - mSampleQueue.getFirstTimestampUs();
+            return bufferedDurationUs < MAX_BUFFER_DURATION_US - MEMORY_PRESSURE_THRESHOLD_US;
+        }
     }
 
     public boolean endOfStreamWritten() {
