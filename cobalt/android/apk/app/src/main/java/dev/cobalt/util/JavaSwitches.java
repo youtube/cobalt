@@ -38,6 +38,9 @@ public class JavaSwitches {
   /** V8 flag to enable write protection for code memory. Value type: Boolean (presence means true) */
   public static final String V8_WRITE_PROTECT_CODE_MEMORY = "V8WriteProtectCodeMemory";
 
+  /** V8 flag to disable optimize for size. Value type: Boolean (presence means true) */
+  public static final String V8_DISABLE_OPTIMIZE_FOR_SIZE = "V8DisableOptimizeForSize";
+
   /** V8 flag to set the GC interval. Value type: Integer */
   public static final String V8_GC_INTERVAL = "V8GcInterval";
 
@@ -49,6 +52,9 @@ public class JavaSwitches {
 
   /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
   public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
+
+  /** V8 flag to set the heap growing percent. Value type: Integer */
+  public static final String V8_HEAP_GROWING_PERCENT = "V8HeapGrowingPercent";
 
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
@@ -65,6 +71,9 @@ public class JavaSwitches {
 
   /** flag to enable SkiaFontCache */
   public static final String SKIA_FONT_CACHE = "SkiaFontCache";
+
+  /** flag to lower the priority of the network service thread */
+  public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY = "LowerNetworkServiceThreadPriority";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -111,6 +120,15 @@ public class JavaSwitches {
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
     }
+    if (javaSwitches.containsKey(JavaSwitches.V8_HEAP_GROWING_PERCENT)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--heap-growing-percent="
+              + javaSwitches.get(JavaSwitches.V8_HEAP_GROWING_PERCENT).replaceAll("[^0-9]", ""));
+    }
+
+    if (!javaSwitches.containsKey(JavaSwitches.V8_DISABLE_OPTIMIZE_FOR_SIZE)) {
+      extraCommandLineArgs.add("--js-flags=--optimize-for-size");
+    }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--disable-splash-screen");
@@ -143,6 +161,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
       extraCommandLineArgs.add("--enable-features=SkiaFontCache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
+      extraCommandLineArgs.add("--enable-features=LowerNetworkServiceThreadPriority");
     }
 
     return extraCommandLineArgs;

@@ -151,6 +151,8 @@ source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
+    "metrics/cobalt_memory_metrics_emitter.cc",
+    "metrics/cobalt_memory_metrics_emitter.h",
     "metrics/cobalt_metrics_log_uploader.cc",
     "metrics/cobalt_metrics_log_uploader.h",
     "metrics/cobalt_metrics_service_client.cc",
@@ -179,4 +181,15 @@ source_set("command_line_logger") {
     "command_line_logger.h",
   ]
   deps = [ "//base" ]
+}
+
+source_set("cobalt_crash_annotations") {
+  sources = [
+    "cobalt_crash_annotations.cc",
+    "cobalt_crash_annotations.h",
+  ]
+  deps = [
+    "//base",
+    "//third_party/crashpad/crashpad/client",
+  ]
 }

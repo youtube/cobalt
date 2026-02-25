@@ -26,6 +26,7 @@
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/video_decoder_experimental_features.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/condition_variable.h"
@@ -58,11 +59,7 @@ class VideoDecoder
 
   class Sink;
 
-  struct ExperimentalFeatures {
-    std::optional<int> max_pending_input_frames;
-    std::optional<int> initial_max_frames_in_decoder;
-    std::optional<int> video_decoder_poll_interval_ms;
-  };
+  typedef VideoDecoderExperimentalFeatures ExperimentalFeatures;
 
   VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
