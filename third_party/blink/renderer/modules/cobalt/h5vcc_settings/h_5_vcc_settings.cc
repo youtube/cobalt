@@ -184,6 +184,16 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
                   MakeGarbageCollected<V8UnionLongOrString>(*preroll_count),
                   exception_state);
     }
+
+    auto append_sync = GetSystemPropertyInt(
+        "debug.cobalt.bulk_transfer.append_first_segment_synchronously");
+    if (append_sync) {
+      LOG(INFO) << "Setting Media.AppendFirstSegmentSynchronously to "
+                << *append_sync;
+      setInternal(script_state, "Media.AppendFirstSegmentSynchronously",
+                  MakeGarbageCollected<V8UnionLongOrString>(*append_sync),
+                  exception_state);
+    }
 #endif
   }
   return setInternal(script_state, name, value, exception_state);
