@@ -22,30 +22,17 @@ DecoderBuffer::Allocator* s_allocator = nullptr;
 }  // namespace
 
 // static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::Get() {
+  return s_allocator;
+}
+
+// static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   // One of them has to be nullptr, i.e. either setting a valid allocator, or
   // resetting an existing allocator.  Setting an allocator while another
   // allocator is in place will fail.
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
-}
-
-// static
-void DecoderBuffer::EnableAllocateOnDemand(bool enabled) {
-  CHECK(s_allocator);
-  s_allocator->SetAllocateOnDemand(enabled);
-}
-
-// static
-void DecoderBuffer::EnableMediaBufferPoolStrategy() {
-  CHECK(s_allocator);
-  s_allocator->EnableMediaBufferPoolStrategy();
-}
-
-// static
-void DecoderBuffer::EnableInPlaceReuseAllocatorBase() {
-  CHECK(s_allocator);
-  s_allocator->EnableInPlaceReuseAllocatorBase();
 }
 
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
