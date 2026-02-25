@@ -56,6 +56,9 @@ public class JavaSwitches {
   /** V8 flag to set the heap growing percent. Value type: Integer */
   public static final String V8_HEAP_GROWING_PERCENT = "V8HeapGrowingPercent";
 
+  /** V8 flag to disable garbage collection for wasm code */
+  public static final String V8_NOWASM_CODE_GC = "V8NoWasmCodeGC";
+
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
   /** CC flag to set the number of raster threads. Value type: Integer */
@@ -128,6 +131,10 @@ public class JavaSwitches {
 
     if (!javaSwitches.containsKey(JavaSwitches.V8_DISABLE_OPTIMIZE_FOR_SIZE)) {
       extraCommandLineArgs.add("--js-flags=--optimize-for-size");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_NOWASM_CODE_GC)) {
+      extraCommandLineArgs.add("--js-flags=--nowasm-code-gc");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {
