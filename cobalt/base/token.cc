@@ -88,6 +88,7 @@ const char* TokenStorage::GetStorage(const char* str) {
   }
 
   uint32 slot = hash(str) % Token::kHashSlotCount;
+  base::AutoLock auto_lock(lock_);
   // First check if we already have this token.
   // Most common path, so lock free.
   for (uint32 i = 0; i < Token::kStringsPerSlot; ++i) {
@@ -100,7 +101,6 @@ const char* TokenStorage::GetStorage(const char* str) {
     }
   }
 
-  base::AutoLock auto_lock(lock_);
   // Now try to create this token in the table.
   // Also check again if the token exists after acquiring the lock, because
   // another thread may have added it before we acquired the lock.
