@@ -46,17 +46,25 @@ constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
 constexpr char kDecoderBufferEnableMediaBufferPoolAllocatorStrategy[] =
     "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
-static_assert(
-    std::string_view(kDecoderBufferEnableMediaBufferPoolAllocatorStrategy)
-        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
-    kDecoderBufferSettingPrefix);
 
 constexpr char kDecoderBufferEnableInPlaceReuseAllocatorBase[] =
     "DecoderBuffer.EnableInPlaceReuseAllocatorBase";
+
+constexpr bool StartsWithLiteral(const char* str, const char* prefix) {
+  while (*prefix != '\0') {
+    if (*str++ != *prefix++) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static_assert(
-    std::string_view(kDecoderBufferEnableInPlaceReuseAllocatorBase)
-        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
-    kDecoderBufferSettingPrefix);
+    StartsWithLiteral(kDecoderBufferEnableMediaBufferPoolAllocatorStrategy,
+                      kDecoderBufferSettingPrefix));
+
+static_assert(StartsWithLiteral(kDecoderBufferEnableInPlaceReuseAllocatorBase,
+                                kDecoderBufferSettingPrefix));
 
 struct SettingContext {
   ScriptState* script_state;
