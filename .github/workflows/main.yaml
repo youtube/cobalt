@@ -948,7 +948,6 @@ jobs:
           path: results/
       - name: Test Results
         uses: ./.github/actions/process_test_results
-        continue-on-error: true
         with:
           target_name: ${{ matrix.test_target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
@@ -1007,11 +1006,7 @@ jobs:
           shopt -s globstar nullglob
           python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
 
-          # Only exit 1 if the unit tests failed.
-          # Browser tests are non-blocking due to continue-on-error in their own job,
-          # but if browser-test-results.result is failure (e.g. infra error), we might want to know.
-          # Actually, if browser-test-results has continue-on-error: true, its result is NEVER failure.
-          if [[ "${{ needs.test-results.result }}" == "failure" ]]; then
+          if [[ "${{ needs.test-results.result }}" == "failure" || "${{ needs.browser-test-results.result }}" == "failure" ]]; then
             exit 1
           fi
         shell: bash
