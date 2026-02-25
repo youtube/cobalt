@@ -15,6 +15,7 @@
 package dev.cobalt.media;
 
 
+import android.os.Looper;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -22,26 +23,41 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.TransferListener;
+import androidx.media3.exoplayer.analytics.PlayerId;
+import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.BaseMediaSource;
 import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SinglePeriodTimeline;
 import androidx.media3.exoplayer.upstream.Allocator;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /** Writes encoded media from the native app to the SampleStream */
 @UnstableApi
 public final class ExoPlayerMediaSource extends BaseMediaSource {
     private final Format mFormat;
+    // Guarded by mLock
     private ExoPlayerMediaPeriod mMediaPeriod;
     private final MediaItem mMediaItem;
+    private DrmSessionManager mDrmSessionManager;
+    private final Object mLock = new Object();
 
-    ExoPlayerMediaSource(Format format) {
+    ExoPlayerMediaSource(Format format, DrmSessionManager drmSessionManager) {
         this.mFormat = format;
+        mDrmSessionManager = drmSessionManager;
         this.mMediaItem = new MediaItem.Builder().setMediaMetadata(MediaMetadata.EMPTY).build();
+    }
+
+    public Format getFormat() {
+        return mFormat;
     }
 
     @Override
     protected void prepareSourceInternal(@Nullable TransferListener mediaTransferListener) {
+        if (mDrmSessionManager != null) {
+            mDrmSessionManager.setPlayer(Looper.myLooper(), PlayerId.UNSET);
+            mDrmSessionManager.prepare();
+        }
         refreshSourceInfo(new SinglePeriodTimeline(
                 /* durationUs= */ C.TIME_UNSET,
                 /* isSeekable= */ true,
@@ -51,7 +67,9 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     }
 
     @Override
-    protected void releaseSourceInternal() {}
+    protected void releaseSourceInternal() {
+        // DrmSessionManager is owned by ExoPlayerDrmBridge, so we do not release it here.
+    }
 
     @Override
     public MediaItem getMediaItem() {
@@ -74,9 +92,12 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      */
     @Override
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
-        if (mMediaPeriod == null) {
-            mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator);
-            return mMediaPeriod;
+        synchronized (mLock) {
+            if (mMediaPeriod == null) {
+                mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator, mDrmSessionManager,
+                        mDrmSessionManager != null ? createDrmEventDispatcher(id) : null);
+                return mMediaPeriod;
+            }
         }
         throw new IllegalStateException(
                 "Called MediaSource.createPeriod when the MediaPeriod already exists");
@@ -88,16 +109,18 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      */
     @Override
     public void releasePeriod(MediaPeriod mediaPeriod) {
-        if (this.mMediaPeriod != null) {
-            if (mediaPeriod != this.mMediaPeriod) {
-                throw new IllegalStateException(
-                        "Called MediaSource.releasePeriod on an unknown MediaPeriod");
+        synchronized (mLock) {
+            if (this.mMediaPeriod != null) {
+                if (mediaPeriod != this.mMediaPeriod) {
+                    throw new IllegalStateException(
+                            "Called MediaSource.releasePeriod on an unknown MediaPeriod");
+                }
+                // Ignore the passed-in MediaPeriod and call the ExoPlayerMediaPeriod directly. As
+                // there's only a single MediaPeriod, this will match the passed MediaPeriod.
+                this.mMediaPeriod.destroySampleStream();
+                this.mMediaPeriod = null;
+                return;
             }
-            // Ignore the passed-in MediaPeriod and call the ExoPlayerMediaPeriod directly. As
-            // there's only a single MediaPeriod, this will match the passed MediaPeriod.
-            this.mMediaPeriod.destroySampleStream();
-            this.mMediaPeriod = null;
-            return;
         }
         throw new IllegalStateException(
                 "Called MediaSource.releasePeriod() after period was already released");
@@ -109,16 +132,30 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      * @param size The size of the sample data.
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
+     * @param encryptionMode Signals the type of Widevine encryption.
+     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
+     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
+     * must be non-null when writing the first sample of the stream
      */
-    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame);
+    public void writeSample(ExoPlayerMediaSample sample) {
+        synchronized (mLock) {
+            if (mMediaPeriod != null) {
+                mMediaPeriod.writeSample(sample);
+            }
+        }
     }
 
     public void writeEndOfStream() {
-        mMediaPeriod.writeEndOfStream();
+        synchronized (mLock) {
+            if (mMediaPeriod != null) {
+                mMediaPeriod.writeEndOfStream();
+            }
+        }
     }
 
     public boolean canAcceptMoreData() {
-        return mMediaPeriod != null && mMediaPeriod.canAcceptMoreData();
+        synchronized (mLock) {
+            return mMediaPeriod != null && mMediaPeriod.canAcceptMoreData();
+        }
     }
 }

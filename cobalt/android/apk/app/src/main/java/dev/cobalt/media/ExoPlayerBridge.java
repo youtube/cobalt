@@ -22,6 +22,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Surface;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
@@ -35,6 +36,7 @@ import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import dev.cobalt.util.Log;
+import java.nio.ByteBuffer;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -51,28 +53,21 @@ public class ExoPlayerBridge {
     // The following variables are accessed on both the Handler and native threads
     private volatile long mLastPlaybackPosUsec = 0;
     private volatile long mPlaybackPosLastUpdatedMsec = 0;
-    private volatile float mPlaybackRate = 0.0f;
+    private volatile float mPlaybackRate = 1.0f;
     private volatile boolean mIsProgressing = false;
     private volatile boolean mIsReleasing = false;
+    private volatile long mSeekTimeUsec = 0;
 
-    private long mSeekTimeUsec = 0;
     private final ExoPlayerListener mPlayerListener;
     private final DroppedFramesListener mDroppedFramesListener;
 
-    // Duration after which an error is raised if the player doesn't release its resources.
-    private static final long PLAYER_RELEASE_TIMEOUT_MS = 300;
-    private static final int MAX_BUFFER_DURATION_MS = 5000; // 5 seconds.
-    // Ensures playback can begin before or when 500 ms of media data has been appended, as required
-    // in the YouTube specification.
-    private static final int MIN_BUFFER_DURATION_MS = 450;
+    private static final long PLAYER_RELEASE_TIMEOUT_MS = 2000; // 2 seconds.
+    private static final int MIN_BUFFER_DURATION_MS = 1000; // 1 second.
+    private static final int MAX_BUFFER_DURATION_MS = 5000; // 5 seconds
 
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
-            if (mIsReleasing) {
-                return;
-            }
-
             switch (playbackState) {
                 case Player.STATE_BUFFERING:
                 case Player.STATE_IDLE:
@@ -88,21 +83,26 @@ public class ExoPlayerBridge {
 
         @Override
         public void onTracksChanged(Tracks tracks) {
-            if (mIsReleasing) {
-                return;
-            }
-
             ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
         }
 
         @Override
         public synchronized void onIsPlayingChanged(boolean isPlaying) {
-            if (mIsReleasing) {
-                return;
-            }
-
+            updatePositionAnchor();
             mIsProgressing = isPlaying;
             ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
+        }
+
+        @Override
+        public void onPositionDiscontinuity(
+                Player.PositionInfo oldPosition, Player.PositionInfo newPosition, int reason) {
+            updatePositionAnchor();
+        }
+
+        @Override
+        public void onPlaybackParametersChanged(PlaybackParameters playbackParameters) {
+            updatePositionAnchor();
+            mPlaybackRate = playbackParameters.speed;
         }
 
         @Override
@@ -118,10 +118,6 @@ public class ExoPlayerBridge {
         @Override
         public void onDroppedVideoFrames(
                 @NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
-            if (mIsReleasing) {
-                return;
-            }
-
             ExoPlayerBridgeJni.get().onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
         }
     }
@@ -137,8 +133,9 @@ public class ExoPlayerBridge {
      * @param enableTunnelMode Whether to enable tunnel mode.
      */
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context,
-            DefaultRenderersFactory renderersFactory, ExoPlayerMediaSource audioSource,
-            ExoPlayerMediaSource videoSource, Surface surface, boolean enableTunnelMode) {
+            DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
+            @Nullable ExoPlayerMediaSource videoSource, @Nullable ExoPlayerDrmBridge drmBridge,
+            @Nullable Surface surface, boolean enableTunnelMode) {
         this.mExoplayerHandler = new Handler(Looper.getMainLooper());
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
@@ -162,18 +159,24 @@ public class ExoPlayerBridge {
             playbackMediaSource = mAudioMediaSource != null ? mAudioMediaSource : mVideoMediaSource;
         }
 
-        mPlayer = new ExoPlayer.Builder(context)
-                          .setRenderersFactory(renderersFactory)
-                          .setLoadControl(
-                                  new DefaultLoadControl.Builder()
-                                          .setBufferDurationsMs(MIN_BUFFER_DURATION_MS,
-                                                  MAX_BUFFER_DURATION_MS, MIN_BUFFER_DURATION_MS,
-                                                  MIN_BUFFER_DURATION_MS)
-                                          .build())
-                          .setLooper(mExoplayerHandler.getLooper())
-                          .setTrackSelector(trackSelector)
-                          .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS)
-                          .build();
+        ExoPlayer.Builder builder =
+                new ExoPlayer.Builder(context)
+                        .setRenderersFactory(renderersFactory)
+                        .setLoadControl(
+                                new DefaultLoadControl.Builder()
+                                        .setBufferDurationsMs(MIN_BUFFER_DURATION_MS,
+                                                MAX_BUFFER_DURATION_MS, MIN_BUFFER_DURATION_MS,
+                                                MIN_BUFFER_DURATION_MS)
+                                        .build())
+                        .setLooper(mExoplayerHandler.getLooper())
+                        .setTrackSelector(trackSelector)
+                        .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS);
+
+        if (drmBridge != null) {
+            builder.setMediaSourceFactory(drmBridge.getMediaSourceFactory());
+        }
+
+        mPlayer = builder.build();
 
         mPlayerListener = new ExoPlayerListener();
         mDroppedFramesListener = new DroppedFramesListener();
@@ -183,20 +186,15 @@ public class ExoPlayerBridge {
             mPlayer.setMediaSource(playbackMediaSource);
             mPlayer.setVideoSurface(surface);
             mPlayer.prepare();
-            updatePlaybackPos();
             mPlayer.play();
         });
     }
 
-    private synchronized void updatePlaybackPos() {
-        if (mPlayer == null) {
-            return;
+    private synchronized void updatePositionAnchor() {
+        if (mPlayer != null) {
+            mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
+            mPlaybackPosLastUpdatedMsec = SystemClock.elapsedRealtime();
         }
-
-        // getCurrentPosition() returns milliseconds, convert to microseconds
-        mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
-        mPlaybackPosLastUpdatedMsec = SystemClock.elapsedRealtime();
-        mExoplayerHandler.postDelayed(this::updatePlaybackPos, 150);
     }
 
     @CalledByNative
@@ -216,8 +214,6 @@ public class ExoPlayerBridge {
             mAudioMediaSource = null;
             mVideoMediaSource = null;
         });
-
-        mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
     }
 
     /**
@@ -230,7 +226,10 @@ public class ExoPlayerBridge {
             reportError("Cannot seek with NULL or releasing ExoPlayer.");
             return;
         }
-        mExoplayerHandler.post(() -> { mPlayer.seekTo(seekToTimeUsec / 1000); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.seekTo(seekToTimeUsec / 1000);
+          updatePositionAnchor();
+        });
         mSeekTimeUsec = seekToTimeUsec;
     }
 
@@ -243,16 +242,15 @@ public class ExoPlayerBridge {
      * @param type The type of the media source (audio or video).
      */
     @CalledByNative
-    public void writeSample(
-            byte[] samples, int size, long timestamp, boolean isKeyFrame, int type) {
+    public void writeSample(ExoPlayerMediaSample sample) {
         ExoPlayerMediaSource mediaSource =
-                type == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
+            sample.getType() == ExoPlayerRendererType.AUDIO ? mAudioMediaSource : mVideoMediaSource;
         if (mediaSource == null || mIsReleasing) {
             reportError(
-                    String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
-                            type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+                String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
+                    sample.getType() == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
         }
-        mediaSource.writeSample(samples, size, timestamp, isKeyFrame);
+        mediaSource.writeSample(sample);
     }
 
     /**
@@ -277,10 +275,9 @@ public class ExoPlayerBridge {
             reportError("Cannot pause with NULL or releasing ExoPlayer");
             return;
         }
-        mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
         mExoplayerHandler.post(() -> {
             mPlayer.pause();
-            mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
+            updatePositionAnchor();
         });
     }
 
@@ -293,7 +290,7 @@ public class ExoPlayerBridge {
         mExoplayerHandler.post(() -> {
             if (!mPlayer.isPlaying() && mPlaybackRate > 0.0) {
                 mPlayer.play();
-                updatePlaybackPos();
+                updatePositionAnchor();
             }
         });
     }
@@ -321,7 +318,9 @@ public class ExoPlayerBridge {
             return;
         }
 
-        mExoplayerHandler.post(() -> { mPlayer.setVolume(volume); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.setVolume(volume);
+        });
     }
 
     @CalledByNative
@@ -331,8 +330,10 @@ public class ExoPlayerBridge {
                     "Cannot stop with NULL or releasing ExoPlayer. Assuming stopped successfully.");
             return;
         }
-        mExoplayerHandler.removeCallbacks(this::updatePlaybackPos);
-        mExoplayerHandler.post(() -> { mPlayer.stop(); });
+        mExoplayerHandler.post(() -> {
+          mPlayer.stop();
+          updatePositionAnchor();
+        });
     }
 
     /**
@@ -356,13 +357,13 @@ public class ExoPlayerBridge {
      */
     @CalledByNative
     private synchronized long getCurrentPositionUsec() {
+        long currentPositionUsec = mLastPlaybackPosUsec;
         if (mIsProgressing) {
-            return mLastPlaybackPosUsec
-                    + (long) ((SystemClock.elapsedRealtime() - mPlaybackPosLastUpdatedMsec)
+            currentPositionUsec += (long) ((SystemClock.elapsedRealtime() - mPlaybackPosLastUpdatedMsec)
                             * mPlaybackRate * 1000);
         }
 
-        return Math.max(mLastPlaybackPosUsec, mSeekTimeUsec);
+        return Math.max(currentPositionUsec, mSeekTimeUsec);
     }
 
     private void reportError(String errorMessage) {
