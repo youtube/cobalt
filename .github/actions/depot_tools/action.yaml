@@ -71,7 +71,6 @@ runs:
         gclient config \
           --name=src \
           "${CACHE_ARG[@]}" \
-          --custom-var=download_remoteexec_cfg=True \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           "${REPOSITORY}"
       shell: bash
