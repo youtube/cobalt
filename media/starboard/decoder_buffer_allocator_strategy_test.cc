@@ -21,11 +21,37 @@
 // TODO(b/369245553): Remove this file once Finch is ready, as we no longer need
 // to support switching strategy on the fly.
 
+#include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
+#include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
+#include "starboard/common/in_place_reuse_allocator_base.h"
+
 namespace media {
 namespace {
 
 using starboard::common::experimental::IsPointerAnnotated;
 using starboard::common::experimental::MediaBufferPool;
+
+void EnableMediaBufferPoolStrategy(DecoderBufferAllocator* allocator) {
+  allocator->UpdateAllocatorStrategy(base::BindRepeating(
+      [](int initial_capacity, int allocation_unit)
+          -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
+        auto pool = MediaBufferPool::Acquire();
+        if (pool) {
+          return std::make_unique<MediaBufferPoolDecoderBufferAllocatorStrategy>(
+              pool, initial_capacity, allocation_unit);
+        }
+        return nullptr;
+      }));
+}
+
+void EnableInPlaceReuseAllocatorBase(DecoderBufferAllocator* allocator) {
+  allocator->UpdateAllocatorStrategy(base::BindRepeating(
+      [](int initial_capacity, int allocation_unit)
+          -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
+        return std::make_unique<BidirectionalFitDecoderBufferAllocatorStrategy<
+            starboard::common::InPlaceReuseAllocatorBase>>(initial_capacity, allocation_unit);
+      }));
+}
 
 TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
   if (!MediaBufferPool::Acquire()) {
@@ -35,7 +61,6 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
   DecoderBufferAllocator allocator;
   const size_t alignment = allocator.GetBufferAlignment();
 
-  // Allocate and free to ensure a strategy is created and then idle.
   auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_FALSE(IsPointerAnnotated(reinterpret_cast<void*>(handle)));
@@ -44,12 +69,9 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);
   EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
 
-  // Enable media buffer pool strategy. It should immediately reset the current
-  // strategy.
-  allocator.EnableMediaBufferPoolStrategy();
+  EnableMediaBufferPoolStrategy(&allocator);
   EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
 
-  // Next allocation should recreate a strategy (potentially the new one).
   handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_TRUE(IsPointerAnnotated(reinterpret_cast<void*>(handle)));
@@ -66,28 +88,25 @@ TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyPendingWhenBusy) {
   DecoderBufferAllocator allocator;
   const size_t alignment = allocator.GetBufferAlignment();
 
-  // Allocate to make it busy.
+  // Set the default strategy explicitly so we start from a known state
+  EnableInPlaceReuseAllocatorBase(&allocator);
+
   auto handle_1 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle_1, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_FALSE(IsPointerAnnotated(reinterpret_cast<void*>(handle_1)));
   EXPECT_GT(allocator.GetAllocatedMemory(), 0u);
 
-  // Enable media buffer pool strategy. It should enter kPendingEnabling and NOT
-  // reset yet.
-  allocator.EnableMediaBufferPoolStrategy();
-  // The metrics get into a gray area, so we don't verify their values.  But
-  // they shouldn't crash.
+  EnableMediaBufferPoolStrategy(&allocator);
+
   allocator.GetCurrentMemoryCapacity();
   allocator.GetAllocatedMemory();
 
   auto handle_2 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle_2, DecoderBuffer::Allocator::kInvalidHandle);
 
-  // Free the allocations. This should trigger the reset.
   allocator.Free(DemuxerStream::VIDEO, handle_1, 1024);
   allocator.Free(DemuxerStream::VIDEO, handle_2, 1024);
 
-  // Next allocation should recreate a strategy.
   auto handle_3 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle_3, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_GT(allocator.GetAllocatedMemory(), 0u);
@@ -102,7 +121,9 @@ TEST(DecoderBufferAllocatorStrategyTest, RepeatedEnableDoesNothing) {
   DecoderBufferAllocator allocator;
   const size_t alignment = allocator.GetBufferAlignment();
 
-  // Allocate and free to ensure a strategy is created and then idle.
+  // Set the default strategy explicitly so we start from a known state
+  EnableInPlaceReuseAllocatorBase(&allocator);
+
   auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_FALSE(IsPointerAnnotated(reinterpret_cast<void*>(handle)));
@@ -111,18 +132,14 @@ TEST(DecoderBufferAllocatorStrategyTest, RepeatedEnableDoesNothing) {
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);
   EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
 
-  // Enable media buffer pool strategy. It should immediately reset the current
-  // strategy.
-  allocator.EnableMediaBufferPoolStrategy();
+  EnableMediaBufferPoolStrategy(&allocator);
   EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
 
-  // Next allocation should recreate a strategy (potentially the new one).
   handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_TRUE(IsPointerAnnotated(reinterpret_cast<void*>(handle)));
 
-  // This is no-op.
-  allocator.EnableMediaBufferPoolStrategy();
+  EnableMediaBufferPoolStrategy(&allocator);
 
   EXPECT_GT(allocator.GetAllocatedMemory(), 0u);
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);

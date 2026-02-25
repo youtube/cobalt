@@ -33,6 +33,12 @@
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+#include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
+#include "media/starboard/decoder_buffer_allocator.h"
+#include "media/starboard/media_buffer_pool_decoder_buffer_allocator_strategy.h"
+#include "starboard/common/experimental/media_buffer_pool.h"
+#include "starboard/common/in_place_reuse_allocator_base.h"
+
 namespace blink {
 namespace {
 
@@ -61,12 +67,44 @@ static_assert(
 using EnableFunction = void (*)();
 using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
 
+void EnableMediaBufferPoolStrategy() {
+  auto* allocator = static_cast<::media::DecoderBufferAllocator*>(
+      ::media::DecoderBuffer::Allocator::Get());
+  if (allocator) {
+    allocator->UpdateAllocatorStrategy(base::BindRepeating(
+      [](int initial_capacity, int allocation_unit)
+          -> std::unique_ptr<::media::DecoderBufferAllocator::Strategy> {
+        auto pool = starboard::common::experimental::MediaBufferPool::Acquire();
+        if (pool) {
+          LOG(INFO) << "DecoderBufferAllocator is using MediaBufferPool.";
+          return std::make_unique<::media::MediaBufferPoolDecoderBufferAllocatorStrategy>(
+              pool, initial_capacity, allocation_unit);
+        }
+        LOG(INFO) << "DecoderBufferAllocator failed to enable MediaBufferPool as"
+                  << " MediaBufferPool::Acquire() returns nullptr.";
+        return nullptr;
+      }));
+  }
+}
+
+void EnableInPlaceReuseAllocatorBase() {
+  auto* allocator = static_cast<::media::DecoderBufferAllocator*>(
+      ::media::DecoderBuffer::Allocator::Get());
+  if (allocator) {
+    allocator->UpdateAllocatorStrategy(base::BindRepeating(
+      [](int initial_capacity, int allocation_unit)
+          -> std::unique_ptr<::media::DecoderBufferAllocator::Strategy> {
+        LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
+        return std::make_unique<::media::BidirectionalFitDecoderBufferAllocatorStrategy<
+            starboard::common::InPlaceReuseAllocatorBase>>(initial_capacity, allocation_unit);
+      }));
+  }
+}
+
 const SettingsMap& GetDecoderBufferSettings() {
   static const base::NoDestructor<SettingsMap> settings({
-      {kEnableMediaBufferPoolAllocatorStrategy,
-       &::media::DecoderBuffer::EnableMediaBufferPoolStrategy},
-      {kEnableInPlaceReuseAllocatorBase,
-       &::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase},
+      {kEnableMediaBufferPoolAllocatorStrategy, &EnableMediaBufferPoolStrategy},
+      {kEnableInPlaceReuseAllocatorBase, &EnableInPlaceReuseAllocatorBase},
   });
   return *settings;
 }
