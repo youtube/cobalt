@@ -36,16 +36,27 @@
 namespace blink {
 namespace {
 
-constexpr char kEnableInPlaceReuseAllocatorBase[] =
-    "DecoderBuffer.EnableInPlaceReuseAllocatorBase";
-constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
-    "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
 constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
 constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
     "Media.ExperimentalMaxPendingBytesPerParse";
 constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
+constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
+
+constexpr char kDecoderBufferEnableMediaBufferPoolAllocatorStrategy[] =
+    "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
+static_assert(
+    std::string_view(kDecoderBufferEnableMediaBufferPoolAllocatorStrategy)
+        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
+    kDecoderBufferSettingPrefix);
+
+constexpr char kDecoderBufferEnableInPlaceReuseAllocatorBase[] =
+    "DecoderBuffer.EnableInPlaceReuseAllocatorBase";
+static_assert(
+    std::string_view(kDecoderBufferEnableInPlaceReuseAllocatorBase)
+        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
+    kDecoderBufferSettingPrefix);
 
 struct SettingContext {
   ScriptState* script_state;
@@ -59,16 +70,18 @@ using Result = base::expected<void, String>;
 ScriptPromise Reject(const SettingContext& context, const String& error) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       context.script_state, context.exception_context);
+  ScriptPromise promise = resolver->Promise();
   resolver->Reject(V8ThrowException::CreateTypeError(
       context.script_state->GetIsolate(), error));
-  return resolver->Promise();
+  return promise;
 }
 
 ScriptPromise Resolve(const SettingContext& context) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       context.script_state, context.exception_context);
+  ScriptPromise promise = resolver->Promise();
   resolver->Resolve();
-  return resolver->Promise();
+  return promise;
 }
 
 template <typename T, typename Callback>
@@ -124,28 +137,27 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
   SettingContext context{script_state, exception_state.GetContext(), value,
                          name};
 
-  // Use StringView to enable template-based comparison with string literals.
-  // This allows the compiler to use the literal's size at compile-time (via
-  // sizeof), avoiding runtime length calculations (strlen) during equality
-  // checks.
-  WTF::StringView name_view(name);
-  if (name_view == kEnableMediaBufferPoolAllocatorStrategy) {
+  if (name == kDecoderBufferEnableMediaBufferPoolAllocatorStrategy) {
     return ProcessEnableOnlySetting(context, [] {
       ::media::DecoderBuffer::EnableMediaBufferPoolStrategy();
     });
   }
-  if (name_view == kEnableInPlaceReuseAllocatorBase) {
+  if (name == kDecoderBufferEnableInPlaceReuseAllocatorBase) {
     return ProcessEnableOnlySetting(context, [] {
       ::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase();
     });
   }
-  if (name_view == kMediaAppendFirstSegmentSynchronously) {
+  if (name.StartsWith(kDecoderBufferSettingPrefix)) {
+    return Reject(context, name + " isn't a supported setting.");
+  }
+
+  if (name == kMediaAppendFirstSegmentSynchronously) {
     return ProcessSettingAs<bool>(context, [this](bool enable) -> Result {
       append_first_segment_synchronously_ = enable;
       return base::ok();
     });
   }
-  if (name_view == kMediaExperimentalMaxPendingBytesPerParse) {
+  if (name == kMediaExperimentalMaxPendingBytesPerParse) {
     return ProcessSettingAs<int>(context, [](int value) -> Result {
       if (value <= 0) {
         return base::unexpected(kMediaExperimentalMaxPendingBytesPerParse +
@@ -156,16 +168,13 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       return base::ok();
     });
   }
-  if (name_view == kMediaIncrementalParseLookAhead) {
+  if (name == kMediaIncrementalParseLookAhead) {
     return ProcessEnableOnlySetting(context, [] {
       ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
     });
   }
 
   EnsureReceiverIsBound();
-
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
 
   h5vcc_settings::mojom::blink::ValuePtr mojo_value;
   if (value->IsString()) {
@@ -176,11 +185,11 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
     NOTREACHED();
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(), "Unsupported type."));
-    return resolver->Promise();
+    return Reject(context, "Unsupported type.");
   }
 
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
   ongoing_requests_.insert(resolver);
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
