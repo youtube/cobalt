@@ -76,11 +76,6 @@
 #include "base/os_compat_android.h"
 #endif
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "starboard/configuration_constants.h"
-#include "starboard/system.h"
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-
 #if !BUILDFLAG(IS_IOS)
 #include <grp.h>
 #endif
@@ -811,19 +806,6 @@ bool ExecutableExistsInPath(Environment* env,
 #if !BUILDFLAG(IS_APPLE)
 // This is implemented in file_util_apple.mm for Mac.
 bool GetTempDir(FilePath* path) {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  std::vector<char> temp_path(kSbFileMaxPath, 0);
-  if (!SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.data(),
-                       temp_path.size())) {
-    return false;
-  }
-  *path = FilePath(temp_path.data());
-
-  if (!DirectoryExists(*path)) {
-    return CreateDirectory(*path);
-  }
-  return true;
-#else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   const char* tmp = getenv("TMPDIR");
   if (tmp) {
     *path = FilePath(tmp);
@@ -836,7 +818,6 @@ bool GetTempDir(FilePath* path) {
   *path = FilePath("/tmp");
   return true;
 #endif
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 #endif  // !BUILDFLAG(IS_APPLE)
 
