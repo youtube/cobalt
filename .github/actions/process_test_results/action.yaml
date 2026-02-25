@@ -32,7 +32,10 @@ runs:
     - name: Check Failed Tests
       if: always()
       env:
-        NUM_FAILED: ${{ steps.test-summary.outputs.failed }}
+        TESTS_FAILED: ${{ steps.test-summary.outputs.failed }}
+        TESTS_PASSED: ${{ steps.test-summary.outputs.passed }}
+        TESTS_SKIPPED: ${{ steps.test-summary.outputs.skipped }}
+        TESTS_TOTAL: ${{ steps.test-summary.outputs.total }}
         RESULTS_GLOB: ${{ inputs.results_glob }}
         NUM_GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
         TARGET_NAME: ${{ inputs.target_name }}
@@ -56,7 +59,7 @@ runs:
           exit_code=1
         fi
 
-        if [ ${NUM_FAILED:-0} -gt 0 ]; then
+        if [ ${TESTS_FAILED:-0} -gt 0 ]; then
           # Print failed tests.
           echo
           echo " _____ _____ ____ _____   ____ _____   _   _____ _   _  ____  "
@@ -68,10 +71,11 @@ runs:
 
           python3 cobalt/tools/junit_mini_parser.py ${RESULTS_GLOB}
 
-          echo "::error::${TARGET_NAME} has ${NUM_FAILED} failed test(s)."
+          echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
           exit_code=1
         fi
 
+        echo "${TESTS_PASSED} of ${TESTS_TOTAL} tests passed (${TESTS_SKIPPED} skipped)."
         exit ${exit_code}
       shell: bash
 
