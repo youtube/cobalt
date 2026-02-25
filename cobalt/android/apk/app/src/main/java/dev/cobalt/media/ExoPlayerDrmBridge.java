@@ -17,9 +17,12 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
+import android.content.Context;
+import android.net.Uri;
 import android.os.Build;
 import android.util.Base64;
 import androidx.media3.common.C;
+import androidx.media3.datasource.DataSpec;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager;
 import androidx.media3.exoplayer.drm.ExoMediaDrm;
 import androidx.media3.exoplayer.drm.FrameworkMediaDrm;
@@ -33,6 +36,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -150,8 +154,13 @@ public class ExoPlayerDrmBridge {
         try {
             return mPendingProvisionRequestResponse.get(
                     PROVISION_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
         }
     }
 
@@ -181,8 +190,13 @@ public class ExoPlayerDrmBridge {
         try {
             return mPendingKeyRequestResponse.get(
                     KEY_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new MediaDrmCallbackException(
+                    new DataSpec(Uri.EMPTY), Uri.EMPTY, Collections.emptyMap(), 0, e);
         }
     }
 
