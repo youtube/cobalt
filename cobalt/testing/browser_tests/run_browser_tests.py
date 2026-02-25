@@ -122,6 +122,17 @@ def main():
 
   print(f"Found {len(tests)} tests. Running them one by one...\n")
 
+  # Initialize the final XML file if requested
+  final_xml_path = None
+  if gtest_output and gtest_output.startswith("xml:"):
+    final_xml_path = gtest_output[4:]
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(final_xml_path), exist_ok=True)
+    with open(final_xml_path, "w", encoding="utf-8") as f:
+      f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+      f.write('<testsuites tests="REPLACE_TESTS" failures="REPLACE_FAILURES" '
+              'disabled="0" errors="0" time="0" name="AllTests">\n')
+
   # 2. Run each test in a fresh process
   failed_tests = []
   passed_count = 0
@@ -129,22 +140,14 @@ def main():
   for i, test in enumerate(tests):
     print(f"[{i+1}/{len(tests)}] Running {test}...")
     temp_user_data_dir = tempfile.mkdtemp(prefix="cobalt_browser_test_")
+    test_xml_path = None
     try:
       current_test_args = list(new_runner_args)
 
       # Handle gtest_output if provided. We want each test to have its own XML.
-      if gtest_output:
-        safe_test_name = sanitize_filename(test)
-        if gtest_output.startswith("xml:"):
-          base_xml = gtest_output[4:]
-          if base_xml.endswith(".xml"):
-            test_xml = f"{base_xml[:-4]}_{safe_test_name}.xml"
-          else:
-            test_xml = f"{base_xml}_{safe_test_name}.xml"
-          current_test_args.append(f"--gtest_output=xml:{test_xml}")
-        else:
-          current_test_args.append(
-              f"--gtest_output={gtest_output}_{safe_test_name}")
+      if final_xml_path:
+        test_xml_path = os.path.join(temp_user_data_dir, "test_result.xml")
+        current_test_args.append(f"--gtest_output=xml:{test_xml_path}")
 
       cmd = [
           binary_path,
@@ -165,6 +168,31 @@ def main():
       else:
         passed_count += 1
 
+      # Append results to the final XML
+      if final_xml_path:
+        if os.path.isfile(test_xml_path):
+          with open(test_xml_path, "r", encoding="utf-8") as f:
+            xml_content = f.read()
+            # Extract the <testsuite> block(s)
+            # We look for everything between <testsuites ...> and </testsuites>
+            match = re.search(r"<testsuites[^>]*>(.*)</testsuites>",
+                              xml_content, re.DOTALL)
+            if match:
+              with open(final_xml_path, "a", encoding="utf-8") as out_f:
+                out_f.write(match.group(1))
+        else:
+          # Synthesize failure XML if file is missing
+          suite_name, case_name = test.split(".", 1)
+          with open(final_xml_path, "a", encoding="utf-8") as out_f:
+            out_f.write(f'  <testsuite name="{suite_name}" tests="1" '
+                        f'failures="1" errors="0" time="0">\n')
+            out_f.write(f'    <testcase name="{case_name}" status="run" '
+                        f'time="0" classname="{suite_name}">\n')
+            out_f.write('      <failure message="Test crashed or failed to '
+                        'output XML" type="Crash"/>\n')
+            out_f.write("    </testcase>\n")
+            out_f.write("  </testsuite>\n")
+
     except KeyboardInterrupt:
       print("\nAborted by user.")
       sys.exit(130)
@@ -173,6 +201,19 @@ def main():
       failed_tests.append(test)
     finally:
       shutil.rmtree(temp_user_data_dir, ignore_errors=True)
+
+  # Finalize the XML file
+  if final_xml_path:
+    with open(final_xml_path, "a", encoding="utf-8") as f:
+      f.write("</testsuites>\n")
+
+    # Update counts
+    with open(final_xml_path, "r", encoding="utf-8") as f:
+      content = f.read()
+    content = content.replace("REPLACE_TESTS", str(len(tests)))
+    content = content.replace("REPLACE_FAILURES", str(len(failed_tests)))
+    with open(final_xml_path, "w", encoding="utf-8") as f:
+      f.write(content)
 
   print("\n" + "=" * 40)
   print(f"Total: {len(tests)}, Passed: {passed_count}, "

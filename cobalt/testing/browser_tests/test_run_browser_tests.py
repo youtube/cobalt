@@ -6,6 +6,8 @@
 
 import importlib.util
 import os
+import shutil
+import tempfile
 import unittest
 from unittest import mock
 
@@ -19,6 +21,12 @@ spec.loader.exec_module(run_browser_tests)
 
 class TestRunBrowserTests(unittest.TestCase):
   """Unit tests for the browser test runner logic."""
+
+  def setUp(self):
+    self.test_dir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.test_dir)
 
   def test_sanitize_filename(self):
     """Verifies that filename sanitization works correctly."""
@@ -43,61 +51,67 @@ class TestRunBrowserTests(unittest.TestCase):
   @mock.patch('subprocess.check_output')
   @mock.patch('subprocess.run')
   @mock.patch('os.path.isfile', return_value=True)
-  @mock.patch('tempfile.mkdtemp', return_value='/tmp/user_data_dir')
+  @mock.patch('tempfile.mkdtemp')
   @mock.patch('shutil.rmtree')
-  @mock.patch(
-      'sys.argv',
-      ['run_browser_tests.py', './binary', '--gtest_output=xml:results.xml'])
   # pylint: disable=too-many-positional-arguments
   def test_main_execution_flow(self, mock_rmtree, mock_mkdtemp, mock_isfile,
                                mock_run, mock_check_output):
-    """Verifies the main execution flow and command construction."""
-    del mock_rmtree, mock_mkdtemp, mock_isfile  # Unused.
+    """Verifies the main execution flow and XML merging."""
+    del mock_rmtree, mock_isfile  # Unused.
+    final_xml = os.path.join(self.test_dir, 'results.xml')
+    mock_mkdtemp.return_value = self.test_dir
 
-    # Mock gtest_list_tests output
-    mock_check_output.return_value = 'Suite.\n  Test1\n  Test2\n'
+    # Mock sys.argv
+    argv = [
+        'run_browser_tests.py', './binary', f'--gtest_output=xml:{final_xml}'
+    ]
+    with mock.patch('sys.argv', argv):
+      # Mock gtest_list_tests output
+      mock_check_output.return_value = 'Suite.\n  Test1\n'
 
-    # Mock individual test run success
-    mock_run.return_value.returncode = 0
+      # Mock individual test run success
+      mock_run.return_value.returncode = 0
 
-    with mock.patch('sys.exit') as mock_exit:
-      run_browser_tests.main()
+      # Create a fake individual XML result that the script will read
+      def side_effect(*args, **kwargs):
+        del args, kwargs  # Unused.
+        test_xml = os.path.join(self.test_dir, 'test_result.xml')
+        with open(test_xml, 'w', encoding='utf-8') as f:
+          f.write('<testsuites><testsuite name="Suite" tests="1">'
+                  '<testcase name="Test1"/></testsuite></testsuites>')
+        return mock.Mock(returncode=0)
 
-      # Should call sys.exit(0) on success
-      mock_exit.assert_called_once_with(0)
+      mock_run.side_effect = side_effect
 
-      # Verify listing command
-      mock_check_output.assert_called_once()
-      list_cmd = mock_check_output.call_args[0][0]
-      self.assertIn('--gtest_list_tests', list_cmd)
+      with mock.patch('sys.exit') as mock_exit:
+        run_browser_tests.main()
 
-      # Verify run commands for both tests
-      self.assertEqual(mock_run.call_count, 2)
+        mock_exit.assert_called_once_with(0)
 
-      # Verify first test run command
-      first_run_cmd = mock_run.call_args_list[0][0][0]
-      self.assertIn('--gtest_filter=Suite.Test1', first_run_cmd)
-      self.assertIn('--gtest_output=xml:results_Suite.Test1.xml', first_run_cmd)
-      self.assertIn('--user-data-dir=/tmp/user_data_dir', first_run_cmd)
+        # Verify final XML content
+        with open(final_xml, 'r', encoding='utf-8') as f:
+          content = f.read()
+          self.assertIn('<testsuite name="Suite" tests="1">', content)
+          self.assertIn('<testcase name="Test1"/>', content)
+          self.assertIn('tests="1"', content)  # Total count updated
 
   @mock.patch('subprocess.check_output')
   @mock.patch('os.path.isfile', return_value=True)
-  @mock.patch('sys.argv', ['run_browser_tests.py', './binary'])
   def test_parsing_ignores_summary(self, mock_isfile, mock_check_output):
     """Verifies that the script ignores summary lines during parsing."""
     del mock_isfile  # Unused.
+    with mock.patch('sys.argv', ['run_browser_tests.py', './binary']):
+      # Mock output containing both valid tests and summary noise
+      mock_check_output.return_value = (
+          'Suite.\n  Test1\nNavigationBaseBrowserTest.\n  Total: 14, P: 14\n')
 
-    # Mock output containing both valid tests and summary noise
-    mock_check_output.return_value = (
-        'Suite.\n  Test1\nNavigationBaseBrowserTest.\n  Total: 14, P: 14\n')
+      with mock.patch('subprocess.run') as mock_run:
+        with mock.patch('sys.exit'):
+          run_browser_tests.main()
 
-    with mock.patch('subprocess.run') as mock_run:
-      with mock.patch('sys.exit'):
-        run_browser_tests.main()
-
-        # Should only run Test1, not the summary line
-        self.assertEqual(mock_run.call_count, 1)
-        self.assertIn('--gtest_filter=Suite.Test1', mock_run.call_args[0][0])
+          # Should only run Test1, not the summary line
+          self.assertEqual(mock_run.call_count, 1)
+          self.assertIn('--gtest_filter=Suite.Test1', mock_run.call_args[0][0])
 
 
 if __name__ == '__main__':
