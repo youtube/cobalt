@@ -66,7 +66,13 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
           weak_factory_.GetWeakPtr()),
       base::BindRepeating(
           &StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard,
-          weak_factory_.GetWeakPtr())
+          weak_factory_.GetWeakPtr()),
+#if BUILDFLAG(IS_STARBOARD)
+      base::BindRepeating(&StarboardRendererWrapper::OnGetSbWindowHandle,
+                          weak_factory_.GetWeakPtr())
+#else   // BUILDFLAG(IS_STARBOARD)
+      base::NullCallback()
+#endif  // BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID)
           ,
       base::BindRepeating(
@@ -158,6 +164,12 @@ void StarboardRendererWrapper::GetCurrentVideoFrame(
   std::move(callback).Run(nullptr);
 }
 
+void StarboardRendererWrapper::OnSbWindowHandleReady(
+    const uint64_t sb_window_handle) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  GetRenderer()->OnSbWindowHandleReady(sb_window_handle);
+}
+
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererWrapper::OnOverlayInfoChanged(
     const OverlayInfo& overlay_info) {
@@ -202,6 +214,11 @@ void StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard(
     const StarboardRenderingMode mode) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->UpdateStarboardRenderingMode(mode);
+}
+
+void StarboardRendererWrapper::OnGetSbWindowHandle() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->GetSbWindowHandle();
 }
 
 #if BUILDFLAG(IS_ANDROID)

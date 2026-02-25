@@ -33,11 +33,13 @@ T ResetAndReturn(T* t) {
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : initial_samples_per_second_(audio_stream_info.samples_per_second),
+    : JobOwner(job_queue),
+      initial_samples_per_second_(audio_stream_info.samples_per_second),
       drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
@@ -46,12 +48,14 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     bool enable_reset_audio_decoder,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : AdaptiveAudioDecoder(audio_stream_info,
+    : AdaptiveAudioDecoder(job_queue,
+                           audio_stream_info,
                            drm_system,
                            audio_decoder_creator,
                            output_adjustment_callback) {

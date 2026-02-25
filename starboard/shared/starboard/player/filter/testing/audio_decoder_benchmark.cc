@@ -42,7 +42,7 @@ class AudioDecoderHelper {
                                    kMaxNumberOfInputs)) {
     const bool kUseStubDecoder = false;
     SB_CHECK_GT(number_of_inputs_, 0);
-    SB_CHECK(CreateAudioComponents(kUseStubDecoder,
+    SB_CHECK(CreateAudioComponents(kUseStubDecoder, &job_queue_,
                                    dmp_reader_.audio_stream_info(),
                                    &audio_decoder_, &audio_renderer_sink_));
     SB_CHECK(audio_decoder_);

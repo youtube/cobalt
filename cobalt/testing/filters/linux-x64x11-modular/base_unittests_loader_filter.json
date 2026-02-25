@@ -1,6 +1,7 @@
 {
   "failing_tests": [
     "AllocatorShimTest.*",
+    "AsanBackupRefPtrTest.EarlyAllocationDetection",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
     "FileEnumerator.*",
     "FilePathTest.*",
@@ -49,5 +50,8 @@
 
   "_filtered_b/411746135": [
     "All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork*"
+  ],
+  "_filtered_b/467135717": [
+    "AsanBackupRefPtrTest.EarlyAllocationDetection"
   ]
 }

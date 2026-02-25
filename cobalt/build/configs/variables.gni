@@ -23,14 +23,6 @@ sb_is_evergreen = use_evergreen && current_toolchain == default_toolchain
 # true for non-android builds.
 sb_is_modular = use_evergreen || build_with_separate_cobalt_toolchain
 
-declare_args() {
-  use_tsan = false
-}
-declare_args() {
-  # TODO(b/371589344) : Enable ASAN
-  use_asan = false
-}
-
 # TODO(b/371606611): Build test targets with cobalt toolchain
 enable_test_targets = false
 

@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 namespace {
 
@@ -351,7 +352,8 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
         size_t canonname_len = strlen(ai_copy.ai_canonname);
         musl_ai->ai_canonname =
             reinterpret_cast<char*>(calloc(canonname_len + 1, sizeof(char)));
-        memcpy(musl_ai->ai_canonname, ai_copy.ai_canonname, canonname_len);
+        starboard::strlcpy(musl_ai->ai_canonname, ai_copy.ai_canonname,
+                           canonname_len + 1);
       }
       if (*res == nullptr) {
         *res = musl_ai;

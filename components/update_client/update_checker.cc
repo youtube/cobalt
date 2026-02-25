@@ -62,7 +62,7 @@ class UpdateCheckerImpl : public UpdateChecker {
       const base::flat_map<std::string, std::string>& additional_attributes,
       UpdateCheckCallback update_check_callback) override;
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
   PersistedData* GetPersistedData() override { return config_->GetPersistedData(); }
   void Cancel() override;
   bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override;
@@ -227,7 +227,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     for (auto i = range.first; i != range.second; i++) {
       cached_hashes.push_back(i->second);
     }
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
     base::Version current_version = crx_component->version;
 
     // Check if there is an available update already for quick roll-forward
@@ -349,7 +349,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
 #endif
 }
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_EVERGREEN)
 void UpdateCheckerImpl::Cancel() {
   // TODO(b/448186580): Replace LOG with D(V)LOG
   LOG(INFO) << "UpdateCheckerImpl::Cancel";

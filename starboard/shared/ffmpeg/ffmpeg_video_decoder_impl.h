@@ -82,10 +82,13 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
   class DecoderThread : public Thread {
    public:
     explicit DecoderThread(FfmpegVideoDecoderImpl<FFMPEG>* decoder)
-        : Thread("ff_video_dec", kSbThreadPriorityHigh), decoder_(decoder) {
+        : Thread("ff_video_dec"), decoder_(decoder) {
       SB_CHECK(decoder_);
     }
-    void Run() override { decoder_->DecoderThreadFunc(); }
+    void Run() override {
+      SbThreadSetPriority(kSbThreadPriorityHigh);
+      decoder_->DecoderThreadFunc();
+    }
 
    private:
     FfmpegVideoDecoderImpl<FFMPEG>* const decoder_;

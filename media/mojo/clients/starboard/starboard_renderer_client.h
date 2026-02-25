@@ -65,6 +65,7 @@ class MEDIA_EXPORT StarboardRendererClient
       VideoRendererSink* video_renderer_sink,
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
       mojo::PendingReceiver<ClientExtension> client_extension_receiver,
+      GetSbWindowHandleCallback get_sb_window_handle_callback,
       BindHostReceiverCallback bind_host_receiver_callback,
       GpuVideoAcceleratorFactories* gpu_factories
 #if BUILDFLAG(IS_ANDROID)
@@ -110,6 +111,7 @@ class MEDIA_EXPORT StarboardRendererClient
   // mojom::StarboardRendererClientExtension implementation
   void PaintVideoHoleFrame(const gfx::Size& size) override;
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
+  void GetSbWindowHandle() override;
 #if BUILDFLAG(IS_ANDROID)
   void RequestOverlayInfo(bool restart_for_transitions) override;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -155,6 +157,7 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::PendingRemote<RendererExtension> pending_renderer_extension_;
   mojo::PendingReceiver<ClientExtension> pending_client_extension_receiver_;
   mojo::Receiver<ClientExtension> client_extension_receiver_;
+  const GetSbWindowHandleCallback get_sb_window_handle_callback_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
 #if BUILDFLAG(IS_ANDROID)

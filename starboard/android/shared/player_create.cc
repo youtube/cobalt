@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "starboard/android/shared/video_max_video_input_size.h"
+#include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -188,7 +189,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     // Check the availability of the video window. As we only support one main
     // player, and sub players are in decode to texture mode on Android, a
     // single video window should be enough.
-    if (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable()) {
+    if (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable() &&
+        !starboard::GetSurfaceViewForCurrentThread()) {
       SB_LOG(ERROR) << "Video surface is not available now.";
       player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
                         "Video surface is not available now");
@@ -201,6 +203,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
           creation_param, provider);
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
+  handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
   SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));

@@ -28,7 +28,8 @@ namespace starboard {
 
 class TvosAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit TvosAudioDecoder(const AudioStreamInfo& audio_stream_info);
+  explicit TvosAudioDecoder(JobQueue* job_queue,
+                            const AudioStreamInfo& audio_stream_info);
   ~TvosAudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;

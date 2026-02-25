@@ -16,6 +16,8 @@ source_set("h5vcc_metrics") {
   sources = [
     "h5vcc_metrics_impl.cc",
     "h5vcc_metrics_impl.h",
+    "histogram_fetcher.cc",
+    "histogram_fetcher.h",
   ]
 
   deps = [
@@ -23,8 +25,10 @@ source_set("h5vcc_metrics") {
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//components/metrics",
     "//components/metrics_services_manager",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//third_party/metrics_proto",
   ]
 }

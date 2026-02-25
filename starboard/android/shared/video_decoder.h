@@ -33,6 +33,7 @@
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
 #include "starboard/decode_target.h"
@@ -55,8 +56,28 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private VideoSurfaceHolder {
  public:
   class Sink;
+  static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
+      JobQueue* job_queue,
+      const VideoStreamInfo& video_stream_info,
+      SbDrmSystem drm_system,
+      SbPlayerOutputMode output_mode,
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider,
+      const std::string& max_video_capabilities,
+      int tunnel_mode_audio_session_id,
+      bool force_secure_pipeline_under_tunnel_mode,
+      bool force_reset_surface,
+      bool force_big_endian_hdr_metadata,
+      int max_input_size,
+      void* surface_view,
+      bool enable_flush_during_seek,
+      int64_t reset_delay_usec,
+      int64_t flush_delay_usec);
 
-  MediaCodecVideoDecoder(const VideoStreamInfo& video_stream_info,
+  MediaCodecVideoDecoder(PassKey<MediaCodecVideoDecoder>,
+                         JobQueue* job_queue,
+                         const VideoStreamInfo& video_stream_info,
+
                          SbDrmSystem drm_system,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
@@ -65,13 +86,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          int tunnel_mode_audio_session_id,
                          bool force_secure_pipeline_under_tunnel_mode,
                          bool force_reset_surface,
-                         bool force_reset_surface_under_tunnel_mode,
                          bool force_big_endian_hdr_metadata,
                          int max_input_size,
+                         void* surface_view,
                          bool enable_flush_during_seek,
                          int64_t reset_delay_usec,
                          int64_t flush_delay_usec,
                          std::string* error_message);
+
   ~MediaCodecVideoDecoder() override;
 
   scoped_refptr<VideoRendererSink> GetSink();
@@ -97,8 +119,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void SetPlaybackRate(double playback_rate);
 
   void OnFrameAvailable() override;
-
-  bool is_decoder_created() const { return media_decoder_ != NULL; }
 
  private:
   // Attempt to initialize the codec.
@@ -152,16 +172,15 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
+  // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
+  void* surface_view_;
+
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
-
-  // Force resetting the video surface after tunnel mode playback, which
-  // prevents video distortion on some devices.
-  const bool force_reset_surface_under_tunnel_mode_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

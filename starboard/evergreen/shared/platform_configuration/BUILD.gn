@@ -64,10 +64,3 @@ config("platform_configuration") {
     ldflags += [ "-fsanitize=thread" ]
   }
 }
-
-config("size") {
-  configs = [ "//starboard/build/config/modular:size" ]
-  if (sb_is_evergreen && (is_qa || is_gold)) {
-    ldflags = [ "-Wl,--icf=safe" ]
-  }
-}

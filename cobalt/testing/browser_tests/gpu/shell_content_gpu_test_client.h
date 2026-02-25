@@ -1,5 +1,4 @@
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
-
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +35,9 @@ class ShellContentGpuTestClient : public ContentGpuClient {
       const gpu::GpuPreferences& gpu_preferences,
       const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
       mojo::BinderMap* binders) override;
+
+  void PostCompositorThreadCreated(
+      base::SingleThreadTaskRunner* task_runner) override;
 };
 
 }  // namespace content

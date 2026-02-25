@@ -35,19 +35,20 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       const CreationParameters& creation_parameters) override {
     MediaComponents components;
 
+    JobQueue* job_queue = creation_parameters.job_queue();
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       auto decoder_creator =
-          [](const AudioStreamInfo& audio_stream_info,
-             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
+          [job_queue](const AudioStreamInfo& audio_stream_info,
+                      SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto opus_audio_decoder =
-              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
           if (opus_audio_decoder && opus_audio_decoder->is_valid()) {
             return opus_audio_decoder;
           }
         } else {
           auto ffmpeg_audio_decoder = std::unique_ptr<FfmpegAudioDecoder>(
-              FfmpegAudioDecoder::Create(audio_stream_info));
+              FfmpegAudioDecoder::Create(job_queue, audio_stream_info));
           if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
             return ffmpeg_audio_decoder;
           }
@@ -56,7 +57,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       };
 
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
-          creation_parameters.audio_stream_info(),
+          job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator);
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkImpl>();
@@ -64,12 +65,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       components.video.decoder = std::make_unique<OpenMaxVideoDecoder>(
-          creation_parameters.video_codec());
+          creation_parameters.job_queue(), creation_parameters.video_codec());
       components.video.render_algorithm =
           std::make_unique<VideoRenderAlgorithmImpl>();
       components.video.renderer_sink =
           make_scoped_refptr<VideoRendererSinkImpl>(
-              creation_parameters.player());
+              creation_parameters.job_queue(), creation_parameters.player());
     }
 
     return components;

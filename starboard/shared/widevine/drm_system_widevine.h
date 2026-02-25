@@ -19,6 +19,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -186,8 +187,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::unique_ptr<::widevine::Cdm> cdm_;
 
   bool is_server_certificate_set_ = false;
-
-  volatile bool quitting_ = false;
 
   std::mutex unblock_key_retry_mutex_;
   std::optional<int64_t> unblock_key_retry_start_time_;

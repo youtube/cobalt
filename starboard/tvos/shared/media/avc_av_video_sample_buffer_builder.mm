@@ -72,8 +72,14 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
       }
     }
     SB_DCHECK(parameter_sets.format() == AvcParameterSets::kAnnexB);
-    source_data += parameter_sets.combined_size_in_bytes();
-    data_size -= parameter_sets.combined_size_in_bytes();
+    size_t bytes_to_skip =
+        parameter_sets.combined_size_in_bytes_with_optionals();
+    if (bytes_to_skip > data_size) {
+      ReportError("Invalid parameter set size exceeds buffer size.");
+      return;
+    }
+    source_data += bytes_to_skip;
+    data_size -= bytes_to_skip;
   }
 
   CMBlockBufferRef block;

@@ -37,11 +37,13 @@ const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
 }  // namespace
 
 VideoRendererImpl::VideoRendererImpl(
+    JobQueue* job_queue,
     std::unique_ptr<VideoDecoder> decoder,
     MediaTimeProvider* media_time_provider,
     std::unique_ptr<VideoRenderAlgorithm> algorithm,
     scoped_refptr<VideoRendererSink> sink)
-    : media_time_provider_(media_time_provider),
+    : JobOwner(job_queue),
+      media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)) {

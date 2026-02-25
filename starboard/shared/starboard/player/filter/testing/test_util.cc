@@ -19,7 +19,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -217,6 +216,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
 bool CreateAudioComponents(
     bool using_stub_decoder,
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
@@ -227,7 +227,7 @@ bool CreateAudioComponents(
   audio_decoder->reset();
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      audio_stream_info);
+      audio_stream_info, job_queue);
 
   std::unique_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder) {

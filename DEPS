@@ -42,6 +42,7 @@ gclient_gn_args = [
   'checkout_android',
   'checkout_android_prebuilts_build_tools',
   'checkout_clang_coverage_tools',
+  'checkout_cobalt_internal',
   'checkout_copybara',
   'checkout_glic_e2e_tests',
   'checkout_ios_webkit',
@@ -78,6 +79,9 @@ vars = {
   # variables.
   # TODO(crbug.com/875037): Remove this once the problem in gclient is fixed.
   'checkout_fuchsia': False,
+
+  # By default, do not check out Cobalt internal.
+  'checkout_cobalt_internal': False,
 
   # For code related to internal Fuchsia images.
   'checkout_fuchsia_internal': False,
@@ -286,17 +290,17 @@ vars = {
   'boringssl_git': 'https://boringssl.googlesource.com',
   'chrome_git': 'https://chrome-internal.googlesource.com',
   'chromium_git': 'https://chromium.googlesource.com',
+  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com',
   'dawn_git': 'https://dawn.googlesource.com',
   'pdfium_git': 'https://pdfium.googlesource.com',
   'quiche_git': 'https://quiche.googlesource.com',
   'skia_git': 'https://skia.googlesource.com',
   'swiftshader_git': 'https://swiftshader.googlesource.com',
   'webrtc_git': 'https://webrtc.googlesource.com',
-  'rdk_starboard_git': 'https://cobalt.googlesource.com',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'src_internal_revision': '69c6d51c06c154dd91ceeede1f36660a6a56e731',
+  'src_internal_revision': 'c07d7a57873da95a181eaae70ce34d6ad5ac7952',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
@@ -304,7 +308,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': 'bfc0d4f8faa2d09c87d0571bd9ca3dbadeed2cd1',
+  'v8_revision': 'b40c5631f5d789a9370067e0f492795c0b05bbef',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -384,7 +388,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling fuzztest
   # and whatever else without interference from each other.
-  'fuzztest_revision': 'f03aafb7516050ea73f617bf969f03eac641aefc',
+  'fuzztest_revision': '890b53c3485bf7e31ac8b6b637f9850e4d596ced',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling domato
   # and whatever else without interference from each other.
@@ -561,6 +565,7 @@ allowed_hosts = [
   'chrome-internal.googlesource.com',
   'chromium.googlesource.com',
   'dawn.googlesource.com',
+  'lbshell-internal.googlesource.com',
   'pdfium.googlesource.com',
   'quiche.googlesource.com',
   'skia.googlesource.com',
@@ -1512,6 +1517,11 @@ deps = {
     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
     'c429267f3539e1d40d05527bacde592f76b64e9d',
     'condition': 'checkout_android and checkout_src_internal',
+  },
+
+  'src/cobalt/internal': {
+    'url': Var('cobalt_internal_git') + '/cobalt/internal.git' + '@' + 'main',
+    'condition': 'checkout_cobalt_internal',
   },
 
   'src/docs/website': {
@@ -4947,11 +4957,6 @@ deps = {
       'condition': 'checkout_src_internal',
   },
 
-  # Dependencies for RDK (starboard/contrib/rdk)
-  'src/starboard/contrib/rdk': {
-      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
-      'condition': 'checkout_linux',
-  },
 }
 
 
@@ -5771,6 +5776,7 @@ recursedeps = [
   # clank has its own DEPS file, does not need to be in trybot_analyze_config
   # since the roller does not run tests.
   'src/clank',
+  'src/cobalt/internal',
   'src/components/optimization_guide/internal',
   'src/ios_internal',
 ]

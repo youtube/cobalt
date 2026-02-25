@@ -26,7 +26,10 @@ namespace {
 // specification of these values.
 class LconvSupportTest : public ::testing::Test {
  protected:
-  void SetUp() override { lconv_.ResetToC(); }
+  void SetUp() override {
+    lconv_.ResetNumericToC();
+    lconv_.ResetMonetaryToC();
+  }
 
   LconvImpl lconv_;
 };

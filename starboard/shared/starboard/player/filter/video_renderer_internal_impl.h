@@ -42,7 +42,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
  public:
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
-  VideoRendererImpl(std::unique_ptr<VideoDecoder> decoder,
+  VideoRendererImpl(JobQueue* job_queue,
+                    std::unique_ptr<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
                     std::unique_ptr<VideoRenderAlgorithm> algorithm,
                     scoped_refptr<VideoRendererSink> sink);

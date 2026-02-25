@@ -21,11 +21,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 
 namespace starboard {
-// Need this nested namespace to prevent breaking RDK build on CI.
-// http://go/paste/5453531536556032
-// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
-// updated.
-namespace shared::starboard::media {
+
 // Indicates whether this platform supports decoding |video_codec| and
 // |audio_codec| along with decrypting using |key_system|. If |video_codec| is
 // |kSbMediaVideoCodecNone| or if |audio_codec| is |kSbMediaAudioCodecNone|,
@@ -37,9 +33,9 @@ namespace shared::starboard::media {
 // |audio_codec|: The |SbMediaAudioCodec| being checked for platform
 //                compatibility.
 // |key_system|: The key system being checked for platform compatibility.
-SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                                SbMediaAudioCodec audio_codec,
-                                const char* key_system);
+bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                               SbMediaAudioCodec audio_codec,
+                               const char* key_system);
 
 // Indicates whether a given combination of (|frame_width| x |frame_height|)
 // frames at |bitrate| and |fps| is supported on this platform with
@@ -75,19 +71,19 @@ SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
-SB_EXPORT_ANDROID bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                                             const MimeType* mime_type,
-                                             int profile,
-                                             int level,
-                                             int bit_depth,
-                                             SbMediaPrimaryId primary_id,
-                                             SbMediaTransferId transfer_id,
-                                             SbMediaMatrixId matrix_id,
-                                             int frame_width,
-                                             int frame_height,
-                                             int64_t bitrate,
-                                             int fps,
-                                             bool decode_to_texture_required);
+bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                           const MimeType* mime_type,
+                           int profile,
+                           int level,
+                           int bit_depth,
+                           SbMediaPrimaryId primary_id,
+                           SbMediaTransferId transfer_id,
+                           SbMediaMatrixId matrix_id,
+                           int frame_width,
+                           int frame_height,
+                           int64_t bitrate,
+                           int fps,
+                           bool decode_to_texture_required);
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
@@ -97,16 +93,9 @@ SB_EXPORT_ANDROID bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 // |mime_type|: The parsed mime type passed to the corresponding interface.
 //              Note that |mime_type| can be NULL.
 // |bitrate|: The media's bitrate.
-SB_EXPORT_ANDROID bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                                             const MimeType* mime_type,
-                                             int64_t bitrate);
-}  // namespace shared::starboard::media
-
-// TODO: b/441955897 : Remove these aliases when flattening namespace is
-// completed.
-using shared::starboard::media::MediaIsAudioSupported;
-using shared::starboard::media::MediaIsSupported;
-using shared::starboard::media::MediaIsVideoSupported;
+bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+                           const MimeType* mime_type,
+                           int64_t bitrate);
 
 }  // namespace starboard
 

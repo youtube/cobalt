@@ -42,12 +42,14 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
                              int* output_number_of_channels)>
       OutputFormatAdjustmentCallback;
 
-  AdaptiveAudioDecoder(const AudioStreamInfo& audio_stream_info,
+  AdaptiveAudioDecoder(JobQueue* job_queue,
+                       const AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
                        const OutputFormatAdjustmentCallback&
                            output_adjustment_callback = nullptr);
-  AdaptiveAudioDecoder(const AudioStreamInfo& audio_stream_info,
+  AdaptiveAudioDecoder(JobQueue* job_queue,
+                       const AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
                        bool enable_reset_audio_decoder,
