@@ -102,7 +102,6 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
   bool CreateWorker(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
-      SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,

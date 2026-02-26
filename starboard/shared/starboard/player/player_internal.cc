@@ -51,7 +51,6 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
 bool SbPlayerPrivateImpl::CreateWorker(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
-    SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
@@ -82,9 +81,8 @@ SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler) {
   auto player = std::unique_ptr<SbPlayerPrivateImpl>(
       new SbPlayerPrivateImpl(sample_deallocate_func, context));
-  if (!player->CreateWorker(audio_codec, video_codec, sample_deallocate_func,
-                            decoder_status_func, player_status_func,
-                            player_error_func,
+  if (!player->CreateWorker(audio_codec, video_codec, decoder_status_func,
+                            player_status_func, player_error_func,
                             std::move(player_worker_handler))) {
     return nullptr;
   }

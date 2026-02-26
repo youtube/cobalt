@@ -41,9 +41,8 @@ class SbPlayerAndroid
       const VideoDecoderExperimentalFeatures& experimental_features) {
     auto player = std::unique_ptr<SbPlayerAndroid>(new SbPlayerAndroid(
         sample_deallocate_func, context, experimental_features));
-    if (!player->CreateWorker(audio_codec, video_codec, sample_deallocate_func,
-                              decoder_status_func, player_status_func,
-                              player_error_func,
+    if (!player->CreateWorker(audio_codec, video_codec, decoder_status_func,
+                              player_status_func, player_error_func,
                               std::move(player_worker_handler))) {
       return nullptr;
     }
