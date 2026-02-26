@@ -2914,7 +2914,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
       *base::CommandLine::ForCurrentProcess(), is_quic_force_disabled,
       &session_params, quic_context->params());
 
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_COBALT)
   session_params.use_quic_for_unknown_origins = true;
 #endif
 

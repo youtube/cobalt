@@ -149,7 +149,7 @@ struct NET_EXPORT HttpNetworkSessionParams {
   // Enables QUIC support.
   bool enable_quic = true;
 
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_COBALT)
   // If true, request to an origin without recorded alt-svc info will
   // try to establish both QUIC and TCP connections and use the faster one.
   bool use_quic_for_unknown_origins = false;
@@ -309,7 +309,7 @@ class NET_EXPORT HttpNetworkSession : public base::PowerSuspendObserver {
   // Disable QUIC for new streams.
   void DisableQuic();
 
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_COBALT)
   // Whether to try QUIC connection for origins without alt-svc on record.
   bool UseQuicForUnknownOrigin() const;
 #endif
