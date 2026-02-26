@@ -261,6 +261,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         test_type = 'e2e_test'
         target_name = test_target.split(':')[-1]
         dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
+
         # Browser tests running in the gateway use the specialized runner.
         # We need to tell it where to output the XML so the gateway can find it.
         if dir_on_device:
@@ -278,6 +279,18 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           params.append(f'docker_tag={args.docker_tag}')
         if args.gcs_result_path:
           params.append(f'gcs_result_path={args.gcs_result_path}')
+
+        # Overrides for browser test container configuration.
+        if args.container_location:
+          params.append(f'container_location={args.container_location}')
+        if args.container_env_variable:
+          params.append(f'container_env_variable={args.container_env_variable}')
+        if args.container_args:
+          params.append(f'container_args={args.container_args}')
+        if args.container_args_delimiter:
+          params.append(
+              f'container_args_delimiter={args.container_args_delimiter}')
+
       else:
         params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
         if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
@@ -408,6 +421,26 @@ def main() -> int:
       '--docker_tag',
       type=str,
       help='Docker image tag to be used by the test lab.',
+  )
+  trigger_args.add_argument(
+      '--container_location',
+      type=str,
+      help='The location of the Docker image to run for the test.',
+  )
+  trigger_args.add_argument(
+      '--container_env_variable',
+      type=str,
+      help='Environment variables to pass to the test container.',
+  )
+  trigger_args.add_argument(
+      '--container_args',
+      type=str,
+      help='Arguments to pass to the test container.',
+  )
+  trigger_args.add_argument(
+      '--container_args_delimiter',
+      type=str,
+      help='Delimiter used to separate container arguments.',
   )
 
   # --- Unit Test Arguments ---

@@ -670,6 +670,7 @@ jobs:
           test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
           docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
           test_targets: '${{ needs.initialize.outputs.browser_test_targets }}'
+          config: ${{ matrix.config }}
 
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]

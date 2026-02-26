@@ -56,6 +56,15 @@ def main():
       description="Portable test runner for Cobalt browser tests.",
       add_help=False)
   parser.add_argument("--init-command", help="Command to run before tests.")
+
+  # These arguments are often passed by the container environment.
+  # We sink them here so they don't cause errors or conflicts with the runner.
+  parser.add_argument("--test-filter", help="Test filter (sink).")
+  parser.add_argument("--test-arguments", help="Additional test args (sink).")
+  parser.add_argument("--json-results-file", help="JSON results file (sink).")
+  parser.add_argument("--logcat-output-file", help="Logcat output file (sink).")
+  parser.add_argument("--environment", help="Execution environment (sink).")
+
   parser.add_argument(
       "target", nargs="?", help="Target platform to run tests for.")
   parser.add_argument(

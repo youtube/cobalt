@@ -22,6 +22,9 @@ inputs:
   test_targets:
     description: "JSON string representing the test targets."
     required: true
+  config:
+    description: "The build configuration (e.g. devel, qa)."
+    required: true
 
 runs:
   using: "composite"
@@ -68,9 +71,24 @@ runs:
         DOCKER_TAG: ${{ inputs.docker_tag }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         PLATFORM: ${{ matrix.platform }}
+        CONFIG: ${{ matrix.config }}
         TEST_TARGETS_JSON: ${{ inputs.test_targets }}
       run: |
         set -x
+
+        # Determine the gtest-filter from the filter file if it exists.
+        # We only handle the first target for filter application in ODT for now.
+        test_target=$(echo "${TEST_TARGETS_JSON}" | jq -r '.[0].target' | awk -F: '{print $NF}')
+        TEST_FILTER_JSON="${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}/${test_target}_filter.json"
+        GTEST_FILTER="*"
+        if [ -f "${TEST_FILTER_JSON}" ]; then
+            FAILING_TESTS=$(jq -r '.failing_tests | join(":")' "${TEST_FILTER_JSON}")
+            if [ -n "${FAILING_TESTS}" ]; then
+                GTEST_FILTER="-${FAILING_TESTS}"
+            fi
+        fi
+
+        CONTAINER_ARGS="--json-results-file=/app/results/summary.json|--logcat-output-file=/app/results/logcat.txt|--environment=local|--test-arguments=\\\"-e org.chromium.native_test.NativeTest.CommandLineFlags '--gtest_output=xml:/app/results/${test_target}_testoutput.xml --gtest_filter=${GTEST_FILTER}'\\\""
 
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token "${GITHUB_TOKEN}" \
@@ -79,6 +97,10 @@ runs:
           --device_family "${DEVICE_FAMILY}" \
           --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}" \
+          --container_location "${DOCKER_TAG}" \
+          --container_env_variable "ANDROID_SERIAL=%deviceid%,TARGET_PLATFORM=${PLATFORM}_${CONFIG}" \
+          --container_args "${CONTAINER_ARGS}" \
+          --container_args_delimiter "|" \
           --label chrobalt_on_device_browser_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
@@ -97,7 +119,6 @@ runs:
           --label branch:${GITHUB_REF_NAME} \
           --dimensions "${TEST_DIMENSIONS}" \
           ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
-          ${DOCKER_TAG:+"--docker_tag" "$DOCKER_TAG"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
