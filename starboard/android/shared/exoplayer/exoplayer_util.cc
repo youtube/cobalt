@@ -155,8 +155,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
   ScopedJavaLocalRef<jstring> j_mime(ConvertUTF8ToJavaString(
       env, SupportedVideoCodecToMimeType(stream_info.codec)));
 
-  int framerate = mime_type.GetParamIntValue("framerate", -1);
-  int bitrate = mime_type.GetParamIntValue("bitrate", -1);
+  int framerate = mime_type.GetParamIntValue("framerate", 0);
+  int bitrate = mime_type.GetParamIntValue("bitrate", 0);
 
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);

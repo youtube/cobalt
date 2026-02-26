@@ -24,7 +24,6 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-// Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
 // android.media.MediaDrm.KeyStatus.

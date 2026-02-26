@@ -51,6 +51,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   };
 
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
+                  const SbMediaVideoStreamInfo& video_stream_info);
+
+  ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
                   const SbMediaVideoStreamInfo& video_stream_info,
                   const SbDrmSystem drm_system,
                   const std::vector<uint8_t>& drm_init_data);
