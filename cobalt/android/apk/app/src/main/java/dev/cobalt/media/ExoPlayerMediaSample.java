@@ -70,13 +70,7 @@ public final class ExoPlayerMediaSample {
             && subsampleClearBytes != null
             && subsampleEncryptedBytes.length > 0;
 
-    int flags = 0;
-    if (isKeyFrame) {
-      flags |= C.BUFFER_FLAG_KEY_FRAME;
-    }
-
     if (key != null) {
-      flags |= C.BUFFER_FLAG_ENCRYPTED;
       this.mCryptoData = new CryptoData(encryptionMode, key, encryptedBlocks, clearBlocks);
 
       // Create a unique buffer for the encryption signal byte.
@@ -109,6 +103,14 @@ public final class ExoPlayerMediaSample {
       this.mEncryptionSignalByte = null;
       this.mIvData = null;
       this.mSubsampleData = null;
+    }
+
+    int flags = 0;
+    if (isKeyFrame) {
+      flags |= C.BUFFER_FLAG_KEY_FRAME;
+    }
+    if (key != null) {
+      flags |= C.BUFFER_FLAG_ENCRYPTED;
     }
     this.mFlags = flags;
 

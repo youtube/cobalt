@@ -164,9 +164,8 @@ public class ExoPlayerSampleStream implements SampleStream {
                 return C.RESULT_NOTHING_READ;
             }
 
-            int read = C.RESULT_NOTHING_READ;
             try {
-                read = mSampleQueue.read(formatHolder, buffer, readFlags, mEndOfStream);
+                return mSampleQueue.read(formatHolder, buffer, readFlags, mEndOfStream);
             } catch (DecoderInputBuffer.InsufficientCapacityException e) {
                 Log.i(TAG,
                         String.format(
@@ -174,7 +173,7 @@ public class ExoPlayerSampleStream implements SampleStream {
                                 e));
             }
 
-            return read;
+            return C.RESULT_NOTHING_READ;
         }
     }
 

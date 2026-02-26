@@ -65,15 +65,25 @@ public class ExoPlayerDrmBridge {
     private static final long PROVISION_REQUEST_TIMEOUT_MS = 2000;
     private static final long KEY_REQUEST_TIMEOUT_MS = 2000;
 
-    /** Interface to allow the proxy to expose internal state and custom listeners. */
+    /**
+     * Interface to allow the proxy to expose internal state and custom listeners.
+     * This extends {@link ExoMediaDrm} so the resulting proxy can be used by ExoPlayer
+     * while also providing Cobalt-specific extension methods.
+     */
     private interface CobaltExoMediaDrm extends ExoMediaDrm {
+        /** Returns the session ID captured during the last openSession() call. */
         byte[] getSessionId();
+        /** Sets a second listener for key status changes, used by the native layer. */
         void setCobaltOnKeyStatusChangeListener(OnKeyStatusChangeListener listener);
     }
 
     /**
-     * A Dynamic Proxy handler that delegates to FrameworkMediaDrm while intercepting
-     * session-related calls.
+     * A Dynamic Proxy handler that delegates all calls to a {@link FrameworkMediaDrm} instance
+     * while intercepting specific methods to manage session state and event multiplexing.
+     *
+     * <p>This pattern is used to avoid creating a full decorator (wrapper) class for ExoMediaDrm,
+     * which would require implementing dozens of boilerplate methods and would be fragile
+     * to upstream API changes in the media3 library.
      */
     private static class ExoMediaDrmInvocationHandler implements InvocationHandler {
         private final FrameworkMediaDrm mRealDrm;
@@ -89,26 +99,49 @@ public class ExoPlayerDrmBridge {
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             String methodName = method.getName();
             try {
+                // Intercept openSession to capture the sessionId. This allows the bridge
+                // to provide the sessionId to the native layer during asynchronous callbacks
+                // (like OnKeyRequest) where ExoPlayer doesn't explicitly pass it.
                 if (methodName.equals("openSession")) {
                     mSessionId = (byte[]) method.invoke(mRealDrm, args);
                     return mSessionId;
-                } else if (methodName.equals("getSessionId")) {
+                }
+
+                // Extension method defined in CobaltExoMediaDrm interface.
+                else if (methodName.equals("getSessionId")) {
                     return mSessionId;
-                } else if (methodName.equals("setOnKeyStatusChangeListener")) {
+                }
+
+                // Intercept ExoPlayer's listener registration so we can multiplex it
+                // with our own native status listener.
+                else if (methodName.equals("setOnKeyStatusChangeListener")) {
                     mExoListener = (ExoMediaDrm.OnKeyStatusChangeListener) args[0];
                     updateOnKeyStatusChangeListener(proxy);
                     return null;
-                } else if (methodName.equals("setCobaltOnKeyStatusChangeListener")) {
+                }
+
+                // Extension method defined in CobaltExoMediaDrm interface.
+                else if (methodName.equals("setCobaltOnKeyStatusChangeListener")) {
                     mCobaltListener = (ExoMediaDrm.OnKeyStatusChangeListener) args[0];
                     updateOnKeyStatusChangeListener(proxy);
                     return null;
                 }
+
+                // Default: delegate all other calls (e.g., queryKeyStatus, closeSession)
+                // directly to the underlying FrameworkMediaDrm.
                 return method.invoke(mRealDrm, args);
             } catch (InvocationTargetException e) {
+                // Unpack the real exception from the reflection wrapper to ensure
+                // ExoPlayer's error handling sees the original exception.
                 throw e.getCause();
             }
         }
 
+        /**
+         * Registers a single multiplexing listener on the real {@link FrameworkMediaDrm}
+         * that forwards events to both the ExoPlayer internal listener and the Cobalt
+         * native listener if they are present.
+         */
         private void updateOnKeyStatusChangeListener(Object proxy) {
             if (mExoListener == null && mCobaltListener == null) {
                 mRealDrm.setOnKeyStatusChangeListener(null);
