@@ -129,7 +129,7 @@ bool PlatformServiceImpl::OpenStarboardService() {
   return true;
 }
 
-void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
+void PlatformServiceImpl::Send(base::span<const uint8_t> data,
                                SendCallback callback) {
   const CobaltExtensionPlatformServiceApi* api = GetPlatformServiceApi();
   if (!api) {
@@ -140,13 +140,10 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
   }
 
   uint64_t output_length = 0;
-  std::vector<uint8_t> mutable_data = data;
-  void* data_ptr = mutable_data.empty() ? nullptr : mutable_data.data();
-  uint64_t data_length = mutable_data.size();
   bool invalid_state = false;
-
-  void* response_ptr = api->Send(platform_service_, data_ptr, data_length,
-                                 &output_length, &invalid_state);
+  void* response_ptr =
+      api->Send(platform_service_, const_cast<uint8_t*>(data.data()),
+                data.size(), &output_length, &invalid_state);
 
   if (invalid_state) {
     LOG(ERROR) << "Send failed: Starboard service in invalid state for "
@@ -156,11 +153,11 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
     return;
   }
 
-  std::vector<uint8_t> response_data;
+  base::span<const uint8_t> response_data;
   if (response_ptr && output_length > 0) {
     const uint8_t* response_bytes = static_cast<const uint8_t*>(response_ptr);
-    response_data =
-        std::vector<uint8_t>(response_bytes, response_bytes + output_length);
+    response_data = base::span<const uint8_t>(response_bytes,
+                                              response_bytes + output_length);
   }
   free(response_ptr);
 
