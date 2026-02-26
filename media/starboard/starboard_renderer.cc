@@ -138,16 +138,8 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-<<<<<<< HEAD
-=======
-      enable_flush_during_seek_(enable_flush_during_seek),
-      enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
-      // TODO: b/375674101 - Connect this to h5vcc setting,
+      // TODO: b/375674101 - Connect this to the starboard::feature.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
->>>>>>> f6754c03ec (media: Optimize Mojo IPC via batched sample writes in StarboardRenderer        (#9145))
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -156,24 +148,13 @@ StarboardRenderer::StarboardRenderer(
 {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-<<<<<<< HEAD
-  LOG(INFO) << "StarboardRenderer constructed.";
-=======
-  DCHECK(set_bounds_helper_);
   CHECK_GT(max_samples_per_write_, 0);
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
-            << ", max_video_capabilities="
-            << base::GetQuotedJSONString(max_video_capabilities_)
+            << ", max_video_capabilities=\"" << max_video_capabilities_ << "\""
             << ", max_samples_per_write=" << max_samples_per_write_
-            << ", initial_max_frames_in_decoder="
-            << initial_max_frames_in_decoder_.value_or(-1)
-            << ", max_pending_input_frames="
-            << max_pending_input_frames_.value_or(-1)
-            << ", video_decoder_poll_interval_ms="
-            << video_decoder_poll_interval_ms_.value_or(-1);
->>>>>>> f6754c03ec (media: Optimize Mojo IPC via batched sample writes in StarboardRenderer        (#9145))
+            << ", view_port_size=" << viewport_size_.ToString();
 }
 
 StarboardRenderer::~StarboardRenderer() {
