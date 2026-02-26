@@ -112,7 +112,6 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
         ToJavaByteArray(env, drm_init_data.data(), drm_init_data.size());
   }
 
-  bool is_passthrough;
   ScopedJavaLocalRef<jstring> j_audio_mime;
 
   if (stream_info.codec == kSbMediaAudioCodecAc3) {
@@ -120,8 +119,10 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
   } else if (stream_info.codec == kSbMediaAudioCodecEac3) {
     j_audio_mime = ConvertUTF8ToJavaString(env, "audio/eac3");
   } else {
+    bool is_passthrough_unused;
     j_audio_mime = ConvertUTF8ToJavaString(
-        env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
+        env, SupportedAudioCodecToMimeType(stream_info.codec,
+                                           &is_passthrough_unused));
   }
 
   return Java_ExoPlayerManager_createAudioMediaSource(
@@ -148,16 +149,14 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
 
   int width = stream_info.frame_width;
   int height = stream_info.frame_height;
-  int framerate = -1;
-  int bitrate = -1;
 
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_mime(ConvertUTF8ToJavaString(
       env, SupportedVideoCodecToMimeType(stream_info.codec)));
 
-  framerate = mime_type.GetParamIntValue("framerate", -1);
-  bitrate = mime_type.GetParamIntValue("bitrate", -1);
+  int framerate = mime_type.GetParamIntValue("framerate", -1);
+  int bitrate = mime_type.GetParamIntValue("bitrate", -1);
 
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);
