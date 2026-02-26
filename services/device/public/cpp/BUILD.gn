@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//services/device/public/cpp/geolocation/buildflags.gni")
 
@@ -112,6 +113,15 @@ source_set("test_support") {
     sources += [
       "test/scoped_pressure_manager_overrider.cc",
       "test/scoped_pressure_manager_overrider.h",
+    ]
+  }
+
+  if (disable_bluetooth) {
+    sources -= [
+      "test/fake_serial_port_client.cc",
+      "test/fake_serial_port_client.h",
+      "test/fake_serial_port_manager.cc",
+      "test/fake_serial_port_manager.h",
     ]
   }
 }

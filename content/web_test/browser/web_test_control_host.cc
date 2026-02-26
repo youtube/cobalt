@@ -44,6 +44,7 @@
 #include "base/test/bind.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "cc/paint/skia_paint_canvas.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
@@ -83,13 +84,10 @@
 #include "content/test/mock_platform_notification_service.h"
 #include "content/test/storage_partition_test_helpers.h"
 #include "content/web_test/browser/devtools_protocol_test_bindings.h"
-#include "content/web_test/browser/fake_bluetooth_chooser.h"
 #include "content/web_test/browser/test_info_extractor.h"
-#include "content/web_test/browser/web_test_bluetooth_chooser_factory.h"
 #include "content/web_test/browser/web_test_browser_context.h"
 #include "content/web_test/browser/web_test_content_browser_client.h"
 #include "content/web_test/browser/web_test_devtools_bindings.h"
-#include "content/web_test/browser/web_test_first_device_bluetooth_chooser.h"
 #include "content/web_test/browser/web_test_permission_manager.h"
 #include "content/web_test/browser/web_test_pressure_manager.h"
 #include "content/web_test/common/web_test_constants.h"
@@ -118,6 +116,12 @@
 #include "ui/shell_dialogs/selected_file_info.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
+
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
+#include "content/web_test/browser/fake_bluetooth_chooser.h"
+#include "content/web_test/browser/web_test_bluetooth_chooser_factory.h"
+#include "content/web_test/browser/web_test_first_device_bluetooth_chooser.h"
+#endif
 
 #if BUILDFLAG(IS_MAC)
 #include "base/apple/foundation_util.h"
@@ -730,7 +734,9 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
   should_override_prefs_ = false;
   WebTestContentBrowserClient::Get()->SetPopupBlockingEnabled(true);
   WebTestContentBrowserClient::Get()->ResetMockClipboardHosts();
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   WebTestContentBrowserClient::Get()->ResetFakeBluetoothDelegate();
+#endif
   WebTestContentBrowserClient::Get()->ResetWebSensorProviderAutomation();
   WebTestContentBrowserClient::Get()
       ->GetWebTestBrowserContext()
@@ -751,7 +757,9 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
 
   BlockThirdPartyCookies(
       net::cookie_util::IsForceThirdPartyCookieBlockingEnabled());
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   SetBluetoothManualChooser(false);
+#endif
 
   ShellBrowserContext* browser_context =
       ShellContentBrowserClient::Get()->browser_context();
@@ -1050,6 +1058,7 @@ bool WebTestControlHost::IsMainWindow(WebContents* web_contents) const {
   return main_window_ && web_contents == main_window_->web_contents();
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 std::unique_ptr<BluetoothChooser> WebTestControlHost::RunBluetoothChooser(
     RenderFrameHost* frame,
     const BluetoothChooser::EventHandler& event_handler) {
@@ -1071,6 +1080,7 @@ std::unique_ptr<BluetoothChooser> WebTestControlHost::RunBluetoothChooser(
 
   return std::make_unique<WebTestFirstDeviceBluetoothChooser>(event_handler);
 }
+#endif
 
 void WebTestControlHost::RequestPointerLock(WebContents* web_contents) {
   if (next_pointer_lock_action_ == NextPointerLockAction::kTestWillRespond)
@@ -1339,7 +1349,9 @@ void WebTestControlHost::OnTestFinished() {
       browser_context->GetDefaultStoragePartition();
   storage_partition->GetServiceWorkerContext()->ClearAllServiceWorkersForTest(
       barrier_closure);
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   storage_partition->ClearBluetoothAllowedDevicesMapForTesting();
+#endif
 
   // TODO(nhiroki): Add a comment about the reason why we terminate all shared
   // workers here.
@@ -2072,6 +2084,7 @@ void WebTestControlHost::CloseAllWindows() {
   base::RunLoop().RunUntilIdle();
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void WebTestControlHost::SetBluetoothManualChooser(bool enable) {
   if (enable) {
     bluetooth_chooser_factory_ =
@@ -2117,6 +2130,7 @@ void WebTestControlHost::SendBluetoothManualChooserEvent(
   }
   bluetooth_chooser_factory_->SendEvent(event, argument);
 }
+#endif
 
 void WebTestControlHost::BlockThirdPartyCookies(bool block) {
   ShellBrowserContext* browser_context =

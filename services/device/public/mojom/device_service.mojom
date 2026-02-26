@@ -13,7 +13,11 @@ import "services/device/public/mojom/power_monitor.mojom";
 import "services/device/public/mojom/public_ip_address_geolocation_provider.mojom";
 import "services/device/public/mojom/screen_orientation.mojom";
 import "services/device/public/mojom/sensor_provider.mojom";
+
+// Serial depends on Bluetooth
+[EnableIfNot=disable_bluetooth]
 import "services/device/public/mojom/serial.mojom";
+
 import "services/device/public/mojom/time_zone_monitor.mojom";
 import "services/device/public/mojom/usb_manager.mojom";
 import "services/device/public/mojom/usb_manager_test.mojom";
@@ -92,6 +96,8 @@ interface DeviceService {
   BindSensorProvider(pending_receiver<SensorProvider> receiver);
 
   // binds a SerialPortManager endpoint.
+  // Serial depends on Bluetooth
+  [EnableIfNot=disable_bluetooth]
   BindSerialPortManager(pending_receiver<SerialPortManager> receiver);
 
   // Binds a TimeZoneMonitor endpoint.

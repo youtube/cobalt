@@ -23,6 +23,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_discovery_base.h"
 #include "device/fido/fido_transport_protocol.h"
@@ -30,8 +31,9 @@
 #include "device/fido/pin.h"
 
 namespace device {
-
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 class BleAdapterManager;
+#endif
 class FidoAuthenticator;
 class FidoDiscoveryFactory;
 class DiscoverableCredentialMetadata;
@@ -349,11 +351,12 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoRequestHandlerBase
   const AuthenticatorMap& AuthenticatorsForTesting() {
     return active_authenticators_;
   }
-
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   std::unique_ptr<BleAdapterManager>&
   get_bluetooth_adapter_manager_for_testing() {
     return bluetooth_adapter_manager_;
   }
+#endif
 
   void StopDiscoveries();
 
@@ -426,15 +429,19 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoRequestHandlerBase
   // versions before a request can be dispatched.
   void InitializeAuthenticatorAndDispatchRequest(
       const std::string& authenticator_id);
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   void ConstructBleAdapterPowerManager();
+#endif
   void OnWinIsUvpaa(bool is_uvpaa);
 
   AuthenticatorMap active_authenticators_;
   std::vector<std::unique_ptr<FidoDiscoveryBase>> discoveries_;
   raw_ptr<Observer> observer_ = nullptr;
   TransportAvailabilityInfo transport_availability_info_;
-  std::unique_ptr<BleAdapterManager> bluetooth_adapter_manager_;
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
+  std::unique_ptr<BleAdapterManager> bluetooth_adapter_manager_;
+#endif
   // transport_availability_callback_readiness_ keeps track of state which
   // determines whether this object is ready to call
   // |OnTransportAvailabilityEnumerated| on |observer_|.
