@@ -17,7 +17,6 @@ package dev.cobalt.media;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.util.ParsableByteArray;
-import androidx.media3.common.util.UnstableApi;
 import androidx.media3.extractor.TrackOutput.CryptoData;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -28,7 +27,6 @@ import org.jni_zero.JNINamespace;
  * Encapsulates a media sample and its metadata, including encryption information.
  */
 @JNINamespace("starboard")
-@UnstableApi
 public final class ExoPlayerMediaSample {
   private final ByteBuffer mSamples;
   // The size of the media data written by the native ExoPlayerBridge.

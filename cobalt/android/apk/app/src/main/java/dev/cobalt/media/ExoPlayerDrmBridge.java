@@ -48,7 +48,7 @@ import org.jni_zero.NativeMethods;
  * Manages DRM sessions for ExoPlayer and acts as a bridge between ExoPlayer's MediaDrmCallback
  * and the native SbDrmSystem.
  *
- * <p>This class implements {@link MediaDrmCallback} to handle key and provisioning requests,
+ * This class implements {@link MediaDrmCallback} to handle key and provisioning requests,
  * forwarding them to the native Starboard implementation. It also owns and manages the lifecycle
  * of the {@link DefaultDrmSessionManager} used by ExoPlayer.
  */
@@ -81,7 +81,7 @@ public class ExoPlayerDrmBridge {
      * A Dynamic Proxy handler that delegates all calls to a {@link FrameworkMediaDrm} instance
      * while intercepting specific methods to manage session state and event multiplexing.
      *
-     * <p>This pattern is used to avoid creating a full decorator (wrapper) class for ExoMediaDrm,
+     * This pattern is used to avoid creating a full decorator (wrapper) class for ExoMediaDrm,
      * which would require implementing dozens of boilerplate methods and would be fragile
      * to upstream API changes in the media3 library.
      */
@@ -168,7 +168,7 @@ public class ExoPlayerDrmBridge {
     /**
      * Executes a provisioning request by forwarding it to the native Starboard layer.
      *
-     * <p>This method blocks until a response is received from the native layer or the timeout
+     * This method blocks until a response is received from the native layer or the timeout
      * is reached.
      */
     @Override
@@ -200,7 +200,7 @@ public class ExoPlayerDrmBridge {
     /**
      * Executes a key request by forwarding it to the native Starboard layer.
      *
-     * <p>This method blocks until a response is received from the native layer or the timeout
+     * This method blocks until a response is received from the native layer or the timeout
      * is reached.
      */
     @Override
@@ -275,7 +275,7 @@ public class ExoPlayerDrmBridge {
         /**
          * Acquires an {@link ExoMediaDrm} instance wrapped in a Dynamic Proxy.
          *
-         * <p>The proxy intercepts session lifecycle events (like openSession) to track the active
+         * The proxy intercepts session lifecycle events (like openSession) to track the active
          * session ID and multiplexes key status changes to both ExoPlayer's internal listeners
          * and the native Starboard layer.
          */
