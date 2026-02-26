@@ -69,7 +69,7 @@ group("gn_all") {
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
-  if (use_crashpad) {
+  if (use_evergreen && use_crashpad) {
     deps += [
       "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
       "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
