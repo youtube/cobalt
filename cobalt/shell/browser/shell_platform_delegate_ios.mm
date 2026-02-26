@@ -22,6 +22,7 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/tvos/simple_begin_frame_observer.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
@@ -138,7 +139,6 @@ const char kAllTracingCategories[] = "*";
                           blue:53.0 / 255.0
                          alpha:1.0];
 }
-
 #if BUILDFLAG(IS_IOS_TVOS)
 // Intercept UIPressTypeMenu event and do not forward it to the
 // superclass's pressesBegan method, as it will cause the application to
@@ -175,6 +175,7 @@ const char kAllTracingCategories[] = "*";
     [super pressesEnded:nonMenuPresses withEvent:event];
   }
 }
+
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 - (void)viewDidLoad {
@@ -707,6 +708,23 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
 
   [shell_data.window resignKeyWindow];
   return true;  // The performClose() will do the destruction of Shell.
+}
+
+void ShellPlatformDelegate::SetVisible(WebContents* web_contents,
+                                       bool visible) {
+  if (!visible) {
+    return;
+  }
+
+  auto* observer = SimpleBeginFrameObserver::FromWebContents(web_contents);
+  if (!observer) {
+    return;
+  }
+
+  auto on_begin_frame_callback = base::BindRepeating([](double refresh_rate) {
+    [SBDGetApplication() updateLastDisplayRefreshRate:refresh_rate];
+  });
+  observer->StartObservingBeginFrame(on_begin_frame_callback);
 }
 
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(

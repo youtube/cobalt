@@ -25,6 +25,7 @@
 #include "starboard/tvos/shared/accessibility_extension.h"
 #include "starboard/tvos/shared/crash_handler.h"
 #include "starboard/tvos/shared/media/player_configuration.h"
+#include "starboard/tvos/shared/platform_service.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
 
 const void* SbSystemGetExtension(const char* name) {
@@ -48,8 +49,7 @@ const void* SbSystemGetExtension(const char* name) {
     return nullptr;
   }
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
-    SB_LOG(INFO) << "The platform service extension is not supported on tvOS";
-    return nullptr;
+    return starboard::GetPlatformServiceApiTvos();
   }
   if (strcmp(name, kStarboardExtensionIfaName) == 0) {
     SB_LOG(INFO) << "IFA is not supported via Starboard.";

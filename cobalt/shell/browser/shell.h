@@ -250,6 +250,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void PrimaryMainDocumentElementAvailable() override;
   void DidFinishNavigation(NavigationHandle* navigation_handle) override;
   void DidStopLoading() override;
+#if BUILDFLAG(IS_IOS_TVOS)
+  void OnVisibilityChanged(Visibility visibility) override;
+#endif
 
   void RegisterInjectedJavaScript();
   void SwitchToMainWebContents();

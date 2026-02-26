@@ -49,18 +49,34 @@
   // Used for checking that certain methods are invoked from the UI thread (so
   // that UIKit calls can be made directly, for example).
   starboard::ThreadChecker _uiThreadChecker;
+
+  // The maximum number of frames per second a screen can render.
+  NSInteger _maximumFramesPerSecond;
+
+  // The last display refresh rate.
+  double _lastDisplayRefreshRate;
 }
 
 @synthesize drmManager = _drmManager;
 @synthesize playerManager = _playerManager;
+@synthesize maximumFramesPerSecond = _maximumFramesPerSecond;
 
 - (instancetype)init {
   self = [super init];
   if (self) {
     _drmManager = [[SBDDrmManager alloc] init];
     _playerManager = [[SBDPlayerManager alloc] init];
+    _maximumFramesPerSecond = [[UIScreen mainScreen] maximumFramesPerSecond];
   }
   return self;
+}
+
+- (void)updateLastDisplayRefreshRate:(double)refreshRate {
+  _lastDisplayRefreshRate = refreshRate;
+}
+
+- (double)displayRefreshRate {
+  return _lastDisplayRefreshRate;
 }
 
 - (void)setPlayerContainerView:(UIView*)view {

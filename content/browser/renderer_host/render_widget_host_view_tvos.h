@@ -28,6 +28,9 @@ class CONTENT_EXPORT RenderWidgetHostViewTVOS : public RenderWidgetHostViewIOS {
   // ui::CALayerFrameSink overrides:
   void UpdateCALayerTree(const gfx::CALayerParams& ca_layer_params) override;
 
+  // RenderWidgetHostViewIOS:
+  void ShowWithVisibility(PageVisibilityState page_visibility) override;
+
  private:
   std::unique_ptr<ui::DisplayCALayerTree> display_tree_;
 };

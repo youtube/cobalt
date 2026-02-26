@@ -480,6 +480,12 @@ void Shell::DidStopLoading() {
   }
 }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+void Shell::OnVisibilityChanged(Visibility visibility) {
+  g_platform->SetVisible(web_contents(), visibility == Visibility::VISIBLE);
+}
+#endif
+
 void Shell::RegisterInjectedJavaScript() {
   // Get the embedded header resource
   GeneratedResourceMap resource_map;

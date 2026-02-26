@@ -58,6 +58,16 @@ id<SBDStarboardApplication> SBDGetApplication(void);
  */
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
 
+/**
+ *  @brief Returns display refresh rate.
+ */
+@property(nonatomic, readonly) double displayRefreshRate;
+
+/**
+ *  @brief Returns the maximum number of frames per second a screen can render.
+ */
+@property(nonatomic, readonly) NSInteger maximumFramesPerSecond;
+
 // Sets the UIView to which player views will be added to.
 - (void)setPlayerContainerView:(UIView*)view;
 
@@ -78,6 +88,8 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 // suspending the application.
 - (void)registerMenuPressEnded:(UIPress*)press
                   pressesEvent:(UIPressesEvent*)pressesEvent;
+
+- (void)updateLastDisplayRefreshRate:(double)lastDisplayRefreshRate;
 @end
 
 NS_ASSUME_NONNULL_END

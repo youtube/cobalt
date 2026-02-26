@@ -15,6 +15,10 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
 # See //content/BUILD.gn for how this works.
 group("browser") {
   if (is_component_build) {
@@ -678,6 +682,18 @@ source_set("browser_sources") {
       "android/synchronous_compositor_client.h",
       "ax_inspect_factory_android.cc",
       "tts_environment_android.h",
+    ]
+  }
+
+  if (is_ios && target_platform == "tvos") {
+    sources += [
+      "tvos/simple_begin_frame_observer.cc",
+      "tvos/simple_begin_frame_observer.h",
+    ]
+
+    deps += [
+      "//base",
+      "//ui/compositor",
     ]
   }
 

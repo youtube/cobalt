@@ -147,6 +147,11 @@ class ShellPlatformDelegate {
   }
 #endif
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Called on WebContentsObserver::OnVisibilityChanged.
+  void SetVisible(WebContents* web_contents, bool visible);
+#endif
+
  protected:
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
   // Allows the test subclasses to override the ViewsDelegate.
