@@ -13,7 +13,7 @@ source_set("time_zone_monitor") {
   visibility = [ "//services/device:lib" ]
 
   if (is_cobalt) {
-    visibility += [ "//cobalt" ]
+    visibility += [ "//cobalt:common" ]
   }
 
   sources = [

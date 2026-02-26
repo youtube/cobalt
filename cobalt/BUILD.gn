@@ -79,12 +79,6 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
-      "//cobalt/browser/h5vcc_accessibility:manager",
-      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-      "//cobalt/shell:cobalt_shell_app",
-      "//cobalt/shell:cobalt_shell_lib",
-      "//content/public/app",
-      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
@@ -115,6 +109,8 @@ source_set("common") {
   testonly = true
 
   sources = [
+    "app/app_lifecycle_delegate.cc",
+    "app/app_lifecycle_delegate.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
   ]
@@ -138,6 +134,8 @@ source_set("common") {
   deps = [
     "//base",
     "//cobalt/browser:switches",
+    "//cobalt/browser/h5vcc_accessibility:manager",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/shell:cobalt_shell_app",
@@ -149,6 +147,7 @@ source_set("common") {
     "//gpu/command_buffer/service",
     "//media",
     "//sandbox/policy",
+    "//services/device/time_zone_monitor",
     "//starboard:starboard_headers_only",
     "//third_party/blink/public/common",
     "//ui/gl",

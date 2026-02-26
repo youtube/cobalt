@@ -52,6 +52,8 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   // Shutdown method that trigger the BrowserMainRunner shutdown.
   void Shutdown();
 
+  bool is_visible() const { return is_visible_; }
+
   ~CobaltMainDelegate() override;
 
  private:
