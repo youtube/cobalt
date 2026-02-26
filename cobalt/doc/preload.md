@@ -58,12 +58,12 @@ it enters the application layer.
 
 ### Implementation Flow
 
-1.  **Entry Point:** `SbEventHandle` (in `cobalt/app/cobalt.cc`) receives
-    `kSbEventTypePreload`.
-2.  **State Propagation:** An `is_visible` boolean (set to `false`) is passed
-    through the constructor chain: `CobaltMainDelegate` ->
-    `CobaltContentBrowserClient` -> `CobaltBrowserMainParts` ->
-    `ShellBrowserMainParts`.
+1.  **Entry Point:** `AppLifecycleDelegate::HandleEvent` (called by `SbEventHandle`)
+    receives `kSbEventTypePreload`.
+2.  **State Propagation:** The delegate calls `Run()`, which initializes an
+    `is_visible` boolean (set to `false`) that is passed through the constructor
+    chain: `CobaltMainDelegate` -> `CobaltContentBrowserClient` ->
+    `CobaltBrowserMainParts` -> `ShellBrowserMainParts`.
 3.  **Initialization:** `ShellBrowserMainParts::PreMainMessageLoopRun` calls
     `Shell::Initialize`, passing the visibility state.
 4.  **Splash Screen Skip:** `Shell::CreateNewWindow` checks the visibility state

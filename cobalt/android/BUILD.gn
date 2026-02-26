@@ -234,6 +234,8 @@ shared_library_with_jni("libchrobalt") {
     ]
   }
   sources = [
+    "//cobalt/app/app_lifecycle_delegate.cc",
+    "//cobalt/app/app_lifecycle_delegate.h",
     "//cobalt/app/cobalt_crash_reporter_client.cc",
     "//cobalt/app/cobalt_crash_reporter_client.h",
     "//cobalt/app/cobalt_main_delegate.cc",
