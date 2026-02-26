@@ -65,7 +65,7 @@ public class ExoPlayerBridge {
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 switch (playbackState) {
                     case Player.STATE_BUFFERING:
                     case Player.STATE_IDLE:
@@ -82,7 +82,7 @@ public class ExoPlayerBridge {
 
         @Override
         public void onTracksChanged(Tracks tracks) {
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
             }
         }
@@ -91,7 +91,7 @@ public class ExoPlayerBridge {
         public synchronized void onIsPlayingChanged(boolean isPlaying) {
             updatePositionAnchor();
             mIsProgressing = isPlaying;
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
             }
         }
@@ -121,7 +121,7 @@ public class ExoPlayerBridge {
         @Override
         public void onDroppedVideoFrames(
                 @NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 ExoPlayerBridgeJni.get()
                     .onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
             }
