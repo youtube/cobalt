@@ -1080,16 +1080,12 @@ void HttpStreamFactory::JobController::OrphanUnboundJob() {
     // OnOrphanedJobComplete() will clean up |this| when the job completes.
     if (dns_alpn_h3_job_) {
       DCHECK(!is_websocket_);
-      LOG(INFO) << "Charley: Alternative job won, canceling DNS ALPN H3 job.";
       dns_alpn_h3_job_->Orphan();
     }
   }
   if (bound_job_->job_type() == DNS_ALPN_H3) {
     if (!dns_alpn_h3_job_failed_on_default_network_ && !alternative_job_) {
       DCHECK(!main_job_ || (dns_alpn_h3_job_net_error_ == OK));
-      if (main_job_) {
-        LOG(INFO) << "Charley: DNS ALPN H3 job won, canceling main job.";
-      }
       main_job_.reset();
     }
     // Allow |alternative_job_| to run to completion, rather than resetting
@@ -1097,14 +1093,12 @@ void HttpStreamFactory::JobController::OrphanUnboundJob() {
     // OnOrphanedJobComplete() will clean up |this| when the job completes.
     if (alternative_job_) {
       DCHECK(!is_websocket_);
-      LOG(INFO) << "Charley: DNS ALPN H3 job won, canceling alternative job.";
       alternative_job_->Orphan();
     }
   }
 }
 
 void HttpStreamFactory::JobController::OnJobSucceeded(Job* job) {
-  LOG(INFO) << "Charley: Job succeeded and won the race. Type: " << job->job_type();
   DCHECK(job);
   if (!bound_job_) {
     BindJob(job);

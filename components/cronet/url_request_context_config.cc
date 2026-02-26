@@ -882,7 +882,6 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
   net::HttpNetworkSessionParams session_params;
   session_params.enable_http2 = enable_spdy;
   session_params.enable_quic = enable_quic;
-  LOG(INFO) << "Charley: session_params.enable_quic = " << session_params.enable_quic;
 #if BUILDFLAG(IS_ANDROIDTV)
   session_params.use_quic_for_unknown_origins = enable_quic;
 #endif
