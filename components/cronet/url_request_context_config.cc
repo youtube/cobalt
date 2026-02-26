@@ -882,9 +882,6 @@ void URLRequestContextConfig::ConfigureURLRequestContextBuilder(
   net::HttpNetworkSessionParams session_params;
   session_params.enable_http2 = enable_spdy;
   session_params.enable_quic = enable_quic;
-#if BUILDFLAG(IS_ANDROIDTV)
-  session_params.use_quic_for_unknown_origins = enable_quic;
-#endif
   auto quic_context = std::make_unique<net::QuicContext>();
   if (enable_quic) {
     quic_context->params()->goaway_sessions_on_ip_change = false;
