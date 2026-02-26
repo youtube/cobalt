@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <array>
+#include <cstddef>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -60,7 +61,7 @@ AppLifecycleDelegate::AppLifecycleDelegate() = default;
 AppLifecycleDelegate::~AppLifecycleDelegate() = default;
 
 bool AppLifecycleDelegate::IsRunning() const {
-  return main_runner_ != nullptr;
+  return content_main_delegate_ != nullptr;
 }
 
 void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
@@ -171,8 +172,13 @@ void AppLifecycleDelegate::OnStart(const SbEvent* event) {
   platform_event_source_ = std::make_unique<ui::PlatformEventSourceStarboard>();
 #endif
 
-  Run(event->type == kSbEventTypeStart, data->argument_count,
-      const_cast<const char**>(data->argument_values), data->link);
+  bool is_visible = event->type == kSbEventTypeStart;
+  if (data) {
+    Run(is_visible, data->argument_count,
+        const_cast<const char**>(data->argument_values), data->link);
+  } else {
+    Run(is_visible, 0, nullptr, nullptr);
+  }
 
 #if BUILDFLAG(USE_EVERGREEN)
   // Log Loader App Metrics.
@@ -181,12 +187,14 @@ void AppLifecycleDelegate::OnStart(const SbEvent* event) {
 }
 
 void AppLifecycleDelegate::OnStop(const SbEvent* event) {
+  if (!IsRunning()) {
+    return;
+  }
   content::Shell::Shutdown();
 
   if (main_runner_) {
     main_runner_->Shutdown();
   }
-  main_runner_ = nullptr;
 
   if (content_main_delegate_) {
     content_main_delegate_->Shutdown();
@@ -203,6 +211,10 @@ int AppLifecycleDelegate::Run(bool is_visible,
                               int argc,
                               const char** argv,
                               const char* initial_deep_link) {
+  if (main_runner_) {
+    LOG(WARNING) << "AppLifecycleDelegate::Run called multiple times.";
+    return -1;
+  }
   main_runner_ = GetContentMainRunner();
 
   content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
@@ -239,7 +251,7 @@ int AppLifecycleDelegate::Run(bool is_visible,
   // only on the main process, not on spawned processes such as the zygote.
 #if !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_STARBOARD)
-  if ((!strcmp(argv[0], "/proc/self/exe")) ||
+  if ((argc >= 1 && !strcmp(argv[0], "/proc/self/exe")) ||
       ((argc >= 2) && !strcmp(argv[1], "--type=zygote"))) {
     params.argc = argc;
     params.argv = argv;
