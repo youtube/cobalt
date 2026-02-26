@@ -19,6 +19,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/free_deleter.h"
 #include "base/task/bind_post_task.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -141,25 +142,23 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
 
   uint64_t output_length = 0;
   bool invalid_state = false;
-  void* response_ptr =
+  std::unique_ptr<void, base::FreeDeleter> response_ptr(
       api->Send(platform_service_, const_cast<uint8_t*>(data.data()),
-                data.size(), &output_length, &invalid_state);
+                data.size(), &output_length, &invalid_state));
 
   if (invalid_state) {
     LOG(ERROR) << "Send failed: Starboard service in invalid state for "
                << service_name_;
-    free(response_ptr);
     std::move(callback).Run(std::nullopt);  // Signal error to renderer
     return;
   }
 
   base::span<const uint8_t> response_data;
   if (response_ptr && output_length > 0) {
-    const uint8_t* response_bytes = static_cast<const uint8_t*>(response_ptr);
+    const uint8_t* response_bytes = static_cast<const uint8_t*>(response_ptr.get());
     response_data = base::span<const uint8_t>(response_bytes,
                                               response_bytes + output_length);
   }
-  free(response_ptr);
 
   std::move(callback).Run(response_data);
 }
