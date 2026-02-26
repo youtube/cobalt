@@ -1080,12 +1080,16 @@ void HttpStreamFactory::JobController::OrphanUnboundJob() {
     // OnOrphanedJobComplete() will clean up |this| when the job completes.
     if (dns_alpn_h3_job_) {
       DCHECK(!is_websocket_);
+      LOG(INFO) << "Charley: Alternative job won, canceling DNS ALPN H3 job.";
       dns_alpn_h3_job_->Orphan();
     }
   }
   if (bound_job_->job_type() == DNS_ALPN_H3) {
     if (!dns_alpn_h3_job_failed_on_default_network_ && !alternative_job_) {
       DCHECK(!main_job_ || (dns_alpn_h3_job_net_error_ == OK));
+      if (main_job_) {
+        LOG(INFO) << "Charley: DNS ALPN H3 job won, canceling main job.";
+      }
       main_job_.reset();
     }
     // Allow |alternative_job_| to run to completion, rather than resetting
@@ -1093,12 +1097,14 @@ void HttpStreamFactory::JobController::OrphanUnboundJob() {
     // OnOrphanedJobComplete() will clean up |this| when the job completes.
     if (alternative_job_) {
       DCHECK(!is_websocket_);
+      LOG(INFO) << "Charley: DNS ALPN H3 job won, canceling alternative job.";
       alternative_job_->Orphan();
     }
   }
 }
 
 void HttpStreamFactory::JobController::OnJobSucceeded(Job* job) {
+  LOG(INFO) << "Charley: Job succeeded and won the race. Type: " << job->job_type();
   DCHECK(job);
   if (!bound_job_) {
     BindJob(job);
@@ -1272,6 +1278,22 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
           url::SchemeHostPort(original_url),
           request_info.network_anonymization_key);
   if (alternative_service_info_vector.empty()) {
+#if BUILDFLAG(IS_ANDROIDTV)
+    if (session_->IsQuicEnabled() && session_->UseQuicForUnknownOrigin()) {
+      url::SchemeHostPort origin(original_url);
+#if defined(COBALT_BUILD_TYPE_GOLD)
+      const int kDefaultQUICServerPort = 443;
+      if (origin.port() == kDefaultQUICServerPort) {
+#endif
+        quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
+        return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
+            AlternativeService(NextProto::kProtoQUIC, origin.host(), origin.port()),
+            base::Time::Max(), versions);
+#if defined(COBALT_BUILD_TYPE_GOLD)
+      }
+#endif
+    }
+#endif  // BUILDFLAG(IS_ANDROIDTV)
     return AlternativeServiceInfo();
   }
 
