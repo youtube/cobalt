@@ -239,8 +239,7 @@ source_set("unit_tests") {
     "fetch/raw_resource_test.cc",
     "fetch/resource_fetcher_properties_test.cc",
     "fetch/resource_fetcher_test.cc",
-    # resource_load_schedule is disabled, see b/484394054
-    # "fetch/resource_load_scheduler_test.cc",
+    "fetch/resource_load_scheduler_test.cc"    
     "fetch/resource_loader_test.cc",
     "fetch/resource_request_test.cc",
     "fetch/resource_request_utils_test.cc",
@@ -261,6 +260,11 @@ source_set("unit_tests") {
     "subresource_integrity_test.cc",
     "unencoded_digest_unittest.cc",
   ]
+
+  if (is_cobalt) {
+    # resource_load_schedule is disabled, see b/484394054
+    sources -= [ "fetch/resource_load_scheduler_test.cc" ]
+  }
 
   configs += [ "//third_party/blink/renderer/platform:blink_platform_config" ]
 
