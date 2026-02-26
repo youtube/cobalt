@@ -269,6 +269,8 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
               f'{dir_on_device}/{target_name}_testoutput.xml'
           ]
         params = [
+            f'gtest_xml_file_on_device={dir_on_device}/'
+            f'{target_name}_testoutput.xml',
             f'gcs_result_filename={target_name}_testoutput.xml',
             f'gcs_log_filename={target_name}_log.txt',
         ]

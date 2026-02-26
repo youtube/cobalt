@@ -125,9 +125,13 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir.
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
-        gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}" || true
 
-        echo "Downloaded files:"
+        echo "Listing contents of GCS result path: ${{ inputs.gcs_results_path }}"
+        gsutil ls -R "${{ inputs.gcs_results_path }}/**" || echo "No files found in GCS."
+
+        gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+
+        echo "Downloaded files (local):"
         ls -R "${test_output}/${{ matrix.platform }}"
 
         # Check for missing result xml files.
