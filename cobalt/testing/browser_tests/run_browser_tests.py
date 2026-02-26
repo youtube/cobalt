@@ -11,6 +11,7 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 
 
@@ -32,6 +33,10 @@ def main():
       default=0)
   parser.add_argument(
       "--test-launcher-shard-index", dest="tl_shard_index", type=int, default=0)
+  parser.add_argument(
+      "--user-data-dir",
+      help=("Path to user data directory. If not provided, a temporary "
+            "directory is created."))
 
   args, unknown_args = parser.parse_known_args()
 
@@ -132,10 +137,21 @@ def main():
   for i, test in enumerate(tests_to_run):
     print(f"[RUN] {test}")
 
+    # Create a unique user data directory for this test run to avoid DB locking
+    # just like the shell script does.
+    test_user_data_dir = args.user_data_dir
+    temp_dir_obj = None
+    if not test_user_data_dir:
+      # Diable pylint because if the folder is passed by users, we should
+      # keep it.
+      # pylint: disable=consider-using-with
+      temp_dir_obj = tempfile.TemporaryDirectory(prefix="cobalt_browsertests_")
+      test_user_data_dir = temp_dir_obj.name
+
     cmd = [
         args.binary, f"--gtest_filter={test}", "--single-process-tests",
         "--no-sandbox", "--single-process", "--no-zygote",
-        "--ozone-platform=starboard"
+        "--ozone-platform=starboard", f"--user-data-dir={test_user_data_dir}"
     ]
 
     temp_xml = None
@@ -210,6 +226,9 @@ def main():
       # pylint: disable=broad-exception-caught
       except Exception as e:
         print(f"Error merging XML: {e}")
+
+    if temp_dir_obj:
+      temp_dir_obj.cleanup()
 
   print("=" * 40)
   print(f"Total: {passed_count + failed_count}, "
