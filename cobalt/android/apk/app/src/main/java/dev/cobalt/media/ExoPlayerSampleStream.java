@@ -20,7 +20,6 @@ import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.DataReader;
 import androidx.media3.common.Format;
-import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
 import androidx.media3.exoplayer.drm.DrmSessionEventListener;
@@ -36,10 +35,9 @@ import java.nio.ByteBuffer;
 /**
  * Buffers and provides media samples to ExoPlayer's renderers.
  *
- * <p>This stream maintains an internal {@link SampleQueue} and provides a thread-safe bridge
+ * This stream maintains an internal {@link SampleQueue} and provides a thread-safe bridge
  * for the native layer to write encoded samples.
  */
-@UnstableApi
 public class ExoPlayerSampleStream implements SampleStream {
     // The player maintains a copy of each sample in the SampleQueue to read asynchronously.
     private final SampleQueue mSampleQueue;
@@ -70,10 +68,6 @@ public class ExoPlayerSampleStream implements SampleStream {
         }
     }
 
-    // The memory here is managed by Java rather than the native allocator, which may increase
-    // memory pressure.
-    // TODO: Have the SampleQueue read directly from native memory, rather than manage its own
-    // memory.
     private static final long MAX_BUFFER_DURATION_US = 5 * 1000 * 1000; // 5 seconds.
     // CanAcceptMoreData() returns false when the total queued media duration is more than
     // MAX_BUFFER_DURATION_US - MEMORY_PRESSURE_THRESHOLD_US. This allows time for the queue to
@@ -100,7 +94,7 @@ public class ExoPlayerSampleStream implements SampleStream {
     /**
      * Queues a sample to the {@link SampleQueue}.
      *
-     * <p>This method handles both clear and encrypted samples. For encrypted samples, it
+     * This method handles both clear and encrypted samples. For encrypted samples, it
      * writes the encryption preamble (signal byte, IV, and optional subsample data) as
      * supplemental data before the main sample payload.
      */
@@ -199,7 +193,7 @@ public class ExoPlayerSampleStream implements SampleStream {
     /**
      * Attempts to seek within the currently queued samples.
      *
-     * <p>If the seek position is not found in the queue, the queue is reset.
+     * If the seek position is not found in the queue, the queue is reset.
      */
     public void seek(long timestampUs, Format format) {
         synchronized (mLock) {
@@ -221,7 +215,7 @@ public class ExoPlayerSampleStream implements SampleStream {
     /**
      * Returns true if the queue has enough capacity to accept more samples.
      *
-     * <p>Capacity is determined by the duration of media currently buffered in the queue. If the
+     * Capacity is determined by the duration of media currently buffered in the queue. If the
      * duration exceeds a threshold, this returns false to signal the native layer to pause
      * sample production.
      */

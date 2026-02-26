@@ -74,6 +74,14 @@ int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
 
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
+    const SbMediaVideoStreamInfo& video_stream_info)
+    : ExoPlayerBridge(audio_stream_info,
+                      video_stream_info,
+                      kSbDrmSystemInvalid,
+                      std::vector<uint8_t>()) {}
+
+ExoPlayerBridge::ExoPlayerBridge(
+    const SbMediaAudioStreamInfo& audio_stream_info,
     const SbMediaVideoStreamInfo& video_stream_info,
     const SbDrmSystem drm_system,
     const std::vector<uint8_t>& drm_init_data) {

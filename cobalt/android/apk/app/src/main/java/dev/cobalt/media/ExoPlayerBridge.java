@@ -27,7 +27,6 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
-import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -42,7 +41,6 @@ import org.jni_zero.NativeMethods;
 
 /** Facilitates communication between the native ExoPlayerBridge and the Java ExoPlayer */
 @JNINamespace("starboard")
-@UnstableApi
 public class ExoPlayerBridge {
     private ExoPlayer mPlayer;
     private ExoPlayerMediaSource mAudioMediaSource;
@@ -67,29 +65,35 @@ public class ExoPlayerBridge {
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
-            switch (playbackState) {
-                case Player.STATE_BUFFERING:
-                case Player.STATE_IDLE:
-                    return;
-                case Player.STATE_READY:
-                    ExoPlayerBridgeJni.get().onReady(mNativeExoPlayerBridge);
-                    break;
-                case Player.STATE_ENDED:
-                    ExoPlayerBridgeJni.get().onEnded(mNativeExoPlayerBridge);
-                    break;
+            if (mPlayer == null || mIsReleased) {
+                switch (playbackState) {
+                    case Player.STATE_BUFFERING:
+                    case Player.STATE_IDLE:
+                        return;
+                    case Player.STATE_READY:
+                        ExoPlayerBridgeJni.get().onReady(mNativeExoPlayerBridge);
+                        break;
+                    case Player.STATE_ENDED:
+                        ExoPlayerBridgeJni.get().onEnded(mNativeExoPlayerBridge);
+                        break;
+                }
             }
         }
 
         @Override
         public void onTracksChanged(Tracks tracks) {
-            ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
+            if (mPlayer == null || mIsReleased) {
+                ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
+            }
         }
 
         @Override
         public synchronized void onIsPlayingChanged(boolean isPlaying) {
             updatePositionAnchor();
             mIsProgressing = isPlaying;
-            ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
+            if (mPlayer == null || mIsReleased) {
+                ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
+            }
         }
 
         @Override
@@ -117,7 +121,10 @@ public class ExoPlayerBridge {
         @Override
         public void onDroppedVideoFrames(
                 @NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
-            ExoPlayerBridgeJni.get().onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
+            if (mPlayer == null || mIsReleased) {
+                ExoPlayerBridgeJni.get()
+                    .onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
+            }
         }
     }
 
@@ -220,7 +227,7 @@ public class ExoPlayerBridge {
     @CalledByNative
     private void seek(long seekToTimeUsec) {
         if (mPlayer == null || mIsReleased) {
-            reportError("Cannot seek with NULL or releasing ExoPlayer.");
+            reportError("Cannot seek with NULL or released ExoPlayer.");
             return;
         }
         mExoplayerHandler.post(() -> {
@@ -257,7 +264,7 @@ public class ExoPlayerBridge {
     @CalledByNative
     private void pause() {
         if (mPlayer == null || mIsReleased) {
-            reportError("Cannot pause with NULL or releasing ExoPlayer");
+            reportError("Cannot pause with NULL or released ExoPlayer");
             return;
         }
         mExoplayerHandler.post(() -> {
@@ -269,7 +276,7 @@ public class ExoPlayerBridge {
     @CalledByNative
     private void play() {
         if (mPlayer == null || mIsReleased) {
-            reportError("Cannot play with NULL or releasing ExoPlayer");
+            reportError("Cannot play with NULL or released ExoPlayer");
             return;
         }
         mExoplayerHandler.post(() -> {
@@ -283,7 +290,7 @@ public class ExoPlayerBridge {
     @CalledByNative
     private void setPlaybackRate(float playbackRate) {
         if (mPlayer == null || mIsReleased) {
-            reportError("Cannot set playback rate with NULL or releasing ExoPlayer");
+            reportError("Cannot set playback rate with NULL or released ExoPlayer");
             return;
         }
 
@@ -299,7 +306,7 @@ public class ExoPlayerBridge {
     @CalledByNative
     private void setVolume(float volume) {
         if (mPlayer == null || mIsReleased) {
-            reportError("Cannot set volume with NULL or releasing ExoPlayer");
+            reportError("Cannot set volume with NULL or released ExoPlayer");
             return;
         }
 
@@ -312,7 +319,7 @@ public class ExoPlayerBridge {
     private void stop() {
         if (mPlayer == null || mIsReleased) {
             Log.e(TAG,
-                    "Cannot stop with NULL or releasing ExoPlayer. Assuming stopped successfully.");
+                    "Cannot stop with NULL or released ExoPlayer. Assuming stopped successfully.");
             return;
         }
         mExoplayerHandler.post(() -> {
@@ -334,7 +341,7 @@ public class ExoPlayerBridge {
     /**
      * Returns the current playback position in microseconds.
      *
-     * <p>This method provides a high-resolution estimate of the playback position. Since ExoPlayer
+     * This method provides a high-resolution estimate of the playback position. Since ExoPlayer
      * only provides millisecond precision via {@link ExoPlayer#getCurrentPosition()}, this method
      * interpolates the position based on the time elapsed since the last anchor update from the
      * player thread, adjusted by the current playback rate.

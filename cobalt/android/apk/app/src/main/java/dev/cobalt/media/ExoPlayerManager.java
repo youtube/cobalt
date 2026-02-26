@@ -18,7 +18,6 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.view.Surface;
-import androidx.annotation.OptIn;
 import androidx.media3.common.C;
 import androidx.media3.common.ColorInfo;
 import androidx.media3.common.DrmInitData;
@@ -43,7 +42,7 @@ import org.jni_zero.JNINamespace;
 /**
  * Entry point for creating ExoPlayer components from the native layer.
  *
- * <p>This manager provides factory methods for creating the {@link ExoPlayerBridge},
+ * This manager provides factory methods for creating the {@link ExoPlayerBridge},
  * DRM components, and various {@link MediaSource} instances tailored for Starboard's
  * playback requirements.
  */
@@ -54,14 +53,8 @@ public class ExoPlayerManager {
     private static final int PASSTHROUGH_CODEC_BITRATE = 384000;
 
     /**
-     * A {@link MediaCodecSelector} that enforces Cobalt's decoding policies.
-     *
-     * <p>Policies:
-     * <ul>
-     *   <li>Enforces hardware-only video decoding on non-emulator devices to ensure performance.
-     *   <li>Disables internal software decoders for AC3, E-AC3, and E-AC3-JOC, as these
-     *       must be handled via passthrough.
-     * </ul>
+     * A {@link MediaCodecSelector} that disables internal software decoders for AC3, E-AC3,
+     * and E-AC3-JOC, as these must be handled via passthrough.
      */
     private static final class FilteringMediaCodecSelector implements MediaCodecSelector {
         @Override
@@ -144,7 +137,6 @@ public class ExoPlayerManager {
         return new ExoPlayerDrmBridge(mContext, nativeDrmSystem);
     }
 
-    @OptIn(markerClass = UnstableApi.class)
     @CalledByNative
     public static ExoPlayerMediaSource createAudioMediaSource(String mime,
             byte[] audioConfigurationData, int sampleRate, int channelCount,
@@ -191,11 +183,11 @@ public class ExoPlayerManager {
         Format.Builder builder = new Format.Builder();
         builder.setSampleMimeType(mime).setWidth(width).setHeight(height);
 
-        if (fps != -1) {
+        if (fps != 0) {
             builder.setFrameRate(fps);
         }
 
-        if (bitrate != -1) {
+        if (bitrate != 0) {
             builder.setAverageBitrate(bitrate);
         }
 
@@ -218,9 +210,6 @@ public class ExoPlayerManager {
 
     /**
      * Creates a {@link ColorInfo} object including HDR static metadata.
-     *
-     * <p>The HDR metadata is parsed into the CTA-861.3 binary format required by {@link
-     * android.media.MediaFormat}.
      */
     @CalledByNative
     public static ColorInfo createExoPlayerColorInfo(int colorRange, int colorSpace,

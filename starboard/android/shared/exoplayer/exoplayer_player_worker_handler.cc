@@ -68,18 +68,19 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
 
   Attach(job_queue);
 
-  std::vector<uint8_t> drm_init_data;
   if (drm_system_) {
-    drm_init_data = drm_system_->GetInitializationData();
+    std::vector<uint8_t> drm_init_data = drm_system_->GetInitializationData();
 
     if (drm_init_data.size() == 0) {
       return Failure("Did not get DRM init data.");
     }
+    bridge_ = std::make_unique<ExoPlayerBridge>(
+        creation_param_.audio_stream_info, creation_param_.video_stream_info,
+        creation_param_.drm_system, drm_init_data);
+  } else {
+    bridge_ = std::make_unique<ExoPlayerBridge>(
+        creation_param_.audio_stream_info, creation_param_.video_stream_info);
   }
-
-  bridge_ = std::make_unique<ExoPlayerBridge>(
-      creation_param_.audio_stream_info, creation_param_.video_stream_info,
-      creation_param_.drm_system, drm_init_data);
 
   if (!bridge_->is_valid() ||
       !bridge_->Init(
