@@ -103,9 +103,28 @@ bool IsAndroid4GbOr6GbDevice() {
   return is_4gb_or_6g_device;
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool IsATVMidRangeDevice() {
+  // For Cobalt on Android TV, we consider > 1GB and <= 4GB devices as mid-range
+  // to trigger partial low-end mode optimizations (e.g. limiting media players).
+  constexpr int kLowerBoundMB = 1 * 1024;
+  constexpr int kUpperBoundMB = 4 * 1024;
+  static bool is_mid_range_device =
+      kLowerBoundMB < base::SysInfo::AmountOfPhysicalMemoryMB() &&
+      base::SysInfo::AmountOfPhysicalMemoryMB() <= kUpperBoundMB;
+  return is_mid_range_device;
+}
+#endif
+
 bool IsPartialLowEndModeOnMidRangeDevicesEnabled() {
   // TODO(crbug.com/1434873): make the feature not enable on 32-bit devices
   // before launching or going to high Stable %.
+#if BUILDFLAG(IS_COBALT)
+  if (IsATVMidRangeDevice()) {
+    return base::FeatureList::IsEnabled(
+             features::kPartialLowEndModeOnMidRangeDevices);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   return IsAndroid4GbOr6GbDevice() &&
          base::FeatureList::IsEnabled(
              features::kPartialLowEndModeOnMidRangeDevices);

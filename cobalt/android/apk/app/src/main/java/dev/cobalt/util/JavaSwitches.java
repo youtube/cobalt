@@ -89,6 +89,8 @@ public class JavaSwitches {
       if (javaSwitches.containsKey(JavaSwitches.ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY)) {
         extraCommandLineArgs.add("--enable-low-end-device-mode-no-simulated-memory");
       }
+    } else {
+      extraCommandLineArgs.add("--enable-features=PartialLowEndModeOnMidRangeDevices");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
