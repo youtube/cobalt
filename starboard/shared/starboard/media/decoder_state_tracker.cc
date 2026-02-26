@@ -68,9 +68,7 @@ DecoderStateTracker::~DecoderStateTracker() {
     std::lock_guard lock(mutex_);
     thread_to_destroy = std::move(logging_thread_);
   }
-  if (thread_to_destroy) {
-    thread_to_destroy->job_queue()->StopSoon();
-  }
+  thread_to_destroy.reset();
 #endif
 }
 
