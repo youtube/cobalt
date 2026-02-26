@@ -188,6 +188,9 @@ test("cobalt_browsertests") {
   }
 
   sources = [
+    # TODO(b/458665232): restore browser tests in M138.
+    "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
     "encrypted_media_browsertest.cc",
@@ -225,6 +228,9 @@ test("cobalt_browsertests") {
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//cc/slim",
+    "//cobalt/browser:global_features",
+    "//cobalt/browser:metrics",
+    "//cobalt/browser:switches",
     "//cobalt/shell:browsertests_mojom",
     "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
