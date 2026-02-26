@@ -19,6 +19,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "cc/base/switches.h"
 #include "components/performance_manager/embedder/graph_features.h"
 #include "components/performance_manager/embedder/performance_manager_lifetime.h"
@@ -115,6 +116,7 @@ ShellBrowserMainParts::ShellBrowserMainParts() = default;
 ShellBrowserMainParts::~ShellBrowserMainParts() = default;
 
 void ShellBrowserMainParts::PostCreateMainMessageLoop() {
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #if BUILDFLAG(IS_CHROMEOS)
   ash::DBusThreadManager::Initialize();
   if (floss::features::IsFlossEnabled()) {
@@ -124,6 +126,7 @@ void ShellBrowserMainParts::PostCreateMainMessageLoop() {
   }
 #elif BUILDFLAG(IS_LINUX)
   bluez::DBusBluezManagerWrapperLinux::Initialize();
+#endif
 #endif
 }
 
@@ -213,6 +216,7 @@ void ShellBrowserMainParts::PostMainMessageLoopRun() {
 }
 
 void ShellBrowserMainParts::PostDestroyThreads() {
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #if BUILDFLAG(IS_CHROMEOS)
   device::BluetoothAdapterFactory::Shutdown();
   if (floss::features::IsFlossEnabled()) {
@@ -224,6 +228,7 @@ void ShellBrowserMainParts::PostDestroyThreads() {
 #elif BUILDFLAG(IS_LINUX)
   device::BluetoothAdapterFactory::Shutdown();
   bluez::DBusBluezManagerWrapperLinux::Shutdown();
+#endif
 #endif
 }
 

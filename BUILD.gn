@@ -14,6 +14,7 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/cronet/config.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/rust.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/ui.gni")
@@ -873,6 +874,10 @@ group("gn_all") {
     if (!is_android && !is_ios) {
       deps += [ "//components/cronet:cronet_tests" ]
     }
+
+    if (disable_bluetooth && !is_android && !is_ios) {
+      deps -= [ "//content/browser/bluetooth/tools:bluetooth_metrics_hash" ]
+    }
   }
 
   if (is_chrome_for_testing) {
@@ -1348,6 +1353,12 @@ if (use_blink && !is_cronet_build) {
       data += [
         "//third_party/catapult/",
         "//build/android/",
+      ]
+    }
+
+    if (disable_bluetooth) {
+      data_deps -= [
+        "//device/bluetooth/public/mojom:fake_bluetooth_interfaces_js_data_deps",
       ]
     }
   }

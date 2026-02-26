@@ -6,6 +6,7 @@ import("//build/config/features.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//services/device/public/cpp/geolocation/buildflags.gni")
 import("//testing/test.gni")
+import("//build/config/lightweight.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -16,8 +17,10 @@ if (is_ios) {
   import("//build/config/apple/mobile_config.gni")
 }
 
+# Serial is not needed when Bluetooth is disabled
 is_serial_enabled_platform =
-    is_win || ((is_linux || is_chromeos) && use_udev) || is_mac || is_android
+    !disable_bluetooth &&
+    (is_win || ((is_linux || is_chromeos) && use_udev) || is_mac || is_android)
 
 source_set("lib") {
   # This should be visible only to embedders of the Device Service, and the
@@ -85,6 +88,9 @@ source_set("lib") {
     deps += [ "//services/device/serial" ]
     defines = [ "IS_SERIAL_ENABLED_PLATFORM" ]
   }
+
+  # Lightweight features to reduce binary size.
+  deps += [ "//build:lightweight_buildflags" ]
 }
 
 # NOTE: We use a separate component target to support global binder overrides,

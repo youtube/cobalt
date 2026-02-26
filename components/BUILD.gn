@@ -5,6 +5,7 @@
 import("//base/debug/debug.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/ui.gni")
 import("//components/compose/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
@@ -1229,6 +1230,9 @@ if (use_blink) {
         "//sandbox",
       ]
     }
+
+    # TODO(lightweight): "device/bluetooth" can be removed. Upstream to Chromium.
+    deps -= [ "//device/bluetooth" ]
   }
 
   test("components_perftests") {

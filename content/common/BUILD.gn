@@ -4,6 +4,7 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/ui.gni")
 import("//content/public/common/zygote/features.gni")
 import("//ipc/features.gni")
@@ -445,6 +446,10 @@ source_set("common") {
 
   if (use_clang_profiling_inside_sandbox) {
     sources += [ "profiling_utils.cc" ]
+  }
+
+  if (disable_bluetooth) {
+    deps -= [ "//device/bluetooth" ]
   }
 }
 

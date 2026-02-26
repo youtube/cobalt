@@ -38,6 +38,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "components/webauthn/json/value_conversions.h"
 #include "content/browser/renderer_host/back_forward_cache_disable.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -60,8 +61,10 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "crypto/hash.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "device/bluetooth/bluetooth_adapter.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
+#endif
 #include "device/fido/attestation_object.h"
 #include "device/fido/attestation_statement.h"
 #include "device/fido/authenticator_data.h"
@@ -1826,6 +1829,10 @@ void AuthenticatorCommonImpl::GetClientCapabilities(
 
 void AuthenticatorCommonImpl::IsHybridTransportSupported(
     base::OnceCallback<void(bool)> callback) {
+#if BUILDFLAG(DISABLE_BLUETOOTH)
+  std::move(callback).Run(false);
+  return;
+#else
   if (!device::BluetoothAdapterFactory::Get()->IsLowEnergySupported()) {
     std::move(callback).Run(false);
     return;
@@ -1835,6 +1842,7 @@ void AuthenticatorCommonImpl::IsHybridTransportSupported(
       base::BindOnce([](scoped_refptr<device::BluetoothAdapter> adapter) {
         return adapter && adapter->IsPresent();
       }).Then(std::move(callback)));
+#endif
 }
 
 void AuthenticatorCommonImpl::IsUvpaaAvailableInternal(

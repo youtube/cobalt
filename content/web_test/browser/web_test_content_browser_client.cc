@@ -20,6 +20,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "cc/base/switches.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_child_process_observer.h"
@@ -43,13 +44,9 @@
 #include "content/test/data/mojo_web_test_helper.test-mojom.h"
 #include "content/test/mock_badge_service.h"
 #include "content/test/mock_clipboard_host.h"
-#include "content/web_test/browser/fake_bluetooth_chooser.h"
-#include "content/web_test/browser/fake_bluetooth_chooser_factory.h"
-#include "content/web_test/browser/fake_bluetooth_delegate.h"
 #include "content/web_test/browser/mojo_echo.h"
 #include "content/web_test/browser/mojo_optional_numerics_unittest.h"
 #include "content/web_test/browser/mojo_web_test_helper.h"
-#include "content/web_test/browser/web_test_bluetooth_fake_adapter_setter_impl.h"
 #include "content/web_test/browser/web_test_browser_context.h"
 #include "content/web_test/browser/web_test_browser_main_parts.h"
 #include "content/web_test/browser/web_test_control_host.h"
@@ -62,11 +59,8 @@
 #include "content/web_test/browser/web_test_sensor_provider_manager.h"
 #include "content/web_test/browser/web_test_storage_access_manager.h"
 #include "content/web_test/browser/web_test_tts_platform.h"
-#include "content/web_test/common/web_test_bluetooth_fake_adapter_setter.mojom.h"
 #include "content/web_test/common/web_test_string_util.h"
 #include "content/web_test/common/web_test_switches.h"
-#include "device/bluetooth/emulation/fake_bluetooth.h"
-#include "device/bluetooth/public/mojom/emulation/fake_bluetooth.mojom.h"
 #include "gpu/config/gpu_switches.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -94,6 +88,16 @@
 #include "ui/base/ui_base_switches.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
+
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
+#include "content/web_test/browser/fake_bluetooth_chooser.h"
+#include "content/web_test/browser/fake_bluetooth_chooser_factory.h"
+#include "content/web_test/browser/fake_bluetooth_delegate.h"
+#include "content/web_test/browser/web_test_bluetooth_fake_adapter_setter_impl.h"
+#include "content/web_test/common/web_test_bluetooth_fake_adapter_setter.mojom.h"
+#include "device/bluetooth/emulation/fake_bluetooth.h"
+#include "device/bluetooth/public/mojom/emulation/fake_bluetooth.mojom.h"
+#endif
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
 #include "content/web_test/browser/web_test_pressure_manager.h"
@@ -324,12 +328,14 @@ void WebTestContentBrowserClient::ResetMockClipboardHosts() {
     mock_clipboard_host_->Reset();
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 std::unique_ptr<FakeBluetoothChooser>
 WebTestContentBrowserClient::GetNextFakeBluetoothChooser() {
   if (!fake_bluetooth_chooser_factory_)
     return nullptr;
   return fake_bluetooth_chooser_factory_->GetNextFakeBluetoothChooser();
 }
+#endif
 
 void WebTestContentBrowserClient::BrowserChildProcessHostCreated(
     BrowserChildProcessHost* host) {
@@ -354,6 +360,7 @@ void WebTestContentBrowserClient::ExposeInterfacesToRenderer(
   registry->AddInterface(
       base::BindRepeating(&optional_numerics_unittest::ResponseParams::Bind),
       ui_task_runner);
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   registry->AddInterface(
       base::BindRepeating(&WebTestBluetoothFakeAdapterSetterImpl::Create),
       ui_task_runner);
@@ -368,6 +375,7 @@ void WebTestContentBrowserClient::ExposeInterfacesToRenderer(
           &WebTestContentBrowserClient::CreateFakeBluetoothChooserFactory,
           base::Unretained(this)),
       ui_task_runner);
+#endif
   registry->AddInterface(base::BindRepeating(&MojoWebTestHelper::Create));
 
   registry->AddInterface(
@@ -590,6 +598,7 @@ bool WebTestContentBrowserClient::CanAcceptUntrustedExchangesIfNeeded() {
   return true;
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 BluetoothDelegate* WebTestContentBrowserClient::GetBluetoothDelegate() {
   if (!fake_bluetooth_delegate_)
     fake_bluetooth_delegate_ = std::make_unique<FakeBluetoothDelegate>();
@@ -599,6 +608,7 @@ BluetoothDelegate* WebTestContentBrowserClient::GetBluetoothDelegate() {
 void WebTestContentBrowserClient::ResetFakeBluetoothDelegate() {
   fake_bluetooth_delegate_.reset();
 }
+#endif
 
 content::TtsPlatform* WebTestContentBrowserClient::GetTtsPlatform() {
   return WebTestTtsPlatform::GetInstance();
@@ -732,11 +742,13 @@ void WebTestContentBrowserClient::ConfigureNetworkContextParamsForShell(
   }
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void WebTestContentBrowserClient::CreateFakeBluetoothChooserFactory(
     mojo::PendingReceiver<mojom::FakeBluetoothChooserFactory> receiver) {
   fake_bluetooth_chooser_factory_ =
       FakeBluetoothChooserFactory::Create(std::move(receiver));
 }
+#endif
 
 void WebTestContentBrowserClient::BindWebTestControlHost(
     int render_process_id,

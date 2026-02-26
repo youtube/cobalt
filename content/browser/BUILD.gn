@@ -6,6 +6,7 @@ import("//base/allocator/partition_allocator/partition_alloc.gni")
 import("//build/buildflag_header.gni")
 import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/linux/pangocairo/pangocairo.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
@@ -3708,6 +3709,51 @@ source_set("browser") {
   # TODO(crbug.com/371609830): Remove dep on experiment end.
   if (is_chromeos) {
     deps += [ "//ash/constants:constants" ]
+  }
+
+  if (disable_bluetooth) {
+    sources -= [
+      "bluetooth/advertisement_client.cc",
+      "bluetooth/advertisement_client.h",
+      "bluetooth/bluetooth_adapter_factory_wrapper.cc",
+      "bluetooth/bluetooth_adapter_factory_wrapper.h",
+      "bluetooth/bluetooth_allowed_devices.cc",
+      "bluetooth/bluetooth_allowed_devices.h",
+      "bluetooth/bluetooth_allowed_devices_map.cc",
+      "bluetooth/bluetooth_allowed_devices_map.h",
+      "bluetooth/bluetooth_blocklist.cc",
+      "bluetooth/bluetooth_blocklist.h",
+      "bluetooth/bluetooth_device_chooser_controller.cc",
+      "bluetooth/bluetooth_device_chooser_controller.h",
+      "bluetooth/bluetooth_device_scanning_prompt_controller.cc",
+      "bluetooth/bluetooth_device_scanning_prompt_controller.h",
+      "bluetooth/bluetooth_metrics.cc",
+      "bluetooth/bluetooth_metrics.h",
+      "bluetooth/bluetooth_util.cc",
+      "bluetooth/bluetooth_util.h",
+      "bluetooth/frame_connected_bluetooth_devices.cc",
+      "bluetooth/frame_connected_bluetooth_devices.h",
+      "bluetooth/web_bluetooth_pairing_manager.h",
+      "bluetooth/web_bluetooth_pairing_manager_delegate.h",
+      "bluetooth/web_bluetooth_pairing_manager_impl.cc",
+      "bluetooth/web_bluetooth_pairing_manager_impl.h",
+      "bluetooth/web_bluetooth_service_impl.cc",
+      "bluetooth/web_bluetooth_service_impl.h",
+      "serial/serial_service.cc",
+      "serial/serial_service.h",
+    ]
+
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth/public/cpp",
+    ]
+    
+    if (!is_android) {
+      sources -= [
+        "webid/digital_credentials/cross_device_transaction_impl.cc",
+        "webid/digital_credentials/cross_device_transaction_impl.h",
+      ]
+    }
   }
 }
 

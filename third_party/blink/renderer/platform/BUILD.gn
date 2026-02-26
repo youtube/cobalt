@@ -7,6 +7,7 @@ import("//build/buildflag_header.gni")
 import("//build/compiled_action.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//media/media_options.gni")
@@ -230,6 +231,10 @@ group("blink_platform_public_deps") {
   if (is_android || is_win) {
     public_deps +=
         [ "//third_party/blink/public/common:font_unique_name_table_proto" ]
+  }
+
+  if (disable_bluetooth) {
+    public_deps -= [ "//third_party/blink/public/mojom:web_bluetooth_mojo_bindings_blink" ]
   }
 }
 
@@ -1964,6 +1969,13 @@ component("platform") {
 
   configs -= [ "//build/config/compiler:default_symbols" ]
   configs += blink_symbols_config
+
+  if (disable_bluetooth) {
+    sources -= [
+      "mojo/bluetooth_mojom_traits.cc",
+      "mojo/bluetooth_mojom_traits.h",
+    ]
+  }
 }
 
 static_library("test_support") {

@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
+import("//build/config/lightweight.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 import("//tools/grit/grit_rule.gni")
@@ -434,6 +435,12 @@ android_library("content_full_java") {
   ]
 
   public_deps = [ "//ui/base/mojom:ui_base_types_java" ]
+
+  if (disable_bluetooth) {
+    deps -= [
+      "//device/bluetooth:java",
+    ]
+  }
 }
 
 android_library("content_util_java") {

@@ -21,6 +21,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "build/lightweight_buildflags.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
 #include "components/services/storage/public/mojom/partition.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom-forward.h"
@@ -86,7 +87,9 @@ class AggregationService;
 class AttributionManager;
 class BackgroundFetchContext;
 class BlobRegistryWrapper;
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 class BluetoothAllowedDevicesMap;
+#endif
 class BroadcastChannelService;
 class BrowsingDataFilterBuilder;
 class KeepAliveURLLoaderService;
@@ -282,7 +285,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   BackgroundFetchContext* GetBackgroundFetchContext();
   PaymentAppContextImpl* GetPaymentAppContext();
   BroadcastChannelService* GetBroadcastChannelService();
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   BluetoothAllowedDevicesMap* GetBluetoothAllowedDevicesMap();
+#endif
   BlobRegistryWrapper* GetBlobRegistry();
   storage::BlobUrlRegistry* GetBlobUrlRegistry();
   SubresourceProxyingURLLoaderService* GetSubresourceProxyingURLLoaderService();
@@ -786,7 +791,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   scoped_refptr<BackgroundSyncContextImpl> background_sync_context_;
   scoped_refptr<PaymentAppContextImpl> payment_app_context_;
   std::unique_ptr<BroadcastChannelService> broadcast_channel_service_;
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   std::unique_ptr<BluetoothAllowedDevicesMap> bluetooth_allowed_devices_map_;
+#endif
   scoped_refptr<BlobRegistryWrapper> blob_registry_;
   std::unique_ptr<storage::BlobUrlRegistry> blob_url_registry_;
   std::unique_ptr<SubresourceProxyingURLLoaderService>

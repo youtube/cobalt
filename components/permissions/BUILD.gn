@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/lightweight.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//services/device/public/cpp/geolocation/buildflags.gni")
@@ -235,6 +236,33 @@ source_set("permissions") {
   public_deps = [ ":permissions_common" ]
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  if (disable_bluetooth) {
+    sources -= [
+      "bluetooth_delegate_impl.cc",
+      "bluetooth_delegate_impl.h",
+      "contexts/bluetooth_chooser_context.cc",
+      "contexts/bluetooth_chooser_context.h",
+    ]
+
+    if (!is_android) {
+      sources -= [
+        "bluetooth_chooser_controller.cc",
+        "bluetooth_chooser_controller.h",
+        "bluetooth_chooser_desktop.cc",
+        "bluetooth_chooser_desktop.h",
+        "bluetooth_scanning_prompt_controller.cc",
+        "bluetooth_scanning_prompt_controller.h",
+        "bluetooth_scanning_prompt_desktop.cc",
+        "bluetooth_scanning_prompt_desktop.h",
+      ]
+    }
+
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth/public/cpp",
+    ]
+  }
 }
 
 source_set("test_support") {

@@ -5,6 +5,7 @@
 import("//build/config/cast.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/ozone.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/ui.gni")
@@ -366,6 +367,10 @@ static_library("content_shell_lib") {
     "//url",
     "//v8",
   ]
+
+  if (disable_bluetooth) {
+    deps -= [ "//device/bluetooth" ]
+  }
 
   if (is_fuchsia) {
     sources += [

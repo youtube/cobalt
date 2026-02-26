@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD - style license that can be
 # found in the LICENSE file.
 
+import("//build/config/lightweight.gni")
 import("//build/config/ui.gni")
 import("//content/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -759,6 +760,21 @@ source_set("browser_sources") {
 
   if (enable_video_effects) {
     public_deps += [ "//services/video_effects/public/mojom:mojom" ]
+  }
+
+  if (disable_bluetooth) {
+    sources -= [
+      "bluetooth_chooser.cc",
+      "bluetooth_chooser.h",
+      "bluetooth_delegate.h",
+      "bluetooth_scanning_prompt.cc",
+      "bluetooth_scanning_prompt.h",
+
+      # Serial depends on Bluetooth
+      "serial_chooser.cc",
+      "serial_chooser.h",
+      "serial_delegate.h",
+    ]
   }
 }
 

@@ -29,6 +29,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/skia_paint_canvas.h"
 #include "content/public/common/isolated_world_ids.h"
@@ -299,7 +300,9 @@ class TestRunnerBindings : public gin::Wrappable<TestRunnerBindings> {
   void FocusDevtoolsSecondaryWindow();
   void ForceNextDrawingBufferCreationToFail();
   void ForceNextWebGLContextCreationToFail();
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   void GetBluetoothManualChooserEvents(v8::Local<v8::Function> callback);
+#endif
   void GetManifestThen(v8::Local<v8::Function> callback);
   std::string GetWritableDirectory();
   void InsertStyleSheet(const std::string& source_code);
@@ -320,17 +323,21 @@ class TestRunnerBindings : public gin::Wrappable<TestRunnerBindings> {
   void RemoveSpellCheckResolvedCallback();
   void RemoveWebPageOverlay();
   void ResolveBeforeInstallPromptPromise(const std::string& platform);
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   void SendBluetoothManualChooserEvent(const std::string& event,
                                        const std::string& argument);
+#endif
   void SetAcceptLanguages(const std::string& accept_languages);
   void SetAllowFileAccessFromFileURLs(bool allow);
   void SetAllowRunningOfInsecureContent(bool allowed);
   void SetBlockThirdPartyCookies(bool block);
   void SetAudioData(const gin::ArrayBufferView& view);
   void SetBackingScaleFactor(double value, v8::Local<v8::Function> callback);
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   void SetBluetoothFakeAdapter(const std::string& adapter_name,
                                v8::Local<v8::Function> callback);
   void SetBluetoothManualChooser(bool enable);
+#endif
   void SetBrowserHandlesFocus(bool enable);
   void SetCaretBrowsingEnabled();
   void SetColorProfile(const std::string& name,
@@ -652,12 +659,14 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
       .SetMethod("forceNextWebGLContextCreationToFail",
                  &TestRunnerBindings::ForceNextWebGLContextCreationToFail)
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
       // The Bluetooth functions are specified at
       // https://webbluetoothcg.github.io/web-bluetooth/tests/.
       //
       // Returns the events recorded since the last call to this function.
       .SetMethod("getBluetoothManualChooserEvents",
                  &TestRunnerBindings::GetBluetoothManualChooserEvents)
+#endif
       .SetMethod("getManifestThen", &TestRunnerBindings::GetManifestThen)
       // Returns the absolute path to a directory this test can write data in.
       // This returns the path to a fresh empty directory every time this method
@@ -703,6 +712,7 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
                  &TestRunnerBindings::ResolveBeforeInstallPromptPromise)
       .SetMethod("selectionAsMarkup", &TestRunnerBindings::SelectionAsMarkup)
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
       // The Bluetooth functions are specified at
       // https://webbluetoothcg.github.io/web-bluetooth/tests/.
 
@@ -713,6 +723,7 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
       //               in the 2nd parameter.
       .SetMethod("sendBluetoothManualChooserEvent",
                  &TestRunnerBindings::SendBluetoothManualChooserEvent)
+#endif
       .SetMethod("setAcceptLanguages", &TestRunnerBindings::SetAcceptLanguages)
       .SetMethod("setAllowFileAccessFromFileURLs",
                  &TestRunnerBindings::SetAllowFileAccessFromFileURLs)
@@ -727,6 +738,7 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
       .SetMethod("setAudioData", &TestRunnerBindings::SetAudioData)
       .SetMethod("setBackingScaleFactor",
                  &TestRunnerBindings::SetBackingScaleFactor)
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
       // Set the bluetooth adapter while running a web test.
       .SetMethod("setBluetoothFakeAdapter",
                  &TestRunnerBindings::SetBluetoothFakeAdapter)
@@ -735,6 +747,7 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
       // Otherwise falls back to the browser's default chooser.
       .SetMethod("setBluetoothManualChooser",
                  &TestRunnerBindings::SetBluetoothManualChooser)
+#endif
       .SetMethod("setBrowserHandlesFocus",
                  &TestRunnerBindings::SetBrowserHandlesFocus)
       .SetMethod("setCallCloseOnWebViews", &TestRunnerBindings::NotImplemented)
@@ -1918,6 +1931,7 @@ void TestRunnerBindings::SetColorProfile(const std::string& name,
   WrapV8Closure(std::move(v8_callback)).Run();
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void TestRunnerBindings::SetBluetoothFakeAdapter(
     const std::string& adapter_name,
     v8::Local<v8::Function> v8_callback) {
@@ -1970,6 +1984,7 @@ void TestRunnerBindings::GetBluetoothManualChooserEvents(
                      weak_ptr_factory_.GetWeakPtr(), GetWebFrame(),
                      WrapV8Callback(std::move(callback))));
 }
+#endif
 
 void TestRunnerBindings::SetBrowserHandlesFocus(bool enable) {
   if (!frame_) {
@@ -1978,6 +1993,7 @@ void TestRunnerBindings::SetBrowserHandlesFocus(bool enable) {
   blink::SetBrowserCanHandleFocusForWebTest(enable);
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 void TestRunnerBindings::SendBluetoothManualChooserEvent(
     const std::string& event,
     const std::string& argument) {
@@ -1987,6 +2003,7 @@ void TestRunnerBindings::SendBluetoothManualChooserEvent(
   frame_->GetWebTestControlHostRemote()->SendBluetoothManualChooserEvent(
       event, argument);
 }
+#endif
 
 void TestRunnerBindings::SetPOSIXLocale(const std::string& locale) {
   if (!frame_) {
@@ -3836,6 +3853,7 @@ void TestRunner::FinishTest(WebFrameTestProxy& source) {
       browser_should_dump_pixels);
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 mojom::WebTestBluetoothFakeAdapterSetter&
 TestRunner::GetBluetoothFakeAdapterSetter() {
   if (!bluetooth_fake_adapter_setter_) {
@@ -3851,6 +3869,7 @@ TestRunner::GetBluetoothFakeAdapterSetter() {
 void TestRunner::HandleBluetoothFakeAdapterSetterDisconnected() {
   bluetooth_fake_adapter_setter_.reset();
 }
+#endif
 
 void TestRunner::DisableAutomaticDragDrop(WebFrameTestProxy& source) {
   web_test_runtime_flags_.set_auto_drag_drop_enabled(false);
