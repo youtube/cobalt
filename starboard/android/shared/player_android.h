@@ -40,10 +40,11 @@ class SbPlayerAndroid
           player_worker_handler,
       const VideoDecoderExperimentalFeatures& experimental_features) {
     auto player = std::unique_ptr<SbPlayerAndroid>(new SbPlayerAndroid(
-        audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-        player_status_func, player_error_func, context,
-        std::move(player_worker_handler), experimental_features));
-    if (!player->is_valid()) {
+        sample_deallocate_func, context, experimental_features));
+    if (!player->CreateWorker(audio_codec, video_codec, sample_deallocate_func,
+                              decoder_status_func, player_status_func,
+                              player_error_func,
+                              std::move(player_worker_handler))) {
       return nullptr;
     }
     return player.release();
@@ -54,26 +55,10 @@ class SbPlayerAndroid
   }
 
  private:
-  SbPlayerAndroid(
-      SbMediaAudioCodec audio_codec,
-      SbMediaVideoCodec video_codec,
-      SbPlayerDeallocateSampleFunc sample_deallocate_func,
-      SbPlayerDecoderStatusFunc decoder_status_func,
-      SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func,
-      void* context,
-      std::unique_ptr<
-          ::starboard::shared::starboard::player::PlayerWorker::Handler>
-          player_worker_handler,
-      const VideoDecoderExperimentalFeatures& experimental_features)
-      : SbPlayerPrivateImpl(audio_codec,
-                            video_codec,
-                            sample_deallocate_func,
-                            decoder_status_func,
-                            player_status_func,
-                            player_error_func,
-                            context,
-                            std::move(player_worker_handler)),
+  SbPlayerAndroid(SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                  void* context,
+                  const VideoDecoderExperimentalFeatures& experimental_features)
+      : SbPlayerPrivateImpl(sample_deallocate_func, context),
         experimental_features_(experimental_features) {}
 
   const VideoDecoderExperimentalFeatures experimental_features_;

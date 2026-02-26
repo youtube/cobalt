@@ -93,17 +93,20 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
       SbMediaAudioConfiguration* out_audio_configuration) override;
 
  protected:
-  SbPlayerPrivateImpl(
+  SbPlayerPrivateImpl(SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                      void* context);
+
+  // We intentionally create |worker_| in a separate method outside of the
+  // constructor to avoid race conditions. Creating the worker spawns a
+  // new thread and begins initialization.
+  bool CreateWorker(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
-      void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
-
-  bool is_valid() const { return worker_ != nullptr; }
 
  private:
   void UpdateMediaInfo(int64_t media_time,
@@ -134,6 +137,8 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
 
   static int number_of_players_;
 
+  // |CreateInstance| ensures that |worker_| is non-null when the instance is
+  // successfully created.
   // |worker_| should be placed last, so that it is destroyed first.
   std::unique_ptr<PlayerWorker> worker_;
 };
