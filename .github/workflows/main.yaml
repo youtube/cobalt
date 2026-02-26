@@ -438,7 +438,7 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' && secrets.sccache_gcs_key != '' }}
+          enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' }}
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
