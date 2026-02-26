@@ -22,10 +22,8 @@
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/memory_mapped_file.h"
-#include "starboard/extension/platform_service.h"
 #include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
-#include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 
@@ -37,6 +35,8 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/platform_service.h"
+#include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #endif
 
@@ -52,15 +52,18 @@ const void* SbSystemGetExtension(const char* name) {
     }
   }
 #endif
-  if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
-    return starboard::GetPlatformServiceApiLinux();
-  }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::GetConfigurationApiLinux();
   }
 #if BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
+  }
+
+  // TODO: b/371419798 - enable for non-evergreen builds once we've resolved the
+  // SIGILL in h5vcc_platform_service::H5vccPlatformServiceManagerImpl::Has().
+  if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
+    return starboard::GetPlatformServiceApiLinux();
   }
 #endif
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {

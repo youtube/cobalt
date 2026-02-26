@@ -205,6 +205,22 @@ static_library("update_client") {
     # Some functions are ported from m114 because Cobalt customizations
     # depend on them.
     defines = [ "USE_M114_FUNCTIONS" ]
+ 
+    deps += [
+      "//starboard:starboard_headers_only",
+    ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "cobalt_slot_management.cc",
+      "cobalt_slot_management.h",
+    ]
+
+    deps += [
+      "//starboard/loader_app:app_key_files",
+      "//starboard/loader_app:drain_file",
+    ]
   }
 }
 

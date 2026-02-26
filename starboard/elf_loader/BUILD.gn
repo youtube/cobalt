@@ -127,7 +127,7 @@ if (current_toolchain == starboard_toolchain) {
     #   starboard/linux/shared/platform_configuration/BUILD.gn
     # Example run:
     # export LD_LIBRARY_PATH=.
-    # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
+    # ./elf_loader_sys_sandbox --evergreen_library=libcobalt.so --evergreen_content=app/cobalt/content
     output_dir = root_build_dir
 
     sources = [ "elf_loader_sandbox.cc" ]

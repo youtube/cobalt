@@ -12,48 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/media_capabilities_cache.h"
-
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "starboard/android/shared/mock_media_capabilities_cache.h"
 #include "starboard/media.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace {
 
 using ::testing::ByMove;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-
-class MockMediaCapabilitiesProvider : public MediaCapabilitiesProvider {
- public:
-  MOCK_METHOD(bool, GetIsWidevineSupported, (), (override));
-  MOCK_METHOD(bool, GetIsCbcsSchemeSupported, (), (override));
-  MOCK_METHOD(std::set<SbMediaTransferId>,
-              GetSupportedHdrTypes,
-              (),
-              (override));
-  MOCK_METHOD(bool,
-              GetIsPassthroughSupported,
-              (SbMediaAudioCodec codec),
-              (override));
-  MOCK_METHOD(bool,
-              GetAudioConfiguration,
-              (int index, SbMediaAudioConfiguration* configuration),
-              (override));
-  MOCK_METHOD(
-      void,
-      GetCodecCapabilities,
-      ((std::map<std::string, AudioCodecCapabilities>)&audio_codec_capabilities,
-       (std::map<std::string,
-                 VideoCodecCapabilities>)&video_codec_capabilities),
-      (override));
-};
 
 class MediaCapabilitiesCacheTest : public ::testing::Test {
  protected:
@@ -62,7 +35,7 @@ class MediaCapabilitiesCacheTest : public ::testing::Test {
         std::make_unique<MockMediaCapabilitiesProvider>();
     mock_media_capabilities_provider_ = mock_media_capabilities_provider.get();
 
-    cache_ = MediaCapabilitiesCache::CreateForTest(
+    cache_ = std::make_unique<MockMediaCapabilitiesCache>(
         std::move(mock_media_capabilities_provider));
     cache_->SetCacheEnabled(true);
   }
@@ -298,5 +271,4 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
   EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
   EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
 }
-}  // namespace
 }  // namespace starboard

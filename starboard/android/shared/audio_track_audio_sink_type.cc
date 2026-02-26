@@ -23,7 +23,6 @@
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/audio_output_manager.h"
-#include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/scoped_timer.h"
@@ -38,12 +37,6 @@ namespace starboard {
 namespace {
 
 using ::base::android::AttachCurrentThread;
-
-// Whether to use continuous audio track sync, which keep feeding audio frames
-// into AudioTrack. Instead of callnig pause/play, it switches between silence
-// data and actual data.
-// TODO: b/186660620: Replace this constant with feature flag.
-constexpr bool kUseContinuousAudioTrackSink = false;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -195,13 +188,19 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_GE(playback_rate, 0.0);
-  if (playback_rate != 0.0 && playback_rate != 1.0) {
-    SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
-                           "currently supported.";
-    playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
+  SB_DLOG(INFO) << "Set playback rate to " << playback_rate;
+
+  {
+    std::lock_guard lock(mutex_);
+    playback_rate_ = playback_rate;
   }
-  std::lock_guard lock(mutex_);
-  playback_rate_ = playback_rate;
+
+  // AudioTrack doesn't support playback speed of 0.
+  if (playback_rate > 0.0) {
+    // AudioTrackBridge.setPlaybackRate() currently is only enabled for tunnel
+    // mode. It will be no-op for non tunnel player.
+    bridge_.SetPlaybackRate(playback_rate);
+  }
 }
 
 // TODO: Break down the function into manageable pieces.
@@ -446,6 +445,21 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int sampling_frequency_hz) {
   SB_CHECK(audio_track_audio_sink_type_);
   JNIEnv* env = AttachCurrentThread();
+
+  const bool force_tunnel_mode =
+      features::FeatureList::IsEnabled(features::kForceTunnelMode);
+  if (force_tunnel_mode) {
+    // AudioTrack.setPlaybackParams() needs extra buffer to support playback
+    // speed greater than 1.0x.
+    const double kMaxPlaybackSpeed = 2.0;
+    return std::max<int>(
+        AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+            env, sample_type, channels, sampling_frequency_hz),
+        audio_track_audio_sink_type_->GetMinBufferSizeInFramesInternal(
+            channels, sample_type, sampling_frequency_hz) *
+            kMaxPlaybackSpeed);
+  }
+
   return std::max(
       AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
           env, sample_type, channels, sampling_frequency_hz),
@@ -498,25 +512,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   SB_DCHECK_GE(frames_per_channel, min_required_frames);
   int preferred_buffer_size_in_bytes =
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
-  if (kUseContinuousAudioTrackSink) {
-    if (tunnel_mode_audio_session_id == -1) {
-      SB_LOG(INFO) << "Will create ContinuousAudioTrackSink";
-      auto continuous_sink = new ContinuousAudioTrackSink(
-          this, channels, sampling_frequency_hz, audio_sample_type,
-          frame_buffers, frames_per_channel, preferred_buffer_size_in_bytes,
-          update_source_status_func, consume_frames_func, error_func,
-          start_media_time, is_web_audio, context);
-      if (!continuous_sink->IsAudioTrackValid()) {
-        SB_LOG(ERROR) << "Failed to create ContinuousAudioTrackSink";
-        Destroy(continuous_sink);
-        return kSbAudioSinkInvalid;
-      }
-      return continuous_sink;
-    } else {
-      SB_LOG(INFO) << "Cannot use ContinuousAudioTrack with tunnel mode. "
-                      "will Create normal AudioTrackAudioSink instead.";
-    }
-  }
 
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,

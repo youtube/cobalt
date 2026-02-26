@@ -6,6 +6,7 @@
   "test_package": true,
   "test_on_device": true,
   "test_device_family": "raspi",
+  "test_e2e": true,
   "test_root_target": "//cobalt:gn_all",
   "test_attempts": "3",
   "test_dimensions": {
@@ -20,6 +21,12 @@
     {
       "name": "arm-hardfp-raspi",
       "platform": "evergreen-arm-hardfp-raspi"
+    }
+  ],
+  "e2e_test_targets": [
+    {
+      "target": "//video/youtube/web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_cobalt_raspi",
+      "test_attempts": "6"
     }
   ]
 }

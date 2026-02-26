@@ -71,6 +71,8 @@ class AudioTrackBridge {
                   int64_t sync_time,
                   JNIEnv* env = base::android::AttachCurrentThread());
 
+  void SetPlaybackRate(double playback_rate,
+                       JNIEnv* env = base::android::AttachCurrentThread());
   void SetVolume(double volume,
                  JNIEnv* env = base::android::AttachCurrentThread());
 

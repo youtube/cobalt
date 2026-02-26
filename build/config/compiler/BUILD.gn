@@ -2870,7 +2870,11 @@ config("optimize_speed") {
     } else if (optimize_for_fuzzing) {
       cflags = [ "-O1" ] + common_optimize_on_cflags
     } else {
-      cflags = [ "-O3" ] + common_optimize_on_cflags
+      if (is_starboard) {
+        cflags = [ "-O2" ] + common_optimize_on_cflags
+      } else {
+        cflags = [ "-O3" ] + common_optimize_on_cflags
+      }
     }
     rustflags = [ "-Copt-level=3" ]
   }

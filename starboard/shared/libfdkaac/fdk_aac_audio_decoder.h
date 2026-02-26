@@ -32,7 +32,7 @@ class FdkAacAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   // The max supportable channels to be decoded for fdk aac is 8.
   static constexpr int kMaxChannels = 8;
 
-  FdkAacAudioDecoder();
+  explicit FdkAacAudioDecoder(JobQueue* job_queue);
   ~FdkAacAudioDecoder() override;
 
   // Overriding functions from AudioDecoder.

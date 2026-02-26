@@ -24,8 +24,9 @@ namespace starboard {
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-VideoRendererSinkImpl::VideoRendererSinkImpl(SbPlayer player)
-    : player_(player), z_index_(0), x_(0), y_(0), width_(0), height_(0) {
+VideoRendererSinkImpl::VideoRendererSinkImpl(JobQueue* job_queue,
+                                             SbPlayer player)
+    : JobOwner(job_queue), player_(player) {
   SB_DCHECK(SbPlayerIsValid(player));
 }
 

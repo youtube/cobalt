@@ -58,6 +58,13 @@ id<SBDStarboardApplication> SBDGetApplication(void);
  */
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
 
+// Sets the UIView to which player views will be added to.
+- (void)setPlayerContainerView:(UIView*)view;
+
+// Attaches a video player view that will be shown as an underlay of the web
+// contents. Does nothing if setPlayerContainerView() has not been called.
+- (void)attachPlayerView:(UIView*)subView;
+
 // Suspends the application by forwarding the press events stored by calls to
 // `registerMenuPressBegan` and `registerMenuPressEnded` to UIKit.
 - (void)suspendApplication;

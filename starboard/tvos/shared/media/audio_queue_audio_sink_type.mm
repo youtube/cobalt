@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #import <AVFoundation/AVFoundation.h>
-#include <pthread.h>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <list>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -28,6 +28,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
@@ -126,16 +127,17 @@ class TvosAudioSinkType : public SbAudioSinkPrivate::Type {
   TvosAudioSinkType(const TvosAudioSinkType&) = delete;
   TvosAudioSinkType& operator=(const TvosAudioSinkType&) = delete;
 
-  static void* ThreadEntryPoint(void* context);
-  void AudioThreadFunc();
+  void ProcessAudio();
 
   std::vector<TvosAudioSink*> sinks_to_add_;
   std::vector<TvosAudioSink*> sinks_to_destroy_;
-  pthread_t audio_thread_ = 0;
   std::mutex audio_thread_mutex_;
   std::condition_variable audio_thread_condition_;
   std::condition_variable destroy_condition_;
+
   bool destroying_ = false;
+
+  const std::unique_ptr<JobThread> audio_thread_;
 };
 
 TvosAudioSink::TvosAudioSink(
@@ -386,10 +388,12 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
   }
 }
 
-TvosAudioSinkType::TvosAudioSinkType() {
-  pthread_create(&audio_thread_, nullptr, &TvosAudioSinkType::ThreadEntryPoint,
-                 this);
-  SB_DCHECK(audio_thread_ != 0);
+TvosAudioSinkType::TvosAudioSinkType()
+    : audio_thread_(
+          JobThread::Create("tvos_audio_out", kSbThreadPriorityRealTime)) {
+  SB_CHECK(audio_thread_);
+
+  audio_thread_->Schedule([this] { ProcessAudio(); });
 }
 
 TvosAudioSinkType::~TvosAudioSinkType() {
@@ -398,7 +402,7 @@ TvosAudioSinkType::~TvosAudioSinkType() {
     destroying_ = true;
     audio_thread_condition_.notify_one();
   }
-  pthread_join(audio_thread_, NULL);
+  audio_thread_->Stop();
   SB_DCHECK(sinks_to_add_.empty());
 }
 
@@ -450,21 +454,10 @@ void TvosAudioSinkType::Destroy(SbAudioSink audio_sink) {
 }
 
 bool TvosAudioSinkType::BelongToAudioThread() const {
-  SB_DCHECK(audio_thread_ != 0);
-  return pthread_equal(pthread_self(), audio_thread_);
+  return audio_thread_->BelongsToCurrentThread();
 }
 
-// static
-void* TvosAudioSinkType::ThreadEntryPoint(void* context) {
-  pthread_setname_np("tvos_audio_out");
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-  SB_DCHECK(context);
-  TvosAudioSinkType* type = static_cast<TvosAudioSinkType*>(context);
-  type->AudioThreadFunc();
-  return NULL;
-}
-
-void TvosAudioSinkType::AudioThreadFunc() {
+void TvosAudioSinkType::ProcessAudio() {
   std::list<TvosAudioSink*> running_sinks;
   int64_t polling_interval = kDefaultAudioThreadWaitIntervalUsec;
   const auto predicate = [&]() {

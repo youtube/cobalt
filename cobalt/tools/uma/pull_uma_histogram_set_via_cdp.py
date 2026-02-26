@@ -22,14 +22,18 @@ import sys
 import time
 import threading
 import requests
-import websocket  # Need websocket-client
-import subprocess
 
 REPOSITORY_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.append(os.path.join(REPOSITORY_ROOT, 'cobalt', 'tools', 'performance'))
 sys.path.append(
     os.path.join(REPOSITORY_ROOT, 'third_party', 'catapult', 'devil'))
+sys.path.append(
+    os.path.join(REPOSITORY_ROOT, 'third_party', 'catapult', 'telemetry',
+                 'third_party', 'websocket-client'))
+
+import websocket  # pylint: disable=wrong-import-position
+import subprocess  # pylint: disable=wrong-import-position
 
 from adb_command_runner import run_adb_command  # pylint: disable=wrong-import-position
 from devil.android import device_utils  # pylint: disable=wrong-import-position
@@ -195,12 +199,20 @@ def _get_histograms_from_file(file_path: str) -> list:
     ]
 
 
-def _get_chrome_guiding_metrics() -> list:
-  metrics = []
-  metrics.append('Memory.PartitionAlloc.MemoryReclaim')
-  metrics.append('Memory.PartitionAlloc.PartitionRoot.ExtrasSize')
-  metrics.append('Memory.PartitionAlloc.PeriodicPurge')
-  return metrics
+def _get_chrome_guiding_metrics_for_memory() -> list:
+  # TODO(482357006): Re-add process-specific private memory metrics (Browser,
+  # Renderer, GPU) when moving to multi-process architecture.
+  return [
+      'Memory.Total.PrivateMemoryFootprint',
+  ]
+
+
+def _get_cobalt_resident_memory_metrics() -> list:
+  # TODO(482357006): Re-add process-specific resident memory metrics (Browser,
+  # Renderer, GPU) when moving to multi-process architecture.
+  return [
+      'Memory.Total.Resident',
+  ]
 
 
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
@@ -303,7 +315,8 @@ def _run_main(args, output_file):
   if args.histogram_file:
     histograms = _get_histograms_from_file(args.histogram_file)
   else:
-    histograms = _get_chrome_guiding_metrics()
+    histograms = _get_chrome_guiding_metrics_for_memory()
+    histograms.extend(_get_cobalt_resident_memory_metrics())
 
   _print_q(f'Ensure Cobalt is running with --remote-debugging-port={args.port}',
            args.quiet)

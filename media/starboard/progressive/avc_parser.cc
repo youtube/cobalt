@@ -463,10 +463,15 @@ void AVCParser::ParseAudioSpecificConfig(uint8_t b0, uint8_t b1) {
   aac_config[0] = b0;
   aac_config[1] = b1;
   int adts_header_size = 0;
-  audio_prepend_ = aac.CreateAdtsFromEsds({}, &adts_header_size);
 
-  if (!aac.Parse(aac_config, media_log_) || audio_prepend_.empty()) {
+  if (!aac.Parse(aac_config, media_log_)) {
     LOG(WARNING) << "Error in parsing AudioSpecificConfig.";
+    return;
+  }
+
+  audio_prepend_ = aac.CreateAdtsFromEsds(/*buffer=*/{}, &adts_header_size);
+  if (audio_prepend_.empty()) {
+    LOG(WARNING) << "Failed to create ADTS header from ESDS.";
     return;
   }
 

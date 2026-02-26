@@ -30,7 +30,7 @@
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/fuzztest/src/fuzztest/fuzztest.h"  // nogncheck
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 
 // U+FFFD, REPLACEMENT CHARACTER, encoded in UTF-8.
 #define U_FFFD "\xEF\xBF\xBD"

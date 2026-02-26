@@ -3,7 +3,6 @@
 # This file was auto-generated using api_leak_detector.py.
 
 TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code
-_Exit
 __cxa_thread_atexit_impl
 __gcov_dump
 __gcov_flush

@@ -44,8 +44,9 @@ static const VorbisLayout vorbis_mappings[8] = {
 
 }  // namespace
 
-OpusAudioDecoder::OpusAudioDecoder(const AudioStreamInfo& audio_stream_info)
-    : audio_stream_info_(audio_stream_info) {
+OpusAudioDecoder::OpusAudioDecoder(JobQueue* job_queue,
+                                   const AudioStreamInfo& audio_stream_info)
+    : JobOwner(job_queue), audio_stream_info_(audio_stream_info) {
   InitializeCodec();
 }
 
