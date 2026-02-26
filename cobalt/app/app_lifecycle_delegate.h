@@ -19,10 +19,9 @@
 #include <string>
 #include <vector>
 
-#include "base/at_exit.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
-#include "content/public/app/content_main_runner.h"
+#include "content/public/app/content_main.h"
 #include "starboard/event.h"
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -31,13 +30,40 @@
 
 namespace cobalt {
 
+// AppLifecycleRunner defines an interface for managing the system-level
+// execution of the Cobalt process. This abstraction allows for injecting
+// fake or mock behaviors during unit testing.
+class AppLifecycleRunner {
+ public:
+  virtual ~AppLifecycleRunner() = default;
+
+  // Initializes global system resources like AtExitManager.
+  virtual void InitializeSystem() = 0;
+
+  // Creates the main delegate for the content process.
+  virtual void CreateMainDelegate(bool is_visible) = 0;
+
+  // Returns the main delegate.
+  virtual cobalt::CobaltMainDelegate* GetMainDelegate() = 0;
+
+  // Executes the content process.
+  virtual int Run(content::ContentMainParams params) = 0;
+
+  // Shuts down the runner and its managed resources.
+  virtual void ShutDown() = 0;
+
+  // Returns true if the runner is currently executing.
+  virtual bool IsRunning() const = 0;
+};
+
 // AppLifecycleDelegate manages the Cobalt application lifecycle by translating
 // Starboard events into Chromium actions. It orchestrates the initialization,
 // running, and shutdown of the browser process and manages interaction with
 // Cobalt subsystems such as DeepLinkManager and H5vccAccessibilityManager.
 class AppLifecycleDelegate {
  public:
-  AppLifecycleDelegate();
+  explicit AppLifecycleDelegate(
+      std::unique_ptr<AppLifecycleRunner> runner = nullptr);
   ~AppLifecycleDelegate();
 
   void HandleEvent(const SbEvent* event);
@@ -53,9 +79,7 @@ class AppLifecycleDelegate {
           const char** argv,
           const char* initial_deep_link);
 
-  std::unique_ptr<base::AtExitManager> exit_manager_;
-  content::ContentMainRunner* main_runner_ = nullptr;
-  std::unique_ptr<cobalt::CobaltMainDelegate> content_main_delegate_;
+  std::unique_ptr<AppLifecycleRunner> runner_;
 
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.

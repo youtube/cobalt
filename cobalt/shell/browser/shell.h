@@ -40,6 +40,10 @@
 
 class GURL;
 
+namespace cobalt {
+class AppLifecycleDelegateTest;
+}
+
 namespace content {
 class FileSelectListener;
 class BrowserContext;
@@ -218,6 +222,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   friend class TestShell;
   friend class SplashScreenTest;
   friend class LifecycleTest;
+  friend class cobalt::AppLifecycleDelegateTest;
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
