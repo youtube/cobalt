@@ -43,9 +43,11 @@ class MigrationManager {
   // Returns a task. When invoked, the grouped |tasks| are run sequentially.
   static Task GroupTasks(std::vector<Task> tasks);
   static Task CookieTask(
+      std::shared_ptr<bool> success_flag,
       content::WeakDocumentPtr weak_document_ptr,
       std::vector<std::unique_ptr<net::CanonicalCookie>> cookies);
   static Task LocalStorageTask(
+      std::shared_ptr<bool> success_flag,
       content::WeakDocumentPtr weak_document_ptr,
       std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs);
   static std::vector<std::unique_ptr<std::pair<std::string, std::string>>>

@@ -59,12 +59,14 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
 
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
-  CHECK(initial_url.is_valid());
+  if (!initial_url.is_valid()) {
+    LOG(ERROR) << "Invalid initial URL.";
+    return nullptr;
+  }
   std::string partition_key = GetApplicationKey(initial_url);
   auto record =
       std::make_unique<starboard::StorageRecord>(partition_key.c_str());
   if (!record->IsValid()) {
-    record->Delete();
     bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
     if (!fallback) {
       return nullptr;
@@ -72,24 +74,17 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
 
     record = std::make_unique<starboard::StorageRecord>();
     if (!record->IsValid()) {
-      record->Delete();
       return nullptr;
     }
   }
 
   if (record->GetSize() < kRecordHeaderSize) {
-    record->Delete();
     return nullptr;
   }
 
   auto bytes = std::vector<uint8_t>(record->GetSize());
   const int read_result =
       record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
-  if (!record->Delete()) {
-    LOG(ERROR) << "Failed to delete legacy storage record. Aborting migration "
-                  "to prevent overwrite loop.";
-    return nullptr;
-  }
   if (read_result != bytes.size()) {
     return nullptr;
   }
@@ -111,19 +106,16 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
 
 content::RenderFrameHost* RenderFrameHost(
     content::WeakDocumentPtr weak_document_ptr) {
-  auto* render_frame_host = weak_document_ptr.AsRenderFrameHostIfValid();
-  CHECK(render_frame_host);
-  return render_frame_host;
+  return weak_document_ptr.AsRenderFrameHostIfValid();
 }
 
 network::mojom::CookieManager* CookieManager(
     content::WeakDocumentPtr weak_document_ptr) {
-  auto* storage_partition =
-      RenderFrameHost(weak_document_ptr)->GetStoragePartition();
-  CHECK(storage_partition);
-  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
-  return cookie_manager;
+  auto* render_frame_host = RenderFrameHost(weak_document_ptr);
+  if (!render_frame_host) return nullptr;
+  auto* storage_partition = render_frame_host->GetStoragePartition();
+  if (!storage_partition) return nullptr;
+  return storage_partition->GetCookieManagerForBrowserProcess();
 }
 
 #if !defined(COBALT_IS_RELEASE_BUILD)
@@ -156,6 +148,62 @@ Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
         std::move(callback).Run();
       },
       weak_document_ptr, url);
+}
+
+base::FilePath GetSentinelPath() {
+  base::FilePath current_cache_path;
+  base::PathService::Get(base::DIR_CACHE, &current_cache_path);
+  return current_cache_path.AppendASCII("migration_success_sentinel");
+}
+
+void DeleteLegacyStorage() {
+  GURL initial_url(
+      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+  if (!initial_url.is_valid()) {
+    LOG(ERROR) << "Invalid initial URL.";
+    return nullptr;
+  }
+  std::string partition_key = GetApplicationKey(initial_url);
+  starboard::StorageRecord record(partition_key.c_str());
+  if (record.IsValid()) {
+    if (!record.Delete()) {
+      LOG(ERROR) << "Failed to delete legacy storage record.";
+    } else {
+      LOG(INFO) << "Successfully deleted legacy storage record.";
+    }
+  }
+
+  bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
+  if (!fallback) {
+    return;
+  }
+  starboard::StorageRecord fallback_record;
+  if (fallback_record.IsValid()) {
+    fallback_record.Delete();
+  }
+}
+
+void WriteSentinelAndDeleteLegacyStorage() {
+  base::FilePath sentinel_path = GetSentinelPath();
+  base::WriteFile(sentinel_path, "1");
+  DeleteLegacyStorage();
+}
+
+Task WriteSentinelAndDeleteLegacyStorageTask(std::shared_ptr<bool> success_flag) {
+  return base::BindOnce([](std::shared_ptr<bool> success_flag, base::OnceClosure callback) {
+    if (!*success_flag) {
+      LOG(ERROR) << "Migration tasks failed. Aborting sentinel write and deletion.";
+      std::move(callback).Run();
+      return;
+    }
+    base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+        ->PostDelayedTask(FROM_HERE,
+                          base::BindOnce(&WriteSentinelAndDeleteLegacyStorage),
+                          base::Seconds(60));
+    std::move(callback).Run();
+  }, success_flag);
 }
 
 base::FilePath GetOldCachePath() {
@@ -251,6 +299,16 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
+  base::FilePath sentinel_path = GetSentinelPath();
+  if (base::PathExists(sentinel_path)) {
+    LOG(INFO) << "Migration Sentinel found. Deleting any residual legacy storage.";
+    base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+        ->PostTask(FROM_HERE, base::BindOnce(&DeleteLegacyStorage));
+    return;
+  }
+
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
@@ -261,87 +319,119 @@ void MigrationManager::DoMigrationTasksOnce(
   web_contents->Stop();
 
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
-  CHECK(render_frame_host);
+  if (!render_frame_host) {
+    return;
+  }
   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
+  auto success_flag = std::make_shared<bool>(true);
 
   std::vector<Task> tasks;
-  tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
+  tasks.push_back(CookieTask(success_flag, weak_document_ptr, ToCanonicalCookies(*storage)));
   const url::Origin& origin = render_frame_host->GetLastCommittedOrigin();
-  tasks.push_back(LocalStorageTask(weak_document_ptr,
+  tasks.push_back(LocalStorageTask(success_flag, weak_document_ptr,
                                    ToLocalStorageItems(origin, *storage)));
 #if !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(LogElapsedTimeTask());
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(DeleteOldCacheDirectoryTask());
+  tasks.push_back(WriteSentinelAndDeleteLegacyStorageTask(success_flag));
   tasks.push_back(ReloadTask(weak_document_ptr, url));
   std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
 }
 
 // static
 Task MigrationManager::CookieTask(
+    std::shared_ptr<bool> success_flag,
     content::WeakDocumentPtr weak_document_ptr,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+      [](std::shared_ptr<bool> success_flag, content::WeakDocumentPtr weak_document_ptr,
          base::OnceClosure callback) {
-        CookieManager(weak_document_ptr)
-            ->DeleteCookies(network::mojom::CookieDeletionFilter::New(),
-                            base::IgnoreArgs<uint32_t>(std::move(callback)));
+        auto* cm = CookieManager(weak_document_ptr);
+        if (!cm) {
+          *success_flag = false;
+          std::move(callback).Run();
+          return;
+        }
+        cm->DeleteCookies(network::mojom::CookieDeletionFilter::New(),
+                          base::IgnoreArgs<uint32_t>(std::move(callback)));
       },
-      weak_document_ptr));
+      success_flag, weak_document_ptr));
   for (auto& cookie : cookies) {
     tasks.push_back(base::BindOnce(
-        [](content::WeakDocumentPtr weak_document_ptr,
+        [](std::shared_ptr<bool> success_flag, content::WeakDocumentPtr weak_document_ptr,
            std::unique_ptr<net::CanonicalCookie> cookie,
            base::OnceClosure callback) {
+          auto* cm = CookieManager(weak_document_ptr);
+          if (!cm) {
+            *success_flag = false;
+            std::move(callback).Run();
+            return;
+          }
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
-          CookieManager(weak_document_ptr)
-              ->SetCanonicalCookie(*cookie, source_url,
-                                   net::CookieOptions::MakeAllInclusive(),
-                                   base::IgnoreArgs<net::CookieAccessResult>(
-                                       std::move(callback)));
+          cm->SetCanonicalCookie(*cookie, source_url,
+                                 net::CookieOptions::MakeAllInclusive(),
+                                 base::IgnoreArgs<net::CookieAccessResult>(
+                                     std::move(callback)));
         },
-        weak_document_ptr, std::move(cookie)));
+        success_flag, weak_document_ptr, std::move(cookie)));
   }
   tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+      [](std::shared_ptr<bool> success_flag, content::WeakDocumentPtr weak_document_ptr,
          base::OnceClosure callback) {
-        CookieManager(weak_document_ptr)->FlushCookieStore(std::move(callback));
+        auto* cm = CookieManager(weak_document_ptr);
+        if (!cm) {
+          *success_flag = false;
+          std::move(callback).Run();
+          return;
+        }
+        cm->FlushCookieStore(std::move(callback));
       },
-      weak_document_ptr));
+      success_flag, weak_document_ptr));
   return GroupTasks(std::move(tasks));
 }
 
 // static
 Task MigrationManager::LocalStorageTask(
+    std::shared_ptr<bool> success_flag,
     content::WeakDocumentPtr weak_document_ptr,
     std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs) {
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+      [](std::shared_ptr<bool> success_flag, content::WeakDocumentPtr weak_document_ptr,
          base::OnceClosure callback) {
-        RenderFrameHost(weak_document_ptr)
-            ->ExecuteJavaScriptMethod(
-                base::ASCIIToUTF16(std::string("localStorage")),
-                base::ASCIIToUTF16(std::string("clear")), base::Value::List(),
-                base::IgnoreArgs<base::Value>(std::move(callback)));
+        auto* rfh = RenderFrameHost(weak_document_ptr);
+        if (!rfh) {
+          *success_flag = false;
+          std::move(callback).Run();
+          return;
+        }
+        rfh->ExecuteJavaScriptMethod(
+            base::ASCIIToUTF16(std::string("localStorage")),
+            base::ASCIIToUTF16(std::string("clear")), base::Value::List(),
+            base::IgnoreArgs<base::Value>(std::move(callback)));
       },
-      weak_document_ptr));
+      success_flag, weak_document_ptr));
 
   for (auto& pair : pairs) {
     tasks.push_back(base::BindOnce(
-        [](content::WeakDocumentPtr weak_document_ptr,
+        [](std::shared_ptr<bool> success_flag, content::WeakDocumentPtr weak_document_ptr,
            std::unique_ptr<std::pair<std::string, std::string>> pair,
            base::OnceClosure callback) {
-          RenderFrameHost(weak_document_ptr)
-              ->ExecuteJavaScriptMethod(
-                  base::ASCIIToUTF16(std::string("localStorage")),
-                  base::ASCIIToUTF16(std::string("setItem")),
-                  base::Value::List().Append(pair->first).Append(pair->second),
-                  base::IgnoreArgs<base::Value>(std::move(callback)));
+          auto* rfh = RenderFrameHost(weak_document_ptr);
+          if (!rfh) {
+            *success_flag = false;
+            std::move(callback).Run();
+            return;
+          }
+          rfh->ExecuteJavaScriptMethod(
+              base::ASCIIToUTF16(std::string("localStorage")),
+              base::ASCIIToUTF16(std::string("setItem")),
+              base::Value::List().Append(pair->first).Append(pair->second),
+              base::IgnoreArgs<base::Value>(std::move(callback)));
         },
-        weak_document_ptr, std::move(pair)));
+        success_flag, weak_document_ptr, std::move(pair)));
   }
   return GroupTasks(std::move(tasks));
 }
