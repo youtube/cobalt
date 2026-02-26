@@ -20,7 +20,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
+#include "starboard/shared/starboard/player/video_dmp_writer.h"
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 void SbPlayerDestroy(SbPlayer player) {
