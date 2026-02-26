@@ -323,8 +323,8 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   // logic will be deprecated once Finch is ready.
   if (base::FeatureList::IsEnabled(
           kCobaltDecoderBufferAllocatorWithInPlaceMetadata)) {
-    strategy_.reset(new InPlaceReuseAllocatorStrategy(
-        initial_capacity_, allocation_unit_));
+    strategy_ = std::make_unique<InPlaceReuseAllocatorStrategy>(
+        initial_capacity_, allocation_unit_);
     LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
   } else {
     strategy_.reset(new DefaultReuseAllocatorStrategy(
