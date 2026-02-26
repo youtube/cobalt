@@ -393,15 +393,16 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
                                            const InputBuffers& input_buffers,
                                            SbMediaType type) {
   for (auto& input_buffer : input_buffers) {
-    bool is_key_frame = type == kSbMediaTypeAudio
-                            ? true
-                            : input_buffer->video_sample_info().is_key_frame;
     int offset = GetSampleOffset(type, input_buffer);
     int size = input_buffer->size() - offset;
 
     ScopedJavaLocalRef<jobject> sample_byte_buffer(
         env, env->NewDirectByteBuffer(
                  const_cast<uint8_t*>(input_buffer->data() + offset), size));
+
+    bool is_key_frame = type == kSbMediaTypeAudio
+                            ? true
+                            : input_buffer->video_sample_info().is_key_frame;
 
     ScopedJavaLocalRef<jobject> j_sample;
     if (input_buffer->drm_info()) {
@@ -418,15 +419,19 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
       DrmSubsampleData subsample_data =
           GetDrmSubsampleData(env, *drm_sample_info, offset);
 
-      jint cipher_mode = kCipherModeAesCtr;
-      jint blocks_to_encrypt = 0;
-      jint blocks_to_skip = 0;
+      jint cipher_mode;
+      jint blocks_to_encrypt;
+      jint blocks_to_skip;
 
       if (drm_sample_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
         cipher_mode = kCipherModeAesCbc;
         blocks_to_encrypt =
             drm_sample_info->encryption_pattern.crypt_byte_block;
         blocks_to_skip = drm_sample_info->encryption_pattern.skip_byte_block;
+      } else {
+        cipher_mode = kCipherModeAesCtr;
+        blocks_to_encrypt = 0;
+        blocks_to_skip = 0;
       }
 
       j_sample =

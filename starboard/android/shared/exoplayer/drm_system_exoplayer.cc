@@ -132,6 +132,7 @@ void DrmSystemExoPlayer::UpdateSession(int ticket,
                             session_id, session_id_size);
 }
 
+// The ExoPlayer will close the session when it no longer needs it.
 void DrmSystemExoPlayer::CloseSession(const void* session_id_data,
                                       int session_id_size) {}
 
