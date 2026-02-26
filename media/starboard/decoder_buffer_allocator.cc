@@ -327,8 +327,8 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
         initial_capacity_, allocation_unit_);
     LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
   } else {
-    strategy_.reset(new DefaultReuseAllocatorStrategy(
-        initial_capacity_, allocation_unit_));
+    strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
+        initial_capacity_, allocation_unit_);
     LOG(INFO) << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy.";
   }
 
