@@ -58,11 +58,13 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
           audio_codec,
           video_codec,
           std::move(player_worker_handler),
-          [this](auto... args) { UpdateMediaInfo(args...); },
+          [this](auto&&... args) {
+            UpdateMediaInfo(std::forward<decltype(args)>(args)...);
+          },
           decoder_status_func,
           player_status_func,
           player_error_func,
-          this,
+          /*player=*/this,
           context)) {
   ++number_of_players_;
   SB_LOG(INFO) << "Creating SbPlayerPrivateImpl. There are "
