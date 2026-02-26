@@ -45,17 +45,12 @@ SbDrmSystem SbDrmCreateSystem(
 
   if (starboard::features::FeatureList::IsEnabled(
           starboard::features::kEnableExoPlayer)) {
-    return new DrmSystemExoPlayer(key_system, context, update_request_callback,
-                                  session_updated_callback,
-                                  key_statuses_changed_callback);
+    return DrmSystemExoPlayer::Create(
+        key_system, context, update_request_callback, session_updated_callback,
+        key_statuses_changed_callback);
   }
 
-  SbDrmSystem drm_system =
-      new DrmSystem(key_system, context, update_request_callback,
-                    session_updated_callback, key_statuses_changed_callback);
-  if (!drm_system->is_valid()) {
-    delete drm_system;
-    return kSbDrmSystemInvalid;
-  }
-  return drm_system;
+  return DrmSystem::Create(key_system, context, update_request_callback,
+                           session_updated_callback,
+                           key_statuses_changed_callback);
 }

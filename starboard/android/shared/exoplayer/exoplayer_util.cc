@@ -121,7 +121,8 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
   } else {
     bool is_passthrough_unused;
     j_audio_mime = ConvertUTF8ToJavaString(
-        env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
+        env, SupportedAudioCodecToMimeType(stream_info.codec,
+                                           &is_passthrough_unused));
   }
 
   return Java_ExoPlayerManager_createAudioMediaSource(

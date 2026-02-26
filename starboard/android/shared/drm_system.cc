@@ -55,6 +55,22 @@ DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
 }  // namespace
 
+SbDrmSystem DrmSystem::Create(
+    std::string_view key_system,
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
+  DrmSystem* drm_system =
+      new DrmSystem(key_system, context, update_request_callback,
+                    session_updated_callback, key_statuses_changed_callback);
+  if (!drm_system->is_valid()) {
+    delete drm_system;
+    return kSbDrmSystemInvalid;
+  }
+  return drm_system;
+}
+
 DrmSystem::DrmSystem(
     std::string_view key_system,
     void* context,

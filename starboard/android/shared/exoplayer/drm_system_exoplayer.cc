@@ -18,11 +18,10 @@
 #include <vector>
 
 #include "base/android/jni_array.h"
+#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
 #include "starboard/android/shared/drm_common.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
-
-#include "cobalt/android/jni_headers/ExoPlayerDrmBridge_jni.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
@@ -50,6 +49,22 @@ std::string JavaByteArrayToString(
   return out;
 }
 }  // namespace
+
+SbDrmSystem DrmSystemExoPlayer::Create(
+    std::string_view key_system,
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
+  DrmSystemExoPlayer* drm_system = new DrmSystemExoPlayer(
+      key_system, context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback);
+  if (!drm_system->is_valid()) {
+    delete drm_system;
+    return kSbDrmSystemInvalid;
+  }
+  return drm_system;
+}
 
 DrmSystemExoPlayer::DrmSystemExoPlayer(
     std::string_view key_system,
@@ -102,6 +117,9 @@ void DrmSystemExoPlayer::GenerateSessionUpdateRequest(
     const void* initialization_data,
     int initialization_data_size) {
   std::lock_guard<std::mutex> lock(mutex_);
+  CHECK(!update_request_requested_)
+      << "DrmSystemExoPlayer does not support multiple DRM sessions.";
+  update_request_requested_ = true;
   ticket_ = ticket;
   initialization_data_ = std::vector<uint8_t>(
       reinterpret_cast<const uint8_t*>(initialization_data),
@@ -119,12 +137,6 @@ void DrmSystemExoPlayer::UpdateSession(int ticket,
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_response =
       ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(key), key_size);
-
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    session_id_to_ticket_[std::string(reinterpret_cast<const char*>(session_id),
-                                      session_id_size)] = ticket;
-  }
 
   Java_ExoPlayerDrmBridge_setKeyRequestResponse(env, j_exoplayer_drm_bridge_,
                                                 j_response);
@@ -191,12 +203,7 @@ void DrmSystemExoPlayer::OnKeyRequest(
   int ticket;
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto it = session_id_to_ticket_.find(session_id);
-    if (it != session_id_to_ticket_.end()) {
-      ticket = it->second;
-    } else {
-      ticket = ticket_;
-    }
+    ticket = ticket_;
   }
 
   update_request_callback_(

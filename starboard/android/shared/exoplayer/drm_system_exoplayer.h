@@ -33,7 +33,7 @@ namespace starboard {
 
 class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
  public:
-  DrmSystemExoPlayer(
+  static SbDrmSystem Create(
       std::string_view key_system,
       void* context,
       SbDrmSessionUpdateRequestFunc update_request_callback,
@@ -82,7 +82,16 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
 
   base::android::ScopedJavaLocalRef<jobject> GetDrmSessionManager() const;
 
+  bool is_valid() const { return !j_exoplayer_drm_bridge_.is_null(); }
+
  private:
+  DrmSystemExoPlayer(
+      std::string_view key_system,
+      void* context,
+      SbDrmSessionUpdateRequestFunc update_request_callback,
+      SbDrmSessionUpdatedFunc session_updated_callback,
+      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+
   const std::string key_system_;
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
@@ -93,6 +102,7 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
   bool init_data_available_ = false;
   // Guarded by |mutex_|.
   std::condition_variable init_data_available_cv_;
+  bool update_request_requested_ = false;
 
   std::vector<uint8_t> initialization_data_;
 
@@ -101,7 +111,6 @@ class DrmSystemExoPlayer : public ::SbDrmSystemPrivate {
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_drm_bridge_;
 
   int ticket_ = 0;
-  std::unordered_map<std::string, int> session_id_to_ticket_;
 };
 
 }  // namespace starboard

@@ -24,6 +24,8 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
+#include "cobalt/android/jni_headers/ExoPlayerMediaSample_jni.h"
 #include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -35,8 +37,6 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
-#include "cobalt/android/jni_headers/ExoPlayerMediaSample_jni.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
