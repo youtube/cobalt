@@ -127,6 +127,9 @@ runs:
         mkdir -p "${test_output}/${{ matrix.platform }}"
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}" || true
 
+        echo "Downloaded files:"
+        ls -R "${test_output}/${{ matrix.platform }}"
+
         # Check for missing result xml files.
         for target_json in $(echo '${{ inputs.test_targets }}' | jq -c '.[]'); do
           test_target=$(echo "${target_json}" | jq -r '.target' | awk -F: '{print $NF}')

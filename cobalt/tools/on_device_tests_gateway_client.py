@@ -260,6 +260,14 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       if test_type in ('browser_test', 'yts_wpt_test'):
         test_type = 'e2e_test'
         target_name = test_target.split(':')[-1]
+        dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
+        # Browser tests running in the gateway use the specialized runner.
+        # We need to tell it where to output the XML so the gateway can find it.
+        if dir_on_device:
+          test_cmd_args = [
+              f'command_line_args=--gtest_output=xml:'
+              f'{dir_on_device}/{target_name}_testoutput.xml'
+          ]
         params = [
             f'gcs_result_filename={target_name}_testoutput.xml',
             f'gcs_log_filename={target_name}_log.txt',
