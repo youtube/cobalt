@@ -62,7 +62,7 @@ namespace starboard {
 
 class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
-  static SbPlayerPrivate* CreateInstance(
+  SbPlayerPrivateImpl(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -94,16 +94,6 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   ~SbPlayerPrivateImpl() final;
 
  private:
-  SbPlayerPrivateImpl(
-      SbMediaAudioCodec audio_codec,
-      SbMediaVideoCodec video_codec,
-      SbPlayerDeallocateSampleFunc sample_deallocate_func,
-      SbPlayerDecoderStatusFunc decoder_status_func,
-      SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func,
-      void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
-
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
@@ -126,7 +116,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
 
-  std::unique_ptr<PlayerWorker> worker_;
+  const std::unique_ptr<PlayerWorker> worker_;
 
   std::mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
