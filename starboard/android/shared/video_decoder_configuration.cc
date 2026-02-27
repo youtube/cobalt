@@ -15,7 +15,7 @@
 #include "starboard/android/shared/video_decoder_configuration.h"
 
 #include "starboard/android/shared/video_decoder_configuration_internal.h"
-#include "starboard/extension/experimental/video_decoder_configuration.h"
+#include "starboard/extension/video_decoder_configuration.h"
 
 namespace starboard::android::shared {
 
@@ -28,7 +28,9 @@ const StarboardExtensionVideoDecoderConfigurationApi
     kVideoDecoderConfigurationApi = {
         kStarboardExtensionVideoDecoderConfigurationName,
         1,
-        &SetExperimentalFeaturesForCurrentThread,
+        &SetVideoInitialMaxFramesInDecoderForCurrentThread,
+        &SetVideoMaxPendingInputFramesForCurrentThread,
+        &SetVideoDecoderPollIntervalMsForCurrentThread,
 };
 
 }  // namespace

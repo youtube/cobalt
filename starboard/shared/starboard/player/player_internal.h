@@ -60,7 +60,7 @@ struct SbPlayerPrivate {
 
 namespace starboard::shared::starboard::player {
 
-class SbPlayerPrivateImpl : public SbPlayerPrivate {
+class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
   typedef ::starboard::shared::starboard::media::AudioSampleInfo
       AudioSampleInfo;
@@ -75,24 +75,24 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  ~SbPlayerPrivateImpl() override;
-
-  void Seek(int64_t seek_to_time, int ticket) override;
+  void Seek(int64_t seek_to_time, int ticket) final;
   void WriteSamples(const SbPlayerSampleInfo* sample_infos,
-                    int number_of_sample_infos) override;
-  void WriteEndOfStream(SbMediaType stream_type) override;
-  void SetBounds(int z_index, int x, int y, int width, int height) override;
-  void GetInfo(SbPlayerInfo* out_player_info) override;
-  void SetPause(bool pause) override;
-  void SetPlaybackRate(double playback_rate) override;
-  void SetVolume(double volume) override;
+                    int number_of_sample_infos) final;
+  void WriteEndOfStream(SbMediaType stream_type) final;
+  void SetBounds(int z_index, int x, int y, int width, int height) final;
+  void GetInfo(SbPlayerInfo* out_player_info) final;
+  void SetPause(bool pause) final;
+  void SetPlaybackRate(double playback_rate) final;
+  void SetVolume(double volume) final;
 
-  SbDecodeTarget GetCurrentDecodeTarget() override;
+  SbDecodeTarget GetCurrentDecodeTarget() final;
   bool GetAudioConfiguration(
       int index,
-      SbMediaAudioConfiguration* out_audio_configuration) override;
+      SbMediaAudioConfiguration* out_audio_configuration) final;
 
- protected:
+  ~SbPlayerPrivateImpl() final;
+
+ private:
   SbPlayerPrivateImpl(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
@@ -103,9 +103,6 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  std::unique_ptr<PlayerWorker> worker_;
-
- private:
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
@@ -128,6 +125,8 @@ class SbPlayerPrivateImpl : public SbPlayerPrivate {
   // Used to determine if |worker_| is progressing with playback so that
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
+
+  std::unique_ptr<PlayerWorker> worker_;
 
   std::mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
