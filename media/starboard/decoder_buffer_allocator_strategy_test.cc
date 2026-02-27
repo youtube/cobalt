@@ -34,13 +34,13 @@ using InPlaceReuseAllocatorStrategy =
 // is instantiated, allowing tests to verify exactly when and how many times
 // the strategy creation logic is triggered.
 void UpdateStrategyWithCreationCounter(DecoderBufferAllocator* allocator,
-                               int* creation_count) {
+                                       int* creation_count) {
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
       [](int* creation_count_ptr, int initial_capacity, int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         (*creation_count_ptr)++;
-        return std::make_unique<InPlaceReuseAllocatorStrategy>(
-            initial_capacity, allocation_unit);
+        return std::make_unique<InPlaceReuseAllocatorStrategy>(initial_capacity,
+                                                               allocation_unit);
       },
       base::Unretained(creation_count)));
 }
@@ -136,18 +136,18 @@ TEST(DecoderBufferAllocatorStrategyTest, RepeatedEnableDoesNothing) {
 
   // 3. Enable Strategy B again (repeated enable)
   UpdateStrategyWithCreationCounter(&allocator, &creation_count_b);
-  
+
   // Freeing the allocations will trigger the pending reset.
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);
 
   // Next allocation should recreate the strategy (Strategy B)
   handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
-  
+
   // creation_count_a remains 1, creation_count_b becomes 1
   EXPECT_EQ(creation_count_a, 1);
   EXPECT_EQ(creation_count_b, 1);
-  
+
   allocator.Free(DemuxerStream::VIDEO, handle, 1024);
 }
 
@@ -167,7 +167,7 @@ TEST(DecoderBufferAllocatorStrategyTest,
   // default strategy.
   auto handle = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle, DecoderBuffer::Allocator::kInvalidHandle);
-  
+
   // The fallback strategies (ReuseAllocatorBase/InPlaceReuseAllocatorBase)
   // do not produce annotated pointers.
   EXPECT_GT(allocator.GetAllocatedMemory(), 0u);
@@ -192,7 +192,7 @@ TEST(DecoderBufferAllocatorStrategyTest,
   EXPECT_EQ(creation_count, 1);
 
   allocator.Free(DemuxerStream::VIDEO, handle1, 1024);
-  
+
   auto handle2 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle2, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count, 2);
@@ -215,7 +215,7 @@ TEST(DecoderBufferAllocatorStrategyTest,
   EXPECT_EQ(creation_count, 1);
 
   allocator.Free(DemuxerStream::VIDEO, handle1, 1024);
-  
+
   auto handle2 = allocator.Allocate(DemuxerStream::VIDEO, 1024, alignment);
   ASSERT_NE(handle2, DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(creation_count, 1);
