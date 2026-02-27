@@ -51,8 +51,6 @@ std::ostream& operator<<(
             << opt_to_string(features.max_pending_input_frames)
             << ", max_samples_per_write="
             << opt_to_string(features.max_samples_per_write)
-            << ", video_decoder_initial_preroll_count="
-            << opt_to_string(features.video_decoder_initial_preroll_count)
             << ", video_decoder_poll_interval_ms="
             << opt_to_string(features.video_decoder_poll_interval_ms) << "}";
 }
