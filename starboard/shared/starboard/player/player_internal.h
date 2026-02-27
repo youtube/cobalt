@@ -29,7 +29,7 @@
 #include "starboard/window.h"
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
+#include "starboard/shared/starboard/player/video_dmp_writer.h"  // nogncheck
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 struct SbPlayerPrivate {

@@ -24,10 +24,6 @@
 #include "starboard/common/media.h"
 #include "starboard/common/time.h"
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
-
 namespace starboard {
 namespace {
 

@@ -32,10 +32,6 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
-
 using ::starboard::MimeType;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
