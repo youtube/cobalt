@@ -21,6 +21,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -156,8 +157,8 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
     return;
   }
 
-  std::move(callback).Run(
-      base::span<const uint8_t>(response_ptr.get(), output_length));
+  std::move(callback).Run(base::span<const uint8_t>(
+      response_ptr.get(), base::checked_cast<size_t>(output_length)));
 }
 
 void PlatformServiceImpl::OnDataReceivedFromStarboard(
