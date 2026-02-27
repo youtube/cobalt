@@ -161,10 +161,9 @@ base::FilePath GlobalFeatures::GetPrefFilePath(
   CHECK(base::PathService::Get(base::DIR_CACHE, &path));
   path = path.Append(filename);
 
-  if (!base::CreateDirectory(path.DirName())) {
-    DLOG(ERROR) << "Failed to create directory for " << label << ": "
-                << path.DirName().value();
-  }
+  CHECK(base::CreateDirectory(path.DirName()))
+      << "Failed to create directory for " << label << ": "
+      << path.DirName().value();
   return path;
 }
 
