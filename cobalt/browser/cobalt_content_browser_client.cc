@@ -36,8 +36,6 @@
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -153,12 +151,7 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient()
-    : video_geometry_setter_service_(
-          std::unique_ptr<cobalt::media::VideoGeometrySetterService,
-                          base::OnTaskRunnerDeleter>(
-              nullptr,
-              base::OnTaskRunnerDeleter(nullptr))) {
+CobaltContentBrowserClient::CobaltContentBrowserClient() {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -340,41 +333,14 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
 
-void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
-  DCHECK(!video_geometry_setter_service_);
-  video_geometry_setter_service_ =
-      std::unique_ptr<cobalt::media::VideoGeometrySetterService,
-                      base::OnTaskRunnerDeleter>(
-          new media::VideoGeometrySetterService,
-          base::OnTaskRunnerDeleter(
-              base::SingleThreadTaskRunner::GetCurrentDefault()));
-}
-
 void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
     service_manager::BinderRegistry* registry,
     blink::AssociatedInterfaceRegistry* associated_registry,
     content::RenderProcessHost* render_process_host) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (!video_geometry_setter_service_) {
-    CreateVideoGeometrySetterService();
-  }
-  registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
-      video_geometry_setter_service_->GetBindSubscriberCallback(),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
   registry->AddInterface<cobalt::mojom::H5vccSettings>(
       base::BindRepeating(&H5vccSettingsImpl::Create),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-}
-
-void CobaltContentBrowserClient::BindGpuHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (!video_geometry_setter_service_) {
-    CreateVideoGeometrySetterService();
-  }
-  if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
-    video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
-  }
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(

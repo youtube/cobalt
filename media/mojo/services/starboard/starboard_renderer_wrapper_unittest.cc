@@ -24,6 +24,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
@@ -173,10 +174,10 @@ class StarboardRendererWrapperTest : public testing::Test {
     StarboardRendererTraits traits(
         task_environment_.GetMainThreadTaskRunner(),
         task_environment_.GetMainThreadTaskRunner(),
-        std::move(media_log_remote), base::UnguessableToken::Create(),
-        base::Seconds(1), base::Seconds(1), std::string(),
-        StarboardRendererConfig::ExperimentalFeatures{}, gfx::Size(),
-        std::move(renderer_extension_receiver),
+        std::move(media_log_remote), &video_geometry_setter_service_,
+        base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
+        std::string(), StarboardRendererConfig::ExperimentalFeatures{},
+        gfx::Size(), std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback(),
         AndroidOverlayMojoFactoryCB());
     renderer_wrapper_ =
@@ -209,6 +210,7 @@ class StarboardRendererWrapperTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  cobalt::media::VideoGeometrySetterService video_geometry_setter_service_;
   std::unique_ptr<StrictMock<MockStarboardRenderer>> mock_renderer_;
   base::SequenceBound<StrictMock<MockStarboardGpuFactory>> mock_gpu_factory_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;

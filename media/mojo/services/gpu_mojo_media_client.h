@@ -29,6 +29,10 @@
 
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/gpu/starboard/starboard_gpu_factory.h"
+
+namespace cobalt::media {
+class VideoGeometrySetterService;
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace gpu {
@@ -141,6 +145,7 @@ struct StarboardRendererTraits {
   scoped_refptr<base::SequencedTaskRunner> task_runner;
   scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner;
   mojo::PendingRemote<mojom::MediaLog> media_log_remote;
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service;
   const base::UnguessableToken& overlay_plane_id;
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
@@ -162,6 +167,7 @@ struct StarboardRendererTraits {
       scoped_refptr<base::SequencedTaskRunner> task_runner,
       scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
       mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service,
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
@@ -207,7 +213,12 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient final : public MojoMediaClient {
       scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
       base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager,
       gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory,
-      AndroidOverlayMojoFactoryCB android_overlay_factory_cb);
+      AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      );
 
   GpuMojoMediaClient(const GpuMojoMediaClient&) = delete;
   GpuMojoMediaClient& operator=(const GpuMojoMediaClient&) = delete;
@@ -271,6 +282,9 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient final : public MojoMediaClient {
   base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager_;
   AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
   const raw_ptr<gpu::GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

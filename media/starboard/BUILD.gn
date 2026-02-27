@@ -74,7 +74,6 @@ source_set("starboard") {
   if (use_starboard_media) {
     sources += [
       "bidirectional_fit_decoder_buffer_allocator_strategy.h",
-      "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.cc",

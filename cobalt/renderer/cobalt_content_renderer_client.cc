@@ -23,9 +23,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
-#include "media/starboard/bind_host_receiver_callback.h"
 #include "media/starboard/decoder_buffer_allocator.h"
-#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -119,10 +117,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
       ::media::EME_CODEC_AC3 | ::media::EME_CODEC_EAC3;
   // TODO(b/375232937) Add IAMF
   return codecs;
-}
-
-void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
-  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
 // TODO: b/460292554 - This code is a tentative solution, and will be replaced
@@ -254,11 +248,6 @@ ExperimentalFeatures ProcessH5vccSettings(
 
 }  // namespace
 
-static_assert(std::is_same<::media::BindHostReceiverCallback,
-                           base::RepeatingCallback<
-                               decltype(BindHostReceiverWithValuation)>>::value,
-              "These two types must be the same");
-
 CobaltContentRendererClient::CobaltContentRendererClient() {
   DETACH_FROM_THREAD(thread_checker_);
 }
@@ -363,12 +352,6 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   communication->RunScriptsAtDocumentStart();
 }
 
-void CobaltContentRendererClient::BindHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  BindHostReceiverWithValuation(std::move(receiver));
-}
-
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     media::RendererFactoryTraits* renderer_factory_traits) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -392,11 +375,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->experimental_features = experimental_features;
 
   renderer_factory_traits->viewport_size = viewport_size_;
-  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
-  renderer_factory_traits->bind_host_receiver_callback =
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
-                              weak_factory_.GetWeakPtr()));
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

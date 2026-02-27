@@ -22,7 +22,6 @@
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "media/base/starboard/starboard_renderer_config.h"
-#include "media/starboard/bind_host_receiver_callback.h"
 
 namespace base {
 class TimeDelta;
@@ -75,7 +74,6 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const std::string max_video_capabilities_;
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   const gfx::Size viewport_size_;
-  const BindHostReceiverCallback bind_host_receiver_callback_;
 };
 
 }  // namespace media
