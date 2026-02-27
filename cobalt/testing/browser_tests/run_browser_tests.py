@@ -35,6 +35,8 @@ class CobaltTestRunner:
     self.user_data_dir = args.user_data_dir or os.environ.get(
         "TEST_USER_DATA_DIR")
     self._temp_dir_obj = None
+    self._xml_root = None
+    self._xml_tree = None
 
     # Diable pylint because if the folder is passed by users, we should
     # keep it.
@@ -69,6 +71,8 @@ class CobaltTestRunner:
             f"{self.user_data_dir}: {e}",
             file=sys.stderr)
       self._temp_dir_obj = None
+    self._xml_root = None
+    self._xml_tree = None
 
   def _find_binary(self, binary_path: str) -> str:
     """Locates the executable test binary.
@@ -121,10 +125,10 @@ class CobaltTestRunner:
 
     if not 0 <= self.shard_index < self.total_shards:
       print(
-          f"Warning: Shard index {self.shard_index} is out of bounds for "
-          f"{self.total_shards} shards. Clamping to 0.",
+          f"Error: Shard index {self.shard_index} is out of bounds for "
+          f"{self.total_shards} shards. Quit.",
           file=sys.stderr)
-      self.shard_index = 0
+      sys.exit(1)
 
   def _get_xml_output_file(self) -> Optional[str]:
     """Extracts the XML output file path from arguments."""
@@ -212,11 +216,11 @@ class CobaltTestRunner:
     ]
 
   def _initialize_xml(self):
-    """Creates the initial XML output file."""
+    """Initializes the in-memory XML tree."""
     if not self.xml_output_file:
       return
     try:
-      root = ET.Element(
+      self._xml_root = ET.Element(
           "testsuites",
           tests="0",
           failures="0",
@@ -224,9 +228,9 @@ class CobaltTestRunner:
           errors="0",
           time="0",
           name="AllTests")
-      tree = ET.ElementTree(root)
-      os.makedirs(os.path.dirname(self.xml_output_file), exist_ok=True)
-      tree.write(self.xml_output_file, encoding="UTF-8", xml_declaration=True)
+      self._xml_tree = ET.ElementTree(self._xml_root)
+      if os.path.dirname(self.xml_output_file):
+        os.makedirs(os.path.dirname(self.xml_output_file), exist_ok=True)
     # pylint: disable=broad-exception-caught
     except Exception as e:
       print(
@@ -295,21 +299,18 @@ class CobaltTestRunner:
     return ts
 
   def _merge_test_xml(self, test_name: str, temp_xml_path: Optional[str]):
-    """Merges the temporary test XML into the main XML output file."""
-    if not self.xml_output_file:
+    """Merges the temporary test XML into the in-memory XML root."""
+    if not self.xml_output_file or self._xml_root is None:
       return
 
     try:
-      main_tree = ET.parse(self.xml_output_file)
-      main_root = main_tree.getroot()
-
       merged = False
       if temp_xml_path and os.path.exists(temp_xml_path):
         try:
           shard_tree = ET.parse(temp_xml_path)
           shard_root = shard_tree.getroot()
           for testsuite in shard_root:
-            main_root.append(testsuite)
+            self._xml_root.append(testsuite)
           merged = True
         except ET.ParseError as pe:
           print(
@@ -320,27 +321,24 @@ class CobaltTestRunner:
 
       if not merged:
         crash_entry = self._create_crash_xml_entry(test_name)
-        main_root.append(crash_entry)
-
-      main_tree.write(
-          self.xml_output_file, encoding="UTF-8", xml_declaration=True)
+        self._xml_root.append(crash_entry)
     # pylint: disable=broad-exception-caught
     except Exception as e:
       print(f"Error merging XML for {test_name}: {e}", file=sys.stderr)
 
-  def _update_xml_summary(self, total_count: int, failed_count: int):
-    """Updates the summary counts in the main XML file."""
-    if not self.xml_output_file:
+  def _finalize_and_write_xml(self, total_count: int, failed_count: int):
+    """Finalizes summary counts and writes the in-memory XML tree to disk."""
+    if (not self.xml_output_file or self._xml_root is None or
+        self._xml_tree is None):
       return
     try:
-      tree = ET.parse(self.xml_output_file)
-      root = tree.getroot()
-      root.set("tests", str(total_count))
-      root.set("failures", str(failed_count))
-      tree.write(self.xml_output_file, encoding="UTF-8", xml_declaration=True)
+      self._xml_root.set("tests", str(total_count))
+      self._xml_root.set("failures", str(failed_count))
+      self._xml_tree.write(
+          self.xml_output_file, encoding="UTF-8", xml_declaration=True)
     # pylint: disable=broad-exception-caught
     except Exception as e:
-      print(f"Error updating XML summary: {e}", file=sys.stderr)
+      print(f"Error writing final XML: {e}", file=sys.stderr)
 
   def run(self) -> int:
     """Runs the test execution process.
@@ -372,7 +370,9 @@ class CobaltTestRunner:
 
       if self.xml_output_file:
         self._merge_test_xml(test, temp_xml_path)
-        self._update_xml_summary(passed_count + failed_count, failed_count)
+
+    if self.xml_output_file:
+      self._finalize_and_write_xml(passed_count + failed_count, failed_count)
 
     print("=" * 40)
     print(f"Total: {passed_count + failed_count}, "
