@@ -25,7 +25,11 @@
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
+<<<<<<< HEAD
 #include "cobalt/testing/browser_tests/shell/test_shell.h"
+=======
+#include "components/metrics/clean_exit_beacon.h"
+>>>>>>> 069fcfe813 (cobalt/test: Ensure pref directories exist and skip clean shutdown steps (#9293))
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_paths.h"
@@ -80,6 +84,7 @@ ContentBrowserTest::ContentBrowserTest() {
 ContentBrowserTest::~ContentBrowserTest() {}
 
 void ContentBrowserTest::SetUp() {
+  metrics::CleanExitBeacon::SkipCleanShutdownStepsForTesting();
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   SetUpCommandLine(command_line);
 
