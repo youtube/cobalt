@@ -15,6 +15,7 @@
 #include "cobalt/browser/global_features.h"
 
 #include "base/feature_list.h"
+#include "base/files/file_util.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
@@ -93,9 +94,8 @@ void GlobalFeatures::CreateExperimentConfig() {
 
   RegisterPrefs(pref_registry.get());
 
-  base::FilePath path;
-  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
-  path = path.Append(kExperimentConfigFilename);
+  base::FilePath path =
+      GetPrefFilePath(kExperimentConfigFilename, "experiment config");
 
   PrefServiceFactory pref_service_factory;
   pref_service_factory.set_user_prefs(
@@ -127,9 +127,8 @@ void GlobalFeatures::CreateMetricsLocalState() {
   // call, etc., this is the setting that's overridden).
   pref_registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                      false);
-  base::FilePath path;
-  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
-  path = path.Append(kMetricsConfigFilename);
+  base::FilePath path =
+      GetPrefFilePath(kMetricsConfigFilename, "metrics config");
 
   PrefServiceFactory pref_service_factory;
   // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
@@ -153,6 +152,19 @@ void GlobalFeatures::InitializeActiveConfigData() {
       (experiment_config_type == ExperimentConfigType::kSafeConfig)
           ? kSafeConfigActiveConfigData
           : kExperimentConfigActiveConfigData);
+}
+
+base::FilePath GlobalFeatures::GetPrefFilePath(
+    const base::FilePath::CharType filename[],
+    const char* label) {
+  base::FilePath path;
+  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
+  path = path.Append(filename);
+
+  CHECK(base::CreateDirectory(path.DirName()))
+      << "Failed to create directory for " << label << ": "
+      << path.DirName().value();
+  return path;
 }
 
 void GlobalFeatures::Shutdown() {

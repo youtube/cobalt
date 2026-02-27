@@ -48,10 +48,6 @@ class BinderMapWithContext;
 
 namespace cobalt {
 
-namespace media {
-class VideoGeometrySetterService;
-}  // namespace media
-
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
 
@@ -102,11 +98,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
       override;
-  void ExposeInterfacesToRenderer(
-      service_manager::BinderRegistry* registry,
-      blink::AssociatedInterfaceRegistry* associated_registry,
-      content::RenderProcessHost* render_process_host) override;
-  void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
@@ -148,13 +139,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
  private:
-  void CreateVideoGeometrySetterService();
   void DispatchEvent(const std::string&, base::OnceClosure);
   void OnSbWindowCreated(SbWindow window);
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
-  std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
-      video_geometry_setter_service_;
 
   uint64_t cached_sb_window_ = 0;
   std::vector<
