@@ -27,6 +27,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/linux/dev_input/dev_input.h"
+#include "starboard/shared/linux/time_zone_monitor.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
@@ -147,6 +148,9 @@ class ApplicationX11 : public QueueApplication {
 
   // Indicates whether pointer input is from a touchscreen.
   bool touchscreen_pointer_;
+
+  std::unique_ptr<::starboard::shared::linux::TimeZoneMonitor>
+      time_zone_monitor_;
 };
 
 }  // namespace starboard

@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "starboard/decode_target.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"

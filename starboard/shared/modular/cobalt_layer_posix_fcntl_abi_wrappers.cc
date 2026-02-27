@@ -52,4 +52,19 @@ int fcntl(int fildes, int cmd, ...) {
   return result;
 }
 
+int __abi_wrap_openat(int fildes, const char* path, int oflag, ...);
+
+int openat(int fildes, const char* path, int oflag, ...) {
+  if ((oflag & O_CREAT) || (oflag & O_TMPFILE) == O_TMPFILE) {
+    int result;
+    va_list ap;
+    va_start(ap, oflag);
+    result = __abi_wrap_openat(fildes, path, oflag, va_arg(ap, mode_t));
+    va_end(ap);
+    return result;
+  } else {
+    return __abi_wrap_openat(fildes, path, oflag);
+  }
+}
+
 }  // extern "C"

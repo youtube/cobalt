@@ -134,12 +134,18 @@ class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
         reinterpret_cast<const unsigned char*>(kTestHtmlContent),
         sizeof(kTestHtmlContent) - 1};
     test_resource_map_["test.html"] = test_content;
-    factory_.SetResourceMapForTesting(&test_resource_map_);
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(&test_resource_map_);
+    factory_ = std::make_unique<H5vccSchemeURLLoaderFactory>(nullptr);
+  }
+
+  void TearDown() override {
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
+    testing::Test::TearDown();
   }
 
  protected:
   base::test::TaskEnvironment task_environment_;
-  H5vccSchemeURLLoaderFactory factory_;
+  std::unique_ptr<H5vccSchemeURLLoaderFactory> factory_;
   GeneratedResourceMap test_resource_map_;
 };
 
@@ -152,7 +158,7 @@ TEST_F(H5vccSchemeURLLoaderFactoryTest, LoadExistingResource) {
   mojo::PendingRemote<network::mojom::URLLoader> loader;
   auto client = std::make_unique<TestURLLoaderClient>();
 
-  factory_.CreateLoaderAndStart(
+  factory_->CreateLoaderAndStart(
       loader.InitWithNewPipeAndPassReceiver(), 0, 0, request,
       client->CreateRemote(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -193,7 +199,7 @@ TEST_F(H5vccSchemeURLLoaderFactoryTest, LoadNonExistingResource) {
   mojo::PendingRemote<network::mojom::URLLoader> loader;
   auto client = std::make_unique<TestURLLoaderClient>();
 
-  factory_.CreateLoaderAndStart(
+  factory_->CreateLoaderAndStart(
       loader.InitWithNewPipeAndPassReceiver(), 0, 0, request,
       client->CreateRemote(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));

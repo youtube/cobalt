@@ -1,6 +1,9 @@
 name: Test Artifact Upload
 description: Uploads test archives for on-device and on-host tests.
 inputs:
+  upload_e2e_test_artifacts:
+    description: "Indicates if E2E test artifacts should be uploaded."
+    required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -16,6 +19,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Create Artifacts Directory
+      run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+      shell: bash
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
@@ -29,6 +35,7 @@ runs:
         done
       shell: bash
     - name: Archive Test Dependencies
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
@@ -61,15 +68,21 @@ runs:
         path: artifacts/*
         retention-days: 3
     - name: Set up Cloud SDK
-      if: inputs.upload_on_device_test_artifacts == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Upload Android Test Artifacts to GCS
-      if: inputs.upload_on_device_test_artifacts == 'true'
+    - name: Upload On-Device Test Artifacts to GCS
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
+
+        # Add Cobalt release artifacts for smoke tests.
+        if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
+          mv ${GITHUB_WORKSPACE}/src/out/test-package/* \
+             ${GITHUB_WORKSPACE}/artifacts/
+        fi
 
         # Upload cobalt.apk for smoke tests.
         if [[ "${{ matrix.platform }}" == *android* ]]; then
@@ -77,7 +90,6 @@ runs:
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
-        # Upload gtest target artifacts.
-        gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
+        gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
       shell: bash

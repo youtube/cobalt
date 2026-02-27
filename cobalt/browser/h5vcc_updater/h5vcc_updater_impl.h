@@ -47,19 +47,6 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   void GetUpdateStatus(GetUpdateStatusCallback callback) override;
   void ResetInstallations(ResetInstallationsCallback callback) override;
   void GetInstallationIndex(GetInstallationIndexCallback callback) override;
-  void GetAllowSelfSignedPackages(
-      GetAllowSelfSignedPackagesCallback callback) override;
-  void SetAllowSelfSignedPackages(
-      bool allow_self_signed_packages,
-      SetAllowSelfSignedPackagesCallback callback) override;
-  void GetUpdateServerUrl(GetUpdateServerUrlCallback callback) override;
-  void SetUpdateServerUrl(const std::string& update_server_url,
-                          SetUpdateServerUrlCallback callback) override;
-  void GetRequireNetworkEncryption(
-      GetRequireNetworkEncryptionCallback callback) override;
-  void SetRequireNetworkEncryption(
-      bool require_network_encryption,
-      SetRequireNetworkEncryptionCallback callback) override;
   void GetLibrarySha256(unsigned short index,
                         GetLibrarySha256Callback callback) override;
 
@@ -70,7 +57,6 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
 
   THREAD_CHECKER(thread_checker_);
 };
-
 }  // namespace h5vcc_updater
 
 #endif  // COBALT_BROWSER_H5VCC_UPDATER_H5VCC_UPDATER_IMPL_H_

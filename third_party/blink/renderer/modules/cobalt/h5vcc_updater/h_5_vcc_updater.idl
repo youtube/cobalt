@@ -13,6 +13,8 @@
 // limitations under the License.
 
 // Custom API for getting and setting Evergreen update settings.
+// A disconnect handler in the renderer will reject all pending promises with a
+// "API not supported for this platform." if called from a non-Evergreen build.
 
 interface H5vccUpdater {
   [CallWith=ScriptState, RaisesException]

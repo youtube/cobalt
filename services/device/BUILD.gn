@@ -27,6 +27,11 @@ source_set("lib") {
     "//content/browser",
     "//services/device/public/cpp:test_support",
   ]
+ 
+  if (is_cobalt) {
+    visibility += [ "//cobalt" ]
+  }
+
   sources = [
     "device_service.cc",
     "device_service.h",

@@ -17,10 +17,16 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "starboard/window.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 class PrefService;
 
@@ -56,7 +62,7 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  CobaltContentBrowserClient();
+  explicit CobaltContentBrowserClient(bool is_visible = true);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -128,14 +134,32 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   void FlushCookiesAndLocalStorage(base::OnceClosure);
 
+  void AddPendingWindowReceiver(
+      mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+          receiver);
+  uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+  void SetUserAgentCrashAnnotation();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
  private:
   void CreateVideoGeometrySetterService();
+  void OnSbWindowCreated(SbWindow window);
 
+  bool is_visible_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
 
+  uint64_t cached_sb_window_ = 0;
+  std::vector<
+      mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
+      pending_window_receivers_;
+
   THREAD_CHECKER(thread_checker_);
+
+  base::WeakPtrFactory<CobaltContentBrowserClient> weak_factory_{this};
 };
 
 }  // namespace cobalt

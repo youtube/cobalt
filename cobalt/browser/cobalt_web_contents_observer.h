@@ -33,10 +33,6 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       delete;
 
   ~CobaltWebContentsObserver() override;
-
-#if BUILDFLAG(USE_EVERGREEN)
-  void PrimaryMainDocumentElementAvailable() override;
-#endif
 };
 
 }  // namespace cobalt

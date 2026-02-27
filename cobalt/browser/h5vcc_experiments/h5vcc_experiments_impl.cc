@@ -144,14 +144,6 @@ void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
   std::move(callback).Run(GetFeatureInternal(feature_name));
 }
 
-void H5vccExperimentsImpl::GetFeatureParam(
-    const std::string& feature_param_name,
-    GetFeatureParamCallback callback) {
-  std::string param_value = base::GetFieldTrialParamValue(
-      cobalt::kCobaltExperimentName, feature_param_name);
-  std::move(callback).Run(param_value);
-}
-
 void H5vccExperimentsImpl::GetLatestExperimentConfigHashData(
     GetLatestExperimentConfigHashDataCallback callback) {
   std::move(callback).Run(

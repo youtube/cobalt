@@ -82,11 +82,21 @@ source_set("browser") {
   if (is_androidtv) {
     deps += [ "//cobalt/android:jni_headers" ]
   } else {
-    deps += [ "//cobalt/browser/crash_annotator" ]
+    deps += [
+      "//cobalt/browser/crash_annotator",
+      "//cobalt/browser/h5vcc_platform_service",
+
+      # TODO: b/403638702 - androidtv will also need this dep.
+      "//cobalt/browser/h5vcc_platform_service/public/mojom",
+    ]
   }
 
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
   }
 }
 
@@ -133,6 +143,8 @@ source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
+    "metrics/cobalt_memory_metrics_emitter.cc",
+    "metrics/cobalt_memory_metrics_emitter.h",
     "metrics/cobalt_metrics_log_uploader.cc",
     "metrics/cobalt_metrics_log_uploader.h",
     "metrics/cobalt_metrics_service_client.cc",
@@ -141,6 +153,7 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
+    ":switches",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/metrics_services_manager",
@@ -148,6 +161,7 @@ source_set("metrics") {
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
     "//third_party/metrics_proto",
     "//url",
   ]

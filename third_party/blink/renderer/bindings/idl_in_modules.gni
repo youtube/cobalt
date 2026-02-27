@@ -1234,6 +1234,12 @@ if (is_cobalt) {
             ],
             "abspath")
   }
+
+  if (!is_androidtv) {
+    static_idl_files_in_modules += get_path_info(
+          [ "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service/h_5_vcc_platform_service.idl" ],
+          "abspath")
+  }
 }
 
 # Direct Sockets
