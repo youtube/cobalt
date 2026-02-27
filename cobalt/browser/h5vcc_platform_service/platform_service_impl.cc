@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
@@ -141,10 +142,19 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
   }
 
   uint64_t output_length = 0;
+  // Copying the received data's contents into `mutable_data` is necessary
+  // because CobaltExtensionPlatformServiceApi's Send()'s `data` argument below
+  // takes a void*, not a const void*, so the implementation can in theory
+  // modify the pointer's contents (even though the changes are not reflected
+  // back to the caller of this method).
+  std::vector<uint8_t> mutable_data = base::ToVector(data);
+  void* data_ptr = mutable_data.empty() ? nullptr : mutable_data.data();
+  uint64_t data_length = mutable_data.size();
   bool invalid_state = false;
-  std::unique_ptr<void, base::FreeDeleter> response_ptr(
-      api->Send(platform_service_, const_cast<uint8_t*>(data.data()),
-                data.size(), &output_length, &invalid_state));
+
+  const std::unique_ptr<uint8_t, base::FreeDeleter> response_ptr(
+      static_cast<uint8_t*>(api->Send(platform_service_, data_ptr, data_length,
+                                      &output_length, &invalid_state)));
 
   if (invalid_state) {
     LOG(ERROR) << "Send failed: Starboard service in invalid state for "
@@ -153,14 +163,8 @@ void PlatformServiceImpl::Send(base::span<const uint8_t> data,
     return;
   }
 
-  base::span<const uint8_t> response_data;
-  if (response_ptr && output_length > 0) {
-    const uint8_t* response_bytes = static_cast<const uint8_t*>(response_ptr.get());
-    response_data = base::span<const uint8_t>(response_bytes,
-                                              response_bytes + output_length);
-  }
-
-  std::move(callback).Run(response_data);
+  std::move(callback).Run(
+      base::span<const uint8_t>(response_ptr.get(), output_length));
 }
 
 void PlatformServiceImpl::OnDataReceivedFromStarboard(
