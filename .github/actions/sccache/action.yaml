@@ -10,11 +10,6 @@ runs:
   - name: Install sccache
     shell: bash
     run: brew install sccache
-  # - name: 'Set up Cloud SDK'
-  #   if: inputs.sccache_gcs_key == ''
-  #   uses: 'google-github-actions/setup-gcloud@v3'
-  #   with:
-  #     version: '>= 363.0.0'
   - name: Configure sccache
     shell: bash
     env:

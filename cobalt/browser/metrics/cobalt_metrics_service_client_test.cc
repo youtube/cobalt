@@ -81,6 +81,18 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     malloc_dump->numeric_entries["allocated_objects_size"] = 8 * 1024 * 1024;
     browser_dump->chrome_allocator_dumps["malloc"] = std::move(malloc_dump);
 
+    // Add Skia Glyph Cache dump
+    auto skia_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    skia_dump->numeric_entries["size"] = 2 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["skia/sk_glyph_cache"] =
+        std::move(skia_dump);
+
+    // Add Font Caches dump
+    auto font_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    font_dump->numeric_entries["size"] = 512 * 1024;
+    browser_dump->chrome_allocator_dumps["font_caches/shape_caches"] =
+        std::move(font_dump);
+
     dump_ptr->process_dumps.push_back(std::move(browser_dump));
 
     auto global_dump =
@@ -368,6 +380,12 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
           .GetAllSamples("Memory.Experimental.Browser2.Malloc.AllocatedObjects")
           .size(),
       1u);
+
+  // Experimental histograms (now with .Small. suffix in KB)
+  histogram_tester.ExpectUniqueSample(
+      "Memory.Experimental.Browser2.Skia.Small.SkGlyphCache", 2048, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Memory.Experimental.Browser2.Small.FontCaches", 512, 1);
 }
 
 TEST_F(CobaltMetricsServiceClientTest,
