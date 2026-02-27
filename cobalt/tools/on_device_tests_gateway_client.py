@@ -53,6 +53,30 @@ _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk', 'raspi')
 # Cobalt.apk
 _E2E_DEFAULT_YT_BINARY_NAME = 'Cobalt'
 
+# TODO: Remove when lab devices are updated to RDK_V6_20251218+.
+_EVERGREEN_ARM_HARDFP_RDK_RUN_ENV = (
+    'export HOME="$PWD/home"; '
+    'export XDG_RUNTIME_DIR="/run"; '
+    'export LD_PRELOAD="/usr/lib/libwesteros_gl.so.0.0.0"; '
+    'export WESTEROS_GL_USE_BEST_MODE="1"; '
+    'export WESTEROS_GL_MAX_MODE="3840x2160"; '
+    'export WESTEROS_GL_GRAPHICS_MAX_SIZE="1920x1080"; '
+    'export WESTEROS_GL_USE_AMLOGIC_AVSYNC="1"; '
+    'export WESTEROS_GL_REFRESH_PRIORITY="F,80"; '
+    'export WESTEROS_SINK_AMLOGIC_USE_DMABUF="1"; '
+    'export WESTEROS_SINK_USE_FREERUN="1"; '
+    'export WESTEROS_SINK_USE_ESSRMGR="1"; '
+    'export WESTEROS_GL_USE_REFRESH_LOCK="1"; '
+    'export WESTEROS_GL_USE_UEVENT_HOTPLUG="1"; '
+    'export RDKSHELL_KEYMAP_FILE="/etc/rdkshell_keymapping.json"; '
+    'export ESSOS_NO_EVENT_LOOP_THROTTLE="1"; '
+    'export AVPK_SKIP_HDMI_VALIDATION="1"; '
+    'export WAYLAND_DISPLAY="wayland-0"; '
+    'export ASAN_OPTIONS="exitcode=0"; '
+    'if ! pgrep westeros-init > /dev/null; then /usr/bin/westeros-init & fi; '
+    'sleep 2; '
+    'rdkDisplay create; ')
+
 
 class OnDeviceTestsGatewayClient:
   """On-device tests Gateway Client class."""
@@ -209,6 +233,10 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   if args.test_attempts:
     # Must delete existing results when retries are enabled.
     params.append('gcs_delete_before_upload=true')
+
+  if args.device_family == 'rdk':
+    params.append(f'run_env={_EVERGREEN_ARM_HARDFP_RDK_RUN_ENV}')
+
   return params
 
 
