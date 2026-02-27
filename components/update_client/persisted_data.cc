@@ -236,6 +236,10 @@ void PersistedDataImpl::SetLastInstalledEgAndSbVersion(const std::string& id,
                                                    const std::string& sb_version) {
   SetString(id, "version", eg_version);
   SetString(id, "sbversion", sb_version);
+
+  if (pref_service_) {
+    pref_service_->CommitPendingWrite(base::DoNothing());
+  }
 }
 void PersistedDataImpl::SetUpdaterChannel(const std::string& id,
                                       const std::string& channel) {
