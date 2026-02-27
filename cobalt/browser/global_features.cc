@@ -15,6 +15,7 @@
 #include "cobalt/browser/global_features.h"
 
 #include "base/feature_list.h"
+#include "base/files/file_util.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
@@ -97,6 +98,11 @@ void GlobalFeatures::CreateExperimentConfig() {
   CHECK(base::PathService::Get(base::DIR_CACHE, &path));
   path = path.Append(kExperimentConfigFilename);
 
+  if (!base::CreateDirectory(path.DirName())) {
+    DLOG(ERROR) << "Failed to create directory for experiment config: "
+                << path.DirName().value();
+  }
+
   PrefServiceFactory pref_service_factory;
   pref_service_factory.set_user_prefs(
       base::MakeRefCounted<JsonPrefStore>(path));
@@ -130,6 +136,11 @@ void GlobalFeatures::CreateMetricsLocalState() {
   base::FilePath path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &path));
   path = path.Append(kMetricsConfigFilename);
+
+  if (!base::CreateDirectory(path.DirName())) {
+    DLOG(ERROR) << "Failed to create directory for metrics config: "
+                << path.DirName().value();
+  }
 
   PrefServiceFactory pref_service_factory;
   // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
