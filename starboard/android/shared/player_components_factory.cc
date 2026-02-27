@@ -530,7 +530,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       const double kMaxPlaybackSpeed = 2.0;
       min_frames_required = std::max<int>(
           min_frames_required,
-          AudioTrackBridge::GetMinBufferSizeInFrames(sample_type,
+          AudioTrackBridge::GetMinBufferSizeInFrames(
+              sample_type,
               creation_parameters.audio_stream_info().number_of_channels,
               creation_parameters.audio_stream_info().samples_per_second) *
               kMaxPlaybackSpeed);
@@ -601,6 +602,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.video_initial_max_frames_in_decoder();
     experimental_features.max_pending_input_frames =
         creation_parameters.video_max_pending_input_frames();
+    experimental_features.video_decoder_initial_preroll_count =
+        creation_parameters.video_decoder_initial_preroll_count();
     experimental_features.video_decoder_poll_interval_ms =
         creation_parameters.video_decoder_poll_interval_ms();
     auto video_decoder = std::make_unique<VideoDecoder>(
@@ -745,7 +748,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     return nullptr;
   }
 
-private:
+ private:
   bool is_tunnel_mode_used_ = false;
 };
 

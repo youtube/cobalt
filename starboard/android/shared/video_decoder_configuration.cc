@@ -27,9 +27,10 @@ namespace {
 const StarboardExtensionVideoDecoderConfigurationApi
     kVideoDecoderConfigurationApi = {
         kStarboardExtensionVideoDecoderConfigurationName,
-        1,
+        2,
         &SetVideoInitialMaxFramesInDecoderForCurrentThread,
         &SetVideoMaxPendingInputFramesForCurrentThread,
+        &SetVideoDecoderInitialPrerollCountForCurrentThread,
         &SetVideoDecoderPollIntervalMsForCurrentThread,
 };
 

@@ -70,6 +70,7 @@ class PlayerComponents {
                          bool reset_audio_decoder,
                          std::optional<int> video_initial_max_frames_in_decoder,
                          std::optional<int> video_max_pending_input_frames,
+                         std::optional<int> video_decoder_initial_preroll_count,
                          std::optional<int> video_decoder_poll_interval_ms,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
@@ -84,6 +85,7 @@ class PlayerComponents {
                          bool reset_audio_decoder,
                          std::optional<int> video_initial_max_frames_in_decoder,
                          std::optional<int> video_max_pending_input_frames,
+                         std::optional<int> video_decoder_initial_preroll_count,
                          std::optional<int> video_decoder_poll_interval_ms,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
@@ -147,6 +149,9 @@ class PlayerComponents {
       std::optional<int> video_max_pending_input_frames() const {
         return video_max_pending_input_frames_;
       }
+      std::optional<int> video_decoder_initial_preroll_count() const {
+        return video_decoder_initial_preroll_count_;
+      }
       std::optional<int> video_decoder_poll_interval_ms() const {
         return video_decoder_poll_interval_ms_;
       }
@@ -174,6 +179,7 @@ class PlayerComponents {
 
       std::optional<int> video_initial_max_frames_in_decoder_;
       std::optional<int> video_max_pending_input_frames_;
+      std::optional<int> video_decoder_initial_preroll_count_;
       std::optional<int> video_decoder_poll_interval_ms_;
 
       // The following member are used by both the audio stream and the video

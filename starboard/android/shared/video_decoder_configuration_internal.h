@@ -39,6 +39,9 @@ void SetVideoMaxPendingInputFramesForCurrentThread(
 
 // Get video_decoder_poll_interval_ms via
 // SetVideoDecoderPollIntervalMsForCurrentThread().
+std::optional<int> GetVideoDecoderInitialPrerollCountForCurrentThread();
+void SetVideoDecoderInitialPrerollCountForCurrentThread(
+    int video_decoder_initial_preroll_count);
 std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
 
 // Specifies the video poll interval in milliseconds.

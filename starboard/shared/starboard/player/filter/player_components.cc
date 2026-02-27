@@ -96,6 +96,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     bool reset_audio_decoder,
     std::optional<int> video_initial_max_frames_in_decoder,
     std::optional<int> video_max_pending_input_frames,
+    std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
@@ -109,6 +110,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       reset_audio_decoder_(reset_audio_decoder),
       video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
       video_max_pending_input_frames_(video_max_pending_input_frames),
+      video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
@@ -129,6 +131,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     bool reset_audio_decoder,
     std::optional<int> video_initial_max_frames_in_decoder,
     std::optional<int> video_max_pending_input_frames,
+    std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
@@ -143,6 +146,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       reset_audio_decoder_(reset_audio_decoder),
       video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
       video_max_pending_input_frames_(video_max_pending_input_frames),
+      video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
@@ -164,6 +168,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->video_initial_max_frames_in_decoder_ =
       that.video_initial_max_frames_in_decoder_;
   this->video_max_pending_input_frames_ = that.video_max_pending_input_frames_;
+  this->video_decoder_initial_preroll_count_ =
+      that.video_decoder_initial_preroll_count_;
   this->video_decoder_poll_interval_ms_ = that.video_decoder_poll_interval_ms_;
   this->surface_view_ = that.surface_view_;
   this->decode_target_graphics_context_provider_ =
