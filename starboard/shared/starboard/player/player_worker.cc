@@ -42,22 +42,6 @@ DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
 }  // namespace
 
-PlayerWorker* PlayerWorker::CreateInstance(
-    SbMediaAudioCodec audio_codec,
-    SbMediaVideoCodec video_codec,
-    std::unique_ptr<Handler> handler,
-    UpdateMediaInfoCB update_media_info_cb,
-    SbPlayerDecoderStatusFunc decoder_status_func,
-    SbPlayerStatusFunc player_status_func,
-    SbPlayerErrorFunc player_error_func,
-    SbPlayer player,
-    void* context) {
-  return new PlayerWorker(audio_codec, video_codec, std::move(handler),
-                          update_media_info_cb, decoder_status_func,
-                          player_status_func, player_error_func, player,
-                          context);
-}
-
 PlayerWorker::~PlayerWorker() {
   ON_INSTANCE_RELEASED(PlayerWorker);
 
