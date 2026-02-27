@@ -249,6 +249,7 @@ const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
 // Convenience HDR mastering metadata.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+
 // Determine if two |SbMediaMasteringMetadata|s are equal.
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs) {
