@@ -832,7 +832,6 @@ void SbPlayerBridge::CreatePlayer() {
       video_decoder_configuration_extension->version >= 1) {
     StarboardVideoDecoderExperimentalFeatures experimental_features = {
         ToPtr(experimental_features_.initial_max_frames_in_decoder),
-        ToPtr(experimental_features_.max_pending_input_frames),
         ToPtr(experimental_features_.video_decoder_initial_preroll_count),
         ToPtr(experimental_features_.video_decoder_poll_interval_ms),
     };

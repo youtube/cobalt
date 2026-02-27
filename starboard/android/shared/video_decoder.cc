@@ -240,13 +240,15 @@ const int kNonInitialPrerollFrameCount = 1;
 
 const int kSeekingPrerollPendingWorkSizeInTunnelMode =
     16 + kInitialPrerollFrameCount;
+// We keep a large number of pending input frames to survive renderer hangs.
+// Renderer hangs occasionally due to the heavy JavaScript task load, choking
+// the video pipeline upstream. See go/cobalt-c26-video-freeze for details.
 const int kDefaultMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
 // Convenience HDR mastering metadata.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-
 // Determine if two |SbMediaMasteringMetadata|s are equal.
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs) {
@@ -389,9 +391,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
           experimental_features.initial_max_frames_in_decoder),
       video_decoder_poll_interval_ms_(
           experimental_features.video_decoder_poll_interval_ms),
-      max_pending_inputs_size_(
-          experimental_features.max_pending_input_frames.value_or(
-              kDefaultMaxPendingInputsSize)),
+      max_pending_inputs_size_(kDefaultMaxPendingInputsSize),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),

@@ -47,8 +47,6 @@ std::ostream& operator<<(
             << features.enable_reset_audio_decoder
             << ", initial_max_frames_in_decoder="
             << opt_to_string(features.initial_max_frames_in_decoder)
-            << ", max_pending_input_frames="
-            << opt_to_string(features.max_pending_input_frames)
             << ", max_samples_per_write="
             << opt_to_string(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="

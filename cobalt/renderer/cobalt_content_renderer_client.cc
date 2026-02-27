@@ -49,8 +49,6 @@ const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
     "Media.VideoInitialMaxFramesInDecoder";
-const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
-    "Media.VideoMaxPendingInputFrames";
 const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
     "Media.VideoDecoderInitialPrerollCount";
 const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
@@ -233,9 +231,6 @@ ExperimentalFeatures ProcessH5vccSettings(
   parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder,
       /*min_val=*/1, kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
-  parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, /*min_val=*/1,
-      kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount,
       /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
