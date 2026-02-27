@@ -9,6 +9,7 @@ and iterate them.
 """
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -45,9 +46,10 @@ class CobaltTestRunner:
       self._temp_dir_obj = tempfile.TemporaryDirectory(
           prefix="cobalt_user_data_")
       self.user_data_dir = self._temp_dir_obj.name
-      print(f"Using temporary user data directory: {self.user_data_dir}")
+      logging.info("Using temporary user data directory: %s",
+                   self.user_data_dir)
     else:
-      print(f"Using user data directory: {self.user_data_dir}")
+      logging.info("Using user data directory: %s", self.user_data_dir)
 
   def __enter__(self):
     """Enter the runtime context."""
@@ -62,14 +64,12 @@ class CobaltTestRunner:
     if self._temp_dir_obj:
       try:
         self._temp_dir_obj.cleanup()
-        print("Cleaned up temporary user data directory: "
-              f"{self.user_data_dir}")
+        logging.info("Cleaned up temporary user data directory: %s",
+                     self.user_data_dir)
       # pylint: disable=broad-exception-caught
       except Exception as e:
-        print(
-            "Error cleaning up temporary directory "
-            f"{self.user_data_dir}: {e}",
-            file=sys.stderr)
+        logging.error("Error cleaning up temporary directory %s: %s",
+                      self.user_data_dir, e)
       self._temp_dir_obj = None
     self._xml_root = None
     self._xml_tree = None
@@ -98,7 +98,7 @@ class CobaltTestRunner:
     if os.path.isfile(potential_binary_cwd):
       return potential_binary_cwd
 
-    print(f"Error: Binary not found at {binary_path}", file=sys.stderr)
+    logging.error("Binary not found at %s", binary_path)
     sys.exit(1)
 
   def _setup_sharding(self):
@@ -112,22 +112,18 @@ class CobaltTestRunner:
       try:
         self.total_shards = int(os.environ["GTEST_TOTAL_SHARDS"])
       except ValueError:
-        print(
-            "Warning: Non-integer GTEST_TOTAL_SHARDS env var.", file=sys.stderr)
+        logging.warning("Non-integer GTEST_TOTAL_SHARDS env var.")
         self.total_shards = 1
     if self.shard_index == 0 and "GTEST_SHARD_INDEX" in os.environ:
       try:
         self.shard_index = int(os.environ["GTEST_SHARD_INDEX"])
       except ValueError:
-        print(
-            "Warning: Non-integer GTEST_SHARD_INDEX env var.", file=sys.stderr)
+        logging.warning("Non-integer GTEST_SHARD_INDEX env var.")
         self.shard_index = 0
 
     if not 0 <= self.shard_index < self.total_shards:
-      print(
-          f"Error: Shard index {self.shard_index} is out of bounds for "
-          f"{self.total_shards} shards. Quit.",
-          file=sys.stderr)
+      logging.error("Shard index %d is out of bounds for %d shards. Quit.",
+                    self.shard_index, self.total_shards)
       sys.exit(1)
 
   def _get_xml_output_file(self) -> Optional[str]:
@@ -145,7 +141,7 @@ class CobaltTestRunner:
         Raises:
             SystemExit: If the list command fails.
         """
-    print(f"Listing tests from {self.binary}...")
+    logging.info("Listing tests from %s...", self.binary)
     list_cmd = [self.binary, "--gtest_list_tests"]
     if self.args.gtest_filter:
       list_cmd.append(f"--gtest_filter={self.args.gtest_filter}")
@@ -156,12 +152,10 @@ class CobaltTestRunner:
       output = subprocess.check_output(list_cmd, text=True)
       return output
     except subprocess.CalledProcessError as e:
-      print(f"Failed to list tests: {e.output}", file=sys.stderr)
+      logging.error("Failed to list tests: %s", e.output)
       sys.exit(e.returncode)
     except FileNotFoundError:
-      print(
-          f"Failed to list tests: Binary not found at {self.binary}",
-          file=sys.stderr)
+      logging.error("Failed to list tests: Binary not found at %s", self.binary)
       sys.exit(1)
 
   def _get_sort_key(self, test_name: str) -> Tuple[str, int]:
@@ -233,9 +227,8 @@ class CobaltTestRunner:
         os.makedirs(os.path.dirname(self.xml_output_file), exist_ok=True)
     # pylint: disable=broad-exception-caught
     except Exception as e:
-      print(
-          f"Error initializing XML file {self.xml_output_file}: {e}",
-          file=sys.stderr)
+      logging.error("Error initializing XML file %s: %s", self.xml_output_file,
+                    e)
 
   def _run_single_test(self, test_name: str,
                        test_idx: int) -> Tuple[int, Optional[str]]:
@@ -266,7 +259,7 @@ class CobaltTestRunner:
       retcode = subprocess.call(cmd, env=env)
     # pylint: disable=broad-exception-caught
     except Exception as e:
-      print(f"Error executing test {test_name}: {e}", file=sys.stderr)
+      logging.error("Error executing test %s: %s", test_name, e)
       retcode = 1
 
     return retcode, temp_xml_path
@@ -313,9 +306,7 @@ class CobaltTestRunner:
             self._xml_root.append(testsuite)
           merged = True
         except ET.ParseError as pe:
-          print(
-              f"Warning: Failed to parse temp XML {temp_xml_path}: {pe}",
-              file=sys.stderr)
+          logging.warning("Failed to parse temp XML %s: %s", temp_xml_path, pe)
         finally:
           os.remove(temp_xml_path)
 
@@ -324,7 +315,7 @@ class CobaltTestRunner:
         self._xml_root.append(crash_entry)
     # pylint: disable=broad-exception-caught
     except Exception as e:
-      print(f"Error merging XML for {test_name}: {e}", file=sys.stderr)
+      logging.error("Error merging XML for %s: %s", test_name, e)
 
   def _finalize_and_write_xml(self, total_count: int, failed_count: int):
     """Finalizes summary counts and writes the in-memory XML tree to disk."""
@@ -338,7 +329,7 @@ class CobaltTestRunner:
           self.xml_output_file, encoding="UTF-8", xml_declaration=True)
     # pylint: disable=broad-exception-caught
     except Exception as e:
-      print(f"Error writing final XML: {e}", file=sys.stderr)
+      logging.error("Error writing final XML: %s", e)
 
   def run(self) -> int:
     """Runs the test execution process.
@@ -352,20 +343,20 @@ class CobaltTestRunner:
     all_tests = self.parse_and_sort_tests(gtest_list_output)
     tests_to_run = self.filter_tests_for_shard(all_tests)
 
-    print(f"Shard {self.shard_index}/{self.total_shards}: "
-          f"Running {len(tests_to_run)} tests.")
+    logging.info("Shard %d/%d: Running %d tests.", self.shard_index,
+                 self.total_shards, len(tests_to_run))
 
     passed_count = 0
     failed_count = 0
 
     for i, test in enumerate(tests_to_run):
-      print(f"[RUN] {test}")
+      logging.info("[RUN] %s", test)
       retcode, temp_xml_path = self._run_single_test(test, i)
 
       if retcode == 0:
         passed_count += 1
       else:
-        print(f"[FAILED] {test} (Exit Code: {retcode})")
+        logging.error("[FAILED] %s (Exit Code: %d)", test, retcode)
         failed_count += 1
 
       if self.xml_output_file:
@@ -374,9 +365,9 @@ class CobaltTestRunner:
     if self.xml_output_file:
       self._finalize_and_write_xml(passed_count + failed_count, failed_count)
 
-    print("=" * 40)
-    print(f"Total: {passed_count + failed_count}, "
-          f"Passed: {passed_count}, Failed: {failed_count}")
+    logging.info("=" * 40)
+    logging.info("Total: %d, Passed: %d, Failed: %d",
+                 passed_count + failed_count, passed_count, failed_count)
 
     return failed_count
 
@@ -417,6 +408,7 @@ def parse_args() -> Tuple[argparse.Namespace, List[str]]:
 
 def main():
   """Main entry point for the script."""
+  logging.basicConfig(level=logging.INFO, format="%(message)s")
   args, unknown_args = parse_args()
   with CobaltTestRunner(args, unknown_args) as runner:
     failed_count = runner.run()
