@@ -93,6 +93,11 @@ class GlobalFeatures {
   // Modified config data should only apply to the next app life cycle.
   void InitializeActiveConfigData();
 
+  // Construct a FilePath for a pref file and ensure its parent directory
+  // exists.
+  base::FilePath GetPrefFilePath(const base::FilePath::CharType filename[],
+                                 const char* label);
+
   std::unique_ptr<base::FeatureList::Accessor> accessor_;
 
   // Finch config/state.
