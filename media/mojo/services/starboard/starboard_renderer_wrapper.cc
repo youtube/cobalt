@@ -205,7 +205,9 @@ void StarboardRendererWrapper::OnVideoGeometryChange(
     const gfx::RectF& rect_f,
     gfx::OverlayTransform /* transform */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  gfx::Rect new_bounds = gfx::ToNearestRect(rect_f);
+  // Use gfx::ToEnclosedRect() to align with `NotifyOverlayPromotion()`
+  // in //components/viz/service/display/overlay_processor_android.cc.
+  gfx::Rect new_bounds = gfx::ToEnclosedRect(rect_f);
   GetRenderer()->OnVideoGeometryChange(new_bounds);
 }
 
