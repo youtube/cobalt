@@ -439,7 +439,7 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
   }
 
 #if BUILDFLAG(IS_STARBOARD)
-  if (!delegate->Flush()) {
+  if (entire_file_extracted && !delegate->Flush()) {
     return false;
   }
 #endif
