@@ -9,7 +9,7 @@ These metrics track actual bytes used in RAM and GPU memory.
 ### Skia Graphics Layer
 *   **Skia Glyph Cache**
     *   **Dump Path**: `skia/sk_glyph_cache`
-    *   **UMA Mapping**: `Memory.Experimental.[Process].Skia.SkGlyphCache`
+    *   **UMA Mapping**: `Memory.Experimental.[Process].Skia.Small.SkGlyphCache`
     *   **Description**: Tracks the memory used by Skia's internal "Strike" cache (rasterized glyph masks).
     *   **Source**: `skia/ext/skia_memory_dump_provider.cc` via `SkGraphics::GetFontCacheUsed()`.
     *   **Cobalt Status**: Enabled in `cobalt/tools/uma/memory_histograms.txt`.
@@ -22,7 +22,7 @@ These metrics track actual bytes used in RAM and GPU memory.
 ### Blink / Renderer Layer
 *   **Font Shape Caches**
     *   **Dump Path**: `font_caches/shape_caches`
-    *   **UMA Mapping**: `Memory.Experimental.[Process].FontCaches`
+    *   **UMA Mapping**: `Memory.Experimental.[Process].Small.FontCaches`
     *   **Description**: Memory used for caching text shaping results (the output of HarfBuzz).
     *   **Source**: `third_party/blink/renderer/platform/fonts/font_cache.cc`.
 
