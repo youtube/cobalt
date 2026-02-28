@@ -139,7 +139,7 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
-  void Destroy(SbAudioSink audio_sink) override;
+  void Destroy(SbAudioSink audio_sink);
 
   bool Initialize();
 
