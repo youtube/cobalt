@@ -60,6 +60,7 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.DISABLE_BRP, "true");
     javaSwitches.put(JavaSwitches.ENABLE_BRP_RECLAIMER, "true");
     javaSwitches.put(JavaSwitches.SKIA_FONT_CACHE, "true");
+    javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "24");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
@@ -84,7 +85,18 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-features=PartitionAllocBackupRefPtr");
     assertThat(args).contains("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
     assertThat(args).contains("--enable-features=SkiaFontCache");
-    assertThat(args).hasSize(16);
+    assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=24");
+    assertThat(args).hasSize(17);
+  }
+
+  @Test
+  public void getExtraCommandLineArgs_SkiaGaneshResourceCacheLimitMb() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "32 MiB");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=32");
   }
 
   @Test
