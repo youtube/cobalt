@@ -519,6 +519,9 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
 
   void EndIdlePeriod();
 
+  // Callback for applying renderer hidden throttling after a grace period.
+  void DoRendererHiddenThrottling();
+
   // Update a policy which increases priority for the next beginMainFrame after
   // an input event.
   void UpdatePrioritizeCompositingAfterInputAfterTaskCompleted(
@@ -714,6 +717,7 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
   base::RepeatingClosure update_policy_closure_;
   DeadlineTaskRunner delayed_update_policy_runner_;
   CancelableClosureHolder end_renderer_hidden_idle_period_closure_;
+  CancelableClosureHolder do_renderer_hidden_throttling_callback_;
 
   // We have decided to improve thread safety at the cost of some boilerplate
   // (the accessors) for the following data members.
