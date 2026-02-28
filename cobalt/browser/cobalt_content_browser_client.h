@@ -62,7 +62,7 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  CobaltContentBrowserClient();
+  explicit CobaltContentBrowserClient(bool is_visible = true);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -139,10 +139,15 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
           receiver);
   uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
 
+#if !BUILDFLAG(IS_ANDROIDTV)
+  void SetUserAgentCrashAnnotation();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
  private:
   void CreateVideoGeometrySetterService();
   void OnSbWindowCreated(SbWindow window);
 
+  bool is_visible_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;

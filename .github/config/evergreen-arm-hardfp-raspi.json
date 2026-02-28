@@ -3,6 +3,7 @@
   "platforms": [
     "evergreen-arm-hardfp-raspi"
   ],
+  "test_package": true,
   "test_on_device": true,
   "test_device_family": "raspi",
   "test_root_target": "//cobalt:gn_all",
@@ -14,9 +15,9 @@
   "targets": [
     "cobalt:gn_all",
     "loader_app",
-    "crash_sandbox",
-    "noop_sandbox",
-    "one_app_only_sandbox"
+    "crash_sandbox_loaded_content",
+    "noop_sandbox_loaded_content",
+    "one_app_only_sandbox_loaded_content"
   ],
   "includes": [
     {

@@ -3,6 +3,7 @@
   "platforms": [
     "linux-x64x11"
   ],
+  "test_package": true,
   "test_on_host": true,
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 10,

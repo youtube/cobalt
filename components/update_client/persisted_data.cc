@@ -102,6 +102,8 @@ std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
   return GetString(id, "updaterchannel");
 }
 std::string PersistedData::GetLatestChannel() const {
+  if (!pref_service_)
+    return std::string();
   const base::Value::Dict* dict =
       &pref_service_->GetDict(kPersistedDataPreference);
   if (!dict)
@@ -114,6 +116,10 @@ void PersistedData::SetLastInstalledEgAndSbVersion(const std::string& id,
                                                    const std::string& sb_version) {
   SetString(id, "version", eg_version);
   SetString(id, "sbversion", sb_version);
+
+  if (pref_service_) {
+    pref_service_->CommitPendingWrite(base::DoNothing());
+  }
 }
 void PersistedData::SetUpdaterChannel(const std::string& id,
                                       const std::string& channel) {
