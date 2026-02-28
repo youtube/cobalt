@@ -61,6 +61,13 @@ const size_t kFramesPerRequest = 512;
 // The size of the audio buffer Pulse allocates internally.
 const size_t kPulseBufferSizeInFrames = 8192;
 
+class PulseAudioSink;
+static std::mutex g_mutex_;
+// Active PulseAudioSink instances. Sinks add themselves on creation and remove
+// themselves on destruction. Guarded by |g_mutex_| to synchronize access
+// between the renderer thread and the Pulse audio thread.
+static std::vector<PulseAudioSink*> g_sinks_;
+
 class PulseAudioSinkType;
 
 class PulseAudioSink : public SbAudioSinkImpl {
@@ -149,7 +156,7 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
                              pa_stream_flags_t stream_flags,
                              pa_stream_request_cb_t stream_request_cb,
                              void* userdata);
-  void DestroyStream(pa_stream* stream);
+  static void DestroyStream(pa_stream* stream);
 
  private:
   PulseAudioSinkType(const PulseAudioSinkType&) = delete;
@@ -159,7 +166,6 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  std::vector<PulseAudioSink*> sinks_;  // Guarded by |mutex_|.
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
   std::mutex mutex_;
@@ -195,8 +201,15 @@ PulseAudioSink::PulseAudioSink(
 }
 
 PulseAudioSink::~PulseAudioSink() {
+  {
+    std::lock_guard lock(g_mutex_);
+    auto it = std::find(g_sinks_.begin(), g_sinks_.end(), this);
+    if (it != g_sinks_.end()) {
+      g_sinks_.erase(it);
+    }
+  }
   if (stream_) {
-    type_->DestroyStream(stream_);
+    PulseAudioSinkType::DestroyStream(stream_);
   }
 }
 
@@ -380,7 +393,10 @@ PulseAudioSinkType::~PulseAudioSinkType() {
     }
     pthread_join(*audio_thread_, nullptr);
   }
-  SB_DCHECK(sinks_.empty());
+  {
+    std::lock_guard lock(g_mutex_);
+    SB_CHECK(g_sinks_.empty());
+  }
   if (context_) {
     pa_context_disconnect(context_);
     pa_context_unref(context_);
@@ -401,17 +417,18 @@ SbAudioSink PulseAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  PulseAudioSink* audio_sink = new PulseAudioSink(
+  auto audio_sink = std::make_unique<PulseAudioSink>(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
       context);
   if (!audio_sink->Initialize(context_)) {
-    delete audio_sink;
     return kSbAudioSinkInvalid;
   }
-  std::lock_guard lock(mutex_);
-  sinks_.push_back(audio_sink);
-  return audio_sink;
+  {
+    std::lock_guard lock(g_mutex_);
+    g_sinks_.push_back(audio_sink.get());
+  }
+  return audio_sink.release();
 }
 
 void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
@@ -423,15 +440,7 @@ void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
     return;
   }
   PulseAudioSink* pulse_audio_sink = static_cast<PulseAudioSink*>(audio_sink);
-  {
-    {
-      std::lock_guard lock(mutex_);
-      auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
-      SB_DCHECK(it != sinks_.end());
-      sinks_.erase(it);
-    }
-    delete audio_sink;
-  }
+  { delete audio_sink; }
 }
 
 bool PulseAudioSinkType::Initialize() {
@@ -510,8 +519,6 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
     channel_map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
   }
 
-  std::lock_guard lock(mutex_);
-
   pa_stream* stream =
       pa_stream_new(context_, "cobalt_stream", sample_spec,
                     sample_spec->channels == 6 ? &channel_map : NULL);
@@ -530,7 +537,6 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
 }
 
 void PulseAudioSinkType::DestroyStream(pa_stream* stream) {
-  std::lock_guard lock(mutex_);
   pa_stream_set_write_callback(stream, NULL, NULL);
   pa_stream_disconnect(stream);
   pa_stream_unref(stream);
@@ -567,13 +573,17 @@ void PulseAudioSinkType::AudioThreadFunc() {
     {
       bool has_running_sink = false;
       {
-        // TODO: The scope of the lock is too wide.
-        std::lock_guard lock(mutex_);
-        if (destroying_) {
-          break;
+        {
+          std::lock_guard lock(mutex_);
+          if (destroying_) {
+            break;
+          }
         }
-        for (PulseAudioSink* sink : sinks_) {
-          has_running_sink |= sink->WriteFrameIfNecessary(context_);
+        {
+          std::lock_guard lock(g_mutex_);
+          for (PulseAudioSink* sink : g_sinks_) {
+            has_running_sink |= sink->WriteFrameIfNecessary(context_);
+          }
         }
         pa_mainloop_iterate(mainloop_, 0, NULL);
       }
