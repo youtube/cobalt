@@ -60,7 +60,7 @@ jobs:
       matrix:
         target_branch: ${{ fromJson(needs.prepare_branch_list.outputs.target_branch) }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         timeout-minutes: 30
         with:
@@ -98,14 +98,16 @@ jobs:
             fi
           fi
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "conflicts<<$EOF" >> $GITHUB_OUTPUT
-          echo "$conflicts" >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUTPUT
+          {
+            echo "conflicts<<$EOF"
+            echo "$conflicts"
+            echo "$EOF"
+          } >> "$GITHUB_OUTPUT"
           exit ${RES}
 
       - name: Resolve Merge Conflicts with Gemini CLI
         if: steps.cherry-pick.outputs.conflicts != ''
-        uses: google-github-actions/run-gemini-cli@v0
+        uses: google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51 # v0.1.21
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           prompt: |
@@ -126,10 +128,9 @@ jobs:
           set -x
           if [ -n "${CONFLICTS}" ]; then
             git add -u
-            git commit -m "Conflicts resolved by Gemini"
             # Only output commit sha if commit succeeded.
-            if [[ $? == 0 ]]; then
-              echo "gemini_commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+            if git commit -m "Conflicts resolved by Gemini"; then
+              echo "gemini_commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             fi
           fi
 
