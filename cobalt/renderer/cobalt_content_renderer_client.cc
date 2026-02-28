@@ -232,7 +232,7 @@ ExperimentalFeatures ProcessH5vccSettings(
       kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount,
-      /*min_val=*/1, kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
       kMaxVideoDecoderPollIntervalMs, kH5vccUnsetSentinel);
