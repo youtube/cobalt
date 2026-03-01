@@ -89,17 +89,35 @@ class CobaltTestRunner:
 
   def _find_binary(self, binary_path: str) -> str:
     """Locates the executable test binary."""
-    if os.path.isfile(binary_path):
+
+    def is_executable(path: str) -> bool:
+      return os.path.isfile(path) and os.access(path, os.X_OK)
+
+    # If the provided path is the script itself (e.g. copied as a runner),
+    # try to find the actual test binary in the same directory.
+    if ("run_browser_tests.py" in binary_path or
+        "cobalt_browsertests_runner" in binary_path):
+      binary_dir = os.path.dirname(os.path.abspath(binary_path))
+      potential_binary = os.path.join(binary_dir, "cobalt_browsertests")
+      if is_executable(potential_binary):
+        return potential_binary
+
+    if is_executable(binary_path):
       return os.path.abspath(binary_path)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     potential_binary = os.path.join(script_dir, binary_path)
-    if os.path.isfile(potential_binary):
+    if is_executable(potential_binary):
       return potential_binary
 
     potential_binary_cwd = os.path.join(os.getcwd(), binary_path)
-    if os.path.isfile(potential_binary_cwd):
+    if is_executable(potential_binary_cwd):
       return potential_binary_cwd
+
+    # Fallback to is_isfile if not executable, to provide better error message
+    if os.path.isfile(binary_path):
+      logging.error("Binary at %s is not executable.", binary_path)
+      sys.exit(1)
 
     logging.error("Binary not found at %s", binary_path)
     sys.exit(1)
