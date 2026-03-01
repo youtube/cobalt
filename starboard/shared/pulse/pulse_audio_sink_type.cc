@@ -564,6 +564,7 @@ void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
   PulseAudioSinkType* type = static_cast<PulseAudioSinkType*>(context);
   type->AudioThreadFunc();
   return NULL;
+  /
 }
 
 void PulseAudioSinkType::AudioThreadFunc() {
@@ -582,6 +583,10 @@ void PulseAudioSinkType::AudioThreadFunc() {
         for (PulseAudioSink* sink : g_sinks_) {
           has_running_sink |= sink->WriteFrameIfNecessary(context_);
         }
+
+        // Note: The global PulseAudio mutex must be held during
+        // pa_mainloop_iterate to ensure library-wide thread safety. Callbacks
+        // (e.g. PulseAudioSink::HandleRequest) are implemented to be lock-free.
         pa_mainloop_iterate(mainloop_, 0, NULL);
       }
       if (has_running_sink) {
