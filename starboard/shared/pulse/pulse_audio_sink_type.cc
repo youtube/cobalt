@@ -431,18 +431,6 @@ SbAudioSink PulseAudioSinkType::Create(
   return audio_sink.release();
 }
 
-void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
-  if (audio_sink == kSbAudioSinkInvalid) {
-    return;
-  }
-  if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-    SB_LOG(WARNING) << "audio_sink is invalid.";
-    return;
-  }
-  PulseAudioSink* pulse_audio_sink = static_cast<PulseAudioSink*>(audio_sink);
-  { delete audio_sink; }
-}
-
 bool PulseAudioSinkType::Initialize() {
   // Create PulseAudio's main loop, which will run in its own thread.
   mainloop_ = pa_mainloop_new();
