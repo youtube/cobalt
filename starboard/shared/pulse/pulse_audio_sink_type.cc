@@ -564,7 +564,6 @@ void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
   PulseAudioSinkType* type = static_cast<PulseAudioSinkType*>(context);
   type->AudioThreadFunc();
   return NULL;
-  /
 }
 
 void PulseAudioSinkType::AudioThreadFunc() {
