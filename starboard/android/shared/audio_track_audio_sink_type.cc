@@ -104,7 +104,6 @@ bool HasRemoteAudioOutput() {
 }  // namespace
 
 AudioTrackAudioSink::AudioTrackAudioSink(
-    Type* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -118,8 +117,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     int tunnel_mode_audio_session_id,
     bool is_web_audio,
     void* context)
-    : type_(type),
-      channels_(channels),
+    : channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
       frame_buffer_(frame_buffers[0]),
@@ -482,7 +480,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
 
   auto audio_sink = std::make_unique<AudioTrackAudioSink>(
-      this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,
       update_source_status_func, consume_frames_func, error_func,
       start_media_time, tunnel_mode_audio_session_id, is_web_audio, context);

@@ -51,14 +51,12 @@ struct SbAudioSinkPrivate {
         ConsumeFramesFunc consume_frames_func,
         ErrorFunc error_func,
         void* context) = 0;
-    virtual bool IsValid(SbAudioSink audio_sink) = 0;
   };
 
   virtual ~SbAudioSinkPrivate() {}
 
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual void SetVolume(double volume) = 0;
-  virtual bool IsType(Type* type) = 0;
 };
 
 namespace starboard {

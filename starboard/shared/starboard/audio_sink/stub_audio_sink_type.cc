@@ -31,14 +31,12 @@ namespace {
 
 class StubAudioSink : public SbAudioSinkPrivate {
  public:
-  StubAudioSink(Type* type,
-                int sampling_frequency_hz,
+  StubAudioSink(int sampling_frequency_hz,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 ConsumeFramesFunc consume_frames_func,
                 void* context);
   ~StubAudioSink() override;
 
-  bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override { SB_NOTIMPLEMENTED(); }
 
   void SetVolume(double volume) override {}
@@ -47,7 +45,6 @@ class StubAudioSink : public SbAudioSinkPrivate {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  Type* type_;
   const int sampling_frequency_hz_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   ConsumeFramesFunc consume_frames_func_;
@@ -60,13 +57,11 @@ class StubAudioSink : public SbAudioSinkPrivate {
 };
 
 StubAudioSink::StubAudioSink(
-    Type* type,
     int sampling_frequency_hz,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
     void* context)
-    : type_(type),
-      sampling_frequency_hz_(sampling_frequency_hz),
+    : sampling_frequency_hz_(sampling_frequency_hz),
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
@@ -141,9 +136,8 @@ SbAudioSink StubAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  return new StubAudioSink(this, sampling_frequency_hz,
-                           update_source_status_func, consume_frames_func,
-                           context);
+  return new StubAudioSink(sampling_frequency_hz, update_source_status_func,
+                           consume_frames_func, context);
 }
 
 }  // namespace starboard

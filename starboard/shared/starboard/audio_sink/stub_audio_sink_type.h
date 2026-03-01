@@ -34,10 +34,6 @@ class StubAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
-
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
 };
 
 }  // namespace starboard

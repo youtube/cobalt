@@ -69,10 +69,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       bool is_web_audio,
       void* context);
 
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
   void TestMinRequiredFrames();
 
  private:
@@ -90,7 +86,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
 class AudioTrackAudioSink : public SbAudioSinkImpl {
  public:
   AudioTrackAudioSink(
-      Type* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType sample_type,
@@ -107,7 +102,6 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   ~AudioTrackAudioSink() override;
 
   bool IsAudioTrackValid() const { return bridge_.is_valid(); }
-  bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
 
   void SetVolume(double volume) override;
@@ -124,7 +118,6 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
 
   int64_t GetFramesDurationUs(int frames) const;
 
-  Type* const type_;
   const int channels_;
   const int sampling_frequency_hz_;
   const SbMediaAudioSampleType sample_type_;

@@ -72,7 +72,6 @@ using ::starboard::GetBytesPerSample;
 class GStreamerAudioSink : public SbAudioSinkPrivate {
  public:
   GStreamerAudioSink(
-      Type* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType audio_sample_type,
@@ -84,8 +83,6 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context);
   ~GStreamerAudioSink() override;
-
-  bool IsType(Type* type) override { return type_ == type; }
 
   void SetPlaybackRate(double playback_rate) override {
     SB_NOTIMPLEMENTED();
@@ -113,7 +110,6 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
     return channels_ * GetBytesPerSample(audio_sample_type_);
   }
 
-  Type* type_{nullptr};
   int channels_{0};
   int sampling_frequency_hz_{0};
   SbMediaAudioSampleType audio_sample_type_{kSbMediaAudioSampleTypeFloat32};
@@ -142,7 +138,6 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
 };
 
 GStreamerAudioSink::GStreamerAudioSink(
-    Type* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -153,8 +148,7 @@ GStreamerAudioSink::GStreamerAudioSink(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frame_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context)
-    : type_(type),
-      channels_(channels),
+    : channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       audio_sample_type_(audio_sample_type),
       update_source_status_func_(update_source_status_func),
@@ -499,7 +493,7 @@ SbAudioSink GStreamerAudioSinkType::Create(
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   return new GStreamerAudioSink(
-      this, channels, sampling_frequency_hz, audio_sample_type,
+      channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
       update_source_status_func, consume_frames_func, error_func, context);
 }

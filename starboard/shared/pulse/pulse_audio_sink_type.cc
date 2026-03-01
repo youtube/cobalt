@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
+#include "starboard/shared/starboard/thread_checker.h"
 
 #include <pulse/pulseaudio.h>
 
@@ -21,6 +22,7 @@
 #include <atomic>
 
 #include <algorithm>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -76,18 +78,16 @@ class PulseAudioSinkType;
 
 class PulseAudioSink : public SbAudioSinkImpl {
  public:
-  PulseAudioSink(PulseAudioSinkType* type,
-                 int channels,
+  PulseAudioSink(int channels,
                  int sampling_frequency_hz,
                  SbMediaAudioSampleType sample_type,
                  SbAudioSinkFrameBuffers frame_buffers,
                  int frames_per_channel,
                  SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                  ConsumeFramesFunc consume_frames_func,
-                 void* context);
+                 void* context,
+                 ThreadChecker& thread_checker);
   ~PulseAudioSink() override;
-
-  bool IsType(Type* type) override;
 
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
@@ -109,7 +109,6 @@ class PulseAudioSink : public SbAudioSinkImpl {
   void Play();
   void Pause();
 
-  PulseAudioSinkType* const type_;
   const int channels_;
   const int sampling_frequency_hz_;
   const SbMediaAudioSampleType sample_type_;
@@ -118,6 +117,7 @@ class PulseAudioSink : public SbAudioSinkImpl {
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   const ConsumeFramesFunc consume_frames_func_;
   void* const context_;
+  ThreadChecker& thread_checker_;
   const size_t bytes_per_frame_;
 
   pa_stream* stream_ = NULL;
@@ -147,14 +147,10 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
   void Destroy(SbAudioSink audio_sink);
 
   bool Initialize();
 
-  bool BelongToAudioThread();
   static pa_stream* CreateNewStream(const pa_sample_spec* sample_spec,
                                     const pa_buffer_attr* buffer_attr,
                                     pa_stream_flags_t stream_flags,
@@ -173,13 +169,15 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
 
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
+  std::unique_ptr<ThreadChecker> thread_checker_;
   std::optional<pthread_t> audio_thread_;
+  std::mutex thread_created_mutex_;
+  std::condition_variable thread_created_condition_;
   std::mutex destroying_mutex_;
   bool destroying_ = false;  // Guarded by |destroying_mutex_|.
 };
 
 PulseAudioSink::PulseAudioSink(
-    PulseAudioSinkType* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -187,9 +185,9 @@ PulseAudioSink::PulseAudioSink(
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
-    void* context)
-    : type_(type),
-      channels_(channels),
+    void* context,
+    ThreadChecker& thread_checker)
+    : channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
       frame_buffer_(static_cast<uint8_t*>(frame_buffers[0])),
@@ -197,6 +195,7 @@ PulseAudioSink::PulseAudioSink(
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
+      thread_checker_(thread_checker),
       bytes_per_frame_(static_cast<size_t>(channels) *
                        GetBytesPerSample(sample_type)) {
   SB_DCHECK(update_source_status_func_);
@@ -216,10 +215,6 @@ PulseAudioSink::~PulseAudioSink() {
   if (stream_) {
     PulseAudioSinkType::DestroyStream(stream_);
   }
-}
-
-bool PulseAudioSink::IsType(Type* type) {
-  return static_cast<Type*>(type_) == type;
 }
 
 void PulseAudioSink::SetPlaybackRate(double playback_rate) {
@@ -263,7 +258,7 @@ bool PulseAudioSink::Initialize(pa_context* context) {
 }
 
 bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
-  SB_DCHECK(type_->BelongToAudioThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   // Wait until |stream_| is ready;
   if (pa_stream_get_state(stream_) != PA_STREAM_READY) {
     return false;
@@ -337,7 +332,7 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
 void PulseAudioSink::WriteFrames(const uint8_t* buffer,
                                  int frames_to_write,
                                  int offset_in_frames) {
-  SB_DCHECK(type_->BelongToAudioThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(buffer);
   SB_DCHECK(frames_to_write);
   SB_DCHECK_EQ(pa_stream_writable_size(stream_), last_request_size_);
@@ -360,7 +355,7 @@ void PulseAudioSink::WriteFrames(const uint8_t* buffer,
 }
 
 void PulseAudioSink::Cork(bool pause) {
-  SB_DCHECK(type_->BelongToAudioThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK_EQ(pa_stream_get_state(stream_), PA_STREAM_READY);
 
   pa_operation* op = pa_stream_cork(stream_, pause ? 1 : 0, NULL, NULL);
@@ -385,7 +380,7 @@ void PulseAudioSink::RequestCallback(pa_stream* s,
 }
 
 void PulseAudioSink::HandleRequest(size_t length) {
-  SB_DCHECK(type_->BelongToAudioThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   last_request_size_ = length;
 }
 
@@ -424,9 +419,9 @@ SbAudioSink PulseAudioSinkType::Create(
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   auto audio_sink = std::make_unique<PulseAudioSink>(
-      this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
-      context);
+      context, *thread_checker_);
   if (!audio_sink->Initialize(context_)) {
     return kSbAudioSinkInvalid;
   }
@@ -483,12 +478,10 @@ bool PulseAudioSinkType::Initialize() {
   SB_CHECK_EQ(result, 0);
   audio_thread_ = thread;
 
-  return true;
-}
+  std::unique_lock lock(thread_created_mutex_);
+  thread_created_condition_.wait(lock, [this] { return !!thread_checker_; });
 
-bool PulseAudioSinkType::BelongToAudioThread() {
-  SB_DCHECK(audio_thread_);
-  return pthread_equal(pthread_self(), *audio_thread_);
+  return true;
 }
 
 pa_stream* PulseAudioSinkType::CreateNewStream(
@@ -567,6 +560,12 @@ void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
 }
 
 void PulseAudioSinkType::AudioThreadFunc() {
+  {
+    std::lock_guard lock(thread_created_mutex_);
+    thread_checker_ = std::make_unique<ThreadChecker>();
+  }
+  thread_created_condition_.notify_one();
+
   for (;;) {
     {
       bool has_running_sink = false;
