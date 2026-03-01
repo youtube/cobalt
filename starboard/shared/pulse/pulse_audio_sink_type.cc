@@ -147,8 +147,6 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
-  void Destroy(SbAudioSink audio_sink);
-
   bool Initialize();
 
   static pa_stream* CreateNewStream(const pa_sample_spec* sample_spec,
