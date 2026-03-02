@@ -125,16 +125,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
-  bool flush_decoder_during_reset_ = false;
-  bool reset_audio_decoder_ = false;
+  PlayerComponents::ExperimentalFeatures experimental_features_;
   void* surface_view_ = nullptr;
-  std::optional<int> video_initial_max_frames_in_decoder_;
-  std::optional<int> video_max_pending_input_frames_;
-  std::optional<int> video_decoder_initial_preroll_count_;
-  std::optional<int> video_decoder_poll_interval_ms_;
-  std::optional<int> video_renderer_min_input_buffers_;
-  std::optional<int> video_renderer_min_decoded_frames_;
-  std::optional<int> media_codec_reset_delay_ms_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const media::VideoStreamInfo video_stream_info_;

@@ -76,10 +76,11 @@ constexpr int64_t kFlushDelayUsecOverride = 0;
 
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
+  const auto& experimental_features = creation_parameters.experimental_features();
   const auto& min_input_buffers =
-      creation_parameters.video_renderer_min_input_buffers();
+      experimental_features.video_renderer_min_input_buffers;
   const auto& min_decoded_frames =
-      creation_parameters.video_renderer_min_decoded_frames();
+      experimental_features.video_renderer_min_decoded_frames;
 
   if (!min_input_buffers && !min_decoded_frames) {
     return std::nullopt;
@@ -259,7 +260,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.flush_decoder_during_reset();
+        creation_parameters.experimental_features().flush_decoder_during_reset;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -415,10 +416,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       is_tunnel_mode_used_ = true;
     }
 
+    const PlayerComponents::ExperimentalFeatures& experimental_features =
+        creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceResetAudioDecoder) ||
-        creation_parameters.reset_audio_decoder() ||
+        experimental_features.reset_audio_decoder ||
         video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`enable_reset_audio_decoder` is set to true, force resetting"
@@ -431,7 +434,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.flush_decoder_during_reset() ||
+        experimental_features.flush_decoder_during_reset ||
         video_mime_type.GetParamBoolValue("enableflushduringseek", false);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
@@ -589,7 +592,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.flush_decoder_during_reset();
+        creation_parameters.experimental_features().flush_decoder_during_reset;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
@@ -628,17 +631,22 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     VideoDecoder::ExperimentalFeatures experimental_features;
     experimental_features.initial_max_frames_in_decoder =
-        creation_parameters.video_initial_max_frames_in_decoder();
+        creation_parameters.experimental_features()
+            .video_initial_max_frames_in_decoder;
     experimental_features.max_pending_input_frames =
-        creation_parameters.video_max_pending_input_frames();
+        creation_parameters.experimental_features()
+            .video_max_pending_input_frames;
     experimental_features.video_decoder_initial_preroll_count =
-        creation_parameters.video_decoder_initial_preroll_count();
+        creation_parameters.experimental_features()
+            .video_decoder_initial_preroll_count;
     experimental_features.video_decoder_poll_interval_ms =
-        creation_parameters.video_decoder_poll_interval_ms();
-    if (creation_parameters.media_codec_reset_delay_ms().has_value()) {
+        creation_parameters.experimental_features()
+            .video_decoder_poll_interval_ms;
+    if (creation_parameters.experimental_features()
+            .media_codec_reset_delay_ms.has_value()) {
       reset_delay_usec =
-          static_cast<int64_t>(
-              creation_parameters.media_codec_reset_delay_ms().value()) *
+          static_cast<int64_t>(creation_parameters.experimental_features()
+                                   .media_codec_reset_delay_ms.value()) *
           1000;
       SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
                    << " of " << reset_delay_usec << "us during Reset().";

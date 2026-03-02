@@ -90,16 +90,8 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
-          /*flush_decoder_during_reset=*/false,
-          /*reset_audio_decoder=*/false,
-          /*video_initial_max_frames_in_decoder=*/std::nullopt,
-          /*video_max_pending_input_frames=*/std::nullopt,
-          /*video_decoder_initial_preroll_count=*/std::nullopt,
-          /*video_decoder_poll_interval_ms=*/std::nullopt,
-          /*video_renderer_min_input_buffers=*/std::nullopt,
-          /*video_renderer_min_decoded_frames=*/std::nullopt,
-          /*media_codec_reset_delay_ms=*/std::nullopt, dummy_surface_view_,
+          max_video_input_size_, PlayerComponents::ExperimentalFeatures{},
+          dummy_surface_view_,
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
@@ -116,16 +108,8 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
-          /*flush_decoder_during_reset=*/false,
-          /*reset_audio_decoder=*/false,
-          /*video_initial_max_frames_in_decoder=*/std::nullopt,
-          /*video_max_pending_input_frames=*/std::nullopt,
-          /*video_decoder_initial_preroll_count=*/std::nullopt,
-          /*video_decoder_poll_interval_ms=*/std::nullopt,
-          /*video_renderer_min_input_buffers=*/std::nullopt,
-          /*video_renderer_min_decoded_frames=*/std::nullopt,
-          /*media_codec_reset_delay_ms=*/std::nullopt, dummy_surface_view_,
+          max_video_input_size_, PlayerComponents::ExperimentalFeatures{},
+          dummy_surface_view_,
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);

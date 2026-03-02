@@ -132,11 +132,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_, flush_decoder_during_reset_, reset_audio_decoder_,
-      video_initial_max_frames_in_decoder_, video_max_pending_input_frames_,
-      video_decoder_initial_preroll_count_, video_decoder_poll_interval_ms_,
-      video_renderer_min_input_buffers_, video_renderer_min_decoded_frames_,
-      media_codec_reset_delay_ms_, surface_view_,
+      max_video_input_size_, experimental_features_, surface_view_,
       decode_target_graphics_context_provider_, drm_system_);
 
   {
@@ -558,16 +554,18 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
 void FilterBasedPlayerWorkerHandler::SetFlushDecoderDuringReset(
     bool flush_decoder_during_reset) {
   SB_LOG(INFO) << "Set flush_decoder_during_reset from "
-               << flush_decoder_during_reset_ << " to "
+               << experimental_features_.flush_decoder_during_reset << " to "
                << flush_decoder_during_reset;
-  flush_decoder_during_reset_ = flush_decoder_during_reset;
+  experimental_features_.flush_decoder_during_reset =
+      flush_decoder_during_reset;
 }
 
 void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
     bool reset_audio_decoder) {
-  SB_LOG(INFO) << "Set reset_audio_decoder from " << reset_audio_decoder_
-               << " to " << reset_audio_decoder;
-  reset_audio_decoder_ = reset_audio_decoder;
+  SB_LOG(INFO) << "Set reset_audio_decoder from "
+               << experimental_features_.reset_audio_decoder << " to "
+               << reset_audio_decoder;
+  experimental_features_.reset_audio_decoder = reset_audio_decoder;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
@@ -579,51 +577,63 @@ void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
 void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
     int video_initial_max_frames_in_decoder) {
   SB_LOG(INFO) << "Set video_initial_max_frames_in_decoder from "
-               << ToString(video_initial_max_frames_in_decoder_) << " to "
-               << video_initial_max_frames_in_decoder;
-  video_initial_max_frames_in_decoder_ = video_initial_max_frames_in_decoder;
+               << ToString(experimental_features_.video_initial_max_frames_in_decoder)
+               << " to " << video_initial_max_frames_in_decoder;
+  experimental_features_.video_initial_max_frames_in_decoder =
+      video_initial_max_frames_in_decoder;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
     int video_max_pending_input_frames) {
   SB_LOG(INFO) << "Set video_max_pending_input_frames from "
-               << ToString(video_max_pending_input_frames_) << " to "
-               << video_max_pending_input_frames;
-  video_max_pending_input_frames_ = video_max_pending_input_frames;
+               << ToString(experimental_features_.video_max_pending_input_frames)
+               << " to " << video_max_pending_input_frames;
+  experimental_features_.video_max_pending_input_frames =
+      video_max_pending_input_frames;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoDecoderInitialPrerollCount(
     int video_decoder_initial_preroll_count) {
   SB_LOG(INFO) << "Set video_decoder_initial_preroll_count from "
-               << ToString(video_decoder_initial_preroll_count_) << " to "
-               << video_decoder_initial_preroll_count;
-  video_decoder_initial_preroll_count_ = video_decoder_initial_preroll_count;
+               << ToString(experimental_features_.video_decoder_initial_preroll_count)
+               << " to " << video_decoder_initial_preroll_count;
+  experimental_features_.video_decoder_initial_preroll_count =
+      video_decoder_initial_preroll_count;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
     int video_decoder_poll_interval_ms) {
   SB_LOG(INFO) << "Set video_decoder_poll_interval_ms from "
-               << ToString(video_decoder_poll_interval_ms_) << " to "
-               << video_decoder_poll_interval_ms;
-  video_decoder_poll_interval_ms_ = video_decoder_poll_interval_ms;
+               << ToString(experimental_features_.video_decoder_poll_interval_ms)
+               << " to " << video_decoder_poll_interval_ms;
+  experimental_features_.video_decoder_poll_interval_ms =
+      video_decoder_poll_interval_ms;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoRendererMinInputBuffers(
     int video_renderer_min_input_buffers) {
-  video_renderer_min_input_buffers_ = video_renderer_min_input_buffers;
+  SB_LOG(INFO) << "Set video_renderer_min_input_buffers from "
+               << ToString(experimental_features_.video_renderer_min_input_buffers)
+               << " to " << video_renderer_min_input_buffers;
+  experimental_features_.video_renderer_min_input_buffers =
+      video_renderer_min_input_buffers;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoRendererMinDecodedFrames(
     int video_renderer_min_decoded_frames) {
-  video_renderer_min_decoded_frames_ = video_renderer_min_decoded_frames;
+  SB_LOG(INFO) << "Set video_renderer_min_decoded_frames from "
+               << ToString(experimental_features_.video_renderer_min_decoded_frames)
+               << " to " << video_renderer_min_decoded_frames;
+  experimental_features_.video_renderer_min_decoded_frames =
+      video_renderer_min_decoded_frames;
 }
 
 void FilterBasedPlayerWorkerHandler::SetMediaCodecResetDelayMs(
     int media_codec_reset_delay_ms) {
   SB_LOG(INFO) << "Set media_codec_reset_delay_ms from "
-               << ToString(media_codec_reset_delay_ms_) << " to "
-               << media_codec_reset_delay_ms;
-  media_codec_reset_delay_ms_ = media_codec_reset_delay_ms;
+               << ToString(experimental_features_.media_codec_reset_delay_ms)
+               << " to " << media_codec_reset_delay_ms;
+  experimental_features_.media_codec_reset_delay_ms = media_codec_reset_delay_ms;
 }
 
 }  // namespace starboard::shared::starboard::player::filter
