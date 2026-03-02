@@ -107,12 +107,16 @@ class CobaltTestRunner:
         binary_path,
         os.path.join(script_dir, binary_path),
         os.path.join(os.getcwd(), binary_path),
+        # Add src/ prefix as it's common in portable archives
+        os.path.join(os.getcwd(), "src", binary_path),
     ]
 
     # Special handling for when the script itself or its copy is passed as
     # binary.
-    if ("run_browser_tests.py" in binary_path or
-        "cobalt_browsertests_runner" in binary_path):
+    is_runner = ("run_browser_tests.py" in binary_path or
+                 "cobalt_browsertests_runner" in binary_path)
+
+    if is_runner:
       for p in search_paths:
         if os.path.isfile(p):
           binary_dir = os.path.dirname(os.path.abspath(p))
@@ -122,6 +126,14 @@ class CobaltTestRunner:
             try_make_executable(potential_real_binary)
             if is_executable(potential_real_binary):
               return potential_real_binary
+
+    # If binary_path is relative and default, also check relative to script_dir
+    if binary_path == "./cobalt_browsertests" or not os.path.isabs(binary_path):
+      potential_relative = os.path.join(script_dir, "cobalt_browsertests")
+      if os.path.isfile(potential_relative):
+        try_make_executable(potential_relative)
+        if is_executable(potential_relative):
+          return potential_relative
 
     # 1. Try to find an already executable file
     for p in search_paths:
