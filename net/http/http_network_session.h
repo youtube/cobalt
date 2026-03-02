@@ -318,14 +318,6 @@ class NET_EXPORT HttpNetworkSession {
   bool UseQuicForUnknownOrigin() const;
 #endif
 
-  // Returns true when QUIC is forcibly used for `destination`.
-  bool ShouldForceQuic(const url::SchemeHostPort& destination,
-                       const ProxyInfo& proxy_info,
-                       bool is_websocket);
-
-  // Ignores certificate errors on new connection attempts.
-  void IgnoreCertificateErrorsForTesting();
-
   // Clear the SSL session cache.
   void ClearSSLSessionCache();
 
