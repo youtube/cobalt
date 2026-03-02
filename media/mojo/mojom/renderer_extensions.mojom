@@ -138,10 +138,6 @@ interface MediaFoundationRendererExtension {
 // as StarboardRendererWrapper to allow StarboardRendererClient to
 // post tasks on StarboardRendererWrapper on gpu thread.
 interface StarboardRendererExtension {
-  // Subscribe to video geometry changes from
-  // cobalt::media::mojom::VideoGeometryChangeSubscriber
-  OnVideoGeometryChange(gfx.mojom.Rect rect);
-
   // Pass CommandBufferId to StarboardRendererWrapper.
   OnGpuChannelTokenReady(CommandBufferId? command_buffer_id);
 
