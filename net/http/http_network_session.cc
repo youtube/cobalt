@@ -370,38 +370,12 @@ void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
 bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
   return params_.use_quic_for_unknown_origins;
 }
 #endif
 
-bool HttpNetworkSession::ShouldForceQuic(const url::SchemeHostPort& destination,
-                                         const ProxyInfo& proxy_info,
-                                         bool is_websocket) {
-  if (!IsQuicEnabled()) {
-    return false;
-  }
-  if (is_websocket) {
-    return false;
-  }
-  // If a proxy is being used, the last proxy in the chain must be QUIC if we
-  // are to use QUIC on top of it.
-  if (!proxy_info.is_direct() && !proxy_info.proxy_chain().Last().is_quic()) {
-    return false;
-  }
-  return OriginToForceQuicOnInternal(*context_.quic_context->params(),
-                                     destination) &&
-         GURL::SchemeIsCryptographic(destination.scheme());
-}
-
-void HttpNetworkSession::IgnoreCertificateErrorsForTesting() {
-  params_.ignore_certificate_errors = true;
-}
-
->>>>>>> 02e7c9526b (net/: Use both QUIC and TCP for initial URL requests (#9262))
 void HttpNetworkSession::ClearSSLSessionCache() {
   ssl_client_session_cache_.Flush();
 }

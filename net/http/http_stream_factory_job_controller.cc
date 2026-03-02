@@ -1198,9 +1198,6 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
       http_server_properties.GetAlternativeServiceInfos(
           url::SchemeHostPort(original_url),
           request_info.network_anonymization_key);
-<<<<<<< HEAD
-  if (alternative_service_info_vector.empty())
-=======
   if (alternative_service_info_vector.empty()) {
 #if BUILDFLAG(IS_COBALT)
     // This block of code suggests QUIC connection for initial requests to a
@@ -1222,8 +1219,8 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
           base::Time::Max(), versions);
     }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 02e7c9526b (net/: Use both QUIC and TCP for initial URL requests (#9262))
     return AlternativeServiceInfo();
+  }
 
   bool quic_advertised = false;
   bool quic_all_broken = true;
