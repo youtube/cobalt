@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_PLAYER_WORKER_HANDLER_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_PLAYER_WORKER_HANDLER_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -89,7 +90,7 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   // Prevents additional errors from being reported after the first, as only one
   // error needs to be reported to tear down the player.
-  bool reported_error_ = false;
+  std::atomic_bool reported_error_ = false;
 };
 
 }  // namespace starboard

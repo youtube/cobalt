@@ -245,6 +245,7 @@ public class ExoPlayerBridge {
             reportError(
                 String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
                     sample.getType() == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+            return;
         }
         mediaSource.writeSample(sample);
     }
@@ -257,6 +258,7 @@ public class ExoPlayerBridge {
             reportError(String.format(
                     "Tried to write %s EOS sample while ExoPlayer is in an invalid state",
                     type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+            return;
         }
         mediaSource.writeEndOfStream();
     }

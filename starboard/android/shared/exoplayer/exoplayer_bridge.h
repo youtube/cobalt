@@ -123,6 +123,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   bool owns_surface_ = false;
   std::string init_error_msg_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard
