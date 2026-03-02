@@ -1,5 +1,7 @@
 {
   "failing_tests": [
-    "HeapDeathTest*"
+    "HeapDeathTest*",
+    "HeapDeathTest.DiesOnResurrectedHeapHashSetWeakMember",
+    "HeapDeathTest.PreFinalizerVectorBackingExpandForbidden"
   ]
 }
