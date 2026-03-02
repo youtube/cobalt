@@ -89,6 +89,8 @@ class CobaltTestRunner:
 
   def _find_binary(self, binary_path: str) -> str:
     """Locates the executable test binary."""
+    # Version: 2026-03-01.01
+    logging.debug("Finding binary for path: %s", binary_path)
 
     def is_executable(path: str) -> bool:
       return os.path.isfile(path) and os.access(path, os.X_OK)
@@ -103,8 +105,11 @@ class CobaltTestRunner:
 
     # Potential paths to check
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    abs_binary_path = os.path.abspath(binary_path)
+
     search_paths = [
         binary_path,
+        abs_binary_path,
         os.path.join(script_dir, binary_path),
         os.path.join(os.getcwd(), binary_path),
         # Add src/ prefix as it's common in portable archives
@@ -156,6 +161,17 @@ class CobaltTestRunner:
     logging.error("Binary not found at %s.", binary_path)
     logging.debug("Tried paths: %s", search_paths)
     logging.debug("Current working directory: %s", os.getcwd())
+
+    # Help diagnose by listing directory of the first path
+    try:
+      first_dir = os.path.dirname(abs_binary_path)
+      if os.path.isdir(first_dir):
+        logging.debug("Contents of %s: %s", first_dir, os.listdir(first_dir))
+      else:
+        logging.debug("Directory %s does not exist.", first_dir)
+    except OSError as e:
+      logging.debug("Failed to list directory: %s", e)
+
     sys.exit(1)
 
   def _setup_sharding(self):
