@@ -15,10 +15,10 @@ import subprocess
 import sys
 
 # TARGET_MAP will be injected by the collection script.
-TARGET_MAP = {}
+TARGET_MAP = {'android-x86_devel': {'deps': 'out/android-x86_devel/gen.runtime/cobalt/testing/browser_tests/cobalt_browsertests__test_runner_script.runtime_deps', 'runner': 'out/android-x86_devel/bin/run_cobalt_browsertests', 'is_android': True, 'build_dir': 'out/android-x86_devel'}}
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -97,13 +97,11 @@ def main():
       sys.exit(1)
 
   target_config = TARGET_MAP[target_name]
-  logging.debug("Target config: %s", target_config)
   is_android = target_config.get("is_android", False)
 
   # 3. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
   test_runner = os.path.join(src_dir, target_config["runner"])
-  logging.info("Resolved test runner to: %s", test_runner)
 
   # Resolve the specific build root for this target.
   target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])
