@@ -121,6 +121,7 @@ class PlayerWorker {
         int video_decoder_initial_preroll_count) = 0;
     virtual void SetVideoDecoderPollIntervalMs(
         int video_decoder_poll_interval_ms) = 0;
+    virtual void SetMediaCodecResetDelayMs(int media_codec_reset_delay_ms) = 0;
 
    private:
     Handler(const Handler&) = delete;

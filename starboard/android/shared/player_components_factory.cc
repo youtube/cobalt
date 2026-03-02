@@ -586,11 +586,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " video decoder during Reset().";
-    if (kResetDelayUsecOverride > 0) {
-      reset_delay_usec = kResetDelayUsecOverride;
-      SB_LOG(INFO) << "`kResetDelayUsecOverride` is set to > 0, force a delay"
-                   << " of " << reset_delay_usec << "us during Reset().";
-    }
     if (kFlushDelayUsecOverride > 0) {
       flush_delay_usec = kFlushDelayUsecOverride;
       SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
@@ -606,6 +601,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.video_decoder_initial_preroll_count();
     experimental_features.video_decoder_poll_interval_ms =
         creation_parameters.video_decoder_poll_interval_ms();
+    if (creation_parameters.media_codec_reset_delay_ms().has_value()) {
+      reset_delay_usec =
+          static_cast<int64_t>(
+              creation_parameters.media_codec_reset_delay_ms().value()) *
+          1000;
+      SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
+                   << " of " << reset_delay_usec << "us during Reset().";
+    }
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),

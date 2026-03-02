@@ -135,7 +135,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
       max_video_input_size_, flush_decoder_during_reset_, reset_audio_decoder_,
       video_initial_max_frames_in_decoder_, video_max_pending_input_frames_,
       video_decoder_initial_preroll_count_, video_decoder_poll_interval_ms_,
-      surface_view_, decode_target_graphics_context_provider_, drm_system_);
+      media_codec_reset_delay_ms_, surface_view_,
+      decode_target_graphics_context_provider_, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -614,6 +615,16 @@ void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
                        : "(nullopt)")
                << " to " << video_decoder_poll_interval_ms;
   video_decoder_poll_interval_ms_ = video_decoder_poll_interval_ms;
+}
+
+void FilterBasedPlayerWorkerHandler::SetMediaCodecResetDelayMs(
+    int media_codec_reset_delay_ms) {
+  SB_LOG(INFO) << "Set media_codec_reset_delay_ms from "
+               << (media_codec_reset_delay_ms_.has_value()
+                       ? std::to_string(media_codec_reset_delay_ms_.value())
+                       : "(nullopt)")
+               << " to " << media_codec_reset_delay_ms;
+  media_codec_reset_delay_ms_ = media_codec_reset_delay_ms;
 }
 
 }  // namespace starboard::shared::starboard::player::filter

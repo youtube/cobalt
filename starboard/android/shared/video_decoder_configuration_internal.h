@@ -55,6 +55,14 @@ std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
 void SetVideoDecoderPollIntervalMsForCurrentThread(
     int video_decoder_poll_interval_ms);
 
+// Get media_codec_reset_delay_ms via
+// SetMediaCodecResetDelayMsForCurrentThread().
+std::optional<int> GetMediaCodecResetDelayMsForCurrentThread();
+
+// Specifies the MediaCodec delay in milliseconds.
+// |media_codec_reset_delay_ms| should be positive value.
+void SetMediaCodecResetDelayMsForCurrentThread(int media_codec_reset_delay_ms);
+
 }  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_INTERNAL_H_
