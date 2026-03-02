@@ -18,7 +18,7 @@ import sys
 TARGET_MAP = {}
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -97,11 +97,13 @@ def main():
       sys.exit(1)
 
   target_config = TARGET_MAP[target_name]
+  logging.debug("Target config: %s", target_config)
   is_android = target_config.get("is_android", False)
 
   # 3. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
   test_runner = os.path.join(src_dir, target_config["runner"])
+  logging.info("Resolved test runner to: %s", test_runner)
 
   # Resolve the specific build root for this target.
   target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])

@@ -93,33 +93,57 @@ class CobaltTestRunner:
     def is_executable(path: str) -> bool:
       return os.path.isfile(path) and os.access(path, os.X_OK)
 
-    # If the provided path is the script itself (e.g. copied as a runner),
-    # try to find the actual test binary in the same directory.
+    def try_make_executable(path: str):
+      if os.path.isfile(path) and not os.access(path, os.X_OK):
+        try:
+          os.chmod(path, os.stat(path).st_mode | 0o111)
+          logging.info("Made %s executable.", path)
+        except OSError as e:
+          logging.warning("Failed to make %s executable: %s", path, e)
+
+    # Potential paths to check
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    search_paths = [
+        binary_path,
+        os.path.join(script_dir, binary_path),
+        os.path.join(os.getcwd(), binary_path),
+    ]
+
+    # Special handling for when the script itself or its copy is passed as
+    # binary.
     if ("run_browser_tests.py" in binary_path or
         "cobalt_browsertests_runner" in binary_path):
-      binary_dir = os.path.dirname(os.path.abspath(binary_path))
-      potential_binary = os.path.join(binary_dir, "cobalt_browsertests")
-      if is_executable(potential_binary):
-        return potential_binary
+      for p in search_paths:
+        if os.path.isfile(p):
+          binary_dir = os.path.dirname(os.path.abspath(p))
+          potential_real_binary = os.path.join(binary_dir,
+                                               "cobalt_browsertests")
+          if os.path.isfile(potential_real_binary):
+            try_make_executable(potential_real_binary)
+            if is_executable(potential_real_binary):
+              return potential_real_binary
 
-    if is_executable(binary_path):
-      return os.path.abspath(binary_path)
+    # 1. Try to find an already executable file
+    for p in search_paths:
+      if is_executable(p):
+        return os.path.abspath(p)
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    potential_binary = os.path.join(script_dir, binary_path)
-    if is_executable(potential_binary):
-      return potential_binary
+    # 2. Try to make files executable if they exist
+    for p in search_paths:
+      if os.path.isfile(p):
+        try_make_executable(p)
+        if is_executable(p):
+          return os.path.abspath(p)
 
-    potential_binary_cwd = os.path.join(os.getcwd(), binary_path)
-    if is_executable(potential_binary_cwd):
-      return potential_binary_cwd
+    # 3. Last resort: return the file if it exists, even if not executable
+    for p in search_paths:
+      if os.path.isfile(p):
+        logging.error("Binary at %s exists but is not executable.", p)
+        return os.path.abspath(p)
 
-    # Fallback to is_isfile if not executable, to provide better error message
-    if os.path.isfile(binary_path):
-      logging.error("Binary at %s is not executable.", binary_path)
-      sys.exit(1)
-
-    logging.error("Binary not found at %s", binary_path)
+    logging.error("Binary not found at %s.", binary_path)
+    logging.debug("Tried paths: %s", search_paths)
+    logging.debug("Current working directory: %s", os.getcwd())
     sys.exit(1)
 
   def _setup_sharding(self):
@@ -435,7 +459,7 @@ def parse_args() -> Tuple[argparse.Namespace, List[str]]:
 
 def main():
   """Main entry point for the script."""
-  logging.basicConfig(level=logging.INFO, format="%(message)s")
+  logging.basicConfig(level=logging.DEBUG, format="%(message)s")
   args, unknown_args = parse_args()
   if args.help:
     # Re-parse with help enabled to show standard help message
