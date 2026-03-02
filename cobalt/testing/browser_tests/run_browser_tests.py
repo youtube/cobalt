@@ -222,8 +222,12 @@ class CobaltTestRunner:
     return (f"{suite}.{case}", -pre_count)
 
   def is_valid_test_name(self, name: str) -> bool:
-    """Checks if a string looks like a valid gtest case name."""
-    return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name))
+    """Checks if a string looks like a valid gtest case name.
+
+    Valid names can contain alphanumeric characters, underscores, and slashes
+    (for parameterized tests).
+    """
+    return bool(re.match(r"^[A-Za-z0-9_/]+$", name))
 
   def parse_and_sort_tests(self, gtest_list_output: str) -> List[str]:
     """Parses the output of --gtest_list_tests and sorts test names."""
@@ -237,14 +241,17 @@ class CobaltTestRunner:
       if not line or line.startswith("["):
         continue
 
-      # Remove comments
+      # Remove comments (e.g., # TypeParam = ..., # GetParam() = ...)
       line = line.split("#")[0].strip()
       if not line:
         continue
 
+      # Suite lines have no leading space and end with a dot.
       if not raw_line.startswith(" ") and line.endswith("."):
+        # Validate the suite name identifier (without the trailing dot).
         if self.is_valid_test_name(line.rstrip(".")):
           current_suite = line
+      # Test lines have leading spaces and a valid identifier.
       elif current_suite and self.is_valid_test_name(line):
         test_name = f"{current_suite}{line}"
         if "DISABLED_" not in test_name:
