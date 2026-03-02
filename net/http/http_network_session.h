@@ -152,8 +152,16 @@ struct NET_EXPORT HttpNetworkSessionParams {
   // Enables QUIC support.
   bool enable_quic = true;
 
+<<<<<<< HEAD
   // If true, HTTPS URLs can be sent to QUIC proxies.
   bool enable_quic_proxies_for_https_urls = false;
+=======
+#if BUILDFLAG(IS_COBALT)
+  // If true, request to an origin without recorded alt-svc info will
+  // try to establish both QUIC and TCP connections and use the faster one.
+  bool use_quic_for_unknown_origins = false;
+#endif
+>>>>>>> 02e7c9526b (net/: Use both QUIC and TCP for initial URL requests (#9262))
 
   // If non-empty, QUIC will only be spoken to hosts in this list.
   base::flat_set<std::string> quic_host_allowlist;
@@ -307,6 +315,22 @@ class NET_EXPORT HttpNetworkSession {
   // Disable QUIC for new streams.
   void DisableQuic();
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(IS_COBALT)
+  // Whether to try QUIC connection for origins without alt-svc on record.
+  bool UseQuicForUnknownOrigin() const;
+#endif
+
+  // Returns true when QUIC is forcibly used for `destination`.
+  bool ShouldForceQuic(const url::SchemeHostPort& destination,
+                       const ProxyInfo& proxy_info,
+                       bool is_websocket);
+
+  // Ignores certificate errors on new connection attempts.
+  void IgnoreCertificateErrorsForTesting();
+
+>>>>>>> 02e7c9526b (net/: Use both QUIC and TCP for initial URL requests (#9262))
   // Clear the SSL session cache.
   void ClearSSLSessionCache();
 
