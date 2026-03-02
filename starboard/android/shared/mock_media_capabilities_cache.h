@@ -71,6 +71,22 @@ class MockMediaCapabilitiesProvider final : public MediaCapabilitiesProvider {
        (std::map<std::string,
                  VideoCodecCapabilities>)&video_codec_capabilities),
       (override));
+  MOCK_METHOD(std::string,
+              FindAudioDecoder,
+              (const std::string& mime_type, int bitrate),
+              (override));
+  MOCK_METHOD(std::string,
+              FindVideoDecoder,
+              (const std::string& mime_type,
+               bool must_support_secure,
+               bool must_support_hdr,
+               bool require_software_codec,
+               bool must_support_tunnel_mode,
+               int frame_width,
+               int frame_height,
+               int bitrate,
+               int fps),
+              (override));
 };
 
 class MockMediaCapabilitiesCache final : public MediaCapabilitiesCache {
