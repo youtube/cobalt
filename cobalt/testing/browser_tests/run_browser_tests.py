@@ -107,11 +107,17 @@ class CobaltTestRunner:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     abs_binary_path = os.path.abspath(binary_path)
 
+    # Use CWD as first priority for finding the binary
+    potential_binary_cwd = os.path.join(os.getcwd(), binary_path)
+    if os.path.isfile(potential_binary_cwd):
+      try_make_executable(potential_binary_cwd)
+      if is_executable(potential_binary_cwd):
+        return potential_binary_cwd
+
     search_paths = [
         binary_path,
         abs_binary_path,
         os.path.join(script_dir, binary_path),
-        os.path.join(os.getcwd(), binary_path),
         # Add src/ prefix as it's common in portable archives
         os.path.join(os.getcwd(), "src", binary_path),
     ]
@@ -261,8 +267,7 @@ class CobaltTestRunner:
         continue
 
       if not raw_line.startswith(" ") and line.endswith("."):
-        potential_suite = line[:-1]
-        if self.is_valid_test_name(potential_suite):
+        if self.is_valid_test_name(line.rstrip(".")):
           current_suite = line
       elif current_suite and self.is_valid_test_name(line):
         test_name = f"{current_suite}{line}"
