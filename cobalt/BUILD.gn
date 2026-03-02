@@ -69,11 +69,21 @@ group("gn_all") {
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
-  if (use_evergreen && use_crashpad) {
-    deps += [
-      "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
-      "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
-    ]
+  if (use_crashpad) {
+    if (use_evergreen) {
+      deps += [
+        "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
+        "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
+      ]
+    } else {
+      # On other platforms (e.g. ATV, tvOS) it is still useful to build the
+      # crashpad_database_util binary to inspect crash databases on the host.
+      if (is_ios) {
+        deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
+      } else {
+        deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
+      }
+    }
   }
 }
 
