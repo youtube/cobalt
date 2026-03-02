@@ -6,8 +6,11 @@
 
 #include <inttypes.h>
 
+#include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
+#include "gpu/config/gpu_switches.h"
 
 namespace gpu {
 
@@ -42,6 +45,19 @@ void DetermineGrCacheLimitsFromAvailableMemory(
   } else if (base::SysInfo::AmountOfPhysicalMemory() >=
              kHighEndMemoryThreshold) {
     *max_resource_cache_bytes = kMaxHighEndGaneshResourceCacheBytes;
+  }
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kSkiaGaneshResourceCacheLimitMb)) {
+    std::string string_value = command_line->GetSwitchValueASCII(
+        switches::kSkiaGaneshResourceCacheLimitMb);
+    int int_value;
+    if (base::StringToInt(string_value, &int_value) && int_value >= 0) {
+      *max_resource_cache_bytes = static_cast<size_t>(int_value) * 1024 * 1024;
+    }
   }
 #endif
 }

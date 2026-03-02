@@ -78,6 +78,9 @@ public class JavaSwitches {
   /** flag to lower the priority of the network service thread */
   public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY = "LowerNetworkServiceThreadPriority";
 
+  /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
+  public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -174,6 +177,12 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
       extraCommandLineArgs.add("--enable-features=LowerNetworkServiceThreadPriority");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)) {
+      extraCommandLineArgs.add(
+          "--skia-ganesh-resource-cache-limit-mb="
+              + javaSwitches.get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB).replaceAll("[^0-9]", ""));
     }
 
     return extraCommandLineArgs;
