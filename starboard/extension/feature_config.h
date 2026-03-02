@@ -145,6 +145,7 @@ STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
 STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 
+<<<<<<< HEAD
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to true with parameters
 // kResetDelayUsec and kFlushDelayUsec to force it to wait during
@@ -154,6 +155,19 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
 
+=======
+// By default, the platform Opus decoder is only enabled for encrypted playback.
+// Set the following variable to true to force it for clear playback.
+STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
+
+// By default, software video codec can be selected when software codec is not
+// required. Set the following variable to true to prevent using low performance
+// software video decoder in MediaCapabilitiesCache when software codec is not
+// explicitly required.
+STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
+                  "RejectLowPerformanceSoftwareDecoder",
+                  false)
+>>>>>>> a2adade64f ([android] Reject low performance software video decoders (#7732))
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
