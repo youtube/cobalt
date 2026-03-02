@@ -81,7 +81,8 @@ group("gn_all") {
       if (is_ios) {
         deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
       } else {
-        deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
+        deps +=
+            [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
       }
     }
   }
