@@ -399,10 +399,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     SB_DCHECK(!drm_system_);
     // To create secure pipeline for tunnel mode, we need use
     // L1("com.widevine.alpha").
-    drm_system_to_enforce_tunnel_mode_.reset(
-        static_cast<DrmSystem*>(DrmSystem::Create(
-            "com.widevine.alpha", nullptr, StubDrmSessionUpdateRequestFunc,
-            StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc)));
+    drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
+        "com.widevine.alpha", nullptr, StubDrmSessionUpdateRequestFunc,
+        StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
 

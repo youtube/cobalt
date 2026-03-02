@@ -136,13 +136,12 @@ public class ExoPlayerBridge {
      * @param renderersFactory The factory for creating media renderers.
      * @param audioSource The audio MediaSource, or null if audio-only playback.
      * @param videoSource The video MediaSource, or null if video-only playback.
-     * @param drmBridge The DRM bridge for protected content, or null if clear.
      * @param surface The rendering surface for video.
      * @param enableTunnelMode Whether to enable low-latency tunneling mode.
      */
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context,
             DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
-            @Nullable ExoPlayerMediaSource videoSource, @Nullable ExoPlayerDrmBridge drmBridge,
+            @Nullable ExoPlayerMediaSource videoSource,
             @Nullable Surface surface, boolean enableTunnelMode) {
         this.mExoplayerHandler = new Handler(Looper.getMainLooper());
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
@@ -179,10 +178,6 @@ public class ExoPlayerBridge {
                         .setLooper(mExoplayerHandler.getLooper())
                         .setTrackSelector(trackSelector)
                         .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS);
-
-        if (drmBridge != null) {
-            builder.setMediaSourceFactory(drmBridge.getMediaSourceFactory());
-        }
 
         mPlayer = builder.build();
 
