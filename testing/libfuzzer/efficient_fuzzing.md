@@ -305,7 +305,7 @@ crashes).
 [corpus from ClusterFuzz]: libFuzzer_integration.md#Corpus
 [coverage script]: https://cs.chromium.org/chromium/src/tools/code_coverage/coverage.py
 [fuzzing coverage]: https://analysis.chromium.org/coverage/p/chromium?platform=fuzz
-[gcloud storage]: https://cloud.google.com/storage/docs/gsutil
+[gcloud storage]: https://cloud.google.com/storage/docs/gcloud-storage
 [startup initialization]: https://llvm.org/docs/LibFuzzer.html#startup-initialization
 [libfuzzer]: getting_started_with_libfuzzer.md
 [fuzztests]: getting_started.md
