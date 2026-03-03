@@ -44,13 +44,24 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   typedef typename ReuseAllocatorBase::FreeBlockSet::reverse_iterator
       FreeBlockReverseiterator;
 
+<<<<<<< HEAD
   BidirectionalFitReuseAllocator(starboard::Allocator* fallback_allocator,
                                  std::size_t initial_capacity,
                                  std::size_t small_allocation_threshold,
                                  std::size_t allocation_increment)
+=======
+  BidirectionalFitReuseAllocator(
+      starboard::common::Allocator* fallback_allocator,
+      std::size_t initial_capacity,
+      std::size_t small_allocation_threshold,
+      std::size_t allocation_increment,
+      bool enable_decommit_on_idle)
+>>>>>>> dee9ecddf5 (media: Implement madvise for idle buffer memory (#9286))
       : ReuseAllocatorBase(fallback_allocator,
                            initial_capacity,
-                           allocation_increment),
+                           allocation_increment,
+                           /*max_capacity=*/0,
+                           enable_decommit_on_idle),
         small_allocation_threshold_(small_allocation_threshold) {}
 
   FreeBlockIterator FindFreeBlock(std::size_t size,
