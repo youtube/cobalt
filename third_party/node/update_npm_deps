@@ -10,7 +10,7 @@
 #     `npm install`).
 #  2) Run this script without using any flag to download all the
 #     NPM dependencies locally.
-#  3) Authenticate using your @google account by running `gsutil.py config`
+#  3) Authenticate using your @google account by running `gcloud auth login`
 #     (prerequisite for step #4 below).
 #  4) Upload the compressed node_modules.tar.gz file to the
 #     Google Cloud Storage and update the DEPS file by running this script with

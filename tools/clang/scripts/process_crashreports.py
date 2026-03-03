@@ -63,7 +63,7 @@ def ProcessCrashreport(base, source):
           tgz.add(f, os.path.basename(f))
     sys.stdout.write('uploading... ')
     sys.stdout.flush()
-    subprocess.check_call([sys.executable, GSUTIL, '-q', 'cp', tmp_name, dest])
+    subprocess.check_call(['gcloud', '-q', 'storage', 'cp', tmp_name, dest])
     print('done')
     print('    %s' % dest)
   except subprocess.CalledProcessError as e:
