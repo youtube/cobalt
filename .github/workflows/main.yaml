@@ -955,11 +955,13 @@ jobs:
       - name: Failed Tests
         if: needs.test-results.result == 'failure' || needs.browser-test-results.result == 'failure'
         run: |
-          # Print test result summary.
+          # Print test result summary when XML files are available.
           shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
-
-          if [[ "${{ needs.test-results.result }}" == "failure" || "${{ needs.browser-test-results.result }}" == "failure" ]]; then
+          xml_files=(results/**/*.xml)
+          if [ ${#xml_files[@]} -gt 0 ]; then
+            python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
             exit 1
+          else
+            echo "No JUnit XML files to parse (artifacts may not have been uploaded)."
           fi
         shell: bash

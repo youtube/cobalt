@@ -49,8 +49,8 @@ def find_failing_tests(junit_xml_files: list[str]) -> dict[str, list[str]]:
   return failing_tests
 
 
-def main(xml_files: str):
-  failing_tests = find_failing_tests(xml_files)
+def main(files: list[str]):
+  failing_tests = find_failing_tests(files)
 
   if failing_tests:
     print('Failing Tests:')
@@ -67,8 +67,8 @@ def main(xml_files: str):
 
 
 if __name__ == '__main__':
-  if len(sys.argv) == 1:
-    print('Usage: python junit_mini_parser.py '
-          '<junit_xml_file1> <junit_xml_file2> ...')
-    print('Please provide a list of JUnit XML files as command line arguments.')
-  main(sys.argv[1:])
+  xml_files = sys.argv[1:]
+  if not xml_files:
+    print('No JUnit XML files to parse.')
+    sys.exit(0)
+  main(xml_files)
