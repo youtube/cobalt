@@ -163,6 +163,7 @@ void SQLitePersistentStoreBackendBase::Reset() {
 }
 
 void SQLitePersistentStoreBackendBase::Commit() {
+  LOG(INFO) << "sm telemetry: [SQLite Database] Commit executing on background thread.";
   DCHECK(background_task_runner_->RunsTasksInCurrentSequence());
 
   {

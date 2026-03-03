@@ -160,6 +160,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     }
   }();
 
+  LOG(INFO) << "sm telemetry: ReadStorage result: " << static_cast<int>(result);
   base::UmaHistogramEnumeration(kReadResultHistogram, result);
   return storage;
 }
@@ -186,6 +187,8 @@ Task RecordMetricsTask(std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
       [](std::unique_ptr<base::ElapsedTimer> elapsed_timer,
          base::OnceClosure callback) {
         base::TimeDelta elapsed = elapsed_timer->Elapsed();
+        LOG(INFO) << "sm telemetry: Migration duration: "
+                  << elapsed.InMilliseconds() << " ms";
         base::UmaHistogramTimes(kDurationHistogram, elapsed);
 #if !defined(COBALT_IS_RELEASE_BUILD)
         LOG(INFO) << "Cookie and localStorage migration completed in "
@@ -302,25 +305,46 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
+  LOG(INFO) << "sm telemetry: DoMigrationTasksOnce started";
   auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
-    LOG(INFO) << "Storage migration disabled via switch.";
+    LOG(INFO) << "sm telemetry: Storage migration disabled via switch.";
     return;
   }
 
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
+    LOG(INFO) << "sm telemetry: No storage to migrate or ReadStorage failed.";
     return;
   }
+
+  LOG(INFO) << "sm telemetry: Found " << storage->cookies_size()
+            << " cookies and " << storage->local_storages_size()
+            << " local storage groups.";
+
+#if !defined(COBALT_IS_RELEASE_BUILD)
+  LOG(INFO) << "sm telemetry: --- Old Data Before Migration ---";
+  for (const auto& c : storage->cookies()) {
+    LOG(INFO) << "sm telemetry: Old Cookie: " << c.name() << " = " << c.value() << " (" << c.domain() << c.path() << ")";
+  }
+  for (const auto& ls : storage->local_storages()) {
+    LOG(INFO) << "sm telemetry: Old LocalStorage for Origin: " << ls.serialized_origin();
+    for (const auto& e : ls.local_storage_entries()) {
+      LOG(INFO) << "sm telemetry:   " << e.key() << " = " << e.value();
+    }
+  }
+  LOG(INFO) << "sm telemetry: ---------------------------------";
+#endif
 
   base::UmaHistogramCounts1000(kCookiesCountHistogram, storage->cookies_size());
   base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
                                storage->local_storages_size());
 
   GURL url = web_contents->GetLastCommittedURL();
+  LOG(INFO) << "sm telemetry: Migration for URL: " << url.spec();
   web_contents->Stop();
 
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
@@ -335,6 +359,7 @@ void MigrationManager::DoMigrationTasksOnce(
   tasks.push_back(RecordMetricsTask(std::move(elapsed_timer)));
   tasks.push_back(DeleteOldCacheDirectoryTask());
   tasks.push_back(ReloadTask(weak_document_ptr, url));
+  LOG(INFO) << "sm telemetry: Queuing " << tasks.size() << " migration tasks.";
   std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
 }
 
@@ -342,6 +367,7 @@ void MigrationManager::DoMigrationTasksOnce(
 Task MigrationManager::CookieTask(
     content::WeakDocumentPtr weak_document_ptr,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+  LOG(INFO) << "sm telemetry: CookieTask for " << cookies.size() << " cookies.";
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
       [](content::WeakDocumentPtr weak_document_ptr,
@@ -357,20 +383,30 @@ Task MigrationManager::CookieTask(
            std::unique_ptr<net::CanonicalCookie> cookie,
            base::OnceClosure callback) {
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
+          std::string cookie_name = cookie->Name();
+          std::string cookie_value = cookie->Value();
           CookieManager(weak_document_ptr)
               ->SetCanonicalCookie(
                   *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
                   base::BindOnce(
-                      [](base::OnceClosure callback,
+                      [](std::string name, std::string value, base::OnceClosure callback,
                          net::CookieAccessResult result) {
+                        bool success = result.status.IsInclude();
+                        if (success) {
+#if !defined(COBALT_IS_RELEASE_BUILD)
+                          LOG(INFO) << "sm telemetry: New data (migrated) - Cookie: " << name << " = " << value;
+#endif
+                        } else {
+                          LOG(WARNING) << "sm telemetry: Cookie injection failed: "
+                                       << result.status.GetDebugString();
+                        }
                         base::UmaHistogramEnumeration(
                             kCookieInjectionResultHistogram,
-                            result.status.IsInclude()
-                                ? InjectionResult::kSuccess
-                                : InjectionResult::kError);
+                            success ? InjectionResult::kSuccess
+                                    : InjectionResult::kError);
                         std::move(callback).Run();
                       },
-                      std::move(callback)));
+                      std::move(cookie_name), std::move(cookie_value), std::move(callback)));
         },
         weak_document_ptr, std::move(cookie)));
   }
@@ -387,6 +423,7 @@ Task MigrationManager::CookieTask(
 Task MigrationManager::LocalStorageTask(
     content::WeakDocumentPtr weak_document_ptr,
     std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs) {
+  LOG(INFO) << "sm telemetry: LocalStorageTask for " << pairs.size() << " items.";
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
       [](content::WeakDocumentPtr weak_document_ptr,
@@ -404,21 +441,30 @@ Task MigrationManager::LocalStorageTask(
         [](content::WeakDocumentPtr weak_document_ptr,
            std::unique_ptr<std::pair<std::string, std::string>> pair,
            base::OnceClosure callback) {
+          std::string ls_key = pair->first;
+          std::string ls_value = pair->second;
           RenderFrameHost(weak_document_ptr)
               ->ExecuteJavaScriptMethod(
                   base::ASCIIToUTF16(std::string("localStorage")),
                   base::ASCIIToUTF16(std::string("setItem")),
                   base::Value::List().Append(pair->first).Append(pair->second),
                   base::BindOnce(
-                      [](base::OnceClosure callback, base::Value value) {
+                      [](std::string key, std::string value, base::OnceClosure callback, base::Value js_value) {
+                        bool success = js_value.is_none();
+                        if (success) {
+#if !defined(COBALT_IS_RELEASE_BUILD)
+                          LOG(INFO) << "sm telemetry: New data (migrated) - LocalStorage: " << key << " = " << value;
+#endif
+                        } else {
+                          LOG(WARNING) << "sm telemetry: LocalStorage injection failed.";
+                        }
                         base::UmaHistogramEnumeration(
                             kLocalStorageInjectionResultHistogram,
-                            value.is_none()
-                                ? InjectionResult::kSuccess
-                                : InjectionResult::kError);
+                            success ? InjectionResult::kSuccess
+                                    : InjectionResult::kError);
                         std::move(callback).Run();
                       },
-                      std::move(callback)));
+                      std::move(ls_key), std::move(ls_value), std::move(callback)));
         },
         weak_document_ptr, std::move(pair)));
   }

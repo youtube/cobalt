@@ -33,6 +33,7 @@
 #include <utility>
 
 #include "base/auto_reset.h"
+#include "base/logging.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
@@ -5822,6 +5823,7 @@ void Document::WillChangeFrameOwnerProperties(
 }
 
 String Document::cookie(ExceptionState& exception_state) const {
+  LOG(INFO) << "sm telemetry: [JS Cookie] GET";
   if (!dom_window_ || !GetSettings()->GetCookieEnabled())
     return String();
 
@@ -5851,6 +5853,7 @@ String Document::cookie(ExceptionState& exception_state) const {
 }
 
 void Document::setCookie(const String& value, ExceptionState& exception_state) {
+  LOG(INFO) << "sm telemetry: [JS Cookie] SET: " << value.Utf8();
   if (!dom_window_ || !GetSettings()->GetCookieEnabled())
     return;
 
