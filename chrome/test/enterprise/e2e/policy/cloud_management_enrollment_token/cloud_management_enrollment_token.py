@@ -27,7 +27,7 @@ class CloudManagementEnrollmentTokenTest(ChromeEnterpriseTestCase):
   def test_browser_enrolled_prod(self):
     # Domain: chromepizzatest.com / OrgUnit: CBCM-enrollment
     path = "gs://%s/secrets/enrollToken" % self.gsbucket
-    cmd = r'gsutil cat ' + path
+    cmd = r'gcloud storage cat ' + path
     token = self.RunCommand(self.win_config['dc'], cmd).rstrip().decode()
 
     self.SetPolicy(self.win_config['dc'], r'CloudManagementEnrollmentToken',

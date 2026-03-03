@@ -13,7 +13,7 @@ GSUTIL_BIN = 'gsutil'
 
 
 def Copy(source_path, dest_path):
-  subprocess.check_call([GSUTIL_BIN, 'cp', source_path, dest_path])
+  subprocess.check_call(['gcloud', 'storage', 'cp', source_path, dest_path])
 
 
 @contextlib.contextmanager

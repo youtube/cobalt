@@ -40,7 +40,7 @@ def main():
   src = 'gs://perfetto-luci-artifacts/%s/' % args.version
   os.makedirs(tmpdir, exist_ok=True)
   os.chdir(tmpdir)
-  exec('gsutil', '-m', 'rsync', '-rc', src, tmpdir + '/')
+  exec('gcloud', 'storage', 'rsync', '--recursive', '--checksums-only', src, tmpdir + '/')
   zips = []
   for arch in os.listdir(tmpdir):
     if not os.path.isdir(arch):

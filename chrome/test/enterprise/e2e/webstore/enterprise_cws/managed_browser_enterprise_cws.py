@@ -24,7 +24,7 @@ class ManagedBrowserEnterpriseWebStore(ChromeEnterpriseTestCase):
   def test_enterprise_web_store(self):
     # Domain enrollment
     path = "gs://%s/secrets/CWStoken" % self.gsbucket
-    cmd = r'gsutil cat ' + path
+    cmd = r'gcloud storage cat ' + path
     token = self.RunCommand(self.win_config['dc'], cmd).rstrip().decode()
 
     self.SetPolicy(self.win_config['dc'], r'CloudManagementEnrollmentToken',

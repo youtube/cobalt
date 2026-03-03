@@ -13,4 +13,4 @@ Then run:
 tools/binary_size/create_patched_supersize_diff.py before_size.size load_size.size *.sizediff --output m97_m98_normalized.sizediff
 ```
 
-And then run the `gsutil.py` command that it prints out.
+And then run the `gcloud storage` command that it prints out.

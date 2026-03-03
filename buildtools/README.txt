@@ -20,7 +20,7 @@ There is a checked-in version of gsutil as part of depot_tools.
 
 To initialize gsutil's credentials:
 
-  python ~/depot_tools/third_party/gsutil/gsutil config
+  gcloud auth login
 
   That will give a URL which you should log into with your web browser.
 

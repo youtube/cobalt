@@ -10,7 +10,7 @@ const path = require('path');
 // Returns whether 'gsutil' is available or not.
 function exists() {
   try {
-    child_process.execSync('gsutil', {stdio: 'ignore'});
+    child_process.execSync('gcloud storage', {stdio: 'ignore'});
     return true;
   } catch (ex) {
     return false;
@@ -37,7 +37,8 @@ async function downloadFiles(map, output) {
   const promises = [];
   for (const url in map) {
     const cmds = [
-      'gsutil',
+      'gcloud',
+      'storage',
       'cp',
       url,
       path.join(output, map[url]),
