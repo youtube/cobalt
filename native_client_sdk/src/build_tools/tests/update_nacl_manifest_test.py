@@ -230,7 +230,7 @@ class TestDelegate(update_nacl_manifest.Delegate):
   def GsUtil_cat(self, url):
     path = GetPathFromGsUrl(url)
     if path not in self.files:
-      raise subprocess.CalledProcessError(1, 'gsutil cat %s' % (url,))
+      raise subprocess.CalledProcessError(1, 'gcloud storage cat %s' % (url,))
     return self.files[path]
 
   def GsUtil_cp(self, src, dest, stdin=None):
@@ -241,7 +241,7 @@ class TestDelegate(update_nacl_manifest.Delegate):
     else:
       src_path = GetPathFromGsUrl(src)
       if src_path not in self.files:
-        raise subprocess.CalledProcessError(1, 'gsutil cp %s %s' % (src, dest))
+        raise subprocess.CalledProcessError(1, 'gcloud storage cp %s %s' % (src, dest))
       self.files[dest_path] = self.files[src_path]
 
   def SendMail(self, subject, text):

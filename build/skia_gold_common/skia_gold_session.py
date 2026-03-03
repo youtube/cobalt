@@ -129,9 +129,9 @@ class SkiaGoldSession():
           exact matching.
       use_luci: If true, authentication will use the service account provided by
           the LUCI context. If false, will attempt to use whatever is set up in
-          gsutil, which is only supported for local runs.
+          gcloud, which is only supported for local runs.
       service_account: If set, uses the provided service account instead of
-          LUCI_CONTEXT or whatever is set in gsutil.
+          LUCI_CONTEXT or whatever is set in gcloud.
       optional_keys: A dict containing optional key/value pairs to pass to Gold
           for this comparison. Optional keys are keys unrelated to the
           configuration the image was produced on, e.g. a comment or whether
@@ -197,9 +197,9 @@ class SkiaGoldSession():
     Args:
       use_luci: If true, authentication will use the service account provided
           by the LUCI context. If false, will attempt to use whatever is set up
-          in gsutil, which is only supported for local runs.
+          in gcloud, which is only supported for local runs.
       service_account: If set, uses the provided service account instead of
-          LUCI_CONTEXT or whatever is set in gsutil.
+          LUCI_CONTEXT or whatever is set in gcloud.
 
     Returns:
       A tuple (return_code, output). |return_code| is the return code of the

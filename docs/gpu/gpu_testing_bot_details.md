@@ -666,7 +666,7 @@ instructions] to authenticate. You must use your @google.com email address and
 be a member of the Chrome GPU team in order to receive read-write access to the
 appropriate cloud storage buckets. Roughly:
 
-1.  Run `gsutil config`
+1.  Run `gcloud auth login`
 2.  Copy/paste the URL into your browser
 3.  Log in with your @google.com account
 4.  Allow the app to access the information it requests

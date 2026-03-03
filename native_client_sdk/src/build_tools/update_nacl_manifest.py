@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Script that reads omahaproxy and gsutil to determine version of SDK to put
+"""Script that reads omahaproxy and gcloud storage to determine version of SDK to put
 in manifest.
 """
 
@@ -149,7 +149,7 @@ def GetCanonicalArchiveName(url):
 
 
 class Delegate(object):
-  """Delegate all external access; reading/writing to filesystem, gsutil etc."""
+  """Delegate all external access; reading/writing to filesystem, gcloud storage etc."""
 
   def GetRepoManifest(self):
     """Read the manifest file from the NaCl SDK repository.
@@ -180,7 +180,7 @@ class Delegate(object):
     raise NotImplementedError()
 
   def GsUtil_ls(self, url):
-    """Runs gsutil ls |url|
+    """Runs gcloud storage ls |url|
 
     Args:
       url: The cloud storage url to list.
@@ -189,7 +189,7 @@ class Delegate(object):
     raise NotImplementedError()
 
   def GsUtil_cat(self, url):
-    """Runs gsutil cat |url|
+    """Runs gcloud storage cat |url|
 
     Args:
       url: The cloud storage url to read from.
@@ -198,12 +198,12 @@ class Delegate(object):
     raise NotImplementedError()
 
   def GsUtil_cp(self, src, dest, stdin=None):
-    """Runs gsutil cp |src| |dest|
+    """Runs gcloud storage cp |src| |dest|
 
     Args:
       src: The file path or url to copy from.
       dest: The file path or url to copy to.
-      stdin: If src is '-', this is used as the stdin to give to gsutil. The
+      stdin: If src is '-', this is used as the stdin to give to gcloud. The
           effect is that text in stdin is copied to |dest|."""
     raise NotImplementedError()
 
@@ -226,7 +226,7 @@ class RealDelegate(Delegate):
     if gsutil:
       self.gsutil = gsutil
     else:
-      self.gsutil = buildbot_common.GetGsutil()
+      self.gsutil = 'gcloud'
 
   def GetRepoManifest(self):
     """See Delegate.GetRepoManifest"""
@@ -250,7 +250,7 @@ class RealDelegate(Delegate):
   def GsUtil_ls(self, url):
     """See Delegate.GsUtil_ls"""
     try:
-      stdout = self._RunGsUtil(None, False, 'ls', url)
+      stdout = self._RunGsUtil(None, False, 'storage', 'ls', url)
     except subprocess.CalledProcessError:
       return []
 
@@ -259,7 +259,7 @@ class RealDelegate(Delegate):
 
   def GsUtil_cat(self, url):
     """See Delegate.GsUtil_cat"""
-    return self._RunGsUtil(None, True, 'cat', url)
+    return self._RunGsUtil(None, True, 'storage', 'cat', url)
 
   def GsUtil_cp(self, src, dest, stdin=None):
     """See Delegate.GsUtil_cp"""
@@ -269,7 +269,7 @@ class RealDelegate(Delegate):
         logger.info('  contents = """%s"""' % stdin)
       return
 
-    return self._RunGsUtil(stdin, True, 'cp', '-a', 'public-read', src, dest)
+    return self._RunGsUtil(stdin, True, 'storage', 'cp', '--predefined-acl', 'public-read', src, dest)
 
   def SendMail(self, subject, text):
     """See Delegate.SendMail"""
@@ -285,13 +285,12 @@ class RealDelegate(Delegate):
       smtp_obj.close()
 
   def _RunGsUtil(self, stdin, log_errors, *args):
-    """Run gsutil as a subprocess.
+    """Run gcloud as a subprocess.
 
     Args:
       stdin: If non-None, used as input to the process.
       log_errors: If True, write errors to stderr.
-      *args: Arguments to pass to gsutil. The first argument should be an
-          operation such as ls, cp or cat.
+      *args: Arguments to pass to gcloud. The first argument should be 'storage'.
     Returns:
       The stdout from the process."""
     cmd = [self.gsutil] + list(args)
@@ -863,7 +862,7 @@ class CapturedFile(object):
 
 def main(args):
   parser = argparse.ArgumentParser()
-  parser.add_argument('--gsutil', help='path to gsutil.')
+  parser.add_argument('--gsutil', help='path to gcloud.')
   parser.add_argument('-d', '--debug', help='run in debug mode.',
       action='store_true')
   parser.add_argument('--mailfrom', help='email address of sender.')

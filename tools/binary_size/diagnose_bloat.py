@@ -568,12 +568,12 @@ class _DiffArchiveManager:
       logging.info('Creating .sizediff')
       _RunCmd(supersize_cmd)
 
-    gsutil_cmd = ['gsutil.py', 'cp']
+    gcloud_cmd = ['gcloud', 'storage', 'cp']
     if is_internal:
       oneoffs_dir = 'private-oneoffs'
     else:
       oneoffs_dir = 'oneoffs'
-      gsutil_cmd += ['-a', 'public-read']
+      gcloud_cmd += ['--predefined-acl=public-read']
 
     if is_single_rev:
       unique_name = '{}.size'.format(before.rev)
@@ -582,16 +582,16 @@ class _DiffArchiveManager:
       unique_name = '{}_{}.sizediff'.format(before.rev, after.rev)
       local = os.path.relpath(report_path)
 
-    gsutil_cmd += [local, f'gs://chrome-supersize/{oneoffs_dir}/{unique_name}']
+    gcloud_cmd += [local, f'gs://chrome-supersize/{oneoffs_dir}/{unique_name}']
 
     if self.share:
       msg = 'Automatically uploaded, '
-      _RunCmd(gsutil_cmd)
+      _RunCmd(gcloud_cmd)
     else:
       msg = (f'Saved locally to {local}. To view, upload to '
              'https://chrome-supersize.firebaseapp.com/viewer.html.\n'
              'To share, run:\n'
-             f'> {" ".join(gsutil_cmd)}\n\n'
+             f'> {" ".join(gcloud_cmd)}\n\n'
              'Then ')
     msg = '\n=====================\n' + msg + (
         'view it at https://chrome-supersize.firebaseapp.com/viewer.html'
@@ -912,7 +912,7 @@ def main():
                       'command (e.g. --java-only, --no-output-directory, etc).')
   parser.add_argument('--share',
                       action='store_true',
-                      help='Automatically upload using gsutil.py.')
+                      help='Automatically upload using gcloud storage.')
 
   build_group = parser.add_argument_group('build arguments')
   build_group.add_argument('--no-reclient',

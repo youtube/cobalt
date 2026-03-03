@@ -807,7 +807,7 @@ class OrderfileGenerator:
       upload_location = '%s/%s' % (self._CLOUD_STORAGE_BUCKET_FOR_DEBUG,
                                    os.path.basename(file_name))
       self._step_recorder.RunCommand(
-          ['gsutil.py', 'cp', file_name, 'gs://' + upload_location])
+          ['gcloud', 'storage', 'cp', file_name, 'gs://' + upload_location])
       logging.info('Uploaded to: https://sandbox.google.com/storage/%s',
                    upload_location)
 
