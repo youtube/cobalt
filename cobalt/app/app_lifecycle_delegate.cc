@@ -32,6 +32,8 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/network_service_instance.h"
+#include "net/base/network_change_notifier_passive.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
@@ -205,7 +207,18 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
 #endif
       break;
     case kSbEventTypeOsNetworkDisconnected:
-    case kSbEventTypeOsNetworkConnected:
+    case kSbEventTypeOsNetworkConnected: {
+      auto* notifier = content::GetNetworkChangeNotifier();
+      if (notifier) {
+        auto* passive_notifier =
+            static_cast<net::NetworkChangeNotifierPassive*>(notifier);
+        passive_notifier->OnConnectionChanged(
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::CONNECTION_UNKNOWN
+                : net::NetworkChangeNotifier::CONNECTION_NONE);
+      }
+      break;
+    }
     case kSbEventDateTimeConfigurationChanged:
 #if BUILDFLAG(IS_STARBOARD)
       device::NotifyTimeZoneChangeStarboard();
