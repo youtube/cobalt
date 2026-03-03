@@ -19,7 +19,6 @@ List the contents of GN's Google Storage bucket:
   gcloud storage ls gs://chromium-clang-format/
 
 To initialize gsutil's credentials:
-  # The gsutil config command has no gcloud equivalent but the functionality is split between `gcloud config` or `gcloud auth`.
   python ~/depot_tools/third_party/gsutil/gsutil config
 
   That will give a URL which you should log into with your web browser. The
