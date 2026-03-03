@@ -19,12 +19,11 @@ _REPORTS_GS_URL = os.path.join(_REPORTS_BASE_URL, 'reports')
 
 _DIR_SOURCE_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', '..'))
-_GSUTIL = os.path.join(_DIR_SOURCE_ROOT, 'third_party', 'depot_tools',
-                       'gsutil.py')
+_GSUTIL = 'gcloud'
 
 
 def _WriteReportsJson(out):
-  output = subprocess.check_output([_GSUTIL, 'ls', '-R', _REPORTS_GS_URL],
+  output = subprocess.check_output([_GSUTIL, 'storage', 'ls', '--recursive', _REPORTS_GS_URL],
                                    encoding='utf8')
 
   reports = []
@@ -47,9 +46,9 @@ def _UploadReportsJson():
   with tempfile.NamedTemporaryFile(mode='wt') as f:
     _WriteReportsJson(f)
     f.flush()
+    # gcloud storage cp does not support setting metadata properties like Cache-Control during upload. The -h flag is not translated.
     cmd = [
-        _GSUTIL, '--', '-h', 'Cache-Control:no-cache', 'cp', '-a',
-        'public-read', f.name, _REPORTS_JSON_GS_URL
+        _GSUTIL, 'storage', 'cp', '--predefined-acl', 'public-read', f.name, _REPORTS_JSON_GS_URL
     ]
     logging.warning(' '.join(cmd))
     subprocess.check_call(cmd)
@@ -62,7 +61,7 @@ def _UploadSizeFile(size_path, version, arch):
   dst_url = os.path.join(_REPORTS_GS_URL, version, arch,
                          report_basename + '.size')
 
-  cmd = [_GSUTIL, 'cp', size_path, dst_url]
+  cmd = [_GSUTIL, 'storage', 'cp', size_path, dst_url]
   logging.warning(' '.join(cmd))
   subprocess.check_call(cmd)
 
