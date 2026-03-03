@@ -98,7 +98,7 @@ def Insert(bucket, remote_path, local_path, publicly_readable):
   url = 'gs://%s/%s' % (bucket, remote_path)
   command_and_args = ['cp']
   if publicly_readable:
-    command_and_args += ['--predefined-acl', 'public-read']
+    command_and_args += ['--predefined-acl', 'publicRead']
   command_and_args += [local_path, url]
   _RunCommand(command_and_args)
 
