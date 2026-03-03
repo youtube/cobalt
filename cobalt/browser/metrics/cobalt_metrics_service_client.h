@@ -19,6 +19,7 @@
 
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "components/metrics/metrics_service_client.h"
@@ -137,6 +138,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Virtual to be overridden in tests.
   virtual scoped_refptr<CobaltMemoryMetricsEmitter>
   CreateMemoryMetricsEmitter();
+
+  virtual scoped_refptr<CobaltCpuMetricsEmitter>
+  CreateCpuMetricsEmitter();
 
   // Virtual to be overridden in tests.
   virtual void OnApplicationNotIdleInternal();
