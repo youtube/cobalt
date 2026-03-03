@@ -147,12 +147,12 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
 
   if (name == kDecoderBufferEnableMediaBufferPoolAllocatorStrategy) {
     return ProcessEnableOnlySetting(context, [] {
-      ::media::DecoderBuffer::EnableMediaBufferPoolStrategy();
+      ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
     });
   }
   if (name == kDecoderBufferEnableInPlaceReuseAllocatorBase) {
     return ProcessEnableOnlySetting(context, [] {
-      ::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase();
+      ::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase();
     });
   }
   if (name.StartsWith(kDecoderBufferSettingPrefix)) {
