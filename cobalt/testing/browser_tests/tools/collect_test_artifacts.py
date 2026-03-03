@@ -36,9 +36,16 @@ def find_runtime_deps(build_dir):
 
 def get_test_runner(build_dir, is_android):
   """Determines the relative path to the test runner."""
-  script_rel = os.path.join('bin', 'run_cobalt_browsertests')
-  if (is_android or os.path.isfile(os.path.join(build_dir, script_rel))):
-    return script_rel
+  if is_android:
+    return os.path.join('bin', 'run_cobalt_browsertests')
+
+  # Check for common runner names
+  for runner in [
+      os.path.join('bin', 'run_cobalt_browsertests'),
+      'cobalt_browsertests_runner',
+  ]:
+    if os.path.isfile(os.path.join(build_dir, runner)):
+      return runner
 
   # For Linux/non-android, we will use the binary directly via
   # run_browser_tests.py. However, some platforms might have a runner script.
@@ -128,6 +135,12 @@ def main():
       choices=['xz', 'gz', 'zstd'],
       default='gz',
       help='The compression algorithm to use.')
+  parser.add_argument(
+      '--adb_platform_tools',
+      type=str,
+      default=('cobalt/testing/browser_tests/tools/'
+               'platform-tools_r33.0.1-linux.zip'),
+      help='The zip file to incorporate into the tarball.')
   args = parser.parse_args()
 
   if args.output_dir:
@@ -156,6 +169,12 @@ def main():
         logging.warning('Could not find runtime_deps in %s. Skipping.',
                         build_dir)
         continue
+
+      adb_platform_tools = args.adb_platform_tools
+      if is_android and adb_platform_tools:
+        copy_if_needed(adb_platform_tools,
+                       os.path.join(stage_dir, 'tools/platform-tools.zip'),
+                       copied_sources)
 
       test_runner_rel = get_test_runner(build_dir, is_android)
       logging.info('Processing build directory: %s', build_dir)
