@@ -8,7 +8,7 @@
 # 1) Update NODE_VERSION variable below to the desired version.
 # 2) Run this script without any flags first to download all the binaries
 #    locally.
-# 3) Authenticate using your @google account by running `gsutil.py config`
+# 3) Authenticate using your @google account by running `gcloud auth login`
 #    (prerequisite for step #4 below).
 # 4) To upload the binaries to the Google Storage bucket, use the
 #    `--upload` or `-u` flag. This will upload the binaries to
