@@ -140,6 +140,7 @@ class PlayerComponents {
       void* surface_view() const { return surface_view_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
+        SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
 
