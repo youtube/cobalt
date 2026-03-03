@@ -269,7 +269,7 @@ class RealDelegate(Delegate):
         logger.info('  contents = """%s"""' % stdin)
       return
 
-    return self._RunGsUtil(stdin, True, 'storage', 'cp', '--predefined-acl', 'public-read', src, dest)
+    return self._RunGsUtil(stdin, True, 'storage', 'cp', '--predefined-acl', 'publicRead', src, dest)
 
   def SendMail(self, subject, text):
     """See Delegate.SendMail"""
