@@ -224,7 +224,7 @@ def Archive(filename, bucket_path, cwd=None, step_link=True):
   # search the PATH for the executable: http://bugs.python.org/issue8557
   shell = getos.GetPlatform() == 'win'
 
-  cmd = [GetGsutil(), 'storage', 'cp', '--predefined-acl', 'public-read', filename, full_dst]
+  cmd = [GetGsutil(), 'storage', 'cp', '--predefined-acl', 'publicRead', filename, full_dst]
   Run(cmd, shell=shell, cwd=cwd)
   url = 'https://storage.googleapis.com/%s/%s' % (bucket_path, filename)
   if step_link:
