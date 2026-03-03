@@ -80,9 +80,12 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   timeout_timer_->Stop();
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", true);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
     RaisePlatformError();
+  } else if (net_error_code == net::OK) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
   }
 }
 
@@ -94,7 +97,10 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
     return;
   }
-  UMA_HISTOGRAM_BOOLEAN("Cobalt.PlatformError.Raised", true);
+  if (!platform_error_raised_) {
+    platform_error_raised_ = true;
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", true);
+  }
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)

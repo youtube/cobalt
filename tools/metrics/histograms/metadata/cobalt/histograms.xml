@@ -35,9 +35,9 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the age of the Finch configuration in days each time it is
-    checked at startup. This data is used to determine an appropriate
-    expiration threshold.
+    Records the age of the Finch configuration in days each time it is checked
+    at startup. This data is used to determine an appropriate expiration
+    threshold.
   </summary>
 </histogram>
 
@@ -45,8 +45,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the state of the Finch configuration at startup. This is used
-    to monitor the frequency of expired or invalid configurations.
+    Records the state of the Finch configuration at startup. This is used to
+    monitor the frequency of expired or invalid configurations.
   </summary>
 </histogram>
 
@@ -81,13 +81,24 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.PlatformError.Raised" enum="Boolean"
+<histogram name="Cobalt.Network.PlatformErrorRaised" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
     A boolean is recorded to this histogram to indicate whether a platform error
     was raised due to a navigation timeout or other network error. This is
-    emitted when a navigation takes too long or results in a network error.
+    emitted at most once per WebContents lifetime to measure the prevalence of
+    user-facing errors.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    For every navigation in the primary main frame, this boolean is recorded to
+    indicate whether the navigation resulted in a network error. This is used to
+    track the navigation success rate. Aborted navigations are not included.
   </summary>
 </histogram>
 
