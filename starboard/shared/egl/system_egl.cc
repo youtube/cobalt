@@ -125,3 +125,7 @@ const SbEglInterface g_sb_egl_interface = {
 const SbEglInterface* SbGetEglInterface() {
   return &g_sb_egl_interface;
 }
+
+void* SbGetNativeEGLDisplayType() {
+  return nullptr;
+}

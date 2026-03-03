@@ -231,3 +231,13 @@ const SbEglInterface g_sb_egl_interface = {
 const SbEglInterface* SbGetEglInterface() {
   return &g_sb_egl_interface;
 }
+
+void* SbGetNativeEGLDisplayType() {
+  NativeDisplayType display_type = 0;
+  EssCtx* ctx =
+      third_party::starboard::rdk::shared::Application::Get()->GetEssCtx();
+  if (ctx && EssContextGetEGLDisplayType(ctx, &display_type)) {
+    return reinterpret_cast<void*>(display_type);
+  }
+  return nullptr;
+}

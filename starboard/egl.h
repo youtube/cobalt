@@ -184,6 +184,9 @@ typedef struct SbEglInterface {
 
 SB_EXPORT const SbEglInterface* SbGetEglInterface();
 
+// Returns platform native EGL display type, or NULL to use EGL_DEFAULT_DISPLAY.
+SB_EXPORT void* SbGetNativeEGLDisplayType();
+
 // All of the following were previously defined in
 // https://www.khronos.org/registry/EGL/api/EGL/egl.h.
 

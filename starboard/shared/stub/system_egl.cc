@@ -17,3 +17,7 @@
 const SbEglInterface* SbGetEglInterface() {
   return nullptr;
 }
+
+void* SbGetNativeEGLDisplayType() {
+  return nullptr;
+}
