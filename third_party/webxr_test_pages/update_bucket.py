@@ -38,7 +38,7 @@ BUCKET_COPY_RE = re.compile(r'^r(\d+)')
 
 WINDOWS_EXES = {
   'git': 'git.bat',
-  'gcloud': 'gcloud.cmd',
+  'gsutil.py': 'gsutil.py.bat',
 }
 
 SUFFIX_TYPES = {
@@ -115,7 +115,7 @@ def get_bucket_copies() -> List[str]:
   """Retrieves list of test subdirectories from Cloud Storage"""
   copies = []
   # The -d flag is not supported in gcloud storage ls.
-  dirs = run_readonly('gcloud', 'storage', 'ls', BUCKET)
+  dirs = run_readonly('gsutil.py', 'ls', '-d', BUCKET)
   strip_len = len(BUCKET) + 1
   for rev in dirs.splitlines():
     pos = rev[strip_len:]
@@ -132,7 +132,7 @@ def is_working_dir_clean() -> bool:
 def write_to_bucket(cr_position: str):
   """Copies the test directory to Cloud Storage"""
   destination = BUCKET + '/r' + cr_position
-  run_modify('gcloud', 'storage', 'rsync', '--exclude', 'media', '--recursive', './' + TEST_SUBDIR,
+  run_modify('gsutil.py', '-m', 'rsync', '-x', 'media', '-r', './' + TEST_SUBDIR,
           destination)
 
   # The copy used mime types based on system-local mappings which may be
@@ -141,7 +141,7 @@ def write_to_bucket(cr_position: str):
 
 def direct_publish_samples(source: str, dest_subfolder: str):
   destination = BUCKET + '/' + dest_subfolder
-  run_modify('gcloud', 'storage', 'rsync', '--exclude', 'media', '--recursive', './' + source,
+  run_modify('gsutil.py', '-m', 'rsync', '-x', 'media', '-r', './' + source,
           destination)
 
   # The copy used mime types based on system-local mappings which may be
@@ -155,8 +155,9 @@ def check_and_fix_content_types(destination: str):
     if configured_type != content_type:
       logging.info('Fixing content type mismatch for .%s: found %s, '
                    'expected %s.' % (suffix, configured_type, content_type))
-      run_modify('gcloud', 'storage', 'objects', 'update', destination + '/**.' + suffix, '--content-type',
-                 content_type)
+      run_modify('gsutil.py', '-m', 'setmeta', '-h',
+                 'Content-type:' + content_type,
+                 destination + '/**.' + suffix)
 
 def write_index():
   """Updates Cloud Storage index.html based on available test copies"""
@@ -190,7 +191,7 @@ def write_index():
       temp.write(content.encode('utf-8'))
       temp.seek(0)
       temp.close()
-      run_modify('gcloud', 'storage', 'cp', temp.name, BUCKET + '/index.html')
+      run_modify('gsutil.py', 'cp', temp.name, BUCKET + '/index.html')
     finally:
       os.unlink(temp.name)
 
@@ -216,7 +217,7 @@ def write_latest():
       temp.write(content.encode('utf-8'))
       temp.seek(0)
       temp.close()
-      run_modify('gcloud', 'storage', 'cp', temp.name, BUCKET + '/latest.html')
+      run_modify('gsutil.py', 'cp', temp.name, BUCKET + '/latest.html')
     finally:
       os.unlink(temp.name)
 
