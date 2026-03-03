@@ -36,7 +36,6 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   std::string max_video_capabilities;
   gfx::Size viewport_size;
   GetSbWindowHandleCallback get_sb_window_handle_callback;
-  BindHostReceiverCallback bind_host_receiver_callback;
 };
 
 }  // namespace media

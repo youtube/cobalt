@@ -80,9 +80,9 @@ void Close(CobaltExtensionPlatformService service) {
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto j_cobalt_service =
-      base::android::JavaParamRef<jobject>(env, service->cobalt_service);
-  Java_CobaltService_onClose(env, j_cobalt_service);
+  auto cobalt_service_local_ref = base::android::ScopedJavaLocalRef<jobject>(
+      env, env->NewLocalRef(service->cobalt_service));
+  Java_CobaltService_onClose(env, cobalt_service_local_ref);
 
   starboard::StarboardBridge::GetInstance()->CloseCobaltService(
       env, service->name.c_str());
@@ -99,12 +99,12 @@ void* Send(CobaltExtensionPlatformService service,
   SB_DCHECK(invalid_state);
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto j_cobalt_service =
-      base::android::JavaParamRef<jobject>(env, service->cobalt_service);
+  auto cobalt_service_local_ref = base::android::ScopedJavaLocalRef<jobject>(
+      env, env->NewLocalRef(service->cobalt_service));
   auto j_data = base::android::ToJavaByteArray(
       env, reinterpret_cast<const uint8_t*>(data), length);
-  auto j_response =
-      Java_CobaltService_receiveFromClient(env, j_cobalt_service, j_data);
+  auto j_response = Java_CobaltService_receiveFromClient(
+      env, cobalt_service_local_ref, j_data);
   if (j_response.is_null()) {
     *invalid_state = true;
     *output_length = 0;
