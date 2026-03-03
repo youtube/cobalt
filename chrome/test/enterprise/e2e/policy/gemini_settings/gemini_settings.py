@@ -33,7 +33,7 @@ class GeminiSettingsTest(ChromeEnterpriseTestCase):
     # logging.
     account = 'account0@chromepizzatest.com'
     path = f"gs://{self.gsbucket}/secrets/account0-password"
-    cmd = r"gsutil cat " + path
+    cmd = r"gcloud storage cat " + path
     password = self.RunCommand(self.win_config["dc"], cmd).strip().decode()
     d = os.path.dirname(os.path.abspath(__file__))
     self.RunUITest(
@@ -56,7 +56,7 @@ class GeminiSettingsTest(ChromeEnterpriseTestCase):
     # logging.
     account = 'account1@chromepizzatest.com'
     path = f"gs://{self.gsbucket}/secrets/account1-password"
-    cmd = r"gsutil cat " + path
+    cmd = r"gcloud storage cat " + path
     password = self.RunCommand(self.win_config["dc"], cmd).strip().decode()
     d = os.path.dirname(os.path.abspath(__file__))
     self.RunUITest(
@@ -78,7 +78,7 @@ class GeminiSettingsTest(ChromeEnterpriseTestCase):
     # User belongs to an OU with GenAiDefaultSettings set to do not allow.
     account = 'account2@chromepizzatest.com'
     path = f"gs://{self.gsbucket}/secrets/account2-password"
-    cmd = r"gsutil cat " + path
+    cmd = r"gcloud storage cat " + path
     password = self.RunCommand(self.win_config["dc"], cmd).strip().decode()
     d = os.path.dirname(os.path.abspath(__file__))
     self.RunUITest(
@@ -100,7 +100,7 @@ class GeminiSettingsTest(ChromeEnterpriseTestCase):
     # User belongs to an OU with GenAiDefaultSettings unset.
     account = 'account3@chromepizzatest.com'
     path = f"gs://{self.gsbucket}/secrets/account3-password"
-    cmd = r"gsutil cat " + path
+    cmd = r"gcloud storage cat " + path
     password = self.RunCommand(self.win_config["dc"], cmd).strip().decode()
     d = os.path.dirname(os.path.abspath(__file__))
     self.RunUITest(
