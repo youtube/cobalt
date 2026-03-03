@@ -18,7 +18,7 @@ import sys
 TARGET_MAP = {}
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -97,11 +97,13 @@ def main():
       sys.exit(1)
 
   target_config = TARGET_MAP[target_name]
+  logging.debug("Target config: %s", target_config)
   is_android = target_config.get("is_android", False)
 
   # 3. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
   test_runner = os.path.join(src_dir, target_config["runner"])
+  logging.info("Resolved test runner to: %s", test_runner)
 
   # Resolve the specific build root for this target.
   target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])
@@ -137,16 +139,24 @@ def main():
     cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
           ] + runner_args
   else:
-    logging.info(
-        "Executing Linux test runner for '%s' using xvfb.py and "
-        "run_browser_tests.py", target_name)
-    xvfb_py = os.path.join(src_dir, "testing/xvfb.py")
-    run_browser_tests_py = os.path.join(
-        src_dir, "cobalt/testing/browser_tests/run_browser_tests.py")
-    # Wrap the whole command in xvfb.py to provide a DISPLAY
-    cmd = [
-        vpython_path, xvfb_py, sys.executable, run_browser_tests_py, test_runner
-    ] + runner_args
+    # If the test_runner is the runner script (entrance), run it directly.
+    # Otherwise, use run_browser_tests.py to wrap the binary.
+    if "runner" in test_runner:
+      logging.info("Executing Linux test runner for '%s' using xvfb.py",
+                   target_name)
+      xvfb_py = os.path.join(src_dir, "testing/xvfb.py")
+      cmd = [vpython_path, xvfb_py, sys.executable, test_runner] + runner_args
+    else:
+      logging.info(
+          "Executing Linux test runner for '%s' using xvfb.py and "
+          "run_browser_tests.py", target_name)
+      xvfb_py = os.path.join(src_dir, "testing/xvfb.py")
+      run_browser_tests_py = os.path.join(
+          src_dir, "cobalt/testing/browser_tests/run_browser_tests.py")
+      cmd = [
+          vpython_path, xvfb_py, sys.executable, run_browser_tests_py,
+          test_runner
+      ] + runner_args
 
   try:
     return subprocess.call(cmd)

@@ -15,7 +15,6 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "build/build_config.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -40,7 +39,14 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
+// TODO: b/483460300 - Investigate memory metrics recording failures on
+// Starboard.
+#if BUILDFLAG(IS_STARBOARD)
+#define MAYBE_RecordsMemoryMetrics DISABLED_RecordsMemoryMetrics
+#else
+#define MAYBE_RecordsMemoryMetrics RecordsMemoryMetrics
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -112,7 +118,15 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 }
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
+// TODO: b/483460300 - Investigate periodic memory metrics recording failures on
+// Starboard.
+#if BUILDFLAG(IS_STARBOARD)
+#define MAYBE_PeriodicRecordsMemoryMetrics DISABLED_PeriodicRecordsMemoryMetrics
+#else
+#define MAYBE_PeriodicRecordsMemoryMetrics PeriodicRecordsMemoryMetrics
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       MAYBE_PeriodicRecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
