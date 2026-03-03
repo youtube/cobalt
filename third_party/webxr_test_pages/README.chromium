@@ -65,7 +65,7 @@ access to the cloud bucket:
 
 1. Run:
      # The gsutil ls -d flag is not supported in gcloud storage ls.
-     gsutil.py ls -d gs://chromium-webxr-test
+     gcloud storage ls gs://chromium-webxr-test
 
 3. If you get authentication errors such as this one:
      Your credentials are invalid. For more help, see "gsutil help creds", or re-run the gsutil config command (see "gsutil help config").
