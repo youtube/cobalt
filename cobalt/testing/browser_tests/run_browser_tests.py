@@ -144,16 +144,6 @@ class CobaltTestRunner:
     logging.debug("Tried paths: %s", search_paths)
     logging.debug("Current working directory: %s", os.getcwd())
 
-    # Help diagnose by listing directory of the first path
-    try:
-      first_dir = os.path.dirname(abs_binary_path)
-      if os.path.isdir(first_dir):
-        logging.debug("Contents of %s: %s", first_dir, os.listdir(first_dir))
-      else:
-        logging.debug("Directory %s does not exist.", first_dir)
-    except OSError as e:
-      logging.debug("Failed to list directory: %s", e)
-
     sys.exit(1)
 
   def _setup_sharding(self):
@@ -294,13 +284,21 @@ class CobaltTestRunner:
     cmd = [
         self.binary,
         f"--gtest_filter={test_name}",
-        "--single-process-tests",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-        "--ozone-platform=starboard",
-        f"--user-data-dir={self.user_data_dir}",
     ]
+
+    # Only add these flags if we're running the actual test binary directly.
+    # Platform-specific runner scripts (like for Android) handle these
+    # themselves or don't support them.
+    binary_name = os.path.basename(self.binary)
+    if binary_name in ("cobalt_browsertests", "cobalt_browsertests.exe"):
+      cmd.extend([
+          "--single-process-tests",
+          "--no-sandbox",
+          "--single-process",
+          "--no-zygote",
+          "--ozone-platform=starboard",
+          f"--user-data-dir={self.user_data_dir}",
+      ])
 
     temp_xml_path = None
     if self.xml_output_file:
@@ -446,7 +444,11 @@ def parse_args() -> Tuple[argparse.Namespace, List[str]]:
       nargs="?",
       default="./cobalt_browsertests",
       help="Path to the test binary")
-  parser.add_argument("--gtest_filter", help="GTest filter pattern")
+  parser.add_argument(
+      "--gtest_filter",
+      "--gtest-filter",
+      dest="gtest_filter",
+      help="GTest filter pattern")
   parser.add_argument("--gtest_output", help="GTest output (xml:path)")
   parser.add_argument("--gtest_total_shards", type=int, default=0)
   parser.add_argument("--gtest_shard_index", type=int, default=0)

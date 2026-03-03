@@ -148,6 +148,35 @@ class TestCobaltTestRunner(unittest.TestCase):
     self.assertEqual(testcase.attrib['name'], 'TestCrash')
     self.assertIsNotNone(testcase.find('failure'))
 
+  @mock.patch('subprocess.call', return_value=0)
+  def test_selective_flags(self, mock_call):
+    """Verifies that Linux-specific flags are only added for real binaries."""
+    # 1. Real binary should have extra flags
+    real_binary = os.path.join(self.test_dir, 'cobalt_browsertests')
+    with open(real_binary, 'w', encoding='utf-8') as f:
+      f.write('#!/bin/sh\nexit 0')
+    os.chmod(real_binary, 0o755)
+
+    runner = self._create_runner(binary=real_binary)
+    runner._run_single_test('Suite.Test', 0)  # pylint: disable=protected-access
+    call_args = mock_call.call_args[0][0]
+    self.assertIn('--no-sandbox', call_args)
+    self.assertIn('--ozone-platform=starboard', call_args)
+
+    # 2. Wrapper script (runner) should NOT have extra flags
+    mock_call.reset_mock()
+    runner_script = os.path.join(self.test_dir, 'bin/run_cobalt_browsertests')
+    os.makedirs(os.path.dirname(runner_script), exist_ok=True)
+    with open(runner_script, 'w', encoding='utf-8') as f:
+      f.write('#!/bin/sh\nexit 0')
+    os.chmod(runner_script, 0o755)
+
+    runner2 = self._create_runner(binary=runner_script)
+    runner2._run_single_test('Suite.Test', 0)  # pylint: disable=protected-access
+    call_args2 = mock_call.call_args[0][0]
+    self.assertNotIn('--no-sandbox', call_args2)
+    self.assertNotIn('--ozone-platform=starboard', call_args2)
+
   @mock.patch('subprocess.check_output')
   @mock.patch('subprocess.call')
   def test_full_run(self, mock_call, mock_check_output):

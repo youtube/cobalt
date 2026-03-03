@@ -280,7 +280,15 @@ def main():
                    copied_sources)
 
     # Generate runner
-    generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
+    runner_path = os.path.join(stage_dir, 'run_tests.py')
+    generate_runner_py(runner_path, target_map)
+
+    if os.path.isfile(runner_path):
+      logging.info('Verified run_tests.py exists in stage_dir.')
+    else:
+      logging.error('run_tests.py NOT FOUND in stage_dir!')
+
+    logging.info('Files in stage_dir root: %s', os.listdir(stage_dir))
 
     logging.info('Creating tarball: %s', args.output)
     if args.compression == 'gz':
@@ -293,7 +301,7 @@ def main():
       raise ValueError(f'Unsupported compression: {args.compression}')
 
     subprocess.run([
-        'tar', '-I', compression_flag, '-C', stage_dir, '-cf', args.output, '.'
+        'tar', '-I', compression_flag, '-C', stage_dir, '-cvf', args.output, '.'
     ],
                    check=True)
 

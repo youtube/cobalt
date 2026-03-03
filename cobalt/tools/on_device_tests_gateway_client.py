@@ -28,12 +28,12 @@ import on_device_tests_gateway_pb2_grpc
 
 _WORK_DIR = '/on_device_tests_gateway'
 
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = os.environ.get(
+    'ODT_GATEWAY_HOST',
     'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
 
-# When testing with local gateway, uncomment:
-#_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = 'localhost'
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = os.environ.get('ODT_GATEWAY_PORT',
+                                                       '50052')
 
 # These paths are hardcoded in various places. DO NOT CHANGE!
 _DIR_ON_DEV_MAP = {
@@ -125,11 +125,6 @@ def _get_test_args_and_dimensions(
       f'retry_level={args.retry_level}',
   ]
 
-  if args.test_attempts:
-    test_args.extend([
-        f'test_attempts={args.test_attempts}',
-    ])
-
   device_type = None
   device_pool = None
 
@@ -138,8 +133,8 @@ def _get_test_args_and_dimensions(
       dimensions = json.loads(args.dimensions)
     except json.JSONDecodeError as e:
       raise ValueError(f'--dimensions is not in JSON format: {e}') from e
-    device_type = dimensions.pop('device_type', None)
-    device_pool = dimensions.pop('device_pool', None)
+    device_type = dimensions.get('device_type')
+    device_pool = dimensions.get('device_pool')
 
     test_args.extend(
         [f'dimension_{key}={value}' for key, value in dimensions.items()])
@@ -214,7 +209,7 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
 
 def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
   """Builds the list of test requests based on the test type."""
-  test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
+  base_test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
   test_requests = []
 
   try:
@@ -224,18 +219,26 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
 
   for target_data in targets:
     test_type = args.test_type
+    current_test_args = base_test_args.copy()
+    if isinstance(target_data, str):
+      test_target = target_data
+      test_attempts = ''
+    else:
+      test_target = target_data['target']
+      test_attempts = target_data.get('test_attempts', '')
 
     if test_type == 'unit_test':
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
-      test_target = target_data
       target_name = test_target.split(':')[-1]
       gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
       if gtest_filter == '-*':
         print(f'Skipping {target_name} due to test filter.')
         continue
-      if args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+      if test_attempts:
+        current_test_args.extend([f'test_attempts={test_attempts}'])
+      elif args.test_attempts:
+        current_test_args.extend([f'test_attempts={args.test_attempts}'])
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
@@ -246,17 +249,51 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       params = _unit_test_params(args, target_name, dir_on_device)
 
     elif test_type in ('e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'):
-      test_target = target_data['target']
-      test_attempts = target_data.get('test_attempts', '')
       if test_attempts:
-        test_args.extend([f'test_attempts={test_attempts}'])
+        current_test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+        current_test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
       files = []
       if test_type in ('browser_test', 'yts_wpt_test'):
         test_type = 'e2e_test'
-        params = []
+        target_name = test_target.split(':')[-1]
+
+        # Container tests write results to a local dir that MH pulls from.
+        # This MUST match container_result_dir in the BUILD file.
+        container_result_dir = '/results/'
+        xml_file = 'results.xml'
+        params = [
+            f'gtest_xml_file_on_device={container_result_dir}{xml_file}',
+            f'gcs_result_filename={xml_file}',
+            f'gcs_log_filename={target_name}_log.txt',
+        ]
+        if args.gcs_result_path:
+          params.append(f'gcs_result_path={args.gcs_result_path}')
+
+        # Overrides for browser test container configuration.
+        if args.container_location:
+          params.append(f'container_location={args.container_location}')
+        if args.container_env_variable:
+          params.append(f'container_env_variable={args.container_env_variable}')
+
+        # Browser test defines for vardefs in the BUILD file.
+        if args.browser_test_platform:
+          test_cmd_args.append(
+              f'browser_test_platform={args.browser_test_platform}')
+        if args.browser_test_filter:
+          test_cmd_args.append(
+              f'browser_test_filter={args.browser_test_filter}')
+
+        # Add device_type define based on platform if not explicitly provided
+        if 'arm64' in (args.browser_test_platform or ''):
+          test_cmd_args.append('browser_test_device_type=nvidia_shield')
+        elif 'arm' in (args.browser_test_platform or ''):
+          test_cmd_args.append('browser_test_device_type=arm_devices')
+
+        delimiter = args.container_args_delimiter or '_DELIM_'
+        params.append(f'container_args_delimiter={delimiter}')
+
       else:
         params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
         if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
@@ -276,7 +313,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'device_type': device_type,
         'device_pool': device_pool,
         'test_cmd_args': test_cmd_args,
-        'test_args': test_args,
+        'test_args': current_test_args,
         'files': files,
         'params': params,
         'test_target': test_target,
@@ -383,6 +420,31 @@ def main() -> int:
       default='900',
       help='Timeout in seconds for the test to start.',
   )
+  trigger_args.add_argument(
+      '--container_location',
+      type=str,
+      help='The location of the Docker image to run for the test.',
+  )
+  trigger_args.add_argument(
+      '--container_env_variable',
+      type=str,
+      help='Environment variables to pass to the test container.',
+  )
+  trigger_args.add_argument(
+      '--browser_test_filter',
+      type=str,
+      help='Test filter to pass to the browser test container.',
+  )
+  trigger_args.add_argument(
+      '--browser_test_platform',
+      type=str,
+      help='Target platform to pass to the browser test container.',
+  )
+  trigger_args.add_argument(
+      '--container_args_delimiter',
+      type=str,
+      help='Delimiter used to separate container arguments.',
+  )
 
   # --- Unit Test Arguments ---
   unit_test_group = trigger_parser.add_argument_group('Unit Test Arguments')
@@ -445,6 +507,10 @@ def main() -> int:
       raise ValueError('--filter_json_dir is required for unit_test')
 
   test_requests = _process_test_requests(args)
+  if not test_requests:
+    print('No tests to run after filtering.')
+    return 0
+
   client = OnDeviceTestsGatewayClient()
 
   try:

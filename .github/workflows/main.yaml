@@ -634,6 +634,59 @@ jobs:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_playback_test_targets }}'
 
+  browser-test-on-device:
+    needs: [initialize, build]
+    if: |
+      needs.initialize.outputs.test_browser == 'true' &&
+      needs.initialize.outputs.test_on_device == 'true' &&
+      (
+        (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+      )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_browser_tests_on_device
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Set up Cloud SDK
+        uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      - name: Parse Test Target JSON
+        id: test-target-json
+        uses: ./.github/actions/test_targets_json
+      - name: Build and Push Browser Test Docker Image
+        id: build-docker-image
+        uses: ./.github/actions/docker_browsertests
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
+          workflow: ${{ github.workflow }}
+      - name: Run Browser Tests (Android)
+        uses: ./.github/actions/browser_tests
+        with:
+          test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}_browsertests/${{ github.run_id }}/${{ github.run_attempt }}
+          test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
+          container_location: ${{ steps.build-docker-image.outputs.container_location }}
+          test_targets: '${{ needs.initialize.outputs.browser_test_targets }}'
+          platform: ${{ matrix.platform }}
+          config: ${{ matrix.config }}
+
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
     if: |
