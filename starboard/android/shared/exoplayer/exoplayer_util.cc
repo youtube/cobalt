@@ -79,9 +79,7 @@ bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
 }
 
 ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
-    const SbMediaAudioStreamInfo& stream_info,
-    jobject j_drm_session_manager,
-    const std::vector<uint8_t>& drm_init_data) {
+    const SbMediaAudioStreamInfo& stream_info) {
   if (stream_info.codec == kSbMediaAudioCodecNone) {
     SB_LOG(ERROR)
         << "Cannot create an audio MediaSource for kSbMediaAudioCodecNone";
@@ -106,12 +104,6 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
         stream_info.audio_specific_config_size);
   }
 
-  ScopedJavaLocalRef<jbyteArray> j_init_data;
-  if (!drm_init_data.empty()) {
-    j_init_data =
-        ToJavaByteArray(env, drm_init_data.data(), drm_init_data.size());
-  }
-
   ScopedJavaLocalRef<jstring> j_audio_mime;
 
   if (stream_info.codec == kSbMediaAudioCodecAc3) {
@@ -126,15 +118,11 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
   }
 
   return Java_ExoPlayerManager_createAudioMediaSource(
-      env, j_audio_mime, configuration_data, sample_rate, channels,
-      base::android::JavaParamRef<jobject>(env, j_drm_session_manager),
-      j_init_data);
+      env, j_audio_mime, configuration_data, sample_rate, channels);
 }
 
 ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
-    const SbMediaVideoStreamInfo& stream_info,
-    jobject j_drm_session_manager,
-    const std::vector<uint8_t>& drm_init_data) {
+    const SbMediaVideoStreamInfo& stream_info) {
   if (stream_info.codec == kSbMediaVideoCodecNone) {
     SB_LOG(ERROR)
         << "Cannot create a video MediaSource for kSbMediaVideoCodecNone";
@@ -161,16 +149,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);
 
-  ScopedJavaLocalRef<jbyteArray> j_init_data;
-  if (!drm_init_data.empty()) {
-    j_init_data =
-        ToJavaByteArray(env, drm_init_data.data(), drm_init_data.size());
-  }
-
   return Java_ExoPlayerManager_createVideoMediaSource(
-      env, j_mime, width, height, framerate, bitrate, j_hdr_color_info,
-      base::android::JavaParamRef<jobject>(env, j_drm_session_manager),
-      j_init_data);
+      env, j_mime, width, height, framerate, bitrate, j_hdr_color_info);
 }
 
 }  // namespace starboard

@@ -29,19 +29,14 @@
 namespace starboard {
 namespace {
 
-using std::placeholders::_1;
-using std::placeholders::_2;
-
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 }  // namespace
 
 ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
-      update_job_(std::bind(&ExoPlayerPlayerWorkerHandler::Update, this)),
-      creation_param_(*creation_param),
-      drm_system_(
-          reinterpret_cast<DrmSystemExoPlayer*>(creation_param->drm_system)) {
+      update_job_([this]() { Update(); }),
+      creation_param_(*creation_param) {
   SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut)
       << "ExoPlayer only supports punch-out playback.";
 }
@@ -68,25 +63,15 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
 
   Attach(job_queue);
 
-  if (drm_system_) {
-    std::vector<uint8_t> drm_init_data = drm_system_->GetInitializationData();
-
-    if (drm_init_data.size() == 0) {
-      return Failure("Did not get DRM init data.");
-    }
-    bridge_ = std::make_unique<ExoPlayerBridge>(
-        creation_param_.audio_stream_info, creation_param_.video_stream_info,
-        creation_param_.drm_system, drm_init_data);
-  } else {
-    bridge_ = std::make_unique<ExoPlayerBridge>(
-        creation_param_.audio_stream_info, creation_param_.video_stream_info);
-  }
+  bridge_ = std::make_unique<ExoPlayerBridge>(
+      creation_param_.audio_stream_info, creation_param_.video_stream_info);
 
   if (!bridge_->is_valid() ||
       !bridge_->Init(
-          std::bind(&ExoPlayerPlayerWorkerHandler::OnError, this, _1, _2),
-          std::bind(&ExoPlayerPlayerWorkerHandler::OnPrerolled, this),
-          std::bind(&ExoPlayerPlayerWorkerHandler::OnEnded, this))) {
+          [this](SbPlayerError error, const std::string& error_message) {
+            OnError(error, error_message);
+          },
+          [this]() { OnPrerolled(); }, [this]() { OnEnded(); })) {
     return Failure("Failed to initialize the ExoPlayer: " +
                    bridge_->GetInitErrorMessage());
   }
@@ -221,13 +206,12 @@ void ExoPlayerPlayerWorkerHandler::Update() {
 void ExoPlayerPlayerWorkerHandler::OnError(SbPlayerError error,
                                            const std::string& error_message) {
   SB_CHECK(update_player_error_cb_);
-  if (!reported_error_) {
+  if (!reported_error_.exchange(true)) {
     RunOnWorker([this, error, error_message]() {
       update_player_error_cb_(error, error_message.empty()
                                          ? "ExoPlayerPlayerWorkerHandler error"
                                          : error_message);
     });
-    reported_error_ = true;
   }
 }
 

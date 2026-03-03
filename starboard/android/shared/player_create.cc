@@ -207,9 +207,11 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   bool use_exoplayer = starboard::features::FeatureList::IsEnabled(
       starboard::features::kEnableExoPlayer);
   if (use_exoplayer &&
-      creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    SB_LOG(WARNING) << "ExoPlayer does not support decode-to-texture mode, "
-                       "defaulting to FilterBasedPlayerWorkerHandler.";
+      (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture ||
+       creation_param->drm_system != kSbDrmSystemInvalid)) {
+    SB_LOG(WARNING)
+        << "ExoPlayer does not support decode-to-texture mode or DRM playback, "
+           "defaulting to FilterBasedPlayerWorkerHandler.";
     use_exoplayer = false;
   }
 

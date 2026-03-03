@@ -15,10 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_PLAYER_WORKER_HANDLER_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_PLAYER_WORKER_HANDLER_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 
-#include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -85,11 +85,9 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
 
-  DrmSystemExoPlayer* drm_system_;
-
   // Prevents additional errors from being reported after the first, as only one
   // error needs to be reported to tear down the player.
-  bool reported_error_ = false;
+  std::atomic_bool reported_error_ = false;
 };
 
 }  // namespace starboard

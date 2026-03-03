@@ -41,12 +41,11 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                   public MediaDrmBridge::Host,
                   private Thread {
  public:
-  static SbDrmSystem Create(
-      std::string_view key_system,
-      void* context,
-      SbDrmSessionUpdateRequestFunc update_request_callback,
-      SbDrmSessionUpdatedFunc session_updated_callback,
-      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+  DrmSystem(std::string_view key_system,
+            void* context,
+            SbDrmSessionUpdateRequestFunc update_request_callback,
+            SbDrmSessionUpdatedFunc session_updated_callback,
+            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
   ~DrmSystem() override;
   // SbDrmSystemPrivate override begins
@@ -93,12 +92,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   bool IsReady();
 
  private:
-  DrmSystem(std::string_view key_system,
-            void* context,
-            SbDrmSessionUpdateRequestFunc update_request_callback,
-            SbDrmSessionUpdatedFunc session_updated_callback,
-            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
-
   class SessionUpdateRequest {
    public:
     SessionUpdateRequest(int ticket,
