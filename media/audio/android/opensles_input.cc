@@ -65,10 +65,15 @@ OpenSLESInputStream::~OpenSLESInputStream() {
 AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("media", "OpenSLESInputStream::Open");
+  LOG(INFO) << "YO THOR OpenSLESInputStream::Open called at " << base::TimeTicks::Now();
   if (engine_object_.Get())
     return AudioInputStream::OpenOutcome::kFailed;
 
-  if (!CreateRecorder())
+  auto create_recorder_start = base::TimeTicks::Now();
+  bool recorder_created = CreateRecorder();
+  LOG(INFO) << "YO THOR OpenSLESInputStream::CreateRecorder took " << (base::TimeTicks::Now() - create_recorder_start).InMillisecondsF() << " ms, result=" << recorder_created;
+  if (!recorder_created)
     return AudioInputStream::OpenOutcome::kFailed;
 
   SetupAudioBuffer();
@@ -78,11 +83,13 @@ AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
 void OpenSLESInputStream::Start(AudioInputCallback* callback) {
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("media", "OpenSLESInputStream::Start");
   DCHECK(callback);
   DCHECK(recorder_);
   DCHECK(simple_buffer_queue_);
   if (started_)
     return;
+  LOG(INFO) << "YO THOR OpenSLESInputStream::Start called at " << base::TimeTicks::Now();
 
   base::AutoLock lock(lock_);
   DCHECK(!callback_ || callback_ == callback);
@@ -197,6 +204,7 @@ bool OpenSLESInputStream::CreateRecorder() {
   DCHECK(!recorder_object_.Get());
   DCHECK(!recorder_);
   DCHECK(!simple_buffer_queue_);
+  TRACE_EVENT0("media", "OpenSLESInputStream::CreateRecorder");
 
   // Initializes the engine object with specific option. After working with the
   // object, we need to free the object and its resources.

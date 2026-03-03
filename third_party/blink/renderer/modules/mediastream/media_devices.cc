@@ -8,6 +8,7 @@
 
 #include "base/guid.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
@@ -80,6 +81,7 @@ class PromiseResolverCallbacks final : public UserMediaRequest::Callbacks {
 
   void OnSuccess(const MediaStreamVector& streams,
                  CaptureController* capture_controller) override {
+    TRACE_EVENT0("media", "PromiseResolverCallbacks::OnSuccess");
     if (media_type_ == UserMediaRequestType::kDisplayMediaSet) {
       OnSuccessGetDisplayMediaSet(streams);
       return;
@@ -103,6 +105,7 @@ class PromiseResolverCallbacks final : public UserMediaRequest::Callbacks {
     }
 
     // Resolve Promise<MediaStream> on a microtask.
+    LOG(INFO) << "YO THOR PromiseResolverCallbacks::OnSuccess at " << base::TimeTicks::Now();
     resolver_->Resolve(stream);
 
     // Enqueue the follow-up microtask, if any is intended.
@@ -118,6 +121,7 @@ class PromiseResolverCallbacks final : public UserMediaRequest::Callbacks {
     if (capture_controller) {
       capture_controller->FinalizeFocusDecision();
     }
+    LOG(INFO) << "YO THOR PromiseResolverCallbacks::OnError at " << base::TimeTicks::Now();
     resolver_->Reject(error, result);
   }
 
@@ -414,6 +418,8 @@ ScriptPromise MediaDevices::getUserMedia(
   auto* resolver = MakeGarbageCollected<
       ScriptPromiseResolverWithTracker<UserMediaRequestResult>>(
       script_state, "Media.MediaDevices.GetUserMedia", base::Seconds(8));
+  TRACE_EVENT0("media", "MediaDevices::getUserMedia");
+  LOG(INFO) << "YO THOR MediaDevices::getUserMedia called at " << base::TimeTicks::Now();
 
   DCHECK(options);  // Guaranteed by the default value in the IDL.
   DCHECK(!exception_state.HadException());

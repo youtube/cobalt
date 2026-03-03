@@ -13,6 +13,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
@@ -110,8 +111,10 @@ void AudioInputDeviceManager::UnregisterListener(
 base::UnguessableToken AudioInputDeviceManager::Open(
     const blink::MediaStreamDevice& device) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  TRACE_EVENT0("media", "AudioInputDeviceManager::Open");
   // Generate a new id for this device.
   auto session_id = base::UnguessableToken::Create();
+  LOG(INFO) << "YO THOR AudioInputDeviceManager::Open called at " << base::TimeTicks::Now();
   SendAudioLogMessage(GetOpenLogString(session_id, device));
 
   // base::Unretained(this) is safe, because AudioInputDeviceManager is
@@ -168,6 +171,7 @@ void AudioInputDeviceManager::OpenedOnIOThread(
   DCHECK(!input_params || input_params->IsValid());
   DCHECK(!matched_output_device_id || !matched_output_device_id->empty());
 
+  LOG(INFO) << "YO THOR AudioInputDeviceManager::OpenedOnIOThread at " << base::TimeTicks::Now();
   SendAudioLogMessage("Opened({session_id=" + session_id.ToString() + "})");
   blink::MediaStreamDevice media_stream_device(device.type, device.id,
                                                device.name);

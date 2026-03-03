@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "media/audio/android/aaudio_output.h"
 #include "media/audio/android/aaudio_stubs.h"
 #include "media/audio/android/audio_track_output_stream.h"
@@ -306,6 +307,8 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  TRACE_EVENT0("media", "AudioManagerAndroid::MakeLowLatencyInputStream");
+  LOG(INFO) << "YO THOR AudioManagerAndroid::MakeLowLatencyInputStream called at " << base::TimeTicks::Now();
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
@@ -315,14 +318,20 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   // Note that the input device is always associated with a certain output
   // device, i.e., this selection does also switch the output device.
   // All input and output streams will be affected by the device selection.
-  if (!SetAudioDevice(device_id)) {
+  auto set_audio_device_start = base::TimeTicks::Now();
+  bool device_set = SetAudioDevice(device_id);
+  LOG(INFO) << "YO THOR AudioManagerAndroid::SetAudioDevice took " << (base::TimeTicks::Now() - set_audio_device_start).InMillisecondsF() << " ms, result=" << device_set;
+  if (!device_set) {
     LOG(ERROR) << "Unable to select audio device!";
     return NULL;
   }
 
   // Create a new audio input stream and enable or disable all audio effects
   // given |params.effects()|.
-  return new OpenSLESInputStream(this, params);
+  auto create_stream_start = base::TimeTicks::Now();
+  OpenSLESInputStream* stream = new OpenSLESInputStream(this, params);
+  LOG(INFO) << "YO THOR AudioManagerAndroid::new OpenSLESInputStream took " << (base::TimeTicks::Now() - create_stream_start).InMillisecondsF() << " ms";
+  return stream;
 }
 
 // static

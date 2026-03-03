@@ -26,6 +26,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/trace_event/trace_event.h"
 #include "base/threading/thread.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
@@ -1400,6 +1401,8 @@ class MediaStreamManager::GenerateStreamsRequest
   void PanTiltZoomPermissionChecked(const std::string& label,
                                     bool pan_tilt_zoom_allowed) override {
     DCHECK(generate_streams_cb_);
+    TRACE_EVENT0("media", "GenerateStreamsRequest::PanTiltZoomPermissionChecked");
+    LOG(INFO) << "YO THOR GenerateStreamsRequest::PanTiltZoomPermissionChecked (running callback) at " << base::TimeTicks::Now();
     std::move(generate_streams_cb_)
         .Run(MediaStreamRequestResult::OK, label, stream_devices_set.Clone(),
              pan_tilt_zoom_allowed);
@@ -1788,6 +1791,8 @@ void MediaStreamManager::GenerateStreams(
         device_capture_configuration_change_cb,
     DeviceCaptureHandleChangeCallback device_capture_handle_change_cb) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  TRACE_EVENT0("media", "MediaStreamManager::GenerateStreams");
+  LOG(INFO) << "YO THOR MediaStreamManager::GenerateStreams called at " << base::TimeTicks::Now();
   SendLogMessage(GetGenerateStreamsLogString(render_process_id, render_frame_id,
                                              requester_id, page_request_id));
   std::unique_ptr<DeviceRequest> request =
@@ -3328,9 +3333,9 @@ void MediaStreamManager::Opened(
 }
 
 void MediaStreamManager::HandleRequestDone(const std::string& label,
-                                           DeviceRequest* request) {
+                                            DeviceRequest* request) {
+  LOG(INFO) << "YO THOR MediaStreamManager::HandleRequestDone at " << base::TimeTicks::Now();
   DCHECK(RequestDone(*request));
-
   switch (request->request_type()) {
     case blink::MEDIA_OPEN_DEVICE_PEPPER_ONLY:
       request->FinalizeRequest(label);
