@@ -75,9 +75,7 @@ void Close(CobaltExtensionPlatformService service) {
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto j_cobalt_service =
-      base::android::ScopedJavaLocalRef<jobject>(env, service->cobalt_service);
-  Java_CobaltService_onClose(env, j_cobalt_service);
+  Java_CobaltService_onClose(env, service->cobalt_service);
 
   starboard::StarboardBridge::GetInstance()->CloseCobaltService(
       env, service->name.c_str());
