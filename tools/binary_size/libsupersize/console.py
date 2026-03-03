@@ -168,7 +168,7 @@ class _Session:
 
   def _PrintUploadCommand(self, file_to_upload, is_internal=False):
     oneoffs_dir = 'oneoffs'
-    visibility = '--predefined-acl=public-read '
+    visibility = '--predefined-acl=publicRead '
     if is_internal:
       oneoffs_dir = 'private-oneoffs'
       visibility = ''
