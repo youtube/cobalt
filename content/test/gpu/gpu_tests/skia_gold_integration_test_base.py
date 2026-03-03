@@ -263,13 +263,13 @@ class SkiaGoldIntegrationTestBase(gpu_integration_test.GpuIntegrationTest):
         action='store_true',
         default=False,
         help=("Don't use the service account provided by LUCI for "
-              'authentication for Skia Gold, instead relying on gsutil to be '
+              'authentication for Skia Gold, instead relying on gcloud to be '
               'pre-authenticated. Meant for testing locally instead of on the '
               'bots.'))
     parser.add_argument(
         '--service-account',
         help=('Specifies the service account to use instead of using '
-              'LUCI_CONTEXT or whatever is configured in gsutil. Implies '
+              'LUCI_CONTEXT or whatever is configured in gcloud. Implies '
               '--no-luci-auth. Only meant for use in Skylab where the tests '
               'are automated but do not have LUCI_CONTEXT available.'))
     parser.add_argument(

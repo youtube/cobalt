@@ -168,7 +168,7 @@ class _Session:
 
   def _PrintUploadCommand(self, file_to_upload, is_internal=False):
     oneoffs_dir = 'oneoffs'
-    visibility = '-a public-read '
+    visibility = '--predefined-acl=public-read '
     if is_internal:
       oneoffs_dir = 'private-oneoffs'
       visibility = ''
@@ -176,7 +176,7 @@ class _Session:
     shortname = os.path.basename(os.path.normpath(file_to_upload))
     msg = (
         'Saved locally to {local}. To share, run:\n'
-        '> gsutil.py cp {visibility}{local} gs://chrome-supersize/'
+        '> gcloud storage cp {visibility}{local} gs://chrome-supersize/'
         '{oneoffs_dir}\n'
         '  Then view it at https://chrome-supersize.firebaseapp.com/viewer.html'
         '?load_url=https://storage.googleapis.com/chrome-supersize/'

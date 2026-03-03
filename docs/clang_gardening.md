@@ -165,7 +165,7 @@ things:
        removing heap_page-65b34d.cpp
 
    Use
-   `gsutil.py cp gs://chrome-clang-crash-reports/v1/2019/08/27/chromium.clang-ToTMac-20955-heap_page-65b34d.tgz .`
+   `gcloud storage cp gs://chrome-clang-crash-reports/v1/2019/08/27/chromium.clang-ToTMac-20955-heap_page-65b34d.tgz .`
    to copy it to your local machine. Untar with
    `tar xzf chromium.clang-ToTMac-20955-heap_page-65b34d.tgz` and change the
    included shell script to point to a locally-built clang. Remove the

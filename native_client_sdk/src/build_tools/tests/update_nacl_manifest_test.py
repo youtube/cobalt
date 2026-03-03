@@ -198,7 +198,7 @@ class TestDelegate(update_nacl_manifest.Delegate):
     self.history = history
     self.files = files
     self.dryrun = 0
-    self.called_gsutil_cp = False
+    self.called_gcloud_storage_cp = False
     self.called_sendmail = False
 
   def GetRepoManifest(self):
@@ -207,7 +207,7 @@ class TestDelegate(update_nacl_manifest.Delegate):
   def GetHistory(self):
     return self.history
 
-  def GsUtil_ls(self, url):
+  def GcloudStorage_ls(self, url):
     path = GetPathFromGsUrl(url)
     result = []
     for filename in self.files.iterkeys():
@@ -227,21 +227,21 @@ class TestDelegate(update_nacl_manifest.Delegate):
     # Remove dupes.
     return list(set(result))
 
-  def GsUtil_cat(self, url):
+  def GcloudStorage_cat(self, url):
     path = GetPathFromGsUrl(url)
     if path not in self.files:
-      raise subprocess.CalledProcessError(1, 'gsutil cat %s' % (url,))
+      raise subprocess.CalledProcessError(1, 'gcloud storage cat %s' % (url,))
     return self.files[path]
 
-  def GsUtil_cp(self, src, dest, stdin=None):
-    self.called_gsutil_cp = True
+  def GcloudStorage_cp(self, src, dest, stdin=None):
+    self.called_gcloud_storage_cp = True
     dest_path = GetPathFromGsUrl(dest)
     if src == '-':
       self.files[dest_path] = stdin
     else:
       src_path = GetPathFromGsUrl(src)
       if src_path not in self.files:
-        raise subprocess.CalledProcessError(1, 'gsutil cp %s %s' % (src, dest))
+        raise subprocess.CalledProcessError(1, 'gcloud storage cp %s %s' % (src, dest))
       self.files[dest_path] = self.files[src_path]
 
   def SendMail(self, subject, text):
@@ -541,7 +541,7 @@ class TestUpdateManifest(unittest.TestCase):
 
     self._MakeDelegate()
     self._Run(OS_MLW)
-    self.assertFalse(self.delegate.called_gsutil_cp)
+    self.assertFalse(self.delegate.called_gcloud_storage_cp)
 
   def testDontPushIfRollback(self):
     # Make an online manifest that has a newer bundle
@@ -554,7 +554,7 @@ class TestUpdateManifest(unittest.TestCase):
 
     self._MakeDelegate()
     self._Run(OS_MLW)
-    self.assertFalse(self.delegate.called_gsutil_cp)
+    self.assertFalse(self.delegate.called_gcloud_storage_cp)
 
   def testRunWithFixedBundleVersions(self):
     self.manifest = MakeManifest(B18_NONE)
@@ -576,7 +576,7 @@ class TestUpdateManifest(unittest.TestCase):
     self._MakeDelegate()
     self._Run(OS_MLW, fixed_bundle_versions=[('pepper_18', '18.0.1025.184')])
     # Nothing should be uploaded if the user gives a missing fixed version.
-    self.assertFalse(self.delegate.called_gsutil_cp)
+    self.assertFalse(self.delegate.called_gcloud_storage_cp)
 
   def testDontIncludeRandomBundles(self):
     self.manifest = MakeManifest(B26_NONE)

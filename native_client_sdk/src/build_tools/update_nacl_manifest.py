@@ -250,7 +250,7 @@ class RealDelegate(Delegate):
   def GsUtil_ls(self, url):
     """See Delegate.GsUtil_ls"""
     try:
-      stdout = self._RunGsUtil(None, False, 'ls', url)
+      stdout = self._RunGsUtil(None, False, 'storage', 'ls', url)
     except subprocess.CalledProcessError:
       return []
 
@@ -259,7 +259,7 @@ class RealDelegate(Delegate):
 
   def GsUtil_cat(self, url):
     """See Delegate.GsUtil_cat"""
-    return self._RunGsUtil(None, True, 'cat', url)
+    return self._RunGsUtil(None, True, 'storage', 'cat', url)
 
   def GsUtil_cp(self, src, dest, stdin=None):
     """See Delegate.GsUtil_cp"""
@@ -269,7 +269,7 @@ class RealDelegate(Delegate):
         logger.info('  contents = """%s"""' % stdin)
       return
 
-    return self._RunGsUtil(stdin, True, 'cp', '-a', 'public-read', src, dest)
+    return self._RunGsUtil(stdin, True, 'storage', 'cp', '--predefined-acl', 'public-read', src, dest)
 
   def SendMail(self, subject, text):
     """See Delegate.SendMail"""

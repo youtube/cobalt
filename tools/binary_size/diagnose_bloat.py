@@ -568,12 +568,12 @@ class _DiffArchiveManager:
       logging.info('Creating .sizediff')
       _RunCmd(supersize_cmd)
 
-    gsutil_cmd = ['gsutil.py', 'cp']
+    gsutil_cmd = ['gcloud', 'storage', 'cp']
     if is_internal:
       oneoffs_dir = 'private-oneoffs'
     else:
       oneoffs_dir = 'oneoffs'
-      gsutil_cmd += ['-a', 'public-read']
+      gsutil_cmd += ['--predefined-acl=public-read']
 
     if is_single_rev:
       unique_name = '{}.size'.format(before.rev)
