@@ -23,10 +23,8 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
-#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -53,10 +51,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
                   const SbMediaVideoStreamInfo& video_stream_info);
 
-  ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
-                  const SbMediaVideoStreamInfo& video_stream_info,
-                  const SbDrmSystem drm_system,
-                  const std::vector<uint8_t>& drm_init_data);
   ~ExoPlayerBridge();
 
   // VideoSurfaceHolder method.
@@ -123,6 +117,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   bool owns_surface_ = false;
   std::string init_error_msg_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard
