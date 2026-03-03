@@ -197,11 +197,11 @@ def RemoveFile(dst):
   oshelpers.Remove(['-f', dst])
 
 
-BOT_GSUTIL = '/b/build/scripts/slave/gcloud'
+BOT_GSUTIL = '/b/build/scripts/slave/gsutil'
 # On Windows, the current working directory may be on a different drive than
 # gsutil.
 WIN_BOT_GSUTIL = 'E:' + BOT_GSUTIL
-LOCAL_GSUTIL = 'gcloud'
+LOCAL_GSUTIL = 'gsutil'
 
 
 def GetGsutil():
@@ -224,7 +224,7 @@ def Archive(filename, bucket_path, cwd=None, step_link=True):
   # search the PATH for the executable: http://bugs.python.org/issue8557
   shell = getos.GetPlatform() == 'win'
 
-  cmd = [GetGsutil(), 'storage', 'cp', '--predefined-acl', 'publicRead', filename, full_dst]
+  cmd = [GetGsutil(), 'cp', '-a', 'public-read', filename, full_dst]
   Run(cmd, shell=shell, cwd=cwd)
   url = 'https://storage.googleapis.com/%s/%s' % (bucket_path, filename)
   if step_link:
