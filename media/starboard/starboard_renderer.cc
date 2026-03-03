@@ -47,6 +47,8 @@ using ::starboard::GetPlayerStateName;
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
 
+constexpr int kDefaultMaxSamplePerWrite = 1;
+
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
   for (auto&& configuration : configurations) {
@@ -136,6 +138,8 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
+      // TODO: b/375674101 - Connect this to the starboard::feature.
+      max_samples_per_write_(kDefaultMaxSamplePerWrite),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -144,7 +148,13 @@ StarboardRenderer::StarboardRenderer(
 {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  CHECK_GT(max_samples_per_write_, 0);
+  LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
+            << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", max_video_capabilities=\"" << max_video_capabilities_ << "\""
+            << ", max_samples_per_write=" << max_samples_per_write_
+            << ", view_port_size=" << viewport_size_.ToString();
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -724,13 +734,14 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
 void StarboardRenderer::OnDemuxerStreamRead(
     DemuxerStream* stream,
+    int max_buffers,
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                       weak_factory_.GetWeakPtr(), stream, status, buffers));
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                                  weak_factory_.GetWeakPtr(), stream,
+                                  max_buffers, status, buffers));
     return;
   }
 
@@ -802,8 +813,10 @@ void StarboardRenderer::OnDemuxerStreamRead(
           stream->video_decoder_config().visible_rect().size());
     }
     UpdateDecoderConfig(stream);
-    stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                                   weak_factory_.GetWeakPtr(), stream));
+    stream->Read(
+        max_buffers,
+        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                       weak_factory_.GetWeakPtr(), stream, max_buffers));
   } else if (status == DemuxerStream::kError) {
     client_->OnError(PIPELINE_ERROR_READ);
   }
@@ -826,10 +839,8 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  int max_buffers = max_audio_samples_per_write_ > 1
-                        ? std::min(max_number_of_buffers_to_write,
-                                   max_audio_samples_per_write_)
-                        : 1;
+  int max_buffers =
+      std::min(max_number_of_buffers_to_write, max_samples_per_write_);
 
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
@@ -884,13 +895,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
         audio_read_delayed_ = true;
         return;
       }
-      if (max_audio_samples_per_write_ > 1 &&
-          !time_ahead_of_playback.is_negative()) {
+      if (max_samples_per_write_ > 1 && !time_ahead_of_playback.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(adjusted_write_duration,
                                                        time_ahead_of_playback,
                                                        false /* is_preroll */);
       }
-    } else if (max_audio_samples_per_write_ > 1) {
+    } else if (max_samples_per_write_ > 1) {
       if (!time_ahead_of_playback_for_preroll.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(
             adjusted_write_duration_for_preroll,
@@ -925,7 +935,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 
   stream->Read(max_buffers,
                base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                              weak_factory_.GetWeakPtr(), stream));
+                              weak_factory_.GetWeakPtr(), stream, max_buffers));
 }
 
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
@@ -1060,8 +1070,7 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
 
   int estimated_max_buffers = 1;
-  if (!(max_audio_samples_per_write_ > 1) ||
-      write_duration <= time_ahead_of_playback) {
+  if (max_samples_per_write_ <= 1 || write_duration <= time_ahead_of_playback) {
     return estimated_max_buffers;
   }
 

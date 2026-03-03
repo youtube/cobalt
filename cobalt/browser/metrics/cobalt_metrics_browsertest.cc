@@ -102,6 +102,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.Skia");
+  check_histogram("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache");
   check_histogram("Memory.Experimental.Browser2.Small.FontCaches");
   check_histogram("Memory.Experimental.Browser2.Small.LevelDatabase");
   check_histogram("Memory.Experimental.Browser2.Small.UI");
