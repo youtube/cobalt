@@ -235,7 +235,7 @@ define UPLOAD_RULE
 .PHONY: upload-$(1)
 upload-$(1): revision-check
 	@echo "Uploading $$(notdir $$($(1)_UPLOADS)) to $$($(1)_CONTINUOUS_DIR)"
-	@$(GCLOUD) storage cp --predefined-acl=public-read $$($(1)_UPLOADS) $$($(1)_CONTINUOUS_DIR)
+	@$(GCLOUD) storage cp --predefined-acl=publicRead $$($(1)_UPLOADS) $$($(1)_CONTINUOUS_DIR)
 
 upload: upload-$(1)
 endef
