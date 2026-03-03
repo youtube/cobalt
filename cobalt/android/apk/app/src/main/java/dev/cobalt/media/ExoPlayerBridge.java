@@ -65,7 +65,7 @@ public class ExoPlayerBridge {
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 switch (playbackState) {
                     case Player.STATE_BUFFERING:
                     case Player.STATE_IDLE:
@@ -82,7 +82,7 @@ public class ExoPlayerBridge {
 
         @Override
         public void onTracksChanged(Tracks tracks) {
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
             }
         }
@@ -91,7 +91,7 @@ public class ExoPlayerBridge {
         public synchronized void onIsPlayingChanged(boolean isPlaying) {
             updatePositionAnchor();
             mIsProgressing = isPlaying;
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
             }
         }
@@ -121,7 +121,7 @@ public class ExoPlayerBridge {
         @Override
         public void onDroppedVideoFrames(
                 @NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
-            if (mPlayer == null || mIsReleased) {
+            if (mPlayer != null && !mIsReleased) {
                 ExoPlayerBridgeJni.get()
                     .onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
             }
@@ -136,13 +136,12 @@ public class ExoPlayerBridge {
      * @param renderersFactory The factory for creating media renderers.
      * @param audioSource The audio MediaSource, or null if audio-only playback.
      * @param videoSource The video MediaSource, or null if video-only playback.
-     * @param drmBridge The DRM bridge for protected content, or null if clear.
      * @param surface The rendering surface for video.
      * @param enableTunnelMode Whether to enable low-latency tunneling mode.
      */
     public ExoPlayerBridge(long nativeExoPlayerBridge, Context context,
             DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
-            @Nullable ExoPlayerMediaSource videoSource, @Nullable ExoPlayerDrmBridge drmBridge,
+            @Nullable ExoPlayerMediaSource videoSource,
             @Nullable Surface surface, boolean enableTunnelMode) {
         this.mExoplayerHandler = new Handler(Looper.getMainLooper());
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
@@ -179,10 +178,6 @@ public class ExoPlayerBridge {
                         .setLooper(mExoplayerHandler.getLooper())
                         .setTrackSelector(trackSelector)
                         .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS);
-
-        if (drmBridge != null) {
-            builder.setMediaSourceFactory(drmBridge.getMediaSourceFactory());
-        }
 
         mPlayer = builder.build();
 
@@ -245,6 +240,7 @@ public class ExoPlayerBridge {
             reportError(
                 String.format("Tried to write %s sample while ExoPlayer is in an invalid state",
                     sample.getType() == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+            return;
         }
         mediaSource.writeSample(sample);
     }
@@ -257,6 +253,7 @@ public class ExoPlayerBridge {
             reportError(String.format(
                     "Tried to write %s EOS sample while ExoPlayer is in an invalid state",
                     type == ExoPlayerRendererType.AUDIO ? "audio" : "video"));
+            return;
         }
         mediaSource.writeEndOfStream();
     }

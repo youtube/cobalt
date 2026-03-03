@@ -22,12 +22,9 @@ import androidx.media3.common.DataReader;
 import androidx.media3.common.Format;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
-import androidx.media3.exoplayer.drm.DrmSessionEventListener;
-import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
-import androidx.media3.extractor.TrackOutput;
 import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -79,12 +76,6 @@ public class ExoPlayerSampleStream implements SampleStream {
         mSampleQueue.format(format);
     }
 
-    ExoPlayerSampleStream(Allocator allocator, Format format, DrmSessionManager drmSessionManager,
-            DrmSessionEventListener.EventDispatcher eventDispatcher) {
-        mSampleQueue = SampleQueue.createWithDrm(allocator, drmSessionManager, eventDispatcher);
-        mSampleQueue.format(format);
-    }
-
     void discardBuffer(long positionUs, boolean toKeyframe) {
         synchronized (mLock) {
             mSampleQueue.discardTo(positionUs, toKeyframe, false);
@@ -93,25 +84,9 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     /**
      * Queues a sample to the {@link SampleQueue}.
-     *
-     * This method handles both clear and encrypted samples. For encrypted samples, it
-     * writes the encryption preamble (signal byte, IV, and optional subsample data) as
-     * supplemental data before the main sample payload.
      */
     public void writeSample(ExoPlayerMediaSample sample) {
         synchronized (mLock) {
-            if (sample.isEncrypted()) {
-                mSampleQueue.sampleData(
-                        sample.getEncryptionSignalByte(), 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-                mSampleQueue.sampleData(sample.getIvData(), sample.getIvData().limit(),
-                        TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-                if (sample.hasSubsamples()) {
-                    mSampleQueue.sampleData(sample.getSubsampleData(),
-                            sample.getSubsampleData().limit(),
-                            TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
-                }
-            }
-
             try {
                 ByteBufferDataReader dataReader = new ByteBufferDataReader(sample.getSamples());
                 int bytesWritten = 0;
@@ -128,7 +103,7 @@ public class ExoPlayerSampleStream implements SampleStream {
                 return;
             }
             mSampleQueue.sampleMetadata(sample.getTimestampUsec(), sample.getFlags(),
-                    sample.getTotalSize(), 0, sample.getCryptoData());
+                    sample.getSize(), 0, null);
         }
     }
 

@@ -22,8 +22,6 @@ import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.datasource.TransferListener;
-import androidx.media3.exoplayer.analytics.PlayerId;
-import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.BaseMediaSource;
 import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SinglePeriodTimeline;
@@ -43,12 +41,10 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     // Guarded by mLock
     private ExoPlayerMediaPeriod mMediaPeriod;
     private final MediaItem mMediaItem;
-    private DrmSessionManager mDrmSessionManager;
     private final Object mLock = new Object();
 
-    ExoPlayerMediaSource(Format format, DrmSessionManager drmSessionManager) {
+    ExoPlayerMediaSource(Format format) {
         this.mFormat = format;
-        mDrmSessionManager = drmSessionManager;
         this.mMediaItem = new MediaItem.Builder().setMediaMetadata(MediaMetadata.EMPTY).build();
     }
 
@@ -58,10 +54,6 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
 
     @Override
     protected void prepareSourceInternal(@Nullable TransferListener mediaTransferListener) {
-        if (mDrmSessionManager != null) {
-            mDrmSessionManager.setPlayer(Looper.myLooper(), PlayerId.UNSET);
-            mDrmSessionManager.prepare();
-        }
         refreshSourceInfo(new SinglePeriodTimeline(
                 /* durationUs= */ C.TIME_UNSET,
                 /* isSeekable= */ true,
@@ -71,9 +63,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     }
 
     @Override
-    protected void releaseSourceInternal() {
-        // DrmSessionManager is owned by ExoPlayerDrmBridge, so we do not release it here.
-    }
+    protected void releaseSourceInternal() {}
 
     @Override
     public MediaItem getMediaItem() {
@@ -87,8 +77,7 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
         synchronized (mLock) {
             if (mMediaPeriod == null) {
-                mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator, mDrmSessionManager,
-                        mDrmSessionManager != null ? createDrmEventDispatcher(id) : null);
+                mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator);
                 return mMediaPeriod;
             }
         }
