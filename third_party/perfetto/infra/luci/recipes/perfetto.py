@@ -16,7 +16,7 @@
 from recipe_engine.recipe_api import Property
 
 DEPS = [
-    'depot_tools/gcloud',
+    'depot_tools/gsutil',
     'recipe_engine/buildbucket',
     'recipe_engine/cipd',
     'recipe_engine/context',
@@ -95,14 +95,13 @@ def UploadArtifact(api, ctx, platform, out_dir, artifact):
 
   # Upload to GCS bucket.
   gcs_target_path = '{}/{}/{}'.format(gcs_upload_dir, platform, artifact_ext)
-  api.gcloud.storage.cp(source_path,
-                         'gs://perfetto-luci-artifacts/' + gcs_target_path)
+  api.gsutil.upload(source_path, 'perfetto-luci-artifacts', gcs_target_path)
 
   # Uploads also the .pdb (debug symbols) to GCS.
   pdb_path = exe_dir.joinpath(artifact_ext + '.pdb')
   if api.platform.is_win:
-    api.gcloud.storage.cp(pdb_path, 'gs://perfetto-luci-artifacts/' +
-                          gcs_target_path + '.pdb')
+    api.gsutil.upload(pdb_path, 'perfetto-luci-artifacts',
+                      gcs_target_path + '.pdb')
 
   # Create the CIPD package definition from the artifact path.
   cipd_pkg_name = 'perfetto/{}/{}'.format(artifact['name'], platform)
@@ -152,7 +151,7 @@ def BuildForPlatform(api, ctx, platform):
     api.step('gn clean', ['python3', 'tools/gn', 'clean', out_dir])
     api.step('ninja', ['python3', 'tools/ninja', '-C', out_dir] + targets)
 
-  # Upload stripped artifacts using gcloud storage if we're on the official builder.
+  # Upload stripped artifacts using gsutil if we're on the official builder.
   if 'official' not in api.buildbucket.builder_name:
     return
 
