@@ -39,12 +39,6 @@ class GLOzoneEGLStarboard : public GLOzoneEGL {
   gl::EGLDisplayPlatform GetNativeDisplay() override;
   bool LoadGLES2Bindings(
       const gl::GLImplementationParts& implementation) override;
-
- private:
-  void CreateDisplayTypeIfNeeded();
-
-  void* display_type_ = nullptr;
-  bool have_display_type_ = false;
 };
 
 }  // namespace ui
