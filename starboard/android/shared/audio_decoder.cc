@@ -69,11 +69,29 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 
 }  // namespace
 
+// static
+NonNullResult<std::unique_ptr<MediaCodecAudioDecoder>>
+MediaCodecAudioDecoder::Create(JobQueue* job_queue,
+                               const AudioStreamInfo& audio_stream_info,
+                               SbDrmSystem drm_system,
+                               bool enable_flush_during_seek) {
+  std::string error_message;
+  auto audio_decoder = std::make_unique<MediaCodecAudioDecoder>(
+      PassKey<MediaCodecAudioDecoder>(), job_queue, audio_stream_info,
+      drm_system, enable_flush_during_seek, &error_message);
+  if (audio_decoder->media_decoder_) {
+    return audio_decoder;
+  }
+  return Failure(error_message);
+}
+
 MediaCodecAudioDecoder::MediaCodecAudioDecoder(
+    PassKey<MediaCodecAudioDecoder>,
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
-    bool enable_flush_during_seek)
+    bool enable_flush_during_seek,
+    std::string* error_message)
     : JobOwner(job_queue),
       audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
@@ -81,8 +99,10 @@ MediaCodecAudioDecoder::MediaCodecAudioDecoder(
       output_sample_rate_(audio_stream_info.samples_per_second),
       output_channel_count_(audio_stream_info.number_of_channels),
       drm_system_(static_cast<DrmSystem*>(drm_system)) {
-  if (!InitializeCodec()) {
-    SB_LOG(ERROR) << "Failed to initialize audio decoder.";
+  SB_CHECK(error_message);
+  auto result = InitializeCodec();
+  if (!result) {
+    *error_message = result.error();
   }
 }
 
@@ -178,9 +198,11 @@ void MediaCodecAudioDecoder::Reset() {
       !media_decoder_->Flush()) {
     media_decoder_.reset();
 
-    if (!InitializeCodec()) {
-      // TODO: Communicate this failure to our clients somehow.
-      SB_LOG(ERROR) << "Failed to initialize codec after reset.";
+    auto result = InitializeCodec();
+    if (!result) {
+      ReportError(
+          kSbPlayerErrorDecode,
+          "Failed to initialize audio decoder after reset: " + result.error());
     }
   }
   audio_frame_discarder_.Reset();
@@ -194,19 +216,20 @@ void MediaCodecAudioDecoder::Reset() {
   CancelPendingJobs();
 }
 
-bool MediaCodecAudioDecoder::InitializeCodec() {
+Result<void> MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(
+  auto result = MediaCodecDecoder::CreateForAudio(
       job_queue(), this, audio_stream_info_, drm_system_);
-  if (media_decoder_->is_valid()) {
+  if (result) {
+    media_decoder_ = std::move(result.value());
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
     }
-    return true;
+    return Success();
   }
-  media_decoder_.reset();
-  return false;
+  SB_LOG(ERROR) << "Failed to initialize audio decoder: " << result.error();
+  return Failure(result.error());
 }
 
 void MediaCodecAudioDecoder::ProcessOutputBuffer(

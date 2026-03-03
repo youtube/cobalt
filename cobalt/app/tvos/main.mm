@@ -27,6 +27,8 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/render_view_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "starboard/common/command_line.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
@@ -37,6 +39,11 @@ static const char** g_argv = nullptr;
 @end
 
 @implementation CobaltAppSceneDelegate
+
+- (content::WebContents*)getWebContents {
+  CHECK_EQ(1u, content::Shell::windows().size());
+  return content::Shell::windows()[0]->web_contents();
+}
 
 - (void)scene:(UIScene*)scene
     willConnectToSession:(UISceneSession*)session
@@ -54,6 +61,38 @@ static const char** g_argv = nullptr;
   [window makeKeyAndVisible];
 }
 
+- (void)sceneWillEnterForeground:(UIScene*)scene {
+  content::WebContents* web_contents = [self getWebContents];
+  // A visible page is automatically unfrozen and it should not call
+  // `SetPageFrozen`.
+  if (web_contents->GetVisibility() != content::Visibility::VISIBLE) {
+    // Unfreeze the page when entering foreground, triggering
+    // `document.onresume` event in JavaScript.
+    web_contents->SetPageFrozen(false);
+  }
+  // Explicitly update visibility when the scene becomes visible, even though
+  // WebContents is initially created with `Visibility::VISIBLE`.
+  // See `WebContentsImpl::UpdateWebContentsVisibility`.
+  web_contents->UpdateWebContentsVisibility(content::Visibility::VISIBLE);
+}
+
+- (void)sceneDidBecomeActive:(UIScene*)scene {
+  content::WebContents* web_contents = [self getWebContents];
+  web_contents->GetRenderViewHost()->GetWidget()->Focus();
+}
+
+- (void)sceneWillResignActive:(UIScene*)scene {
+  content::WebContents* web_contents = [self getWebContents];
+  web_contents->GetRenderViewHost()->GetWidget()->Blur();
+}
+
+- (void)sceneDidEnterBackground:(UIScene*)scene {
+  content::WebContents* web_contents = [self getWebContents];
+  web_contents->UpdateWebContentsVisibility(content::Visibility::HIDDEN);
+  // Freeze the page when entering background, triggering `document.onfreeze`
+  // event in JavaScript.
+  web_contents->SetPageFrozen(true);
+}
 @end
 
 @interface CobaltAppDelegate : UIResponder <UIApplicationDelegate> {

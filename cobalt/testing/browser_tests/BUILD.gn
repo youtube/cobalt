@@ -180,10 +180,7 @@ if (is_android) {
 
 copy("cobalt_browsertests_runner_script") {
   testonly = true
-
-  # TODO(433354983): Switch back to the run_browser_tests.py
-  # once the infra supports python.
-  sources = [ "cobalt_browsertests_runner.sh" ]
+  sources = [ "run_browser_tests.py" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
   deps = [ ":cobalt_browsertests" ]
 }
@@ -209,6 +206,8 @@ test("cobalt_browsertests") {
 
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
+    "//cobalt/browser/metrics/cobalt_metrics_browsertest.cc",
+    "//cobalt/browser/metrics/font_metrics_browsertest.cc",
     "content_main_runner_impl_browsertest.cc",
 
     #"encrypted_media_browsertest.cc",
@@ -260,6 +259,9 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
+    "//cobalt/browser:global_features",
+    "//cobalt/browser:metrics",
+    "//cobalt/browser:switches",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
@@ -267,6 +269,7 @@ test("cobalt_browsertests") {
     "//components/discardable_memory/common",
     "//components/discardable_memory/service",
     "//components/favicon/content",
+    "//components/metrics_services_manager",
     "//components/network_session_configurator/common",
     "//components/payments/mojom",
     "//components/performance_manager",
@@ -462,6 +465,7 @@ static_library("cobalt_shell_test_lib") {
     ":cobalt_browsertests_support",
     ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",

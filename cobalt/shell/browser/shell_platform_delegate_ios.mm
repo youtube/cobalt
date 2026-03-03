@@ -22,8 +22,6 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
-#include "content/public/browser/browser_accessibility_state.h"
-#include "content/public/browser/scoped_accessibility_mode.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
@@ -31,7 +29,6 @@
 #import "starboard/tvos/shared/starboard_application.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
-#include "ui/accessibility/ax_mode.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -58,9 +55,6 @@ const char kNavigationTracingCategories[] =
     "disabled-by-default-user_action_samples,disk_cache";
 
 const char kAllTracingCategories[] = "*";
-
-constexpr ui::AXMode kVoiceOverEnabledAXMode =
-    ui::kAXModeComplete | ui::AXMode::kFromPlatform | ui::AXMode::kScreenReader;
 
 }  // namespace
 
@@ -118,7 +112,6 @@ constexpr ui::AXMode kVoiceOverEnabledAXMode =
 - (void)startTracingWithCategories:(const char*)categories;
 - (UIAlertController*)actionSheetWithTitle:(nullable NSString*)title
                                    message:(nullable NSString*)message;
-- (void)voiceOverStatusDidChange;
 @end
 
 @implementation ContentShellWindowDelegate
@@ -131,7 +124,6 @@ constexpr ui::AXMode kVoiceOverEnabledAXMode =
 @synthesize toolbarBackgroundView = _toolbarBackgroundView;
 @synthesize toolbarContentView = _toolbarContentView;
 @synthesize tracingHandler = _tracingHandler;
-std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
 
 + (UIColor*)backgroundColorDefault {
   return [UIColor colorWithRed:66.0 / 255.0
@@ -268,20 +260,6 @@ std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
   playerContainerView.accessibilityIdentifier = @"Player Container";
   [_contentView addSubview:playerContainerView];
   [SBDGetApplication() setPlayerContainerView:playerContainerView];
-
-  // Enable Accessibility if VoiceOver is already running.
-  if (UIAccessibilityIsVoiceOverRunning()) {
-    _scopedAccessibilityMode =
-        content::BrowserAccessibilityState::GetInstance()
-            ->CreateScopedModeForProcess(kVoiceOverEnabledAXMode);
-  }
-
-  // Register for VoiceOver notifications.
-  [[NSNotificationCenter defaultCenter]
-      addObserver:self
-         selector:@selector(voiceOverStatusDidChange)
-             name:UIAccessibilityVoiceOverStatusDidChangeNotification
-           object:nil];
 
   // Once the splash screen web contents are created, the corresponding UIView
   // will be added to `_contentView`.
@@ -497,17 +475,6 @@ std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
       CGRectMake(CGRectGetWidth(_menuButton.bounds) / 2,
                  CGRectGetHeight(_menuButton.bounds), 1, 1);
   return alertController;
-}
-
-- (void)voiceOverStatusDidChange {
-  content::BrowserAccessibilityState* accessibility_state =
-      content::BrowserAccessibilityState::GetInstance();
-  if (UIAccessibilityIsVoiceOverRunning()) {
-    _scopedAccessibilityMode = accessibility_state->CreateScopedModeForProcess(
-        kVoiceOverEnabledAXMode);
-  } else {
-    _scopedAccessibilityMode.reset();
-  }
 }
 
 @end

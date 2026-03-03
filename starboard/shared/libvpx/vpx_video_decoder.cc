@@ -65,7 +65,7 @@ void VpxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("vpx_video_decoder"));
+    decoder_thread_ = JobThread::Create("vpx_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
 
@@ -101,6 +101,7 @@ void VpxVideoDecoder::Reset() {
     decoder_thread_->ScheduleAndWait(
         std::bind(&VpxVideoDecoder::TeardownCodec, this));
 
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 

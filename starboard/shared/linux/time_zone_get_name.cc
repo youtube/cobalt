@@ -25,12 +25,6 @@
 #define TZZONEINFOTAIL "/zoneinfo/"
 #define isNonDigit(ch) (ch < '0' || '9' < ch)
 
-// Follow symlinks up to a reasonable depth to avoid infinite loops.
-const int kMaxSymlinks = 8;
-
-static char gTimeZoneBuffer[PATH_MAX];
-static char* gTimeZoneBufferPtr = NULL;
-
 static bool isValidOlsonID(const char* id) {
   int32_t idx = 0;
 
@@ -59,58 +53,22 @@ const char* SbTimeZoneGetName() {
   But this is production-tested solution for most versions of Linux.
   */
 
-  struct stat time_zone_stat;
-  char time_zone_input_buffer[PATH_MAX];
+  static thread_local char s_tz_name[PATH_MAX];
 
-  if (gTimeZoneBufferPtr == NULL) {
-    // Copy default path into time_zone_input_buffer
-    memcpy(time_zone_input_buffer, TZDEFAULT, sizeof(TZDEFAULT));
+  char tz_path[PATH_MAX];
+  int32_t ret = (int32_t)readlink(TZDEFAULT, tz_path, sizeof(tz_path) - 1);
+  if (0 < ret) {
+    int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
+    tz_path[ret] = 0;
+    char* tzZoneInfoTailPtr = strstr(tz_path, TZZONEINFOTAIL);
 
-    // On some platforms (ex. NixOS FHSEnvs), /etc/localtime will be a
-    // symlink chain:
-    //
-    //   $ readlink /etc/localtime
-    //   /.host-etc/localtime
-    //
-    //   $ readlink /.host-etc/localtime
-    //   /etc/zoneinfo/America/New_York
-    //
-
-    for (int i = 0; i < kMaxSymlinks; ++i) {
-      int32_t ret = (int32_t)readlink(time_zone_input_buffer, gTimeZoneBuffer,
-                                      sizeof(gTimeZoneBuffer) - 1);
-
-      if (ret <= 0) {
-        // Failed to read link, or it's not a link.
-        break;
-      }
-
-      int32_t tz_zone_info_tail_len = sizeof(TZZONEINFOTAIL) - 1;
-      gTimeZoneBuffer[ret] = 0;
-      char* tz_zone_info_tail_ptr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
-
-      // Stop on the first symlink that is a valid time zone.
-      if (tz_zone_info_tail_ptr != NULL &&
-          isValidOlsonID(tz_zone_info_tail_ptr + tz_zone_info_tail_len)) {
-        return (gTimeZoneBufferPtr =
-                    tz_zone_info_tail_ptr + tz_zone_info_tail_len);
-      }
-
-      // Check if the target is another symlink to follow.
-      if (gTimeZoneBuffer[0] != '/' ||
-          lstat(gTimeZoneBuffer, &time_zone_stat) == -1 ||
-          !S_ISLNK(time_zone_stat.st_mode)) {
-        // Not an absolute path, lstat failed, or not a symlink. Stop.
-        break;
-      }
-
-      // It is another symlink, copy path and continue loop.
-      memcpy(time_zone_input_buffer, gTimeZoneBuffer, ret + 1);
+    if (tzZoneInfoTailPtr != NULL &&
+        isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen)) {
+      snprintf(s_tz_name, sizeof(s_tz_name), "%s",
+               tzZoneInfoTailPtr + tzZoneInfoTailLen);
+      return s_tz_name;
     }
-
-    SB_NOTREACHED();
-    return "";
-  } else {
-    return gTimeZoneBufferPtr;
   }
+  SB_NOTREACHED();
+  return "";
 }

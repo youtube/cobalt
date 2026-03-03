@@ -78,6 +78,9 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/storage_write_record.cc",
     "//starboard/shared/stub/system_symbolize.cc",
+    "accessibility_extension.cc",
+    "accessibility_extension.h",
+    "accessibility_get_text_to_speech_settings.mm",
     "application_darwin.h",
     "application_darwin.mm",
     "configuration_constants.cc",
@@ -127,7 +130,7 @@ static_library("starboard_platform") {
     "media/vp9_sw_av_video_sample_buffer_builder.mm",
     "media_can_play_mime_and_key_system.mm",
     "media_is_audio_supported.mm",
-    "media_is_supported.mm",
+    "media_is_key_system_supported.mm",
     "media_is_video_supported.mm",
     "observer_registry.cc",
     "observer_registry.h",
@@ -141,6 +144,7 @@ static_library("starboard_platform") {
     "storage_internal.mm",
     "storage_open_record.mm",
     "storage_read_record.mm",
+    "system_get_extensions.cc",
     "system_get_number_of_processors.mm",
     "system_get_path.mm",
     "system_get_property.mm",
@@ -150,6 +154,13 @@ static_library("starboard_platform") {
     "uikit_media_session_client.h",
     "uikit_media_session_client.mm",
   ]
+
+  if (is_internal_build) {
+    sources += [
+      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h",
+      "//cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.mm",
+    ]
+  }
 
   sources += common_player_sources
 
@@ -164,9 +175,6 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
     "//starboard/shared/stub/drm_update_server_certificate.cc",
     "//starboard/shared/stub/drm_update_session.cc",
-
-    # TODO: b/470021310 - get the tvOS version of this file to build.
-    "//starboard/shared/stub/system_get_extensions.cc",
   ]
 
   sources -= [

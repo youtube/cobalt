@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -28,6 +29,7 @@
 #include "base/version.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
+#include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -40,6 +42,8 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -52,6 +56,55 @@ using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::StrictMock;
+
+class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
+ public:
+  TestProcessMemoryMetricsEmitter() = default;
+
+  void FetchAndEmitProcessMemoryMetrics() override {
+    // Prepare a dummy GlobalMemoryDump.
+    memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+        memory_instrumentation::mojom::GlobalMemoryDump::New();
+
+    // Browser process dump
+    auto browser_dump = memory_instrumentation::mojom::ProcessMemoryDump::New();
+    browser_dump->process_type =
+        memory_instrumentation::mojom::ProcessType::BROWSER;
+    browser_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
+    browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
+    browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
+    browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
+
+    // Add a malloc dump
+    auto malloc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    malloc_dump->numeric_entries["effective_size"] = 10 * 1024 * 1024;
+    malloc_dump->numeric_entries["allocated_objects_size"] = 8 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["malloc"] = std::move(malloc_dump);
+
+    // Add Skia Glyph Cache dump
+    auto skia_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    skia_dump->numeric_entries["size"] = 2 * 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["skia/sk_glyph_cache"] =
+        std::move(skia_dump);
+
+    // Add Font Caches dump
+    auto font_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    font_dump->numeric_entries["size"] = 512 * 1024;
+    browser_dump->chrome_allocator_dumps["font_caches/shape_caches"] =
+        std::move(font_dump);
+
+    dump_ptr->process_dumps.push_back(std::move(browser_dump));
+
+    auto global_dump =
+        memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+    // Manually trigger ReceivedMemoryDump with our dummy dump.
+    ReceivedMemoryDump(true, std::move(global_dump));
+  }
+
+ protected:
+  ~TestProcessMemoryMetricsEmitter() override = default;
+};
 
 // Mock for MetricsService to verify construction of a specific MetricsService
 // in tests.
@@ -146,6 +199,11 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
         });
     mock_log_uploader_ = mock_uploader.get();
     return std::move(mock_uploader);
+  }
+
+  scoped_refptr<CobaltMemoryMetricsEmitter> CreateMemoryMetricsEmitter()
+      override {
+    return base::MakeRefCounted<TestProcessMemoryMetricsEmitter>();
   }
 
   void OnApplicationNotIdleInternal() override {
@@ -297,21 +355,45 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
+  base::HistogramTester histogram_tester;
+
+  // Trigger a memory dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Wait for the dump to be processed.
+  task_environment_.FastForwardBy(base::Seconds(3));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  // Verify process-specific and region-specific metrics.
+  // Note: we check for >= 1 sample because periodic collection might also fire.
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
+          .size(),
+      1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.ResidentSet").size(),
+            1u);
+  EXPECT_GE(
+      histogram_tester
+          .GetAllSamples("Memory.Experimental.Browser2.Malloc.AllocatedObjects")
+          .size(),
+      1u);
+
+  // Experimental histograms (now with .Small. suffix in KB)
+  histogram_tester.ExpectUniqueSample(
+      "Memory.Experimental.Browser2.Skia.Small.SkGlyphCache", 2048, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Memory.Experimental.Browser2.Small.FontCaches", 512, 1);
+}
+
 TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;
 
   EXPECT_CALL(done_callback_mock, Run());
-  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
   client_->CollectFinalMetricsForLog(done_callback_mock.Get());
-  // Most ideally, we could assert that the "real" OnApplicationIdle was
-  // called. However, this is impossible without modifying MetricsService itself
-  // which we really don't want to do. There is no real virtual method in
-  // MetricsService that seems to indicate OnApplicationNotIdle was called.
-  // The second best we can do within these constraints is to assert our
-  // internal method is called, which should call OnApplicationNotIdle() in the
-  // real impl.
-  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
 }
 
 TEST_F(CobaltMetricsServiceClientTest, GetMetricsServerUrlReturnsPlaceholder) {

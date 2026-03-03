@@ -2914,6 +2914,10 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
       *base::CommandLine::ForCurrentProcess(), is_quic_force_disabled,
       &session_params, quic_context->params());
 
+#if BUILDFLAG(IS_COBALT)
+  session_params.use_quic_for_unknown_origins = true;
+#endif
+
   session_params.disable_idle_sockets_close_on_memory_pressure =
       params_->disable_idle_sockets_close_on_memory_pressure;
 

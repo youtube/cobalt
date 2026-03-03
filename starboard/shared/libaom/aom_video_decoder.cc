@@ -67,7 +67,7 @@ void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("aom_video_decoder"));
+    decoder_thread_ = JobThread::Create("aom_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
 
@@ -103,6 +103,7 @@ void AomVideoDecoder::Reset() {
         std::bind(&AomVideoDecoder::TeardownCodec, this));
 
     // Join the thread to ensure that all callbacks in process are finished.
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 

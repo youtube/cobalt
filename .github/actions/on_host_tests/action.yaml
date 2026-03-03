@@ -1,6 +1,9 @@
 name: On Host Tests
 description: Runs on-host tests.
 inputs:
+  nightly:
+    description: "Indicates if this is a nightly job."
+    required: true
   test_artifacts_key:
     description: "Artifact key used to store test artifacts."
     required: true
@@ -14,7 +17,7 @@ runs:
   using: "composite"
   steps:
     - name: Download Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: ${{ inputs.test_artifacts_key }}
     - name: Extract Artifacts
@@ -111,3 +114,15 @@ runs:
       with:
         name: ${{ inputs.test_results_key }}
         path: ${{ env.results_dir }}/*
+    - name: Get Deflake Max Attempts
+      if: inputs.nightly == 'true'
+      id: deflake-attempts
+      run: |
+        MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
+        echo "max_attempts=${MAX_ATTEMPTS}" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Run Nightly Deflake
+      # Deflake workflow retries MAX_ATTEMPTS times. Pass the last to keep dashboard green.
+      if: inputs.nightly == 'true' && github.run_attempt != steps.deflake-attempts.outputs.max_attempts
+      run: echo "::warning::Triggering deflaking run by failing." && exit 1
+      shell: bash

@@ -79,9 +79,6 @@ config("modular") {
       "-fvisibility=hidden",
       "-fno-exceptions",
 
-      # Enable unwind tables used by libunwind for stack traces.
-      "-funwind-tables",
-
       # Disable usage of frame pointers.
       "-fomit-frame-pointer",
       "-fno-strict-aliasing",  # See http://crbug.com/32204

@@ -53,10 +53,10 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ConsumeFramesFunc consume_frames_func_;
   void* context_;
 
-  std::unique_ptr<JobThread> audio_out_thread_;
-  std::mutex mutex_;
+  const std::unique_ptr<JobThread> audio_out_thread_;
 
-  bool destroying_;
+  std::mutex mutex_;
+  bool destroying_ = false;  // Guarded by |mutex_|.
 };
 
 StubAudioSink::StubAudioSink(
@@ -70,9 +70,10 @@ StubAudioSink::StubAudioSink(
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
-      destroying_(false) {
-  audio_out_thread_ =
-      std::make_unique<JobThread>("stub_audio_out", kSbThreadPriorityRealTime);
+      audio_out_thread_(
+          JobThread::Create("stub_audio_out", kSbThreadPriorityRealTime)) {
+  SB_CHECK(audio_out_thread_);
+
   audio_out_thread_->Schedule([this] { AudioThreadFunc(); });
 }
 
@@ -81,7 +82,7 @@ StubAudioSink::~StubAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  audio_out_thread_.reset();
+  audio_out_thread_->Stop();
 }
 
 void StubAudioSink::AudioThreadFunc() {

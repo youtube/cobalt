@@ -50,6 +50,14 @@ class TestCollectTestArtifacts(unittest.TestCase):
           'out/linux', is_android=False)
       self.assertEqual(result, os.path.join('bin', 'run_cobalt_browsertests'))
 
+  def test_get_test_runner_linux_runner(self):
+    with mock.patch('os.path.isfile') as mock_isfile:
+      # Simulate cobalt_browsertests_runner exists
+      mock_isfile.side_effect = lambda x: 'cobalt_browsertests_runner' in x
+      result = collect_test_artifacts.get_test_runner(
+          'out/linux', is_android=False)
+      self.assertEqual(result, 'cobalt_browsertests_runner')
+
   def test_get_test_runner_linux_fallback(self):
     with mock.patch('os.path.isfile', return_value=False):
       result = collect_test_artifacts.get_test_runner(
@@ -128,6 +136,28 @@ class TestCollectTestArtifacts(unittest.TestCase):
     self.assertIn('deps_path', written_content)
     self.assertIn('runner_path', written_content)
     mock_chmod.assert_called_once_with('run.py', 0o755)
+
+
+class TestCollectTestArtifactsMain(unittest.TestCase):
+  """Tests for the main() entry point and argument parsing."""
+
+  @mock.patch('collect_test_artifacts.find_runtime_deps')
+  @mock.patch('os.makedirs')
+  @mock.patch('argparse.ArgumentParser.error')
+  def test_main_absolute_output_with_output_dir_fails(self, mock_error,
+                                                      unused_makedirs,
+                                                      unused_find_deps):
+    mock_error.side_effect = SystemExit
+    test_args = [
+        'collect_test_artifacts.py', 'out/dir', '--output_dir', '/tmp/out',
+        '--output', '/tmp/absolute/path.tar.gz'
+    ]
+    with mock.patch('sys.argv', test_args):
+      with self.assertRaises(SystemExit):
+        collect_test_artifacts.main()
+
+      mock_error.assert_called_once()
+      self.assertIn('cannot be an absolute path', mock_error.call_args[0][0])
 
 
 if __name__ == '__main__':

@@ -24,7 +24,7 @@
 #endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
 #if defined(INTERNAL_BUILD)
-#import "internal-starboard/tvos/shared/media/vp9_hw_av_video_sample_buffer_builder.h"
+#import "cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h"
 #endif
 
 namespace starboard {

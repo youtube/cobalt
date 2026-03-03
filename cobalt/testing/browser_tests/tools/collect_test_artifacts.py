@@ -36,9 +36,16 @@ def find_runtime_deps(build_dir):
 
 def get_test_runner(build_dir, is_android):
   """Determines the relative path to the test runner."""
-  script_rel = os.path.join('bin', 'run_cobalt_browsertests')
-  if (is_android or os.path.isfile(os.path.join(build_dir, script_rel))):
-    return script_rel
+  if is_android:
+    return os.path.join('bin', 'run_cobalt_browsertests')
+
+  # Check for common runner names
+  for runner in [
+      os.path.join('bin', 'run_cobalt_browsertests'),
+      'cobalt_browsertests_runner',
+  ]:
+    if os.path.isfile(os.path.join(build_dir, runner)):
+      return runner
 
   # For Linux/non-android, we will use the binary directly via
   # run_browser_tests.py. However, some platforms might have a runner script.
@@ -120,8 +127,28 @@ def main():
       '-o',
       '--output',
       default='cobalt_browsertests_artifacts.tar.gz',
-      help='Output filename')
+      help='Output filename (default: cobalt_browsertests_artifacts.tar.gz)')
+  parser.add_argument(
+      '--output_dir', help='Output directory where the tarball will be placed.')
+  parser.add_argument(
+      '--compression',
+      choices=['xz', 'gz', 'zstd'],
+      default='gz',
+      help='The compression algorithm to use.')
+  parser.add_argument(
+      '--adb_platform_tools',
+      type=str,
+      default=('cobalt/testing/browser_tests/tools/'
+               'platform-tools_r33.0.1-linux.zip'),
+      help='The zip file to incorporate into the tarball.')
   args = parser.parse_args()
+
+  if args.output_dir:
+    if os.path.isabs(args.output):
+      parser.error('--output cannot be an absolute path when --output_dir is '
+                   'specified.')
+    os.makedirs(args.output_dir, exist_ok=True)
+    args.output = os.path.join(args.output_dir, args.output)
 
   target_map = {}
   copied_sources = set()
@@ -142,6 +169,12 @@ def main():
         logging.warning('Could not find runtime_deps in %s. Skipping.',
                         build_dir)
         continue
+
+      adb_platform_tools = args.adb_platform_tools
+      if is_android and adb_platform_tools:
+        copy_if_needed(adb_platform_tools,
+                       os.path.join(stage_dir, 'tools/platform-tools.zip'),
+                       copied_sources)
 
       test_runner_rel = get_test_runner(build_dir, is_android)
       logging.info('Processing build directory: %s', build_dir)
@@ -219,7 +252,18 @@ def main():
     generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
 
     logging.info('Creating tarball: %s', args.output)
-    subprocess.run(['tar', '-C', stage_dir, '-czf', args.output, '.'],
+    if args.compression == 'gz':
+      compression_flag = 'gzip -1'
+    elif args.compression == 'xz':
+      compression_flag = 'xz -T0 -1'
+    elif args.compression == 'zstd':
+      compression_flag = 'zstd -T0 -1'
+    else:
+      raise ValueError(f'Unsupported compression: {args.compression}')
+
+    subprocess.run([
+        'tar', '-I', compression_flag, '-C', stage_dir, '-cf', args.output, '.'
+    ],
                    check=True)
 
   logging.info('Done!')

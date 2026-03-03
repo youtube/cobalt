@@ -105,7 +105,7 @@ void StubAudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("stub_audio_decoder"));
+    decoder_thread_ = JobThread::Create("stub_audio_decoder");
   }
   decoder_thread_->Schedule(std::bind(&StubAudioDecoder::DecodeBuffers, this,
                                       input_buffers, consumed_cb));
@@ -138,7 +138,10 @@ scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
 void StubAudioDecoder::Reset() {
   SB_CHECK(BelongsToCurrentThread());
 
-  decoder_thread_.reset();
+  if (decoder_thread_) {
+    decoder_thread_->Stop();
+    decoder_thread_.reset();
+  }
   last_input_buffer_ = NULL;
   total_input_count_ = 0;
   while (!decoded_audios_.empty()) {

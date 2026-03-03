@@ -15,8 +15,8 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
-#include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/devtools_manager_delegate.h"
@@ -47,10 +47,6 @@ class BinderMapWithContext;
 }  // namespace mojo
 
 namespace cobalt {
-
-namespace media {
-class VideoGeometrySetterService;
-}  // namespace media
 
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
@@ -102,11 +98,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
       override;
-  void ExposeInterfacesToRenderer(
-      service_manager::BinderRegistry* registry,
-      blink::AssociatedInterfaceRegistry* associated_registry,
-      content::RenderProcessHost* render_process_host) override;
-  void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
@@ -143,21 +134,22 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
           receiver);
   uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
 
+#if !BUILDFLAG(IS_ANDROIDTV)
+  void SetUserAgentCrashAnnotation();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
  private:
-  void CreateVideoGeometrySetterService();
   void DispatchEvent(const std::string&, base::OnceClosure);
   void OnSbWindowCreated(SbWindow window);
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
-  std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
-      video_geometry_setter_service_;
 
   uint64_t cached_sb_window_ = 0;
   std::vector<
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
       pending_window_receivers_;
 
-  THREAD_CHECKER(thread_checker_);
+  COBALT_THREAD_CHECKER(thread_checker_);
 
   base::WeakPtrFactory<CobaltContentBrowserClient> weak_factory_{this};
 };
