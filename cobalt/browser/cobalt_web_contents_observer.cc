@@ -17,6 +17,7 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/net_errors.h"
@@ -93,6 +94,7 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
     return;
   }
+  UMA_HISTOGRAM_BOOLEAN("Cobalt.PlatformError.Raised", true);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)

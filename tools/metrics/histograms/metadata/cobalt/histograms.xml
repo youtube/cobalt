@@ -31,30 +31,6 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
-<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
-    enum="BooleanHung" expires_after="never">
-  <owner>antonlunev@google.com</owner>
-  <summary>
-    Every 10 seconds, a boolean is recorded to this histogram to indicate
-    whether the RendererThread of a Browser process was hung. The thread is hung
-    if the current work unit started running more than 10 seconds ago. This is
-    emitted only in single process mode(when renderer is a thread inside
-    BrowserProcess).
-
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
-    expires_after="never">
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
-  </summary>
-</histogram>
-
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -91,6 +67,39 @@ Always run the pretty print utility on this file after editing:
     Records whether the version strings in the Finch config are valid and can be
     parsed correctly. A false value indicates a malformed version string was
     received.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
+    expires_after="never">
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformError.Raised" enum="Boolean"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    A boolean is recorded to this histogram to indicate whether a platform error
+    was raised due to a navigation timeout or other network error. This is
+    emitted when a navigation takes too long or results in a network error.
+  </summary>
+</histogram>
+
+<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
+    enum="BooleanHung" expires_after="never">
+  <owner>antonlunev@google.com</owner>
+  <summary>
+    Every 10 seconds, a boolean is recorded to this histogram to indicate
+    whether the RendererThread of a Browser process was hung. The thread is hung
+    if the current work unit started running more than 10 seconds ago. This is
+    emitted only in single process mode(when renderer is a thread inside
+    BrowserProcess).
   </summary>
 </histogram>
 
