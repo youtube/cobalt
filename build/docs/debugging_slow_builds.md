@@ -39,6 +39,7 @@ running `tools/buildstate.py`.
 
 Our bots run `ninjatracing` and `post_build_ninja_summary.py` as well.
 
+<!-- The gsutil command 'upload' is not found in the migration guide and cannot be translated. -->
 Find the trace at: `postprocess for reclient > gsutil upload ninja_log > ninja_log`:
 
  * _".ninja_log in table format (full)"_ is for `post_build_ninja_summary.py`.

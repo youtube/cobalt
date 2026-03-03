@@ -35,8 +35,8 @@ RUNTIME_ZIP_PATH_TEMPLATE = (
 def DownloadFromCloudStorage(url, output_dir):
   """Fetches a file from GCS and put it in |output_dir|."""
   cmd = [
-      os.path.join(find_depot_tools.DEPOT_TOOLS_PATH, 'gsutil.py'), 'cp', url,
-      output_dir
+      os.path.join(find_depot_tools.DEPOT_TOOLS_PATH, 'gcloud.py'), 'storage',
+      'cp', url, output_dir
   ]
   task = subprocess.check_call(cmd,
                                stdout=subprocess.DEVNULL,

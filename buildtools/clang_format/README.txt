@@ -16,9 +16,10 @@ To download a file given a .sha1 file:
   python ~/depot_tools/download_from_google_storage.py -b chromium-clang-format -s <FILENAME>.sha1
 
 List the contents of GN's Google Storage bucket:
-  python ~/depot_tools/third_party/gsutil/gsutil ls gs://chromium-clang-format/
+  gcloud storage ls gs://chromium-clang-format/
 
 To initialize gsutil's credentials:
+  # The gsutil config command has no gcloud equivalent but the functionality is split between `gcloud config` or `gcloud auth`.
   python ~/depot_tools/third_party/gsutil/gsutil config
 
   That will give a URL which you should log into with your web browser. The

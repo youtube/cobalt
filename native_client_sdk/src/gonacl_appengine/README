@@ -49,7 +49,7 @@ To publish a new version:
 
    Or by using gsutil::
 
-     $ gsutil ls gs://gonacl/demos/continuous/
+     $ gcloud storage ls gs://gonacl/demos/continuous/
 
 3. Use 'make publish REVISION=<REV>' in the ``src`` directory to publish the
    revision.
