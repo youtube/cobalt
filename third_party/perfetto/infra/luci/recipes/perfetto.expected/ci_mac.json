@@ -381,7 +381,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-amd64/stripped/trace_processor_shell",
       "gs://perfetto-luci-artifacts//mac-amd64/trace_processor_shell"
@@ -494,7 +493,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-amd64/stripped/traceconv",
       "gs://perfetto-luci-artifacts//mac-amd64/traceconv"
@@ -607,7 +605,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-amd64/stripped/tracebox",
       "gs://perfetto-luci-artifacts//mac-amd64/tracebox"
@@ -720,7 +717,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-amd64/stripped/perfetto",
       "gs://perfetto-luci-artifacts//mac-amd64/perfetto"
@@ -833,7 +829,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-amd64/stripped/traced",
       "gs://perfetto-luci-artifacts//mac-amd64/traced"
@@ -946,7 +941,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-amd64/stripped/traced_probes",
       "gs://perfetto-luci-artifacts//mac-amd64/traced_probes"
@@ -1276,7 +1270,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-arm64/stripped/trace_processor_shell",
       "gs://perfetto-luci-artifacts//mac-arm64/trace_processor_shell"
@@ -1389,7 +1382,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-arm64/stripped/traceconv",
       "gs://perfetto-luci-artifacts//mac-arm64/traceconv"
@@ -1502,7 +1494,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-arm64/stripped/tracebox",
       "gs://perfetto-luci-artifacts//mac-arm64/tracebox"
@@ -1615,7 +1606,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-arm64/stripped/perfetto",
       "gs://perfetto-luci-artifacts//mac-arm64/perfetto"
@@ -1728,7 +1718,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-arm64/stripped/traced",
       "gs://perfetto-luci-artifacts//mac-arm64/traced"
@@ -1841,7 +1830,6 @@
       "--",
       "RECIPE_REPO[depot_tools]/gsutil.py",
       "----",
-      "storage",
       "cp",
       "[CACHE]/builder/perfetto/out/mac-arm64/stripped/traced_probes",
       "gs://perfetto-luci-artifacts//mac-arm64/traced_probes"
