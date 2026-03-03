@@ -125,7 +125,7 @@ To share publicly:
 
 ```sh
 FILENAME=descriptive_name.sizediff
-gcloud storage cp --predefined-acl=public-read "$FILENAME" gs://chrome-supersize/oneoffs/$USER/
+gcloud storage cp --predefined-acl=publicRead "$FILENAME" gs://chrome-supersize/oneoffs/$USER/
 echo "Share via: https://chrome-supersize.firebaseapp.com/viewer.html?load_url=https://storage.googleapis.com/chrome-supersize/oneoffs/$USER/$(basename $FILENAME)"
 ```
 
