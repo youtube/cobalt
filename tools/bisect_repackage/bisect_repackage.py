@@ -21,7 +21,7 @@ import threading
 import urllib
 import bisect_repackage_utils
 import re
-# This script uses cloud_storage module which contains gsutils wrappers.
+# This script uses cloud_storage module which contains gcloud storage wrappers.
 # cloud_storage module is a part of catapult repo, so please make sure
 # catapult is checked out before running this script.
 _PY_UTILS_PATH = os.path.abspath(os.path.join(
