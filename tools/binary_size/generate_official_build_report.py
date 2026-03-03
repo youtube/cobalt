@@ -19,7 +19,8 @@ _REPORTS_GS_URL = os.path.join(_REPORTS_BASE_URL, 'reports')
 
 _DIR_SOURCE_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', '..'))
-_GSUTIL = 'gcloud'
+_GSUTIL = os.path.join(_DIR_SOURCE_ROOT, 'third_party', 'depot_tools',
+                       'gsutil.py')
 
 
 def _WriteReportsJson(out):
