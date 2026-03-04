@@ -608,4 +608,6 @@ DEFINE_SET_EXPERIMENTAL_FEATURE(MediaCodecResetDelayMs,
                                 media_codec_reset_delay_ms,
                                 int)
 
+#undef DEFINE_SET_EXPERIMENTAL_FEATURE
+
 }  // namespace starboard::shared::starboard::player::filter
