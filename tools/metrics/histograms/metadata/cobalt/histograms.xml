@@ -145,7 +145,7 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.LocalStorage.DatabaseResetReason"
     enum="LocalStorageDatabaseResetReason" expires_after="never">
-  <owner>me@chromium.org</owner>
+  <owner>charleykim@google.com</owner>
   <summary>
     Records the reason why the Local Storage database was reset.
   </summary>
