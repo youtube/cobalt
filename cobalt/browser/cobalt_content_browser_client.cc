@@ -151,8 +151,10 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient(bool is_visible)
-    : is_visible_(is_visible) {
+CobaltContentBrowserClient::CobaltContentBrowserClient(
+    absl::optional<int64_t> startup_time,
+    bool is_visible)
+    : startup_timestamp_(startup_time), is_visible_(is_visible) {
   DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
@@ -364,7 +366,7 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  PopulateCobaltFrameBinders(render_frame_host, map);
+  PopulateCobaltFrameBinders(startup_timestamp_, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }

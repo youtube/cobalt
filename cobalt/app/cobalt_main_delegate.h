@@ -28,8 +28,10 @@ namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate(bool is_content_browsertests = false,
-                              bool is_visible = true);
+  explicit CobaltMainDelegate(
+      absl::optional<int64_t> startup_timestamp = absl::nullopt,
+      bool is_content_browsertests = false,
+      bool is_visible = true);
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
@@ -57,6 +59,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   ~CobaltMainDelegate() override;
 
  private:
+  absl::optional<int64_t> startup_timestamp_;
   bool is_visible_;
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
