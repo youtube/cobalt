@@ -67,7 +67,7 @@ public class StarboardBridge {
   private CobaltTextToSpeechHelper mTtsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private AudioOutputManager mAudioOutputManager;
-  private ExoPlayerManager exoPlayerManager;
+  private ExoPlayerManager mExoPlayerManager;
   private CobaltMediaSession mCobaltMediaSession;
   private AudioPermissionRequester mAudioPermissionRequester;
   private ResourceOverlay mResourceOverlay;
@@ -132,7 +132,7 @@ public class StarboardBridge {
     mSysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, mStopRequester);
     mTtsHelper = new CobaltTextToSpeechHelper(appContext);
     mAudioOutputManager = new AudioOutputManager(appContext);
-    this.exoPlayerManager = new ExoPlayerManager(appContext);
+    this.mExoPlayerManager = new ExoPlayerManager(appContext);
     mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
     mAudioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     mResourceOverlay = new ResourceOverlay(appContext);
@@ -529,7 +529,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @CalledByNative
   ExoPlayerManager getExoPlayerManager() {
-    return exoPlayerManager;
+    return mExoPlayerManager;
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */

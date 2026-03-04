@@ -46,7 +46,7 @@ public class ExoPlayerBridge {
     private ExoPlayerMediaSource mAudioMediaSource;
     private ExoPlayerMediaSource mVideoMediaSource;
     private final long mNativeExoPlayerBridge;
-    private final Handler mExoplayerHandler;
+    private final Handler mExoPlayerHandler;
     // The following variables are accessed on both the Handler and native threads
     private volatile long mLastPlaybackPosUsec = 0;
     private volatile long mPlaybackPosLastUpdatedMsec = 0;
@@ -65,7 +65,7 @@ public class ExoPlayerBridge {
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
-            if (mPlayer != null && !mIsReleased) {
+            if (!mIsReleased) {
                 switch (playbackState) {
                     case Player.STATE_BUFFERING:
                     case Player.STATE_IDLE:
@@ -82,7 +82,7 @@ public class ExoPlayerBridge {
 
         @Override
         public void onTracksChanged(Tracks tracks) {
-            if (mPlayer != null && !mIsReleased) {
+            if (!mIsReleased) {
                 ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
             }
         }
@@ -91,7 +91,7 @@ public class ExoPlayerBridge {
         public synchronized void onIsPlayingChanged(boolean isPlaying) {
             updatePositionAnchor();
             mIsProgressing = isPlaying;
-            if (mPlayer != null && !mIsReleased) {
+            if (!mIsReleased) {
                 ExoPlayerBridgeJni.get().onIsPlayingChanged(mNativeExoPlayerBridge, isPlaying);
             }
         }
@@ -121,7 +121,7 @@ public class ExoPlayerBridge {
         @Override
         public void onDroppedVideoFrames(
                 @NonNull EventTime eventTime, int droppedFrames, long elapsedMs) {
-            if (mPlayer != null && !mIsReleased) {
+            if (!mIsReleased) {
                 ExoPlayerBridgeJni.get()
                     .onDroppedVideoFrames(mNativeExoPlayerBridge, droppedFrames);
             }
@@ -143,7 +143,7 @@ public class ExoPlayerBridge {
             DefaultRenderersFactory renderersFactory, @Nullable ExoPlayerMediaSource audioSource,
             @Nullable ExoPlayerMediaSource videoSource,
             @Nullable Surface surface, boolean enableTunnelMode) {
-        this.mExoplayerHandler = new Handler(Looper.getMainLooper());
+        this.mExoPlayerHandler = new Handler(Looper.getMainLooper());
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
         if (enableTunnelMode) {
@@ -175,7 +175,7 @@ public class ExoPlayerBridge {
                                                 MAX_BUFFER_DURATION_MS, MIN_BUFFER_DURATION_MS,
                                                 MIN_BUFFER_DURATION_MS)
                                         .build())
-                        .setLooper(mExoplayerHandler.getLooper())
+                        .setLooper(mExoPlayerHandler.getLooper())
                         .setTrackSelector(trackSelector)
                         .setReleaseTimeoutMs(PLAYER_RELEASE_TIMEOUT_MS);
 
@@ -183,7 +183,7 @@ public class ExoPlayerBridge {
 
         mPlayerListener = new ExoPlayerListener();
         mDroppedFramesListener = new DroppedFramesListener();
-        mExoplayerHandler.post(() -> {
+        mExoPlayerHandler.post(() -> {
             mPlayer.addListener(mPlayerListener);
             mPlayer.addAnalyticsListener(mDroppedFramesListener);
             mPlayer.setMediaSource(playbackMediaSource);
@@ -194,7 +194,7 @@ public class ExoPlayerBridge {
     }
 
     private synchronized void updatePositionAnchor() {
-        if (mPlayer != null) {
+        if (!mIsReleased && mPlayer != null) {
             mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
             mPlaybackPosLastUpdatedMsec = SystemClock.elapsedRealtime();
         }
@@ -208,7 +208,7 @@ public class ExoPlayerBridge {
             return;
         }
 
-        mExoplayerHandler.post(() -> {
+        mExoPlayerHandler.post(() -> {
             mPlayer.stop();
             mPlayer.removeListener(mPlayerListener);
             mPlayer.removeAnalyticsListener(mDroppedFramesListener);
@@ -225,7 +225,7 @@ public class ExoPlayerBridge {
             reportError("Cannot seek with NULL or released ExoPlayer.");
             return;
         }
-        mExoplayerHandler.post(() -> {
+        mExoPlayerHandler.post(() -> {
           mPlayer.seekTo(seekToTimeUsec / 1000);
           updatePositionAnchor();
         });
@@ -264,7 +264,7 @@ public class ExoPlayerBridge {
             reportError("Cannot pause with NULL or released ExoPlayer");
             return;
         }
-        mExoplayerHandler.post(() -> {
+        mExoPlayerHandler.post(() -> {
             mPlayer.pause();
             updatePositionAnchor();
         });
@@ -276,7 +276,7 @@ public class ExoPlayerBridge {
             reportError("Cannot play with NULL or released ExoPlayer");
             return;
         }
-        mExoplayerHandler.post(() -> {
+        mExoPlayerHandler.post(() -> {
             if (!mPlayer.isPlaying() && mPlaybackRate > 0.0) {
                 mPlayer.play();
                 updatePositionAnchor();
@@ -294,7 +294,7 @@ public class ExoPlayerBridge {
         this.mPlaybackRate = playbackRate;
 
         if (playbackRate > 0.0f) {
-            mExoplayerHandler.post(() -> {
+            mExoPlayerHandler.post(() -> {
                 mPlayer.setPlaybackParameters(new PlaybackParameters(playbackRate, 1.0f));
             });
         }
@@ -307,7 +307,7 @@ public class ExoPlayerBridge {
             return;
         }
 
-        mExoplayerHandler.post(() -> {
+        mExoPlayerHandler.post(() -> {
           mPlayer.setVolume(volume);
         });
     }
@@ -319,7 +319,7 @@ public class ExoPlayerBridge {
                     "Cannot stop with NULL or released ExoPlayer. Assuming stopped successfully.");
             return;
         }
-        mExoplayerHandler.post(() -> {
+        mExoPlayerHandler.post(() -> {
           mPlayer.stop();
           updatePositionAnchor();
         });
