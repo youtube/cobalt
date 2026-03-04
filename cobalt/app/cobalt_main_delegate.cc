@@ -30,7 +30,9 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate() : content::ShellMainDelegate() {
+CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link)
+    : content::ShellMainDelegate(),
+      deep_link_(initial_deep_link ? initial_deep_link : "") {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
@@ -49,7 +51,7 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  browser_client_ = std::make_unique<CobaltContentBrowserClient>();
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>(deep_link_);
   return browser_client_.get();
 }
 
