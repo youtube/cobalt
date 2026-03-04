@@ -31,22 +31,22 @@ class TestCollectTestArtifacts(unittest.TestCase):
   @mock.patch('subprocess.run')
   @mock.patch('os.makedirs')
   @mock.patch('os.path.isdir', return_value=True)
-  def test_copy_fast_dir(self, mock_isdir, mock_makedirs, mock_run):
+  def test_copy_fast_dir(self, mock_isdir, mock_makedirs, mock_copytree):
     del mock_isdir  # Unused argument.
     collect_test_artifacts.copy_fast('src/dir', 'dst/dir')
     mock_makedirs.assert_called_once_with('dst', exist_ok=True)
-    mock_run.assert_called_once_with(['cp', '-af', 'src/dir', 'dst/'],
-                                     check=True)
+    mock_copytree.assert_called_once_with(
+        'src/dir', 'dst/dir', symlinks=True, dirs_exist_ok=True)
 
-  @mock.patch('subprocess.run')
+  @mock.patch('shutil.copy2')
   @mock.patch('os.makedirs')
   @mock.patch('os.path.isdir', return_value=False)
-  def test_copy_fast_file(self, mock_isdir, mock_makedirs, mock_run):
+  def test_copy_fast_file(self, mock_isdir, mock_makedirs, mock_copy2):
     del mock_isdir  # Unused argument.
     collect_test_artifacts.copy_fast('src/file.txt', 'dst/file.txt')
     mock_makedirs.assert_called_once_with('dst', exist_ok=True)
-    mock_run.assert_called_once_with(
-        ['cp', '-af', 'src/file.txt', 'dst/file.txt'], check=True)
+    mock_copy2.assert_called_once_with(
+        'src/file.txt', 'dst/file.txt', follow_symlinks=False)
 
   @mock.patch('collect_test_artifacts.copy_fast')
   @mock.patch('os.path.exists', return_value=True)

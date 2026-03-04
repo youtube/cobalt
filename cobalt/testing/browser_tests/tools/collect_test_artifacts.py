@@ -64,22 +64,13 @@ def get_test_runner(build_dir, is_android):
 
 
 def copy_fast(src, dst):
-  """Fast copy using system cp if possible, falling back to shutil."""
+  """Fast copy using shutil, preserving attributes and symlinks."""
   dst_parent = os.path.dirname(dst)
   os.makedirs(dst_parent, exist_ok=True)
-  try:
-    if os.path.isdir(src):
-      # Use system cp -af for directories to handle many files efficiently.
-      # -a preserves attributes, -f forces overwrite by unlinking if needed.
-      subprocess.run(['cp', '-af', src, dst_parent + '/'], check=True)
-    else:
-      # Use cp -af for files too.
-      subprocess.run(['cp', '-af', src, dst], check=True)
-  except (subprocess.CalledProcessError, subprocess.SubprocessError, OSError):
-    if os.path.isdir(src):
-      shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
-    else:
-      shutil.copy2(src, dst, follow_symlinks=False)
+  if os.path.isdir(src):
+    shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
+  else:
+    shutil.copy2(src, dst, follow_symlinks=False)
 
 
 def generate_runner_py(dst_path, target_map):
