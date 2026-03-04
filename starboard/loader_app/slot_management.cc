@@ -73,9 +73,6 @@ const char kVersionKey[] = "version";
 
 }  // namespace
 
-// Compares the Evergreen versions v1 and v2. Returns 1 if v1 is newer than v2;
-// returns -1 if v1 is older than v2; returns 0 if v1 is the same as v2, or if
-// either of them is invalid.
 int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2) {
   if ((*v1)[0] == '\0' || (*v2)[0] == '\0') {
     return 0;
@@ -112,8 +109,6 @@ int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2) {
   return 0;
 }
 
-// Reads the Evergreen version from the manifest file at the
-// |manifest_file_path|, and stores in |version|.
 bool ReadEvergreenVersion(std::vector<char>* manifest_file_path,
                           char* version,
                           int version_length) {
