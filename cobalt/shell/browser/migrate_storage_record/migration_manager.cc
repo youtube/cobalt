@@ -45,17 +45,6 @@ namespace migrate_storage_record {
 
 namespace {
 
-constexpr char kStorageIntegrityCookieName[] = "yt-dev.storage-integrity";
-
-bool HasIntegrityCookie(const std::vector<net::CanonicalCookie>& cookies) {
-  for (const auto& cookie : cookies) {
-    if (cookie.Name() == kStorageIntegrityCookieName) {
-      return true;
-    }
-  }
-  return false;
-}
-
 std::string GetApplicationKey(const GURL& url) {
   std::string encoded_url;
   base::Base64UrlEncode(url_matcher::util::Normalize(url).spec(),
@@ -273,11 +262,10 @@ void MigrationManager::DoMigrationTasksOnce(
       ->GetAllCookies(base::BindOnce(
           [](content::WebContents* web_contents,
              const std::vector<net::CanonicalCookie>& existing_cookies) {
-            if (HasIntegrityCookie(existing_cookies)) {
-              LOG(INFO) << "MigrationManager: Storage integrity cookie from "
-                           "Cobalt 26+ already exists. Skipping migration of "
-                           "old records to avoid removing existing cookies "
-                           "and localStorage.";
+            if (!existing_cookies.empty()) {
+              LOG(INFO) << "MigrationManager: Cookies already exist. "
+                           "Skipping migration to prevent overwriting "
+                           "existing session data.";
               return;
             }
             RunMigrationTasks(web_contents);
