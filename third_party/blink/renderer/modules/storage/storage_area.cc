@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/modules/storage/storage_area.h"
 
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
@@ -101,6 +102,7 @@ String StorageArea::key(unsigned index, ExceptionState& exception_state) const {
 
 String StorageArea::getItem(const String& key,
                             ExceptionState& exception_state) const {
+  LOG(INFO) << "ColinL: sm telemetry: [JS LocalStorage] getItem: " << key.Utf8();
   if (!CanAccessStorage()) {
     exception_state.ThrowSecurityError("access is denied for this document.");
     return String();
@@ -112,6 +114,7 @@ NamedPropertySetterResult StorageArea::setItem(
     const String& key,
     const String& value,
     ExceptionState& exception_state) {
+  LOG(INFO) << "ColinL: sm telemetry: [JS LocalStorage] setItem: " << key.Utf8();
   if (!CanAccessStorage()) {
     exception_state.ThrowSecurityError("access is denied for this document.");
     return NamedPropertySetterResult::kIntercepted;

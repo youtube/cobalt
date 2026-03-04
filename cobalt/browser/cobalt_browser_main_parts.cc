@@ -20,13 +20,20 @@
 #include "base/run_loop.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
+#include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -43,7 +50,8 @@ namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(17);
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(17);
 #endif
   SetupMetrics();
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -55,7 +63,43 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  return ShellBrowserMainParts::PreMainMessageLoopRun();
+  int result = ShellBrowserMainParts::PreMainMessageLoopRun();
+
+  LOG(INFO) << "ColinL: CobaltBrowserMainParts::PreMainMessageLoopRun started.";
+
+  // FIX: Perform migration before the first URL load happens.
+  // Using the static accessor content::Shell::windows() as GetShells() is not
+  // available on context.
+  if (!content::Shell::windows().empty()) {
+    LOG(INFO)
+        << "ColinL: Shell window detected. Preparing for storage migration.";
+    content::WebContents* web_contents =
+        content::Shell::windows()[0]->web_contents();
+
+    // 1. Kill any default navigation that might have started automatically.
+    web_contents->Stop();
+
+    // 2. Block the UI thread until migration completes.
+    // base::RunLoop run_loop;
+    migrate_storage_record::MigrationManager::EnsureMigrationDone(
+        web_contents, base::DoNothing());
+    // run_loop.Run();
+
+    // 3. Perform the actual navigation now that storage is ready.
+    // FIX: Using explicit GURL constructor call to satisfy 'explicit' keyword
+    // in gurl.h and avoiding vexing parse by using copy-initialization from a
+    // temporary. GURL initial_url =
+    // GURL(::cobalt::switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+    // content::NavigationController::LoadURLParams params(initial_url);
+
+    // // Use AUTO_TOPLEVEL as this is the automated "Home Page" load of the
+    // app.
+    // // Standard Chromium apps use this for the initial startup navigation.
+    // params.transition_type = ui::PAGE_TRANSITION_AUTO_TOPLEVEL;
+    // web_contents->GetController().LoadURLWithParams(params);
+  }
+
+  return result;
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {

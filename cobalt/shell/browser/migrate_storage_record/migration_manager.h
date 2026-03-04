@@ -35,8 +35,10 @@ using Task = base::OnceCallback<void(base::OnceClosure)>;
 
 class MigrationManager {
  public:
-  static void DoMigrationTasksOnce(content::WebContents* web_contents);
-  static void RunMigrationTasks(content::WebContents* web_contents);
+  static void EnsureMigrationDone(content::WebContents* web_contents,
+                                  base::OnceClosure done_callback);
+  static void RunMigrationTasks(content::WebContents* web_contents,
+                                base::OnceClosure done_callback);
 
  private:
   friend class MigrationManagerTest;

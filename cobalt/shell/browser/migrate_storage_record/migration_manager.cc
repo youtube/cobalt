@@ -61,23 +61,30 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   CHECK(initial_url.is_valid());
   std::string partition_key = GetApplicationKey(initial_url);
+  LOG(INFO) << "ColinL: ReadStorage attempting to open key: " << partition_key;
+
   auto record =
       std::make_unique<starboard::StorageRecord>(partition_key.c_str());
   if (!record->IsValid()) {
+    LOG(INFO)
+        << "ColinL: StorageRecord invalid for partition, trying fallback.";
     record->Delete();
     bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
     if (!fallback) {
+      LOG(WARNING) << "ColinL: No fallback available. ReadStorage failed.";
       return nullptr;
     }
 
     record = std::make_unique<starboard::StorageRecord>();
     if (!record->IsValid()) {
+      LOG(ERROR) << "ColinL: Fallback StorageRecord also invalid.";
       record->Delete();
       return nullptr;
     }
   }
 
   if (record->GetSize() < kRecordHeaderSize) {
+    LOG(WARNING) << "ColinL: Record size too small: " << record->GetSize();
     record->Delete();
     return nullptr;
   }
@@ -85,6 +92,9 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   auto bytes = std::vector<uint8_t>(record->GetSize());
   const int read_result =
       record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+
+  LOG(INFO) << "ColinL: Read " << read_result << " bytes from legacy storage.";
+
   if (!record->Delete()) {
     LOG(ERROR) << "Failed to delete legacy storage record. Aborting migration "
                   "to prevent overwrite loop.";
@@ -97,6 +107,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   std::string version(reinterpret_cast<const char*>(bytes.data()),
                       kRecordHeaderSize);
   if (version != kRecordHeader) {
+    LOG(ERROR) << "ColinL: Version mismatch. Expected SAV1, got: " << version;
     return nullptr;
   }
 
@@ -104,8 +115,12 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   if (!storage->ParseFromArray(
           reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
           bytes.size() - kRecordHeaderSize)) {
+    LOG(ERROR) << "ColinL: Failed to parse Storage protobuf.";
     return nullptr;
   }
+  LOG(INFO) << "ColinL: Successfully parsed storage. Cookies: "
+            << storage->cookies_size()
+            << ", LocalStorage groups: " << storage->local_storages_size();
   return storage;
 }
 
@@ -147,7 +162,7 @@ Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
         content::WebContents* web_contents =
             content::WebContents::FromRenderFrameHost(rfh);
         if (web_contents) {
-          LOG(INFO) << "MigrationManager: Reloading URL: " << url.spec();
+          LOG(INFO) << "ColinL: MigrationManager Reloading URL: " << url.spec();
           content::NavigationController::LoadURLParams params(url);
           params.transition_type = ui::PageTransitionFromInt(
               ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
@@ -239,48 +254,66 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 // TODO(b/399165612): Add metrics.
 // TODO(b/399165796): Disable and delete migration code when possible.
 // TODO(b/399166308): Add unit and/or integration tests for migration.
-void MigrationManager::DoMigrationTasksOnce(
-    content::WebContents* web_contents) {
+void MigrationManager::EnsureMigrationDone(content::WebContents* web_contents,
+                                           base::OnceClosure done_callback) {
+  LOG(INFO) << "ColinL: EnsureMigrationDone started.";
   if (migration_attempted_.test_and_set()) {
+    LOG(INFO) << "ColinL: Migration already attempted this session.";
+    std::move(done_callback).Run();
     return;
   }
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
-    LOG(INFO) << "Storage migration disabled via switch.";
+    LOG(INFO) << "ColinL: Storage migration disabled via switch.";
+    std::move(done_callback).Run();
     return;
   }
 
   auto* rfh = web_contents->GetPrimaryMainFrame();
   if (!rfh) {
+    LOG(ERROR) << "ColinL: No PrimaryMainFrame available for migration.";
+    std::move(done_callback).Run();
     return;
   }
   auto weak_document_ptr = rfh->GetWeakDocumentPtr();
 
-  // Check for existing integrity cookie before running any migration logic.
+  LOG(INFO) << "ColinL: Checking for existing cookies before migration...";
   CookieManager(weak_document_ptr)
       ->GetAllCookies(base::BindOnce(
           [](content::WebContents* web_contents,
+             base::OnceClosure done_callback,
              const std::vector<net::CanonicalCookie>& existing_cookies) {
             if (!existing_cookies.empty()) {
-              LOG(INFO) << "MigrationManager: Cookies already exist. "
-                           "Skipping migration to prevent overwriting "
-                           "existing session data.";
+              LOG(INFO) << "ColinL: Found " << existing_cookies.size()
+                        << " existing cookies. Skipping migration.";
+              for (const auto& cookie : existing_cookies) {
+                VLOG(1) << "ColinL: Existing Cookie: " << cookie.Name();
+              }
+              std::move(done_callback).Run();
               return;
             }
-            RunMigrationTasks(web_contents);
+            LOG(INFO)
+                << "ColinL: No cookies found. Triggering RunMigrationTasks.";
+            RunMigrationTasks(web_contents, std::move(done_callback));
           },
-          web_contents));
+          web_contents, std::move(done_callback)));
 }
 
-void MigrationManager::RunMigrationTasks(content::WebContents* web_contents) {
+void MigrationManager::RunMigrationTasks(content::WebContents* web_contents,
+                                         base::OnceClosure done_callback) {
+  LOG(INFO) << "ColinL: RunMigrationTasks started.";
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
+    LOG(INFO) << "ColinL: Legacy storage empty or null. Nothing to migrate.";
+    std::move(done_callback).Run();
     return;
   }
 
   GURL url = web_contents->GetLastCommittedURL();
+  LOG(INFO) << "ColinL: Stopping WebContents for migration. Last URL: "
+            << url.spec();
   web_contents->Stop();
 
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
@@ -288,22 +321,27 @@ void MigrationManager::RunMigrationTasks(content::WebContents* web_contents) {
   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
 
   std::vector<Task> tasks;
+  LOG(INFO) << "ColinL: Queueing Cookie and LocalStorage tasks...";
   tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
   const url::Origin& origin = render_frame_host->GetLastCommittedOrigin();
   tasks.push_back(LocalStorageTask(weak_document_ptr,
                                    ToLocalStorageItems(origin, *storage)));
 #if !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(LogElapsedTimeTask());
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
+#endif
   tasks.push_back(DeleteOldCacheDirectoryTask());
   tasks.push_back(ReloadTask(weak_document_ptr, url));
-  std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
+
+  LOG(INFO) << "ColinL: Executing task group.";
+  std::move(GroupTasks(std::move(tasks))).Run(std::move(done_callback));
 }
 
 // static
 Task MigrationManager::CookieTask(
     content::WeakDocumentPtr weak_document_ptr,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+  LOG(INFO) << "ColinL: Creating CookieTask for " << cookies.size()
+            << " cookies.";
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
       [](content::WeakDocumentPtr weak_document_ptr,
@@ -340,6 +378,8 @@ Task MigrationManager::CookieTask(
 Task MigrationManager::LocalStorageTask(
     content::WeakDocumentPtr weak_document_ptr,
     std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs) {
+  LOG(INFO) << "ColinL: Creating LocalStorageTask for " << pairs.size()
+            << " items.";
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
       [](content::WeakDocumentPtr weak_document_ptr,
