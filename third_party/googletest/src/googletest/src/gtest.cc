@@ -410,6 +410,18 @@ GTEST_DEFINE_string_(
     "This flag specifies the flagfile to read command-line flags from.");
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_
 
+#if BUILDFLAG(IS_STARBOARD)
+// Cobalt addition, go/chrobalt-sharding.
+GTEST_DEFINE_int32_(
+    total_shards,
+    internal::Int32FromGTestEnv("total_shards", -1),
+    "The total number of shards to split test cases into.");
+GTEST_DEFINE_int32_(
+    shard_index,
+    internal::Int32FromGTestEnv("shard_index", -1),
+    "The shard index that determines the subset of unit tests run in the shard.");
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 namespace testing {
 namespace internal {
 
@@ -6178,8 +6190,13 @@ bool ShouldShard(const char* total_shards_env, const char* shard_index_env,
     return false;
   }
 
+  #if BUILDFLAG(IS_STARBOARD)
+  const int32_t total_shards = GTEST_FLAG_GET(total_shards);
+  const int32_t shard_index = GTEST_FLAG_GET(shard_index);
+  #else
   const int32_t total_shards = Int32FromEnvOrDie(total_shards_env, -1);
   const int32_t shard_index = Int32FromEnvOrDie(shard_index_env, -1);
+  #endif
 
   if (total_shards == -1 && shard_index == -1) {
     return false;
@@ -6246,12 +6263,21 @@ bool ShouldRunTestOnShard(int total_shards, int shard_index, int test_id) {
 // https://github.com/google/googletest/blob/main/docs/advanced.md
 // . Returns the number of tests that should run.
 int UnitTestImpl::FilterTests(ReactionToSharding shard_tests) {
+  #if BUILDFLAG(IS_STARBOARD)
+  const int32_t total_shards = shard_tests == HONOR_SHARDING_PROTOCOL
+                                   ? GTEST_FLAG_GET(total_shards)
+                                   : -1;
+  const int32_t shard_index = shard_tests == HONOR_SHARDING_PROTOCOL
+                                  ? GTEST_FLAG_GET(shard_index)
+                                  : -1;
+  #else
   const int32_t total_shards = shard_tests == HONOR_SHARDING_PROTOCOL
                                    ? Int32FromEnvOrDie(kTestTotalShards, -1)
                                    : -1;
   const int32_t shard_index = shard_tests == HONOR_SHARDING_PROTOCOL
                                   ? Int32FromEnvOrDie(kTestShardIndex, -1)
                                   : -1;
+  #endif  // BUILDFLAG(IS_STARBOARD)
 
   const PositiveAndNegativeUnitTestFilter gtest_flag_filter(
       GTEST_FLAG_GET(filter));
@@ -6784,6 +6810,11 @@ static bool ParseGoogleTestFlag(const char* const arg) {
   GTEST_INTERNAL_PARSE_FLAG(stack_trace_depth);
   GTEST_INTERNAL_PARSE_FLAG(stream_result_to);
   GTEST_INTERNAL_PARSE_FLAG(throw_on_failure);
+#if BUILDFLAG(IS_STARBOARD)
+  GTEST_INTERNAL_PARSE_FLAG(total_shards);
+  GTEST_INTERNAL_PARSE_FLAG(shard_index);
+#endif  // BUILDFLAG(IS_STARBOARD)
+
   return false;
 }
 
