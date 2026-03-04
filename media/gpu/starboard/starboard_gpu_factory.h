@@ -15,15 +15,24 @@
 #ifndef MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_H_
 #define MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_H_
 
+#include <vector>
+
 #include "base/memory/raw_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/unguessable_token.h"
+#include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
+#include "starboard/decode_target.h"
+#include "ui/gfx/color_space.h"
+#include "ui/gfx/geometry/size.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "gpu/command_buffer/service/ref_counted_lock.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 // StarboardGpuFactory allows to post tasks on gpu thread.
 // StarboardRenderer uses this class to post graphical tasks.
-// TODO(b/375070492): wire the rest of the functionality with
-// decode-to-texture.
 class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
  public:
   using GetStubCB =
@@ -39,6 +48,21 @@ class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
   virtual void Initialize(base::UnguessableToken channel_token,
                           int32_t route_id,
                           base::OnceClosure callback) = 0;
+  virtual void RunSbDecodeTargetFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) = 0;
+  virtual void RunCallbackOnGpu(base::OnceCallback<void()> callback,
+                                base::WaitableEvent* done_event) = 0;
+  virtual void CreateImageOnGpu(const gfx::Size& coded_size,
+                                const gfx::ColorSpace& color_space,
+                                int plane_count,
+                                std::vector<gpu::Mailbox>& mailboxes,
+                                std::vector<uint32_t>& texture_service_ids,
+#if BUILDFLAG(IS_ANDROID)
+                                scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+                                base::WaitableEvent* done_event) = 0;
 };
 
 }  // namespace media

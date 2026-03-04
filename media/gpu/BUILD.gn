@@ -188,6 +188,12 @@ component("gpu") {
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan:vulkan" ]
     }
+    if (is_cobalt && use_starboard_media) {
+      sources += [
+        "android/starboard/starboard_codec_image.cc",
+        "android/starboard/starboard_codec_image.h",
+      ]
+    }
   }
 
   if (is_cobalt && use_starboard_media) {
@@ -197,6 +203,8 @@ component("gpu") {
       "starboard/starboard_gpu_factory_impl.cc",
       "starboard/starboard_gpu_factory_impl.h",
     ]
+
+    deps += [ "//starboard/common" ]
   }
 
   if (use_v4l2_codec) {
