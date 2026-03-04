@@ -60,21 +60,17 @@ class TestRunTestsTemplate(unittest.TestCase):
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
-  @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('sys.exit', side_effect=SystemExit(1))
   @mock.patch('sys.argv', ['run_tests.py', 'linux_target'])
-  @mock.patch('sys.executable', '/usr/bin/python3')
-  def test_linux_execution(self, mock_call, *args):
+  @mock.patch('logging.error')
+  def test_non_android_target_error(self, mock_log_error, mock_exit, *args):
     del args  # Unused.
-    exit_code = run_tests_template.main()
-    self.assertEqual(exit_code, 0)
-
-    # Verify command construction with xvfb.py
-    expected_cmd = [
-        '/usr/bin/vpython3', '/tmp/src/testing/xvfb.py', '/usr/bin/python3',
-        '/tmp/src/cobalt/testing/browser_tests/run_browser_tests.py',
-        '/tmp/src/cobalt_browsertests'
-    ]
-    mock_call.assert_called_once_with(expected_cmd)
+    with self.assertRaises(SystemExit):
+      run_tests_template.main()
+    mock_exit.assert_called_once_with(1)
+    mock_log_error.assert_any_call(
+        'Target \'%s\' is not an Android platform. This runner only '
+        'supports Android for now.', 'linux_target')
 
   @mock.patch('sys.argv', ['run_tests.py'])
   @mock.patch('sys.exit', side_effect=SystemExit(1))
