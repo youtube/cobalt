@@ -26,6 +26,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
@@ -73,9 +74,9 @@ public class ExoPlayerManager {
             List<MediaCodecInfo> defaultDecoderInfos = null;
             try {
                 defaultDecoderInfos =
-                        androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
+                        MediaCodecUtil.getDecoderInfos(
                                 mimeType, requiresSecureDecoder, requiresTunnelingDecoder);
-            } catch (androidx.media3.exoplayer.mediacodec.MediaCodecUtil.DecoderQueryException e) {
+            } catch (MediaCodecUtil.DecoderQueryException e) {
                 Log.i(TAG, String.format("MediaCodecUtil.getDecoderInfos() error %s", e));
                 return defaultDecoderInfos;
             }
@@ -201,11 +202,13 @@ public class ExoPlayerManager {
                 primaryGChromaticityY, primaryBChromaticityX, primaryBChromaticityY,
                 whitePointChromaticityX, whitePointChromaticityY, maxMasteringLuminance,
                 minMasteringLuminance, maxCll, maxFall, false);
+        byte[] hdrStaticInfoArray = new byte[hdrStaticInfo.remaining()];
+        hdrStaticInfo.get(hdrStaticInfoArray);
         return new ColorInfo.Builder()
                 .setColorRange(colorRange)
                 .setColorSpace(colorSpace)
                 .setColorTransfer(colorTransfer)
-                .setHdrStaticInfo(hdrStaticInfo.array())
+                .setHdrStaticInfo(hdrStaticInfoArray)
                 .build();
     }
 }
