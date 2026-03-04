@@ -32,11 +32,17 @@ class CORE_EXPORT PerformanceExtensions final {
   // Web-exposed interface:
   static uint64_t measureAvailableCpuMemory(ScriptState*, const Performance&);
   static uint64_t measureUsedCpuMemory(ScriptState*, const Performance&);
+<<<<<<< HEAD
   static uint64_t measureUsedSwapMemory(ScriptState*, const Performance&);
   static uint64_t measureReservedVirtualMemory(ScriptState*, const Performance&);
   static ScriptPromise getAppStartupTime(ScriptState*,
                                          const Performance&,
                                          ExceptionState&);
+=======
+  static ScriptPromise getAppStartupTimeStamp(ScriptState*,
+                                              const Performance&,
+                                              ExceptionState&);
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
 };
 
 }  // namespace blink

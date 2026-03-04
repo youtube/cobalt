@@ -28,7 +28,14 @@ namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
+<<<<<<< HEAD
   explicit CobaltMainDelegate(bool is_content_browsertests = false);
+=======
+  explicit CobaltMainDelegate(
+      absl::optional<int64_t> startup_timestamp = absl::nullopt,
+      bool is_content_browsertests = false,
+      bool is_visible = true);
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
@@ -58,6 +65,11 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   ~CobaltMainDelegate() override;
 
  private:
+<<<<<<< HEAD
+=======
+  absl::optional<int64_t> startup_timestamp_;
+  bool is_visible_;
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;

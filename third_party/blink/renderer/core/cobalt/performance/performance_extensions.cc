@@ -13,9 +13,12 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
+#include "base/notreached.h"
+#include "build/build_config.h"
 
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
@@ -53,6 +56,7 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
   return used_memory;
 }
 
+<<<<<<< HEAD
 uint64_t PerformanceExtensions::measureUsedSwapMemory(ScriptState* script_state,
                                                      const Performance&) {
   uint64_t used_swap_memory = 0;
@@ -68,15 +72,41 @@ uint64_t PerformanceExtensions::measureReservedVirtualMemory(ScriptState* script
 }
 
 ScriptPromise PerformanceExtensions::getAppStartupTime(
+=======
+ScriptPromise PerformanceExtensions::getAppStartupTimeStamp(
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
     ScriptState* script_state,
-    const Performance&,
+    const Performance& performance_obj,
     ExceptionState& exception_state) {
+  ExecutionContext* context = performance_obj.GetExecutionContext();
+  if (!context) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Context is missing.");
+    return ScriptPromise();
+  }
+
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-  int64_t startup_time = 0;
-  BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
   ScriptPromise promise = resolver->Promise();
-  resolver->Resolve(startup_time);
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/487001977: Reject when this fails.
+  NOTIMPLEMENTED();
+  resolver->Reject(MakeGarbageCollected<DOMException>(
+      DOMExceptionCode::kNotSupportedError, "Not implemented on iOS/tvOS."));
+  return promise;
+#endif
+
+  int64_t startup_timestamp = 0;
+  BindRemotePerformance(script_state)
+      ->GetAppStartupTimeStamp(&startup_timestamp);
+
+  resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
+      performance_obj.GetTimeOriginInternal(),
+      base::TimeTicks::FromInternalValue(startup_timestamp),
+      true /* allow_negative_value */,
+      context->CrossOriginIsolatedCapability()));
+
   return promise;
 }
 
