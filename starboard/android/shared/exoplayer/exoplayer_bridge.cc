@@ -383,6 +383,10 @@ void ExoPlayerBridge::WriteSamplesInternal(JNIEnv* env,
                                            SbMediaType type) {
   for (auto& input_buffer : input_buffers) {
     int offset = GetSampleOffset(type, input_buffer);
+    if (input_buffer->size() < offset) {
+      ReportError("Input buffer size is smaller than the required offset.");
+      return;
+    }
     int size = input_buffer->size() - offset;
 
     ScopedJavaLocalRef<jobject> sample_byte_buffer(
