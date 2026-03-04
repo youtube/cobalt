@@ -24,10 +24,7 @@
 #endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
 #if defined(INTERNAL_BUILD)
-// TODO(b/460479616): Update the include path to the correct internal submodule
-// location once the directory structure is finalized. Do not check in the file
-// at this path; it is provided by the internal submodule.
-#import "starboard/tvos/shared/media/vp9_hw_av_video_sample_buffer_builder.h"
+#import "cobalt/internal/starboard/shared/uikit/vp9_hw_av_video_sample_buffer_builder.h"
 #endif
 
 namespace starboard {

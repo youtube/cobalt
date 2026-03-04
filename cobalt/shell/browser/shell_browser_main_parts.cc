@@ -47,6 +47,7 @@
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_module.h"
+#include "net/base/url_util.h"
 #include "net/grit/net_resources.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -148,12 +149,24 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
+#if !BUILDFLAG(IS_ANDROID)
+  // Handle deeplink from non-ATV devices.
+  std::string topic;
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kLink)) {
+    GURL link_url(command_line->GetSwitchValueASCII(switches::kLink));
+    if (link_url.is_valid()) {
+      net::GetValueForKeyInQuery(link_url, "topic", &topic);
+    }
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
                          gfx::Size(),
 #if BUILDFLAG(IS_ANDROID)
                          false /* create_splash_screen_web_contents */
 #else
-                         switches::ShouldCreateSplashScreen()
+                         switches::ShouldCreateSplashScreen(), topic
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 }

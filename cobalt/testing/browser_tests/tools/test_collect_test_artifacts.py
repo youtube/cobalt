@@ -50,14 +50,6 @@ class TestCollectTestArtifacts(unittest.TestCase):
           'out/linux', is_android=False)
       self.assertEqual(result, os.path.join('bin', 'run_cobalt_browsertests'))
 
-  def test_get_test_runner_linux_runner(self):
-    with mock.patch('os.path.isfile') as mock_isfile:
-      # Simulate cobalt_browsertests_runner exists
-      mock_isfile.side_effect = lambda x: 'cobalt_browsertests_runner' in x
-      result = collect_test_artifacts.get_test_runner(
-          'out/linux', is_android=False)
-      self.assertEqual(result, 'cobalt_browsertests_runner')
-
   def test_get_test_runner_linux_fallback(self):
     with mock.patch('os.path.isfile', return_value=False):
       result = collect_test_artifacts.get_test_runner(

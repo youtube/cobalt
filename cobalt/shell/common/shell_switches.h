@@ -36,6 +36,7 @@ extern const char kDisableSystemFontCheck[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
 extern const char kIsolatedContextOrigins[];
+extern const char kLink[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];
 extern const char kSplashScreenShutdownDelayMs[];
