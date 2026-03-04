@@ -100,6 +100,20 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
                                               *min_decoded_frames};
 }
 
+VideoDecoder::ExperimentalFeatures GetVideoDecoderExperimentalFeatures(
+    const PlayerComponents::ExperimentalFeatures& features) {
+  VideoDecoder::ExperimentalFeatures video_decoder_features;
+  video_decoder_features.initial_max_frames_in_decoder =
+      features.video_initial_max_frames_in_decoder;
+  video_decoder_features.max_pending_input_frames =
+      features.video_max_pending_input_frames;
+  video_decoder_features.video_decoder_initial_preroll_count =
+      features.video_decoder_initial_preroll_count;
+  video_decoder_features.video_decoder_poll_interval_ms =
+      features.video_decoder_poll_interval_ms;
+  return video_decoder_features;
+}
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
@@ -182,8 +196,7 @@ class AudioRendererSinkCallbackStub
   std::atomic_bool error_occurred_{false};
 };
 
-class PlayerComponentsPassthrough
-    : public starboard::shared::starboard::player::filter::PlayerComponents {
+class PlayerComponentsPassthrough : public PlayerComponents {
  public:
   PlayerComponentsPassthrough(
       std::unique_ptr<AudioRendererPassthrough> audio_renderer,
@@ -203,8 +216,7 @@ class PlayerComponentsPassthrough
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
 
-class PlayerComponentsFactory : public starboard::shared::starboard::player::
-                                    filter::PlayerComponents::Factory {
+class PlayerComponentsFactory : public PlayerComponents::Factory {
   typedef starboard::shared::starboard::media::MimeType MimeType;
   typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
   typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
@@ -215,8 +227,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       AudioRendererSink;
   typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
       AudioRendererSinkImpl;
-  typedef starboard::shared::starboard::player::filter::PlayerComponents
-      PlayerComponents;
   typedef starboard::shared::starboard::player::filter::VideoDecoder
       VideoDecoderBase;
   typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
@@ -629,19 +639,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    VideoDecoder::ExperimentalFeatures experimental_features;
-    experimental_features.initial_max_frames_in_decoder =
-        creation_parameters.experimental_features()
-            .video_initial_max_frames_in_decoder;
-    experimental_features.max_pending_input_frames =
-        creation_parameters.experimental_features()
-            .video_max_pending_input_frames;
-    experimental_features.video_decoder_initial_preroll_count =
-        creation_parameters.experimental_features()
-            .video_decoder_initial_preroll_count;
-    experimental_features.video_decoder_poll_interval_ms =
-        creation_parameters.experimental_features()
-            .video_decoder_poll_interval_ms;
+    VideoDecoder::ExperimentalFeatures experimental_features =
+        GetVideoDecoderExperimentalFeatures(
+            creation_parameters.experimental_features());
     if (creation_parameters.experimental_features()
             .media_codec_reset_delay_ms.has_value()) {
       reset_delay_usec =
