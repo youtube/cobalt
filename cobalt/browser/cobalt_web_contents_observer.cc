@@ -41,7 +41,13 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
-CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+CobaltWebContentsObserver::~CobaltWebContentsObserver() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (!platform_error_raised_) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", false);
+  }
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+}
 
 #if BUILDFLAG(IS_ANDROIDTV)
 void CobaltWebContentsObserver::SetTimerForTestInternal(
