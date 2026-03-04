@@ -20,7 +20,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/process/process_metrics.h"
 #include "base/sequence_checker.h"
-#include "base/time/time.h"
 
 namespace cobalt {
 
