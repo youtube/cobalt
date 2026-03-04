@@ -23,6 +23,7 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "content/public/app/content_main.h"
 #include "starboard/event.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
@@ -41,7 +42,8 @@ class AppLifecycleRunner {
   virtual void InitializeSystem() = 0;
 
   // Creates the main delegate for the content process.
-  virtual void CreateMainDelegate(bool is_visible) = 0;
+  virtual void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+                                  bool is_visible) = 0;
 
   // Returns the main delegate.
   virtual cobalt::CobaltMainDelegate* GetMainDelegate() = 0;
@@ -74,7 +76,8 @@ class AppLifecycleDelegate {
   void OnStart(const SbEvent* event);
   void OnStop(const SbEvent* event);
 
-  int Run(bool is_visible,
+  int Run(absl::optional<int64_t> startup_timestamp,
+          bool is_visible,
           int argc,
           const char** argv,
           const char* initial_deep_link);

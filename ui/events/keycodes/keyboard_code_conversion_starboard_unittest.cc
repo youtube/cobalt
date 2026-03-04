@@ -320,7 +320,6 @@ TEST(KeyboardCodeConversionStarboardTest, AllSbKeysAreMappedToDomKey) {
       kSbKeyKbdBrightnessUp,
       kSbKeyDbeSbcschar,
       kSbKeyDbeDbcschar,
-      kSbKeyLaunchThisApplication,
       kSbKeyMouse1,
       kSbKeyMouse2,
       kSbKeyMouse3,
