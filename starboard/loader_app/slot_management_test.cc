@@ -492,15 +492,15 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
   std::vector<char> v2(kTestEvergreenVersion2,
                        kTestEvergreenVersion2 + strlen(kTestEvergreenVersion2));
   std::vector<char> v3(kMaxEgVersionLength);
-  ASSERT_EQ(0, CompareEvergreenVersion(&v1, &v3));
-  ASSERT_EQ(0, CompareEvergreenVersion(&v1, &v1));
-  ASSERT_EQ(-1, CompareEvergreenVersion(&v1, &v2));
+  ASSERT_EQ(0, CompareEvergreenVersion(v1, v3));
+  ASSERT_EQ(0, CompareEvergreenVersion(v1, v1));
+  ASSERT_EQ(-1, CompareEvergreenVersion(v1, v2));
   v3.assign(kTestEvergreenVersion3,
             kTestEvergreenVersion3 + strlen(kTestEvergreenVersion3));
-  ASSERT_EQ(1, CompareEvergreenVersion(&v3, &v2));
+  ASSERT_EQ(1, CompareEvergreenVersion(v3, v2));
   std::vector<char> v4(kTestEvergreenVersion4,
                        kTestEvergreenVersion4 + strlen(kTestEvergreenVersion4));
-  ASSERT_EQ(1, CompareEvergreenVersion(&v4, &v3));
+  ASSERT_EQ(1, CompareEvergreenVersion(v4, v3));
 }
 
 TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
@@ -538,7 +538,7 @@ TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
   manifest_file.WriteAll(manifest_file_str1.c_str(),
                          manifest_file_str1.length());
 
-  ASSERT_FALSE(ReadEvergreenVersion(&manifest_file_path, current_version.data(),
+  ASSERT_FALSE(ReadEvergreenVersion(manifest_file_path, current_version.data(),
                                     kMaxEgVersionLength));
 
   Json::Value evergreen_version;
@@ -550,7 +550,7 @@ TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
   manifest_file.WriteAll(manifest_file_str2.c_str(),
                          manifest_file_str2.length());
 
-  ASSERT_TRUE(ReadEvergreenVersion(&manifest_file_path, current_version.data(),
+  ASSERT_TRUE(ReadEvergreenVersion(manifest_file_path, current_version.data(),
                                    kMaxEgVersionLength));
   ASSERT_EQ(kTestEvergreenVersion2, current_version.data());
 

@@ -26,14 +26,15 @@ namespace loader_app {
 // TODO: b/489518648 - The visiblity of this formerly private helper has been
 // increased so that it can be exposed to unit tests. The tests should be
 // rewritten to test the behavior via public APIs.
-int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2);
+int CompareEvergreenVersion(const std::vector<char>& v1,
+                            const std::vector<char>& v2);
 
 // Reads the Evergreen version from the manifest file at the
 // |manifest_file_path|, and stores in |version|.
 // TODO: b/489518648 - The visiblity of this formerly private helper has been
 // increased so that it can be exposed to unit tests. The tests should be
 // rewritten to test the behavior via public APIs.
-bool ReadEvergreenVersion(std::vector<char>* manifest_file_path,
+bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
                           char* version,
                           int version_length);
 
