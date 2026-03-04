@@ -41,8 +41,18 @@
 
 namespace cobalt {
 
+<<<<<<< HEAD
 CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
     : content::ShellMainDelegate(is_content_browsertests) {}
+=======
+CobaltMainDelegate::CobaltMainDelegate(
+    absl::optional<int64_t> startup_timestamp,
+    bool is_content_browsertests,
+    bool is_visible)
+    : content::ShellMainDelegate(is_content_browsertests),
+      startup_timestamp_(startup_timestamp),
+      is_visible_(is_visible) {}
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
@@ -59,7 +69,12 @@ absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
+<<<<<<< HEAD
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
+=======
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>(
+      startup_timestamp_, is_visible_);
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
   return browser_client_.get();
 }
 

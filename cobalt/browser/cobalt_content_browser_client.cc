@@ -151,7 +151,14 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
+<<<<<<< HEAD
 CobaltContentBrowserClient::CobaltContentBrowserClient() {
+=======
+CobaltContentBrowserClient::CobaltContentBrowserClient(
+    absl::optional<int64_t> startup_time,
+    bool is_visible)
+    : startup_timestamp_(startup_time), is_visible_(is_visible) {
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -328,7 +335,7 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  PopulateCobaltFrameBinders(render_frame_host, map);
+  PopulateCobaltFrameBinders(startup_timestamp_, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }

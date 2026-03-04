@@ -11,6 +11,7 @@
     // base::SysInfo::AmountOfPhysicalMemory() - base::SysInfo::AmountOfAvailablePhysicalMemory()
     [CallWith=ScriptState] unsigned long long measureUsedCpuMemory();
 
+<<<<<<< HEAD
     // Returns the amount of virtual memory that has been swapped out to disk in bytes.
     [CallWith=ScriptState] unsigned long long measureUsedSwapMemory();
 
@@ -18,6 +19,9 @@
     [CallWith=ScriptState] unsigned long long measureReservedVirtualMemory();
 
     // Returns the application startup duration in microseconds (us).
+=======
+    // Returns the application startup timestamp in millisecs (ms).
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
     [CallWith=ScriptState, RaisesException]
-    Promise<long long> getAppStartupTime();
+    Promise<DOMHighResTimeStamp> getAppStartupTimeStamp();
 };

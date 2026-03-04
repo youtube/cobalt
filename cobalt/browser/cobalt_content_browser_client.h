@@ -51,7 +51,12 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
+<<<<<<< HEAD
   CobaltContentBrowserClient();
+=======
+  explicit CobaltContentBrowserClient(absl::optional<int64_t> startup_timestamp,
+                                      bool is_visible = true);
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -123,6 +128,13 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void DispatchFocus();
 
  private:
+<<<<<<< HEAD
+=======
+  void OnSbWindowCreated(SbWindow window);
+
+  const absl::optional<int64_t> startup_timestamp_;
+  bool is_visible_;
+>>>>>>> fbce709b13 (Standardize and secure application startup time measurement (#8488))
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 
   THREAD_CHECKER(thread_checker_);
