@@ -27,6 +27,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/version.h"
+#include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/browser/switches.h"
@@ -49,6 +50,8 @@ struct CobaltMetricsServiceClient::State
 
   // Task runner for background memory metrics collection.
   scoped_refptr<base::SequencedTaskRunner> task_runner;
+
+  scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter_; 
 
   // Flag to stop logging.
   bool stop_logging = false;
@@ -83,9 +86,16 @@ struct CobaltMetricsServiceClient::State
       return;
     }
 
-    scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
+    scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter =
         parent_->CreateMemoryMetricsEmitter();
-    emitter->FetchAndEmitProcessMemoryMetrics();
+    memory_emitter->FetchAndEmitProcessMemoryMetrics();
+
+    if (!cpu_emitter_) {
+      cpu_emitter_ = parent_->CreateCpuMetricsEmitter();
+    }
+
+    cpu_emitter_->FetchAndEmitCpuMetrics();
+
 
     RecordMemoryMetricsAfterDelay();
   }
@@ -348,6 +358,11 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
 scoped_refptr<CobaltMemoryMetricsEmitter>
 CobaltMetricsServiceClient::CreateMemoryMetricsEmitter() {
   return base::MakeRefCounted<CobaltMemoryMetricsEmitter>();
+}
+
+scoped_refptr<CobaltCpuMetricsEmitter>
+CobaltMetricsServiceClient::CreateCpuMetricsEmitter() {
+  return base::MakeRefCounted<CobaltCpuMetricsEmitter>();
 }
 
 }  // namespace cobalt
