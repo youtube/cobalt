@@ -40,10 +40,39 @@
 #include "starboard/system.h"
 #include "url/gurl.h"
 
+#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/dom_storage_context.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/common/storage_key/storage_key.h"
+
+#include "components/services/storage/public/mojom/storage_service.mojom.h"
+#include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
+
 namespace cobalt {
 namespace migrate_storage_record {
 
+using StorageAreaRemote = mojo::Remote<blink::mojom::StorageArea>;
+
 namespace {
+
+// Helper to get CookieManager from Partition
+network::mojom::CookieManager* GetCookieManager(
+    content::StoragePartition* partition) {
+  return partition->GetCookieManagerForBrowserProcess();
+}
+
+// Helper to get LocalStorage Area for a specific origin
+
+void GetLocalStorageArea(content::StoragePartition* partition,
+                         const url::Origin& origin,
+                         StorageAreaRemote& out_area) {
+  // 1. Get the Local Storage Control from the partition's Storage Service
+  // This bypasses the limited DOMStorageContext interface.
+  partition->GetLocalStorageControl()->BindStorageArea(
+      blink::StorageKey::CreateFirstParty(origin),
+      out_area.BindNewPipeAndPassReceiver());
+}
 
 std::string GetApplicationKey(const GURL& url) {
   std::string encoded_url;
@@ -228,7 +257,10 @@ void DeleteOldCacheDirectoryAsync() {
 Task DeleteOldCacheDirectoryTask() {
   return base::BindOnce([](base::OnceClosure callback) {
     DeleteOldCacheDirectoryAsync();
-    std::move(callback).Run();
+    // Don't just run the callback; post it to the current sequence
+    // to give the ThreadPool a head start and clear the stack.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(callback));
   });
 }
 
@@ -251,162 +283,197 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
       std::move(tasks));
 }
 
-// TODO(b/399165612): Add metrics.
-// TODO(b/399165796): Disable and delete migration code when possible.
-// TODO(b/399166308): Add unit and/or integration tests for migration.
-void MigrationManager::EnsureMigrationDone(content::WebContents* web_contents,
-                                           base::OnceClosure done_callback) {
-  LOG(INFO) << "ColinL: EnsureMigrationDone started.";
-  if (migration_attempted_.test_and_set()) {
-    LOG(INFO) << "ColinL: Migration already attempted this session.";
+void MigrationManager::RunMigration(content::StoragePartition* partition,
+                                    base::OnceClosure done_callback) {
+  LOG(INFO) << "ColinL: Starting Pre-MainLoop Migration.";
+
+  // 2. Get the target URL (to determine the Origin/StorageKey)
+  GURL initial_url(
+      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+  if (!initial_url.is_valid()) {
     std::move(done_callback).Run();
     return;
   }
+  url::Origin origin = url::Origin::Create(initial_url);
 
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
-    LOG(INFO) << "ColinL: Storage migration disabled via switch.";
-    std::move(done_callback).Run();
-    return;
-  }
-
-  auto* rfh = web_contents->GetPrimaryMainFrame();
-  if (!rfh) {
-    LOG(ERROR) << "ColinL: No PrimaryMainFrame available for migration.";
-    std::move(done_callback).Run();
-    return;
-  }
-  auto weak_document_ptr = rfh->GetWeakDocumentPtr();
-
-  LOG(INFO) << "ColinL: Checking for existing cookies before migration...";
-  CookieManager(weak_document_ptr)
-      ->GetAllCookies(base::BindOnce(
-          [](content::WebContents* web_contents,
-             base::OnceClosure done_callback,
-             const std::vector<net::CanonicalCookie>& existing_cookies) {
-            if (!existing_cookies.empty()) {
-              LOG(INFO) << "ColinL: Found " << existing_cookies.size()
-                        << " existing cookies. Skipping migration.";
-              for (const auto& cookie : existing_cookies) {
-                VLOG(1) << "ColinL: Existing Cookie: " << cookie.Name();
-              }
-              std::move(done_callback).Run();
-              return;
-            }
-            LOG(INFO)
-                << "ColinL: No cookies found. Triggering RunMigrationTasks.";
-            RunMigrationTasks(web_contents, std::move(done_callback));
-          },
-          web_contents, std::move(done_callback)));
-}
-
-void MigrationManager::RunMigrationTasks(content::WebContents* web_contents,
-                                         base::OnceClosure done_callback) {
-  LOG(INFO) << "ColinL: RunMigrationTasks started.";
+  // 3. Read the legacy storage record
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
-    LOG(INFO) << "ColinL: Legacy storage empty or null. Nothing to migrate.";
+    LOG(INFO) << "ColinL: Nothing to migrate.";
     std::move(done_callback).Run();
     return;
   }
 
-  GURL url = web_contents->GetLastCommittedURL();
-  LOG(INFO) << "ColinL: Stopping WebContents for migration. Last URL: "
-            << url.spec();
-  web_contents->Stop();
-
-  auto* render_frame_host = web_contents->GetPrimaryMainFrame();
-  CHECK(render_frame_host);
-  auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
-
+  // 4. Build and Run Task Group
   std::vector<Task> tasks;
-  LOG(INFO) << "ColinL: Queueing Cookie and LocalStorage tasks...";
-  tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
-  const url::Origin& origin = render_frame_host->GetLastCommittedOrigin();
-  tasks.push_back(LocalStorageTask(weak_document_ptr,
+  tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));
+  tasks.push_back(LocalStorageTask(partition, origin,
                                    ToLocalStorageItems(origin, *storage)));
-#if !defined(COBALT_IS_RELEASE_BUILD)
-  tasks.push_back(LogElapsedTimeTask());
-#endif
   tasks.push_back(DeleteOldCacheDirectoryTask());
-  tasks.push_back(ReloadTask(weak_document_ptr, url));
 
-  LOG(INFO) << "ColinL: Executing task group.";
   std::move(GroupTasks(std::move(tasks))).Run(std::move(done_callback));
 }
 
+// TODO(b/399165612): Add metrics.
+// TODO(b/399165796): Disable and delete migration code when possible.
+// TODO(b/399166308): Add unit and/or integration tests for migration.
+// void MigrationManager::EnsureMigrationDone(content::WebContents*
+// web_contents,
+//                                            base::OnceClosure done_callback) {
+//   LOG(INFO) << "ColinL: EnsureMigrationDone started.";
+//   if (migration_attempted_.test_and_set()) {
+//     LOG(INFO) << "ColinL: Migration already attempted this session.";
+//     std::move(done_callback).Run();
+//     return;
+//   }
+
+//   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+//   if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
+//     LOG(INFO) << "ColinL: Storage migration disabled via switch.";
+//     std::move(done_callback).Run();
+//     return;
+//   }
+
+//   auto* rfh = web_contents->GetPrimaryMainFrame();
+//   if (!rfh) {
+//     LOG(ERROR) << "ColinL: No PrimaryMainFrame available for migration.";
+//     std::move(done_callback).Run();
+//     return;
+//   }
+//   auto weak_document_ptr = rfh->GetWeakDocumentPtr();
+
+//   LOG(INFO) << "ColinL: Checking for existing cookies before migration...";
+//   CookieManager(weak_document_ptr)
+//       ->GetAllCookies(base::BindOnce(
+//           [](content::WebContents* web_contents,
+//              base::OnceClosure done_callback,
+//              const std::vector<net::CanonicalCookie>& existing_cookies) {
+//             if (!existing_cookies.empty()) {
+//               LOG(INFO) << "ColinL: Found " << existing_cookies.size()
+//                         << " existing cookies. Skipping migration.";
+//               for (const auto& cookie : existing_cookies) {
+//                 VLOG(1) << "ColinL: Existing Cookie: " << cookie.Name();
+//               }
+//               std::move(done_callback).Run();
+//               return;
+//             }
+//             LOG(INFO)
+//                 << "ColinL: No cookies found. Triggering RunMigrationTasks.";
+//             RunMigrationTasks(web_contents, std::move(done_callback));
+//           },
+//           web_contents, std::move(done_callback)));
+// }
+
+// void MigrationManager::RunMigrationTasks(content::WebContents* web_contents,
+//                                          base::OnceClosure done_callback) {
+//   LOG(INFO) << "ColinL: RunMigrationTasks started.";
+//   auto storage = ReadStorage();
+//   if (!storage ||
+//       (storage->cookies_size() == 0 && storage->local_storages_size() == 0))
+//       {
+//     LOG(INFO) << "ColinL: Legacy storage empty or null. Nothing to migrate.";
+//     std::move(done_callback).Run();
+//     return;
+//   }
+
+//   GURL url = web_contents->GetLastCommittedURL();
+//   LOG(INFO) << "ColinL: Stopping WebContents for migration. Last URL: "
+//             << url.spec();
+//   web_contents->Stop();
+
+//   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
+//   CHECK(render_frame_host);
+//   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
+
+//   std::vector<Task> tasks;
+//   LOG(INFO) << "ColinL: Queueing Cookie and LocalStorage tasks...";
+//   tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));
+//   url::Origin origin = url::Origin::Create(initial_url);
+//   tasks.push_back(LocalStorageTask(partition, origin,
+//                                    ToLocalStorageItems(origin, *storage)));
+// #if !defined(COBALT_IS_RELEASE_BUILD)
+//   tasks.push_back(LogElapsedTimeTask());
+// #endif
+//   tasks.push_back(DeleteOldCacheDirectoryTask());
+//   // tasks.push_back(ReloadTask(weak_document_ptr, url));
+
+//   LOG(INFO) << "ColinL: Executing task group.";
+//   std::move(GroupTasks(std::move(tasks))).Run(std::move(done_callback));
+// }
+
 // static
 Task MigrationManager::CookieTask(
-    content::WeakDocumentPtr weak_document_ptr,
+    content::StoragePartition* partition,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
   LOG(INFO) << "ColinL: Creating CookieTask for " << cookies.size()
             << " cookies.";
-  std::vector<Task> tasks;
-  tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+  return base::BindOnce(
+      [](content::StoragePartition* partition,
+         std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
          base::OnceClosure callback) {
-        CookieManager(weak_document_ptr)
-            ->DeleteCookies(network::mojom::CookieDeletionFilter::New(),
-                            base::IgnoreArgs<uint32_t>(std::move(callback)));
-      },
-      weak_document_ptr));
-  for (auto& cookie : cookies) {
-    tasks.push_back(base::BindOnce(
-        [](content::WeakDocumentPtr weak_document_ptr,
-           std::unique_ptr<net::CanonicalCookie> cookie,
-           base::OnceClosure callback) {
+        auto* cookie_manager = GetCookieManager(partition);
+
+        // 1. Clear existing cookies
+        cookie_manager->DeleteCookies(
+            network::mojom::CookieDeletionFilter::New(),
+            base::BindOnce([](uint32_t) { /* ignored */ }));
+
+        // 2. Inject new cookies
+        for (auto& cookie : cookies) {
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
-          CookieManager(weak_document_ptr)
-              ->SetCanonicalCookie(*cookie, source_url,
-                                   net::CookieOptions::MakeAllInclusive(),
-                                   base::IgnoreArgs<net::CookieAccessResult>(
-                                       std::move(callback)));
-        },
-        weak_document_ptr, std::move(cookie)));
-  }
-  tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
-         base::OnceClosure callback) {
-        CookieManager(weak_document_ptr)->FlushCookieStore(std::move(callback));
+          cookie_manager->SetCanonicalCookie(
+              *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
+              base::DoNothing());
+        }
+
+        // 3. Flush and continue
+        cookie_manager->FlushCookieStore(std::move(callback));
       },
-      weak_document_ptr));
-  return GroupTasks(std::move(tasks));
+      partition, std::move(cookies));
 }
 
 // static
 Task MigrationManager::LocalStorageTask(
-    content::WeakDocumentPtr weak_document_ptr,
+    content::StoragePartition* partition,
+    const url::Origin& origin,
     std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs) {
-  LOG(INFO) << "ColinL: Creating LocalStorageTask for " << pairs.size()
-            << " items.";
-  std::vector<Task> tasks;
-  tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+  return base::BindOnce(
+      [](content::StoragePartition* partition, url::Origin origin,
+         std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
+             pairs,
          base::OnceClosure callback) {
-        RenderFrameHost(weak_document_ptr)
-            ->ExecuteJavaScriptMethod(
-                base::ASCIIToUTF16(std::string("localStorage")),
-                base::ASCIIToUTF16(std::string("clear")), base::Value::List(),
-                base::IgnoreArgs<base::Value>(std::move(callback)));
-      },
-      weak_document_ptr));
+        StorageAreaRemote area;
+        GetLocalStorageArea(partition, origin, area);
 
-  for (auto& pair : pairs) {
-    tasks.push_back(base::BindOnce(
-        [](content::WeakDocumentPtr weak_document_ptr,
-           std::unique_ptr<std::pair<std::string, std::string>> pair,
-           base::OnceClosure callback) {
-          RenderFrameHost(weak_document_ptr)
-              ->ExecuteJavaScriptMethod(
-                  base::ASCIIToUTF16(std::string("localStorage")),
-                  base::ASCIIToUTF16(std::string("setItem")),
-                  base::Value::List().Append(pair->first).Append(pair->second),
-                  base::IgnoreArgs<base::Value>(std::move(callback)));
-        },
-        weak_document_ptr, std::move(pair)));
-  }
-  return GroupTasks(std::move(tasks));
+        // Your mojom: DeleteAll(string source,
+        // pending_remote<StorageAreaObserver>? observer) => (bool success) We
+        // use BindOnce with IgnoreArgs because we don't care about the bool
+        // result.
+        area->DeleteAll("migration", mojo::NullRemote(),
+                        base::BindOnce([](bool success) {}));
+
+        absl::optional<std::vector<uint8_t>> empty_old_value;
+        for (const auto& pair : pairs) {
+          std::vector<uint8_t> key(pair->first.begin(), pair->first.end());
+          std::vector<uint8_t> value(pair->second.begin(), pair->second.end());
+
+          // Your mojom: Put(array<uint8> key, array<uint8> value, array<uint8>?
+          // old, string source) => (bool success)
+          area->Put(key, value, empty_old_value, "migration",
+                    base::BindOnce([](bool success) {}));
+        }
+
+        // In your version of Mojo, FlushForTesting is synchronous and takes NO
+        // arguments. It blocks the current thread until all previous calls
+        // (DeleteAll, Put) have been dispatched to the Storage Service.
+        area.FlushForTesting();
+
+        // Now that the pipe is flushed, we can safely allow the task chain to
+        // continue.
+        std::move(callback).Run();
+      },
+      partition, origin, std::move(pairs));
 }
 
 // static
