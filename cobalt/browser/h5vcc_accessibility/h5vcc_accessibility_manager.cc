@@ -16,12 +16,20 @@
 
 #include "base/check.h"
 #include "base/no_destructor.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/h5vcc_accessibility/voice_over_status_monitor_tvos.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
 namespace browser {
 
 H5vccAccessibilityManager::H5vccAccessibilityManager() {
   DETACH_FROM_THREAD(thread_checker_);
+#if BUILDFLAG(IS_IOS_TVOS)
+  h5vcc_accessibility::InstallVoiceOverStatusMonitor();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 }
 
 H5vccAccessibilityManager::~H5vccAccessibilityManager() {

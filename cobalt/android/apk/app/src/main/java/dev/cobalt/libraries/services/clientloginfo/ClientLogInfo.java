@@ -52,15 +52,6 @@ public class ClientLogInfo extends CobaltService {
     // synchronize response
     response.data = responseString.getBytes(UTF_8);
 
-    // Submit a Runnable task to send async response
-    mExecutor.execute(
-      () -> {
-        String asynResponseString = "async response: " + responseString;
-        Log.i(TAG, "Platform service send async responseString:" + asynResponseString);
-        sendToClient(mNativeService, asynResponseString.getBytes(UTF_8));
-      }
-    );
-
     Log.i(TAG, "Platform service send sync responseString:" + responseString);
     return response;
   }
