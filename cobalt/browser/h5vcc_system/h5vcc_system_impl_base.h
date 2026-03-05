@@ -59,6 +59,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   ~H5vccSystemImpl();
 
   void PerformExitStrategy();
+  void OnFlushCookiesAndLocalStorageComplete();
 
   COBALT_THREAD_CHECKER(thread_checker_);
 
