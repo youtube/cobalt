@@ -122,6 +122,9 @@ FileWriter* CrashReportDatabase::NewReport::AddAttachment(
 
 void CrashReportDatabase::UploadReport::InitializeAttachments() {
   base::FilePath report_attachments_dir = database_->AttachmentsPath(uuid);
+  if (!IsDirectory(report_attachments_dir, /*allow_symlinks=*/false)) {
+    return;
+  }
   DirectoryReader dir_reader;
   if (!dir_reader.Open(report_attachments_dir)) {
     return;
