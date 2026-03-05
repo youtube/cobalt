@@ -39,7 +39,8 @@ runs:
         set -eux
         cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
+        mapfile -t targets < <(jq -r '.executables | .[]' "${TEST_TARGETS_JSON_FILE}")
+        for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
@@ -65,7 +66,7 @@ runs:
           FLAGS="--compression zstd --compression-level=9"
         fi
 
-        TARGETS=$(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")')
+        TARGETS=$(jq -cr '.test_targets | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
         # Archive browser tests if requested.
         if [[ "${ARCHIVE_BROWSERTESTS}" == "true" ]]; then

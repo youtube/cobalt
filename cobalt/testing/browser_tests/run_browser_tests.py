@@ -97,7 +97,8 @@ class CobaltTestRunner:
     def try_make_executable(path: str):
       if os.path.isfile(path) and not os.access(path, os.X_OK):
         try:
-          os.chmod(path, os.stat(path).st_mode | 0o111)
+          # Use 0o755 (rwxr-xr-x) for binaries.
+          os.chmod(path, 0o755)
           logging.info("Made %s executable.", path)
         except OSError as e:
           logging.warning("Failed to make %s executable: %s", path, e)
@@ -223,10 +224,10 @@ class CobaltTestRunner:
   def is_valid_test_name(self, name: str) -> bool:
     """Checks if a string looks like a valid gtest case name.
 
-    Valid names can contain alphanumeric characters, underscores, and slashes
-    (for parameterized tests).
+    Valid names can contain alphanumeric characters and common separators
+    used in parameterized and typed tests.
     """
-    return bool(re.match(r"^[A-Za-z0-9_/]+$", name))
+    return bool(re.match(r"^[A-Za-z0-9_/.,=()<>]+$", name))
 
   def parse_and_sort_tests(self, gtest_list_output: str) -> List[str]:
     """Parses the output of --gtest_list_tests and sorts test names."""
