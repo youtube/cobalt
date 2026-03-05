@@ -58,6 +58,11 @@ class MODULES_EXPORT H5vccSettings final
   void OnSetValueFinished(ScriptPromiseResolver*);
   void OnConnectionError();
   void EnsureReceiverIsBound();
+  ScriptPromise setInternal(ScriptState* script_state,
+                            const WTF::String& name,
+                            const V8UnionLongOrString* value,
+                            ExceptionState& exception_state);
+  bool injected_ = false;
 
   HeapMojoRemote<h5vcc_settings::mojom::blink::H5vccSettings>
       remote_h5vcc_settings_;

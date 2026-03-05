@@ -15,11 +15,13 @@
 #include "starboard/android/shared/video_render_algorithm.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 namespace starboard::android::shared {
 
@@ -51,6 +53,11 @@ void VideoRenderAlgorithm::Render(
   SB_CHECK(frames);
   SB_CHECK(draw_frame_cb);
 
+  int dropped_frames_start = dropped_frames_;
+  std::optional<int64_t> first_dropped_pts;
+  std::optional<int64_t> last_dropped_pts;
+  int64_t last_early_us = 0;
+  int64_t last_playback_time = 0;
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
       frames->pop_front();
@@ -104,6 +111,12 @@ void VideoRenderAlgorithm::Render(
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
     if (early_us < kBufferTooLateThreshold) {
+      if (!first_dropped_pts) {
+        first_dropped_pts = frames->front()->timestamp();
+      }
+      last_dropped_pts = frames->front()->timestamp();
+      last_early_us = early_us;
+      last_playback_time = playback_time;
       frames->pop_front();
       ++dropped_frames_;
     } else if (early_us < kBufferReadyThreshold) {
@@ -113,6 +126,29 @@ void VideoRenderAlgorithm::Render(
       frames->pop_front();
     } else {
       break;
+    }
+  }
+
+  if (int dropped_frames = (dropped_frames_ - dropped_frames_start);
+      dropped_frames > 0) {
+    if (dropped_frames > 1) {
+      SB_LOG(INFO) << __func__ << " > TTFF: dropped frames=" << dropped_frames
+                   << ", pts(msec)=["
+                   << FormatWithDigitSeparators(*first_dropped_pts / 1000)
+                   << ", "
+                   << FormatWithDigitSeparators(*last_dropped_pts / 1000)
+                   << "], last_early(msec)="
+                   << FormatWithDigitSeparators(last_early_us / 1000)
+                   << ", last_playback_time(msec)="
+                   << FormatWithDigitSeparators(last_playback_time / 1000);
+    } else {
+      SB_LOG(INFO) << __func__ << " > TTFF: dropped frames=" << dropped_frames
+                   << ", pts(msec)="
+                   << FormatWithDigitSeparators(*first_dropped_pts / 1000)
+                   << ", early(msec)="
+                   << FormatWithDigitSeparators(last_early_us / 1000)
+                   << ", playback_time(msec)="
+                   << FormatWithDigitSeparators(last_playback_time / 1000);
     }
   }
 }

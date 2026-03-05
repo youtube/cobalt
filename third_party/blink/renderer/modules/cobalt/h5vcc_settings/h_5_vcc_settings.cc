@@ -16,6 +16,13 @@
 
 #include "base/functional/callback.h"
 #include "base/no_destructor.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include <sys/system_properties.h>
+#include "base/strings/string_number_conversions.h"
+#endif
+
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
 #include "media/filters/source_buffer_state.h"
@@ -135,10 +142,77 @@ void H5vccSettings::ContextDestroyed() {
   ongoing_requests_.clear();
 }
 
+#if BUILDFLAG(IS_ANDROID)
+
+namespace {
+std::optional<int> GetSystemPropertyInt(const char* name) {
+  char value[PROP_VALUE_MAX];
+  if (__system_property_get(name, value) > 0) {
+    int out_int;
+    if (base::StringToInt(value, &out_int)) {
+      return out_int;
+    }
+  }
+  return std::nullopt;
+}
+}  // namespace
+
+#endif
+
 ScriptPromise H5vccSettings::set(ScriptState* script_state,
                                  const WTF::String& name,
                                  const V8UnionLongOrString* value,
                                  ExceptionState& exception_state) {
+  if (!injected_) {
+    injected_ = true;
+#if BUILDFLAG(IS_ANDROID)
+    auto max_pending_bytes = GetSystemPropertyInt(
+        "debug.cobalt.bulk_transfer.max_pending_bytes_per_parse");
+    if (max_pending_bytes) {
+      LOG(INFO) << "Setting Media.ExperimentalMaxPendingBytesPerParse to "
+                << *max_pending_bytes;
+      setInternal(script_state, kMediaExperimentalMaxPendingBytesPerParse,
+                  MakeGarbageCollected<V8UnionLongOrString>(*max_pending_bytes),
+                  exception_state);
+    }
+
+    auto max_samples = GetSystemPropertyInt(
+        "debug.cobalt.bulk_transfer.max_samples_per_write");
+    if (max_samples) {
+      LOG(INFO) << "Setting Media.MaxSamplesPerWrite to " << *max_samples;
+      setInternal(script_state, "Media.MaxSamplesPerWrite",
+                  MakeGarbageCollected<V8UnionLongOrString>(*max_samples),
+                  exception_state);
+    }
+
+    auto preroll_count =
+        GetSystemPropertyInt("debug.cobalt.bulk_transfer.preroll_count");
+    if (preroll_count) {
+      LOG(INFO) << "Setting Media.VideoDecoderInitialPrerollCount to "
+                << *preroll_count;
+      setInternal(script_state, "Media.VideoDecoderInitialPrerollCount",
+                  MakeGarbageCollected<V8UnionLongOrString>(*preroll_count),
+                  exception_state);
+    }
+
+    auto append_sync = GetSystemPropertyInt(
+        "debug.cobalt.bulk_transfer.append_first_segment_synchronously");
+    if (append_sync) {
+      LOG(INFO) << "Setting Media.AppendFirstSegmentSynchronously to "
+                << *append_sync;
+      setInternal(script_state, "Media.AppendFirstSegmentSynchronously",
+                  MakeGarbageCollected<V8UnionLongOrString>(*append_sync),
+                  exception_state);
+    }
+#endif
+  }
+  return setInternal(script_state, name, value, exception_state);
+}
+
+ScriptPromise H5vccSettings::setInternal(ScriptState* script_state,
+                                         const WTF::String& name,
+                                         const V8UnionLongOrString* value,
+                                         ExceptionState& exception_state) {
   if (name.StartsWith(kDecoderBufferSettingPrefix)) {
     return ProcessDecoderBufferSettings(script_state, name, value,
                                         exception_state);
@@ -232,6 +306,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
     return promise;
   }
 
+  LOG(INFO) << "Sending setting to browser: " << name;
   ongoing_requests_.insert(resolver);
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
