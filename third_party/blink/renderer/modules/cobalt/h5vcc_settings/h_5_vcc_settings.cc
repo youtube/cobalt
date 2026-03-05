@@ -14,10 +14,14 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
+<<<<<<< HEAD
 #include <string_view>
 
 #include "base/functional/callback.h"
 #include "base/no_destructor.h"
+=======
+#include "base/types/expected.h"
+>>>>>>> 095d4ffe9e (cobalt: Unify H5vccSettings processing (#9191))
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/stream_parser.h"
@@ -34,7 +38,6 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
-#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -44,21 +47,16 @@
 namespace blink {
 namespace {
 
-constexpr char kMediaAppendFirstSegmentSynchronously[] =
-    "Media.AppendFirstSegmentSynchronously";
-constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
-    "Media.ExperimentalMaxPendingBytesPerParse";
-constexpr char kMediaIncrementalParseLookAhead[] =
-    "Media.IncrementalParseLookAhead";
-constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
+struct SettingContext {
+  ScriptState* script_state;
+  const ExceptionContext& exception_context;
+  const V8UnionLongOrString* value;
+  const String& name;
+};
 
-constexpr char kEnableDecommitableAllocatorStrategy[] =
-    "DecoderBuffer.EnableDecommitableAllocatorStrategy";
-static_assert(
-    std::string_view(kEnableDecommitableAllocatorStrategy)
-        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
-    kDecoderBufferSettingPrefix);
+using Result = base::expected<void, String>;
 
+<<<<<<< HEAD
 constexpr char kEnableInPlaceReuseAllocatorBase[] =
     "DecoderBuffer.EnableInPlaceReuseAllocatorBase";
 static_assert(
@@ -87,9 +85,19 @@ const SettingsMap& GetDecoderBufferSettings() {
        &::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy},
   });
   return *settings;
+=======
+ScriptPromise Reject(const SettingContext& context, const String& error) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      context.script_state, context.exception_context);
+  ScriptPromise promise = resolver->Promise();
+  resolver->Reject(V8ThrowException::CreateTypeError(
+      context.script_state->GetIsolate(), error));
+  return promise;
+>>>>>>> 095d4ffe9e (cobalt: Unify H5vccSettings processing (#9191))
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+<<<<<<< HEAD
 // Ideally this function should be moved to decoder_buffer.h.  It's kept here as
 // H5vccSettings will soon be deprecated and it's easier to remove from here.
 ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
@@ -134,7 +142,65 @@ ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
   resolver->Reject(V8ThrowException::CreateTypeError(
       script_state->GetIsolate(), name + " isn't a supported setting."));
 
+=======
+ScriptPromise Resolve(const SettingContext& context) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      context.script_state, context.exception_context);
+  ScriptPromise promise = resolver->Promise();
+  resolver->Resolve();
+>>>>>>> 095d4ffe9e (cobalt: Unify H5vccSettings processing (#9191))
   return promise;
+}
+
+template <typename T, typename Callback>
+ScriptPromise ProcessSettingAs(const SettingContext& context,
+                               Callback callback) {
+  if (!context.value->IsLong()) {
+    LOG(WARNING) << "The value for '" << context.name << "' must be a number.";
+    return Reject(context,
+                  "The value for '" + context.name + "' must be a number.");
+  }
+  const int32_t value = context.value->GetAsLong();
+
+  Result result = callback(static_cast<T>(value));
+  if (!result.has_value()) {
+    LOG(WARNING) << "Failed to set " << context.name << " to " << value << ": "
+                 << result.error();
+    return Reject(context, result.error());
+  }
+
+  LOG(INFO) << context.name << " is set to " << value;
+  return Resolve(context);
+}
+
+template <typename ActionCallback>
+ScriptPromise ProcessSettingAsEnableOnly(const SettingContext& context,
+                                         ActionCallback action) {
+  return ProcessSettingAs<bool>(
+      context,
+      [name = context.name, action = std::move(action)](bool enable) -> Result {
+        if (!enable) {
+          return base::unexpected(name + " cannot be disabled.");
+        }
+
+        action();
+        return base::ok();
+      });
+}
+
+template <typename ActionCallback>
+ScriptPromise ProcessSettingAsPositiveInt(const SettingContext& context,
+                                          ActionCallback action) {
+  return ProcessSettingAs<int>(
+      context,
+      [name = context.name, action = std::move(action)](int value) -> Result {
+        if (value <= 0) {
+          return base::unexpected(name + " must be a positive integer.");
+        }
+
+        action(value);
+        return base::ok();
+      });
 }
 
 }  // namespace
@@ -147,6 +213,7 @@ void H5vccSettings::ContextDestroyed() {
   ongoing_requests_.clear();
 }
 
+<<<<<<< HEAD
 ScriptPromise<IDLUndefined> H5vccSettings::set(
     ScriptState* script_state,
     const WTF::String& name,
@@ -242,6 +309,45 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
         script_state->GetIsolate(), error_msg));
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return promise;
+=======
+ScriptPromise H5vccSettings::set(ScriptState* script_state,
+                                 const WTF::String& name,
+                                 const V8UnionLongOrString* value,
+                                 ExceptionState& exception_state) {
+  SettingContext context{script_state, exception_state.GetContext(), value,
+                         name};
+
+  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
+    return ProcessSettingAsEnableOnly(context, [] {
+      ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
+    });
+  }
+  if (name == "DecoderBuffer.EnableInPlaceReuseAllocatorBase") {
+    return ProcessSettingAsEnableOnly(context, [] {
+      ::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase();
+    });
+  }
+  // "DecoderBuffer." settings must be handled before this catch-all block.
+  if (name.StartsWith("DecoderBuffer.")) {
+    return Reject(context, name + " isn't a supported setting.");
+  }
+
+  if (name == "Media.AppendFirstSegmentSynchronously") {
+    return ProcessSettingAs<bool>(context, [this](bool enable) -> Result {
+      append_first_segment_synchronously_ = enable;
+      return base::ok();
+    });
+  }
+  if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
+    return ProcessSettingAsPositiveInt(context, [](int value) {
+      ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(value);
+    });
+  }
+  if (name == "Media.IncrementalParseLookAhead") {
+    return ProcessSettingAsEnableOnly(context, [] {
+      ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+    });
+>>>>>>> 095d4ffe9e (cobalt: Unify H5vccSettings processing (#9191))
   }
 
   EnsureReceiverIsBound();
@@ -255,8 +361,15 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
     NOTREACHED();
+<<<<<<< HEAD
+=======
+    return Reject(context, "Unsupported type.");
+>>>>>>> 095d4ffe9e (cobalt: Unify H5vccSettings processing (#9191))
   }
 
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   ongoing_requests_.insert(resolver);
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
