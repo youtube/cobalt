@@ -107,4 +107,53 @@ TEST_F(LifecycleTest, RedundantReveal) {
   shell->Close();
 }
 
+TEST_F(LifecycleTest, Conceal) {
+  Shell* shell = CreateTestShell(true /* is_visible */);
+
+  EXPECT_TRUE(platform_->IsVisible());
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  // Trigger conceal.
+  EXPECT_CALL(*platform_, ConcealShell(shell));
+  Shell::OnConceal();
+
+  EXPECT_FALSE(platform_->IsVisible());
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  shell->Close();
+}
+
+TEST_F(LifecycleTest, FreezeUnfreeze) {
+  Shell* shell = CreateTestShell(true /* is_visible */);
+  TestWebContents* test_web_contents =
+      static_cast<TestWebContents*>(shell->web_contents());
+
+  // Trigger freeze.
+  Shell::OnFreeze();
+  EXPECT_TRUE(test_web_contents->IsPageFrozen());
+
+  // Trigger unfreeze.
+  Shell::OnUnfreeze();
+  EXPECT_FALSE(test_web_contents->IsPageFrozen());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  shell->Close();
+}
+
+TEST_F(LifecycleTest, BlurFocus) {
+  Shell* shell = CreateTestShell(true /* is_visible */);
+
+  // Trigger blur.
+  EXPECT_CALL(*platform_, OnBlur());
+  Shell::OnBlur();
+
+  // Trigger focus.
+  EXPECT_CALL(*platform_, OnFocus());
+  Shell::OnFocus();
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  shell->Close();
+}
+
 }  // namespace content

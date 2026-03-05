@@ -881,6 +881,11 @@ void DesktopWindowTreeHostPlatform::OnWillDestroyAcceleratedWidget() {
   desktop_native_widget_aura_->OnHostWillClose();
 }
 
+void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetDestroyed() {
+  open_windows().remove(GetAcceleratedWidget());
+  aura::WindowTreeHostPlatform::OnAcceleratedWidgetDestroyed();
+}
+
 void DesktopWindowTreeHostPlatform::OnActivationChanged(bool active) {
   if (active) {
     auto widget = GetAcceleratedWidget();

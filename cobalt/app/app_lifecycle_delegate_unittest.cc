@@ -152,6 +152,54 @@ TEST_F(AppLifecycleDelegateTest, IntegratedRedundantReveal) {
   shell->Close();
 }
 
+TEST_F(AppLifecycleDelegateTest, IntegratedConceal) {
+  content::Shell* shell = CreateTestShell(true /* is_visible */);
+  EXPECT_TRUE(platform_->IsVisible());
+
+  EXPECT_CALL(*platform_, ConcealShell(shell));
+  SbEvent event = {kSbEventTypeConceal, 0, nullptr};
+  delegate_->HandleEvent(&event);
+
+  EXPECT_FALSE(platform_->IsVisible());
+  EXPECT_EQ(shell->web_contents()->GetVisibility(),
+            content::Visibility::HIDDEN);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  shell->Close();
+}
+
+TEST_F(AppLifecycleDelegateTest, IntegratedFreezeUnfreeze) {
+  content::Shell* shell = CreateTestShell(true /* is_visible */);
+  content::TestWebContents* test_web_contents =
+      static_cast<content::TestWebContents*>(shell->web_contents());
+
+  SbEvent freeze_event = {kSbEventTypeFreeze, 0, nullptr};
+  delegate_->HandleEvent(&freeze_event);
+  EXPECT_TRUE(test_web_contents->IsPageFrozen());
+
+  SbEvent unfreeze_event = {kSbEventTypeUnfreeze, 0, nullptr};
+  delegate_->HandleEvent(&unfreeze_event);
+  EXPECT_FALSE(test_web_contents->IsPageFrozen());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  shell->Close();
+}
+
+TEST_F(AppLifecycleDelegateTest, IntegratedBlurFocus) {
+  content::Shell* shell = CreateTestShell(true /* is_visible */);
+
+  EXPECT_CALL(*platform_, OnBlur());
+  SbEvent blur_event = {kSbEventTypeBlur, 0, nullptr};
+  delegate_->HandleEvent(&blur_event);
+
+  EXPECT_CALL(*platform_, OnFocus());
+  SbEvent focus_event = {kSbEventTypeFocus, 0, nullptr};
+  delegate_->HandleEvent(&focus_event);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  shell->Close();
+}
+
 TEST_F(AppLifecycleDelegateTest, RevealBeforeStartDoesNotCrash) {
   SendRevealEvent();
 }

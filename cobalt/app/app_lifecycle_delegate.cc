@@ -130,7 +130,20 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
       OnStop(event);
       break;
     case kSbEventTypeBlur:
+      content::Shell::OnBlur();
+#if BUILDFLAG(IS_STARBOARD)
+      if (platform_event_source_) {
+        platform_event_source_->HandleFocusEvent(event);
+      }
+#else
+      // On Android, focus is handled natively via Activity and View lifecycle
+      // callbacks (e.g. CobaltActivity.onResume) which propagate directly to
+      // Chromium's WindowAndroid.
+      NOTIMPLEMENTED();
+#endif
+      break;
     case kSbEventTypeFocus:
+      content::Shell::OnFocus();
 #if BUILDFLAG(IS_STARBOARD)
       if (platform_event_source_) {
         platform_event_source_->HandleFocusEvent(event);
@@ -143,12 +156,16 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
 #endif
       break;
     case kSbEventTypeConceal:
+      content::Shell::OnConceal();
       break;
     case kSbEventTypeReveal:
       content::Shell::OnReveal();
       break;
     case kSbEventTypeFreeze:
+      content::Shell::OnFreeze();
+      break;
     case kSbEventTypeUnfreeze:
+      content::Shell::OnUnfreeze();
       break;
     case kSbEventTypeInput:
 #if BUILDFLAG(IS_STARBOARD)
@@ -246,6 +263,7 @@ void AppLifecycleDelegate::OnStop(const SbEvent* event) {
   if (!runner_->IsRunning()) {
     return;
   }
+  content::Shell::OnStop();
   runner_->ShutDown();
 
 #if BUILDFLAG(IS_STARBOARD)

@@ -31,7 +31,9 @@ namespace ui {
 namespace {
 std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
     g_created_callback;
-}
+std::unique_ptr<PlatformWindowStarboard::WindowDestroyedCallback>
+    g_destroyed_callback;
+}  // namespace
 
 // static
 void PlatformWindowStarboard::SetWindowCreatedCallback(
@@ -39,11 +41,25 @@ void PlatformWindowStarboard::SetWindowCreatedCallback(
   g_created_callback = std::make_unique<WindowCreatedCallback>(std::move(cb));
 }
 
+// static
+void PlatformWindowStarboard::SetWindowDestroyedCallback(
+    WindowDestroyedCallback cb) {
+  g_destroyed_callback =
+      std::make_unique<WindowDestroyedCallback>(std::move(cb));
+}
+
 PlatformWindowStarboard::PlatformWindowStarboard(
     PlatformWindowDelegate* delegate,
     const gfx::Rect& bounds)
     : bounds_(bounds), delegate_(delegate) {
   DCHECK(delegate);
+  if (PlatformEventSource::GetInstance()) {
+    PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
+    static_cast<PlatformEventSourceStarboard*>(
+        PlatformEventSource::GetInstance())
+        ->AddPlatformEventObserverStarboard(this);
+  }
+
   SbWindowOptions options{};
   SbWindowSetDefaultOptions(&options);
   options.size.width = bounds.width();
@@ -55,27 +71,25 @@ PlatformWindowStarboard::PlatformWindowStarboard(
     (*g_created_callback).Run(sb_window_);
   }
 
+  widget_available_ = true;
   delegate->OnAcceleratedWidgetAvailable(
       reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
-
-  if (PlatformEventSource::GetInstance()) {
-    PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
-    static_cast<PlatformEventSourceStarboard*>(
-        PlatformEventSource::GetInstance())
-        ->AddPlatformEventObserverStarboard(this);
-  }
 }
 
 PlatformWindowStarboard::~PlatformWindowStarboard() {
-  if (sb_window_) {
-    SbWindowDestroy(sb_window_);
-  }
-
   if (PlatformEventSource::GetInstance()) {
     PlatformEventSource::GetInstance()->RemovePlatformEventDispatcher(this);
     static_cast<PlatformEventSourceStarboard*>(
         PlatformEventSource::GetInstance())
         ->RemovePlatformEventObserverStarboard(this);
+  }
+
+  if (SbWindowIsValid(sb_window_)) {
+    if (g_destroyed_callback) {
+      (*g_destroyed_callback).Run(sb_window_);
+    }
+    SbWindowDestroy(sb_window_);
+    sb_window_ = kSbWindowInvalid;
   }
 }
 
@@ -136,11 +150,44 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 }
 
 void PlatformWindowStarboard::Show(bool inactive) {
-  NOTIMPLEMENTED_LOG_ONCE();
+  LOG(INFO) << "PlatformWindowStarboard::Show";
+  if (!SbWindowIsValid(sb_window_)) {
+    SbWindowOptions options{};
+    SbWindowSetDefaultOptions(&options);
+    options.size.width = bounds_.width();
+    options.size.height = bounds_.height();
+    sb_window_ = SbWindowCreate(&options);
+    CHECK(SbWindowIsValid(sb_window_));
+
+    if (g_created_callback) {
+      (*g_created_callback).Run(sb_window_);
+    }
+  }
+
+  if (SbWindowIsValid(sb_window_) && !widget_available_) {
+    widget_available_ = true;
+    delegate_->OnAcceleratedWidgetAvailable(
+        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
+  }
 }
 
 void PlatformWindowStarboard::Hide() {
-  NOTIMPLEMENTED_LOG_ONCE();
+  LOG(INFO) << "PlatformWindowStarboard::Hide";
+  if (!SbWindowIsValid(sb_window_)) {
+    return;
+  }
+
+  if (widget_available_) {
+    widget_available_ = false;
+    delegate_->OnAcceleratedWidgetDestroyed();
+  }
+
+  if (g_destroyed_callback) {
+    (*g_destroyed_callback).Run(sb_window_);
+  }
+
+  SbWindowDestroy(sb_window_);
+  sb_window_ = kSbWindowInvalid;
 }
 
 void PlatformWindowStarboard::Close() {
@@ -148,8 +195,7 @@ void PlatformWindowStarboard::Close() {
 }
 
 bool PlatformWindowStarboard::IsVisible() const {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return true;
+  return SbWindowIsValid(sb_window_);
 }
 
 void PlatformWindowStarboard::PrepareForShutdown() {

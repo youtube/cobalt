@@ -61,7 +61,13 @@ class ShellPlatformDelegate {
   bool IsVisible() const;
 
   // Lifecycle signals called from the application.
+  virtual void OnBlur();
+  virtual void OnFocus();
+  virtual void OnConceal();
   virtual void OnReveal();
+  virtual void OnFreeze();
+  virtual void OnUnfreeze();
+  virtual void OnStop();
 
   // Called after creating a Shell instance, with its initial size.
   virtual void CreatePlatformWindow(Shell* shell,
@@ -166,6 +172,7 @@ class ShellPlatformDelegate {
 
  protected:
   virtual void RevealShell(Shell* shell);
+  virtual void ConcealShell(Shell* shell);
 
   void CreatePlatformWindowInternal(Shell* shell,
                                     const gfx::Size& initial_size);

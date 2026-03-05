@@ -88,6 +88,8 @@ class ShellView : public views::BoxLayoutView,
   ShellView& operator=(const ShellView&) = delete;
   ~ShellView() override = default;
 
+  Shell* ReleaseShell() { return shell_.release(); }
+
   // Update the state of UI controls
   void SetAddressBarURL(const GURL& url) {
     url_entry_->SetText(base::ASCIIToUTF16(url.spec()));
@@ -402,6 +404,15 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
 
   if (IsVisible()) {
     SetContents(shell);
+  }
+}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)->ReleaseShell();
+    shell_data.window_widget->CloseNow();
+    shell_data.window_widget = nullptr;
   }
 }
 

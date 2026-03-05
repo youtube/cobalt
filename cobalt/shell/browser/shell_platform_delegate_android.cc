@@ -185,8 +185,7 @@ void ShellPlatformDelegate::SetOverlayMode(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  return Java_Shell_setOverlayMode(env, shell_data.java_object,
-                                   use_overlay_mode);
+  Java_Shell_setOverlayMode(env, shell_data.java_object, use_overlay_mode);
 }
 
 void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {

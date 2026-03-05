@@ -75,6 +75,10 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
               (override));
   MOCK_METHOD(void, DidCloseLastWindow, (), (override));
   MOCK_METHOD(void, RevealShell, (Shell * shell), (override));
+  MOCK_METHOD(void, ConcealShell, (Shell * shell), (override));
+  MOCK_METHOD(void, OnBlur, (), (override));
+  MOCK_METHOD(void, OnFocus, (), (override));
+  MOCK_METHOD(void, OnStop, (), (override));
 };
 
 class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {

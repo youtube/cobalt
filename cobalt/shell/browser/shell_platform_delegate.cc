@@ -25,6 +25,21 @@ bool ShellPlatformDelegate::IsVisible() const {
   return is_visible_;
 }
 
+void ShellPlatformDelegate::OnBlur() {}
+
+void ShellPlatformDelegate::OnFocus() {}
+
+void ShellPlatformDelegate::OnConceal() {
+  if (!is_visible_) {
+    return;
+  }
+  is_visible_ = false;
+  for (auto* shell : Shell::windows()) {
+    ConcealShell(shell);
+    shell->web_contents()->WasHidden();
+  }
+}
+
 void ShellPlatformDelegate::OnReveal() {
   if (is_visible_) {
     return;
@@ -35,6 +50,21 @@ void ShellPlatformDelegate::OnReveal() {
     shell->web_contents()->WasShown();
   }
 }
+
+void ShellPlatformDelegate::OnFreeze() {
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->SetPageFrozen(true);
+  }
+}
+
+void ShellPlatformDelegate::OnUnfreeze() {
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->SetPageFrozen(false);
+  }
+}
+
+void ShellPlatformDelegate::OnStop() {}
+
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {}
