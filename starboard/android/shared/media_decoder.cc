@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_decoder.h"
 
 #include <sched.h>
+#include <sys/system_properties.h>
 #include <unistd.h>
 
 #include "base/android/jni_android.h"
@@ -49,6 +50,21 @@ const int64_t kErrorRetryDelay = 50'000;  // 50ms
 
 constexpr int64_t kDefaultVideoDecoderPollIntervalUs = 1'000;         // 1 msec
 constexpr int64_t kDefaultVideoDecoderTunnelPollIntervalUs = 10'000;  // 10 msec
+
+int64_t GetVideoDecoderPollIntervalUs(
+    std::optional<int> video_decoder_poll_interval_ms,
+    bool tunnel_mode_enabled) {
+  char poll_interval_str[PROP_VALUE_MAX];
+  if (__system_property_get("debug.cobalt.poll_interval_ms",
+                            poll_interval_str) > 0 &&
+      strlen(poll_interval_str) > 0) {
+    return static_cast<int64_t>(atoi(poll_interval_str)) * 1000;
+  }
+  return video_decoder_poll_interval_ms
+             ? static_cast<int64_t>(*video_decoder_poll_interval_ms) * 1'000
+             : (tunnel_mode_enabled ? kDefaultVideoDecoderTunnelPollIntervalUs
+                                    : kDefaultVideoDecoderPollIntervalUs);
+}
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -147,10 +163,8 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       video_decoder_poll_interval_us_(
-          video_decoder_poll_interval_ms
-              ? static_cast<int64_t>(*video_decoder_poll_interval_ms) * 1'000
-              : (tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
-                                      : kDefaultVideoDecoderPollIntervalUs)),
+          GetVideoDecoderPollIntervalUs(video_decoder_poll_interval_ms,
+                                        tunnel_mode_enabled_)),
       condition_variable_(mutex_),
       decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
         if (!initial_max_frames || tunnel_mode_enabled_) {
