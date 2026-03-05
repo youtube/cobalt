@@ -15,6 +15,7 @@
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
@@ -77,15 +78,17 @@ void H5vccSystemImpl::Exit() {
   CHECK(cookie_manager);
   // Sequencing exit strategy after flushing delays performing exit strategy by
   // 20ms when tested on a chromecast.
+  auto start_time = std::make_unique<base::ElapsedTimer>();
   cookie_manager->FlushCookieStore(
       base::BindOnce(&H5vccSystemImpl::OnFlushCookiesAndLocalStorageComplete,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr(), std::move(start_time)));
 }
 
-void H5vccSystemImpl::OnFlushCookiesAndLocalStorageComplete() {
+void H5vccSystemImpl::OnFlushCookiesAndLocalStorageComplete(
+    std::unique_ptr<base::ElapsedTimer> timer) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  base::UmaHistogramEnumeration("Cobalt.Storage.Exit.FlushResult",
-                                0 /* Success */);
+  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.FlushDuration", timer->Elapsed());
   PerformExitStrategy();
+}
 
 }  // namespace h5vcc_system

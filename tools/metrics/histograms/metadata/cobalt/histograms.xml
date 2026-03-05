@@ -125,14 +125,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Storage.Exit.FlushResult"
-    enum="Cobalt.Storage.FlushResult" expires_after="never">
+<histogram name="Cobalt.Storage.Exit.FlushDuration" units="ms"
+    expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    Records whether the final, explicit flush of storage during a graceful
-    application exit (e.g., via window.h5vcc.system.exit()) completed
-    successfully. This verifies that our shutdown safety net is working as
-    intended.
+    Records the time it takes to flush both cookies and local storage during a
+    graceful application exit (e.g., via window.h5vcc.system.exit()). This helps
+    to understand the performance of the operation and can serve as a health
+    signal for the storage backend.
   </summary>
 </histogram>
 
@@ -144,16 +144,6 @@ Always run the pretty print utility on this file after editing:
     onPause event on Android. This helps to understand if the operation
     completes within the short window granted by the OS before the app is
     killed.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.OnPause.FlushResult"
-    enum="Cobalt.Storage.FlushResult" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the result of the attempt to flush cookies and local storage to disk
-    during the onPause event on Android. This is critical for preventing data
-    loss when the application is backgrounded and potentially killed by the OS.
   </summary>
 </histogram>
 

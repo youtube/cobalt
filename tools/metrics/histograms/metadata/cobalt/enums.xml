@@ -38,13 +38,6 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Config is missing timestamp"/>
 </enum>
 
-<enum name="Cobalt.Storage.FlushResult">
-  <summary>The result of a storage flush operation.</summary>
-  <int value="0" label="Success"/>
-  <int value="1" label="Error"/>
-  <int value="2" label="Timeout"/>
-</enum>
-
 </enums>
 
 </histogram-configuration>

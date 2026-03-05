@@ -403,8 +403,6 @@ void CobaltContentBrowserClient::DispatchBlur() {
       [](std::unique_ptr<base::ElapsedTimer> timer) {
         UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
                             timer->Elapsed());
-        base::UmaHistogramEnumeration("Cobalt.Storage.OnPause.FlushResult",
-                                      0 /* Success */);
       },
       std::move(start_time)));
 }
