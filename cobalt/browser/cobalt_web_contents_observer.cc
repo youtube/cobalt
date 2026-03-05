@@ -17,6 +17,7 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/net_errors.h"
@@ -40,7 +41,13 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
-CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+CobaltWebContentsObserver::~CobaltWebContentsObserver() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (!platform_error_raised_) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", false);
+  }
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+}
 
 #if BUILDFLAG(IS_ANDROIDTV)
 void CobaltWebContentsObserver::SetTimerForTestInternal(
@@ -79,9 +86,12 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   timeout_timer_->Stop();
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", true);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
     RaisePlatformError();
+  } else if (net_error_code == net::OK) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
   }
 }
 
@@ -92,6 +102,10 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   // Don't raise a new platform error if one is already showing
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
     return;
+  }
+  if (!platform_error_raised_) {
+    platform_error_raised_ = true;
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", true);
   }
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
 }
