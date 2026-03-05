@@ -334,14 +334,6 @@ DomCode SbKeyToDomCode(SbKey sb_key) {
       return DomCode::MEDIA_REWIND;
     case kSbKeyMediaFastForward:
       return DomCode::MEDIA_FAST_FORWARD;
-    case kSbKeyRed:
-      return DomCode::F13;
-    case kSbKeyGreen:
-      return DomCode::F14;
-    case kSbKeyYellow:
-      return DomCode::F15;
-    case kSbKeyBlue:
-      return DomCode::F16;
     case kSbKeyRecord:
       return DomCode::MEDIA_RECORD;
     case kSbKeyChannelUp:
@@ -358,6 +350,10 @@ DomCode SbKeyToDomCode(SbKey sb_key) {
       return DomCode::MICROPHONE_MUTE_TOGGLE;
 
     // The following keys don't have standard DomCode values.
+    case kSbKeyRed:
+    case kSbKeyGreen:
+    case kSbKeyYellow:
+    case kSbKeyBlue:
     case kSbKeyMenu:
     case kSbKeyJunja:
     case kSbKeyFinal:
@@ -401,6 +397,7 @@ DomCode SbKeyToDomCode(SbKey sb_key) {
     case kSbKeyGamepadRightStickDown:
     case kSbKeyGamepadRightStickLeft:
     case kSbKeyGamepadRightStickRight:
+
       return DomCode::NONE;
   }
 }
@@ -931,6 +928,8 @@ DomKey SbKeyToDomKey(SbKey sb_key, bool shift) {
       return DomKey::CHANNEL_UP;
     case kSbKeyChannelDown:
       return DomKey::CHANNEL_DOWN;
+    case kSbKeyLast:
+      return DomKey::MEDIA_LAST;
     case kSbKeySubtitle:
       return DomKey::SUBTITLE;
     case kSbKeyInfo:
@@ -961,7 +960,6 @@ DomKey SbKeyToDomKey(SbKey sb_key, bool shift) {
     case kSbKeyKbdBrightnessUp:
     case kSbKeyDbeSbcschar:
     case kSbKeyDbeDbcschar:
-    case kSbKeyLast:
     case kSbKeyLaunchThisApplication:
     case kSbKeyMouse1:
     case kSbKeyMouse2:

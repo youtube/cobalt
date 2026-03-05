@@ -3940,6 +3940,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, SameDocumentLongURLPushState) {
   EXPECT_EQ(long_url, EvalJs(web_contents(), "location.hash"));
 }
 
+// TODO(b/483488213): This test is disabled on Starboard due to failures.
 #if BUILDFLAG(IS_STARBOARD)
 #define MAYBE_SameDocumentLongURL204PopupHashNavigation \
   DISABLED_SameDocumentLongURL204PopupHashNavigation
