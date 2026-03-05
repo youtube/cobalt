@@ -22,6 +22,7 @@
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
+#include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -35,6 +36,34 @@ namespace base {
 namespace sequence_manager {
 namespace internal {
 namespace {
+
+std::string TaskTypeToString(uint8_t task_type) {
+  switch (task_type) {
+    case 1: return "kDOMManipulation";
+    case 2: return "kUserInteraction";
+    case 3: return "kNetworking";
+    case 4: return "kNetworkingControl";
+    case 5: return "kHistoryTraversal";
+    case 6: return "kEmbed";
+    case 7: return "kMediaElementEvent";
+    case 8: return "kCanvasBlobSerialization";
+    case 9: return "kMicrotask";
+    case 10: return "kJavascriptTimerDelayedHighNesting";
+    case 72: return "kJavascriptTimerImmediate";
+    case 73: return "kJavascriptTimerDelayedLowNesting";
+    case 23: return "kInternalDefault";
+    case 24: return "kInternalLoading";
+    case 29: return "kInternalMedia";
+    case 32: return "kInternalUserInteraction";
+    case 33: return "kInternalInspector";
+    case 38: return "kMainThreadTaskQueueCompositor";
+    case 39: return "kMainThreadTaskQueueDefault";
+    case 40: return "kMainThreadTaskQueueInput";
+    case 41: return "kMainThreadTaskQueueIdle";
+    case 43: return "kMainThreadTaskQueueControl";
+    default: return base::StringPrintf("kOther(%d)", task_type);
+  }
+}
 
 // Returns |next_run_time| capped at 1 day from |lazy_now|. This is used to
 // mitigate https://crbug.com/850450 where some platforms are unhappy with
@@ -475,12 +504,17 @@ absl::optional<WakeUp> ThreadControllerWithMessagePumpImpl::DoWorkImpl(
     // See https://crbug.com/681863 and https://crbug.com/874982
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"), "RunTask");
 
-    {
-      // Always track the start of the task, as this is low-overhead.
-      TaskAnnotator::LongTaskTracker long_task_tracker(
-          time_source_, selected_task->task, &task_annotator_);
+      {
+        // Always track the start of the task, as this is low-overhead.
+        TaskAnnotator::LongTaskTracker long_task_tracker(
+            time_source_, selected_task->task, &task_annotator_);
+        long_task_tracker.SetTaskDescription(base::StringPrintf(
+            "Type=%s, Queue=%s",
+            TaskTypeToString(selected_task->task.task_type).c_str(),
+            perfetto::protos::pbzero::SequenceManagerTask::QueueName_Name(
+                selected_task->task_queue_name)));
 
-      // Note: all arguments after task are just passed to a TRACE_EVENT for
+        // Note: all arguments after task are just passed to a TRACE_EVENT for
       // logging so lambda captures are safe as lambda is executed inline.
       SequencedTaskSource* source = main_thread_only().task_source;
       task_annotator_.RunTask(
