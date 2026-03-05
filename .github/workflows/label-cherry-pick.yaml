@@ -45,6 +45,7 @@ jobs:
           for label in "${labels_array[@]}"; do
             if [[ "$label" == "cp-${branch}" ]]; then
               filtered_branches+=("${branch}")
+              break
             fi
           done
         done
