@@ -2,7 +2,12 @@
 # Copyright 2024 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Siso backend config for Cobalt."""
+"""Siso backend config for Cobalt.
+
+This file was forked from:
+//build/config/siso/backend_config/google.star with only the default
+worker pool to match Cobalt's RBE instance.
+"""
 
 load("@builtin//struct.star", "module")
 
