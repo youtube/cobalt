@@ -271,8 +271,6 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   }
 }
 
-## NOTE: This target is shared between Evergreen and EG platform code
-## It needs to be built with both Starboard and Cobalt toolchains
 static_library("slot_management") {
   sources = [
     "slot_management.cc",
@@ -299,7 +297,7 @@ static_library("slot_management") {
 
   configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
-if (sb_is_evergreen && current_toolchain == starboard_toolchain) {
+if (current_toolchain == starboard_toolchain) {
   source_set("slot_management_test") {
     testonly = true
 
