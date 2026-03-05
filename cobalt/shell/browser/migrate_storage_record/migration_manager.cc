@@ -14,40 +14,46 @@
 
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "base/barrier_closure.h"
 #include "base/base64url.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/url_matcher/url_util.h"
-#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_options.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "starboard/common/storage.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
-#include "url/gurl.h"
-
-#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
-#include "content/public/browser/browser_context.h"
-#include "content/public/browser/dom_storage_context.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
-
-#include "components/services/storage/public/mojom/storage_service.mojom.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace cobalt {
 namespace migrate_storage_record {
@@ -56,19 +62,14 @@ using StorageAreaRemote = mojo::Remote<blink::mojom::StorageArea>;
 
 namespace {
 
-// Helper to get CookieManager from Partition
 network::mojom::CookieManager* GetCookieManager(
     content::StoragePartition* partition) {
   return partition->GetCookieManagerForBrowserProcess();
 }
 
-// Helper to get LocalStorage Area for a specific origin
-
 void GetLocalStorageArea(content::StoragePartition* partition,
                          const url::Origin& origin,
-                         StorageAreaRemote& out_area) {
-  // 1. Get the Local Storage Control from the partition's Storage Service
-  // This bypasses the limited DOMStorageContext interface.
+                         mojo::Remote<blink::mojom::StorageArea>& out_area) {
   partition->GetLocalStorageControl()->BindStorageArea(
       blink::StorageKey::CreateFirstParty(origin),
       out_area.BindNewPipeAndPassReceiver());
@@ -315,120 +316,32 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   std::move(GroupTasks(std::move(tasks))).Run(std::move(done_callback));
 }
 
-// TODO(b/399165612): Add metrics.
-// TODO(b/399165796): Disable and delete migration code when possible.
-// TODO(b/399166308): Add unit and/or integration tests for migration.
-// void MigrationManager::EnsureMigrationDone(content::WebContents*
-// web_contents,
-//                                            base::OnceClosure done_callback) {
-//   LOG(INFO) << "ColinL: EnsureMigrationDone started.";
-//   if (migration_attempted_.test_and_set()) {
-//     LOG(INFO) << "ColinL: Migration already attempted this session.";
-//     std::move(done_callback).Run();
-//     return;
-//   }
-
-//   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-//   if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
-//     LOG(INFO) << "ColinL: Storage migration disabled via switch.";
-//     std::move(done_callback).Run();
-//     return;
-//   }
-
-//   auto* rfh = web_contents->GetPrimaryMainFrame();
-//   if (!rfh) {
-//     LOG(ERROR) << "ColinL: No PrimaryMainFrame available for migration.";
-//     std::move(done_callback).Run();
-//     return;
-//   }
-//   auto weak_document_ptr = rfh->GetWeakDocumentPtr();
-
-//   LOG(INFO) << "ColinL: Checking for existing cookies before migration...";
-//   CookieManager(weak_document_ptr)
-//       ->GetAllCookies(base::BindOnce(
-//           [](content::WebContents* web_contents,
-//              base::OnceClosure done_callback,
-//              const std::vector<net::CanonicalCookie>& existing_cookies) {
-//             if (!existing_cookies.empty()) {
-//               LOG(INFO) << "ColinL: Found " << existing_cookies.size()
-//                         << " existing cookies. Skipping migration.";
-//               for (const auto& cookie : existing_cookies) {
-//                 VLOG(1) << "ColinL: Existing Cookie: " << cookie.Name();
-//               }
-//               std::move(done_callback).Run();
-//               return;
-//             }
-//             LOG(INFO)
-//                 << "ColinL: No cookies found. Triggering RunMigrationTasks.";
-//             RunMigrationTasks(web_contents, std::move(done_callback));
-//           },
-//           web_contents, std::move(done_callback)));
-// }
-
-// void MigrationManager::RunMigrationTasks(content::WebContents* web_contents,
-//                                          base::OnceClosure done_callback) {
-//   LOG(INFO) << "ColinL: RunMigrationTasks started.";
-//   auto storage = ReadStorage();
-//   if (!storage ||
-//       (storage->cookies_size() == 0 && storage->local_storages_size() == 0))
-//       {
-//     LOG(INFO) << "ColinL: Legacy storage empty or null. Nothing to migrate.";
-//     std::move(done_callback).Run();
-//     return;
-//   }
-
-//   GURL url = web_contents->GetLastCommittedURL();
-//   LOG(INFO) << "ColinL: Stopping WebContents for migration. Last URL: "
-//             << url.spec();
-//   web_contents->Stop();
-
-//   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
-//   CHECK(render_frame_host);
-//   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
-
-//   std::vector<Task> tasks;
-//   LOG(INFO) << "ColinL: Queueing Cookie and LocalStorage tasks...";
-//   tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));
-//   url::Origin origin = url::Origin::Create(initial_url);
-//   tasks.push_back(LocalStorageTask(partition, origin,
-//                                    ToLocalStorageItems(origin, *storage)));
-// #if !defined(COBALT_IS_RELEASE_BUILD)
-//   tasks.push_back(LogElapsedTimeTask());
-// #endif
-//   tasks.push_back(DeleteOldCacheDirectoryTask());
-//   // tasks.push_back(ReloadTask(weak_document_ptr, url));
-
-//   LOG(INFO) << "ColinL: Executing task group.";
-//   std::move(GroupTasks(std::move(tasks))).Run(std::move(done_callback));
-// }
-
 // static
 Task MigrationManager::CookieTask(
     content::StoragePartition* partition,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
-  LOG(INFO) << "ColinL: Creating CookieTask for " << cookies.size()
-            << " cookies.";
   return base::BindOnce(
       [](content::StoragePartition* partition,
          std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
          base::OnceClosure callback) {
+        if (cookies.empty()) {
+          std::move(callback).Run();
+          return;
+        }
+
         auto* cookie_manager = GetCookieManager(partition);
 
-        // 1. Clear existing cookies
-        cookie_manager->DeleteCookies(
-            network::mojom::CookieDeletionFilter::New(),
-            base::BindOnce([](uint32_t) { /* ignored */ }));
+        base::RepeatingClosure barrier =
+            base::BarrierClosure(cookies.size(), std::move(callback));
 
-        // 2. Inject new cookies
         for (auto& cookie : cookies) {
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
           cookie_manager->SetCanonicalCookie(
               *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
-              base::DoNothing());
+              base::BindOnce([](base::RepeatingClosure barrier,
+                                net::CookieAccessResult) { barrier.Run(); },
+                             barrier));
         }
-
-        // 3. Flush and continue
-        cookie_manager->FlushCookieStore(std::move(callback));
       },
       partition, std::move(cookies));
 }
@@ -443,35 +356,55 @@ Task MigrationManager::LocalStorageTask(
          std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
              pairs,
          base::OnceClosure callback) {
-        StorageAreaRemote area;
-        GetLocalStorageArea(partition, origin, area);
+        auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
+        GetLocalStorageArea(partition, origin, *area);
 
-        // Your mojom: DeleteAll(string source,
-        // pending_remote<StorageAreaObserver>? observer) => (bool success) We
-        // use BindOnce with IgnoreArgs because we don't care about the bool
-        // result.
-        area->DeleteAll("migration", mojo::NullRemote(),
-                        base::BindOnce([](bool success) {}));
+        // area is a unique_ptr to a mojo::Remote. To call DeleteAll, we need
+        // to dereference the unique_ptr to get the Remote, then use -> to
+        // access the interface.
+        (*area)->DeleteAll(
+            "migration", mojo::NullRemote(),
+            base::BindOnce(
+                [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>>
+                       area,
+                   std::vector<std::unique_ptr<
+                       std::pair<std::string, std::string>>> pairs,
+                   base::OnceClosure callback, bool success) {
+                  if (pairs.empty()) {
+                    std::move(callback).Run();
+                    return;
+                  }
 
-        absl::optional<std::vector<uint8_t>> empty_old_value;
-        for (const auto& pair : pairs) {
-          std::vector<uint8_t> key(pair->first.begin(), pair->first.end());
-          std::vector<uint8_t> value(pair->second.begin(), pair->second.end());
+                  // Pointer for the loop before ownership is transferred to
+                  // final_task. We dereference the unique_ptr to get a raw
+                  // pointer to the Remote.
+                  auto* raw_remote_ptr = area.get();
 
-          // Your mojom: Put(array<uint8> key, array<uint8> value, array<uint8>?
-          // old, string source) => (bool success)
-          area->Put(key, value, empty_old_value, "migration",
-                    base::BindOnce([](bool success) {}));
-        }
+                  base::OnceClosure final_task = base::BindOnce(
+                      [](std::unique_ptr<
+                             mojo::Remote<blink::mojom::StorageArea>> area,
+                         base::OnceClosure cb) { std::move(cb).Run(); },
+                      std::move(area), std::move(callback));
 
-        // In your version of Mojo, FlushForTesting is synchronous and takes NO
-        // arguments. It blocks the current thread until all previous calls
-        // (DeleteAll, Put) have been dispatched to the Storage Service.
-        area.FlushForTesting();
+                  base::RepeatingClosure barrier =
+                      base::BarrierClosure(pairs.size(), std::move(final_task));
 
-        // Now that the pipe is flushed, we can safely allow the task chain to
-        // continue.
-        std::move(callback).Run();
+                  for (const auto& pair : pairs) {
+                    std::vector<uint8_t> key(pair->first.begin(),
+                                             pair->first.end());
+                    std::vector<uint8_t> value(pair->second.begin(),
+                                               pair->second.end());
+
+                    // Use the raw pointer to the Remote to call Put.
+                    (*raw_remote_ptr)
+                        ->Put(
+                            key, value, absl::nullopt, "migration",
+                            base::BindOnce([](base::RepeatingClosure barrier,
+                                              bool success) { barrier.Run(); },
+                                           barrier));
+                  }
+                },
+                std::move(area), std::move(pairs), std::move(callback)));
       },
       partition, origin, std::move(pairs));
 }
