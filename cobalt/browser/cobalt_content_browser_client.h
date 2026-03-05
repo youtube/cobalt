@@ -137,6 +137,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
  private:
   void OnSbWindowCreated(SbWindow window);
+  void OnSbWindowDestroyed(SbWindow window);
 
   const absl::optional<int64_t> startup_timestamp_;
   bool is_visible_;

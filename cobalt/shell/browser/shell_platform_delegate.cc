@@ -17,6 +17,8 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/javascript_dialog_manager.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 
 namespace content {
@@ -25,16 +27,64 @@ bool ShellPlatformDelegate::IsVisible() const {
   return is_visible_;
 }
 
-void ShellPlatformDelegate::OnReveal() {
-  if (is_visible_) {
+__attribute__((weak)) void ShellPlatformDelegate::Initialize(
+    const gfx::Size& default_window_size,
+    bool is_visible) {
+  is_visible_ = is_visible;
+}
+
+void ShellPlatformDelegate::OnBlur() {
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost()->Blur();
+  }
+}
+
+void ShellPlatformDelegate::OnFocus() {
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->Focus();
+  }
+}
+
+void ShellPlatformDelegate::OnConceal() {
+  if (!IsVisible()) {
     return;
   }
-  is_visible_ = true;
+  set_is_visible(false);
+  for (auto* shell : Shell::windows()) {
+    ConcealShell(shell);
+    shell->web_contents()->WasHidden();
+  }
+}
+
+void ShellPlatformDelegate::OnReveal() {
+  if (IsVisible()) {
+    return;
+  }
+  set_is_visible(true);
   for (auto* shell : Shell::windows()) {
     RevealShell(shell);
     shell->web_contents()->WasShown();
   }
 }
+
+void ShellPlatformDelegate::OnFreeze() {
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->SetPageFrozen(true);
+  }
+}
+
+void ShellPlatformDelegate::OnUnfreeze() {
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->SetPageFrozen(false);
+  }
+}
+
+void ShellPlatformDelegate::OnStop() {}
+
+__attribute__((weak)) void ShellPlatformDelegate::RevealShell(Shell* shell) {}
+
+__attribute__((weak)) void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {}

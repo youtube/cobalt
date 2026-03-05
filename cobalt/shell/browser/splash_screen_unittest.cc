@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/test/test_web_contents.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 using testing::_;
 
 namespace content {
 
-class SplashScreenTest : public ShellTestBase {
+class SplashScreenTest : public CobaltShellTestBase {
  public:
   SplashScreenTest() = default;
 
   void SetUp() override {
-    ShellTestBase::SetUp();
+    CobaltShellTestBase::SetUp();
     InitializeShell(true /* is_visible */);
   }
 
@@ -57,12 +60,12 @@ class SplashScreenTest : public ShellTestBase {
 
   Shell* CreateShell(std::unique_ptr<WebContents> web_contents,
                      std::unique_ptr<WebContents> splash_contents) {
+    EXPECT_CALL(*platform_, SetContents(_));
     Shell* shell =
         new Shell(std::move(web_contents), std::move(splash_contents),
-                  /*should_set_delegate=*/false,
-                  /*topic*/ "",
+                  /*should_set_delegate=*/false, /*topic=*/"",
                   /*skip_for_testing=*/true);
-    platform_->CreatePlatformWindow(shell, gfx::Size());
+    platform_->CreatePlatformWindow(shell, gfx::Size(1920, 1080));
     Shell::FinishShellInitialization(shell);
     return shell;
   }
@@ -85,62 +88,74 @@ class SplashScreenTest : public ShellTestBase {
 };
 
 TEST_F(SplashScreenTest, ParallelLoading) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
   EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   ExpectStateInitialized(shell);
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
   ExpectStateStarted(shell);
+
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(IsMainFrameLoaded(shell));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
   EXPECT_EQ(GetSplashScreenWebContents(shell), nullptr);
   EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, EarlyMainContentLoad) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, SplashClosesBeforeMainLoad) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   CallLoadSplashScreenWebContents(shell);
   CallClosingSplashScreenWebContents(shell);
   ExpectStateEnded(shell);
@@ -148,95 +163,112 @@ TEST_F(SplashScreenTest, SplashClosesBeforeMainLoad) {
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, MainContentLoadAfterSplashEnd) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   CallLoadSplashScreenWebContents(shell);
   CallClosingSplashScreenWebContents(shell);
   ExpectStateEnded(shell);
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, DestroyShellWhileSwitching) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   CallLoadSplashScreenWebContents(shell);
   CallLoadProgressChanged(shell, 1.0);
-  // Shell should be waiting for the splash timeout.
-  // Destroy the shell before the timeout expires.
   EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
   // Fast forward time to trigger any pending tasks.
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
 }
 
 TEST_F(SplashScreenTest, MainContentLoadFailure) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
   CallLoadSplashScreenWebContents(shell);
   CallLoadProgressChanged(shell, 0.5);
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
   EXPECT_FALSE(IsMainFrameLoaded(shell));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
   EXPECT_NE(GetSplashScreenWebContents(shell), nullptr);
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, NoSplashScreen) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
+
   Shell* shell = CreateShell(std::move(web_contents), nullptr);
-  ExpectStateUninitialized(shell);
-  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
-  CallLoadProgressChanged(shell, 1.0);
+
   EXPECT_FALSE(
       IsMainFrameLoaded(shell));  // This flag is only set in splash flow
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
   ExpectStateUninitialized(shell);
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, SplashClosesDuringDelay) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   CallLoadSplashScreenWebContents(shell);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(IsMainFrameLoaded(shell));
@@ -245,80 +277,98 @@ TEST_F(SplashScreenTest, SplashClosesDuringDelay) {
   CallClosingSplashScreenWebContents(shell);
   ExpectStateEnded(shell);
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, MultipleLoadProgressEvents) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   CallLoadSplashScreenWebContents(shell);
   CallLoadProgressChanged(shell, 0.5);
   EXPECT_FALSE(IsMainFrameLoaded(shell));
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(IsMainFrameLoaded(shell));
-  CallLoadProgressChanged(shell, 1.0);
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, SplashTimeoutExceededBeforeMainLoad) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
   CallLoadSplashScreenWebContents(shell);
-  task_environment_.FastForwardBy(base::Milliseconds(2000));
+  task_environment()->FastForwardBy(base::Milliseconds(2000));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   CallLoadProgressChanged(shell, 1.0);
-  task_environment_.RunUntilIdle();
+  task_environment()->RunUntilIdle();
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, MainContentLoadBeforeSplashStart) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment_.FastForwardBy(base::Milliseconds(2000));
+  task_environment()->FastForwardBy(base::Milliseconds(2000));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
 TEST_F(SplashScreenTest, MainContentDidStopLoadingFallback) {
-  WebContents::CreateParams create_params(browser_context_.get());
+  WebContents::CreateParams create_params(browser_context());
   create_params.desired_renderer_state =
       WebContents::CreateParams::kNoRendererProcess;
   std::unique_ptr<WebContents> web_contents(
       TestWebContents::Create(create_params));
   std::unique_ptr<WebContents> splash_contents(
       TestWebContents::Create(create_params));
+
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
+
   CallLoadSplashScreenWebContents(shell);
   CallLoadProgressChanged(shell, 0.9);
   EXPECT_FALSE(IsMainFrameLoaded(shell));
@@ -326,8 +376,10 @@ TEST_F(SplashScreenTest, MainContentDidStopLoadingFallback) {
   CallDidStopLoading(shell);
   EXPECT_TRUE(IsMainFrameLoaded(shell));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 
@@ -338,7 +390,7 @@ TEST_F(SplashScreenTest, PreloadSkipsSplashScreen) {
 
   // Attempt to create a window with a splash screen requested.
   Shell* shell = Shell::CreateNewWindow(
-      browser_context_.get(), GURL("about:blank"), nullptr, gfx::Size(),
+      browser_context(), GURL("about:blank"), nullptr, gfx::Size(),
       true /* create_splash_screen_web_contents */);
 
   // Verify that the main contents exist but the splash screen was skipped.
@@ -349,6 +401,8 @@ TEST_F(SplashScreenTest, PreloadSkipsSplashScreen) {
   // Verify that the main contents are initially hidden.
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
 
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
 

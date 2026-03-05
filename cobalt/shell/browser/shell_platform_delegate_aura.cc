@@ -38,10 +38,6 @@ struct ShellPlatformDelegate::PlatformData {
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
-ShellPlatformDataAura* ShellPlatformDelegate::GetShellPlatformDataAura() {
-  return platform_->aura.get();
-}
-
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
                                        bool is_visible) {
   is_visible_ = is_visible;
@@ -111,6 +107,13 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
 
   platform_->aura->host()->Show();
 }
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  if (platform_->aura) {
+    platform_->aura->host()->Hide();
+  }
+}
+
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {}

@@ -42,7 +42,7 @@ class FileSelectListener;
 class JavaScriptDialogManager;
 class Shell;
 class ShellPlatformDataAura;
-class ShellTestBase;
+class CobaltShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
@@ -61,7 +61,16 @@ class ShellPlatformDelegate {
   bool IsVisible() const;
 
   // Lifecycle signals called from the application.
+  virtual void OnBlur();
+  virtual void OnFocus();
+  virtual void OnConceal();
   virtual void OnReveal();
+  virtual void OnFreeze();
+  virtual void OnUnfreeze();
+  virtual void OnStop();
+
+  virtual void RevealShell(Shell* shell);
+  virtual void ConcealShell(Shell* shell);
 
   // Called after creating a Shell instance, with its initial size.
   virtual void CreatePlatformWindow(Shell* shell,
@@ -165,8 +174,6 @@ class ShellPlatformDelegate {
 #endif
 
  protected:
-  virtual void RevealShell(Shell* shell);
-
   void CreatePlatformWindowInternal(Shell* shell,
                                     const gfx::Size& initial_size);
 
@@ -185,7 +192,7 @@ class ShellPlatformDelegate {
 #endif
 
  private:
-  friend class ShellTestBase;
+  friend class CobaltShellTestBase;
 #if BUILDFLAG(IS_APPLE)
   std::unique_ptr<display::ScopedNativeScreen> screen_;
 #endif

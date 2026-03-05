@@ -222,9 +222,51 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 }
 
 // static
+void Shell::OnBlur() {
+  if (g_platform) {
+    g_platform->OnBlur();
+  }
+}
+
+// static
+void Shell::OnFocus() {
+  if (g_platform) {
+    g_platform->OnFocus();
+  }
+}
+
+// static
+void Shell::OnConceal() {
+  if (g_platform) {
+    g_platform->OnConceal();
+  }
+}
+
+// static
 void Shell::OnReveal() {
   if (g_platform) {
     g_platform->OnReveal();
+  }
+}
+
+// static
+void Shell::OnFreeze() {
+  if (g_platform) {
+    g_platform->OnFreeze();
+  }
+}
+
+// static
+void Shell::OnUnfreeze() {
+  if (g_platform) {
+    g_platform->OnUnfreeze();
+  }
+}
+
+// static
+void Shell::OnStop() {
+  if (g_platform) {
+    g_platform->OnStop();
   }
 }
 
