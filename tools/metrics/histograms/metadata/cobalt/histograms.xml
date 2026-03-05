@@ -31,21 +31,6 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
-<<<<<<< HEAD
-<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
-    enum="BooleanHung" expires_after="never">
-  <owner>antonlunev@google.com</owner>
-  <summary>
-    Every 10 seconds, a boolean is recorded to this histogram to indicate
-    whether the RendererThread of a Browser process was hung. The thread is hung
-    if the current work unit started running more than 10 seconds ago. This is
-    emitted only in single process mode(when renderer is a thread inside
-    BrowserProcess).
-  </summary>
-</histogram>
-
-=======
->>>>>>> bb41ed6132 (cobalt/browser: network error dialog UMA (#9333))
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -85,7 +70,25 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<<<<<<< HEAD
+<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
+    enum="LocalStorageDatabaseResetReason" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the reason why the Local Storage database was reset.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Network.PlatformErrorRaised" enum="Boolean"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    A boolean is recorded to this histogram to indicate whether a platform error
+    was raised due to a navigation timeout or other network error. This is
+    emitted at most once per WebContents lifetime to measure the prevalence of
+    user-facing errors.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.StorageMigration.CookieInjectionResult"
     enum="StorageInjectionResult" expires_after="never">
   <owner>haozheng@google.com</owner>
@@ -147,34 +150,6 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
-    enum="LocalStorageDatabaseResetReason" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the reason why the Local Storage database was reset.
-=======
-<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
-    expires_after="never">
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Network.PlatformErrorRaised" enum="Boolean"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    A boolean is recorded to this histogram to indicate whether a platform error
-    was raised due to a navigation timeout or other network error. This is
-    emitted at most once per WebContents lifetime to measure the prevalence of
-    user-facing errors.
-  </summary>
-</histogram>
-
 <histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -194,7 +169,6 @@ Always run the pretty print utility on this file after editing:
     if the current work unit started running more than 10 seconds ago. This is
     emitted only in single process mode(when renderer is a thread inside
     BrowserProcess).
->>>>>>> bb41ed6132 (cobalt/browser: network error dialog UMA (#9333))
   </summary>
 </histogram>
 
