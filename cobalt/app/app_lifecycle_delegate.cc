@@ -208,16 +208,24 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
       break;
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected: {
+#if BUILDFLAG(IS_STARBOARD)
       auto* notifier = content::GetNetworkChangeNotifier();
       if (notifier) {
         auto* passive_notifier =
             static_cast<net::NetworkChangeNotifierPassive*>(notifier);
-        passive_notifier->OnConnectionChanged(
+        net::NetworkChangeNotifier::ConnectionType type =
             event->type == kSbEventTypeOsNetworkConnected
                 ? net::NetworkChangeNotifier::CONNECTION_UNKNOWN
-                : net::NetworkChangeNotifier::CONNECTION_NONE);
+                : net::NetworkChangeNotifier::CONNECTION_NONE;
+        net::NetworkChangeNotifier::ConnectionSubtype subtype =
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::SUBTYPE_UNKNOWN
+                : net::NetworkChangeNotifier::SUBTYPE_NONE;
+        passive_notifier->OnConnectionChanged(type);
+        passive_notifier->OnConnectionSubtypeChanged(type, subtype);
       }
       break;
+#endif
     }
     case kSbEventDateTimeConfigurationChanged:
 #if BUILDFLAG(IS_STARBOARD)
