@@ -166,44 +166,38 @@ bool HasInternalGap(const icu::UnicodeString& text,
 
 // Helper function to derive the most appropriate currency symbol for the
 // lconv's |currency_symbol| field. Most locales prefer the standard formatting
-// ICU provides, but sometimes the standard format for currency symbols match the
-// international unicode symbol. In this case, we try to use the narrow currency symbol
-// as a fallback.
-icu::UnicodeString GetCurrencySymbol(const icu::Locale loc, icu::UnicodeString& intl_sym) {
-  icu::UnicodeString loc_sym;
+// ICU provides, but sometimes the standard format for currency symbols match
+// the international unicode symbol. In this case, we try to use the narrow
+// currency symbol as a fallback.
+icu::UnicodeString GetCurrencySymbol(const icu::Locale& loc,
+                                     icu::UnicodeString& intl_sym) {
   const UChar* currency_code = intl_sym.getTerminatedBuffer();
 
-  UErrorCode status_std = U_ZERO_ERROR;
-  UBool is_choice_std = false;
-  int32_t len_std = 0;
-  const UChar* ptr_std =
-      ucurr_getName(currency_code, loc.getName(), UCURR_SYMBOL_NAME,
-                    &is_choice_std, &len_std, &status_std);
-  icu::UnicodeString standard_symbol;
-  if (U_SUCCESS(status_std) && ptr_std && !is_choice_std) {
-    standard_symbol.setTo(ptr_std, len_std);
-  }
+  auto get_symbol_name = [&](UCurrNameStyle style) {
+    icu::UnicodeString symbol;
+    UErrorCode status = U_ZERO_ERROR;
+    UBool is_choice = false;
+    int32_t len = 0;
+    const UChar* ptr = ucurr_getName(currency_code, loc.getName(), style,
+                                     &is_choice, &len, &status);
+    if (U_SUCCESS(status) && ptr && !is_choice) {
+      symbol.setTo(ptr, len);
+    }
+    return symbol;
+  };
 
-  UErrorCode status_narrow = U_ZERO_ERROR;
-  UBool is_choice_narrow = false;
-  int32_t len_narrow = 0;
-  const UChar* ptr_narrow =
-      ucurr_getName(currency_code, loc.getName(), UCURR_NARROW_SYMBOL_NAME,
-                    &is_choice_narrow, &len_narrow, &status_narrow);
-  icu::UnicodeString narrow_symbol;
-  if (U_SUCCESS(status_narrow) && ptr_narrow && !is_choice_narrow) {
-    narrow_symbol.setTo(ptr_narrow, len_narrow);
-  }
-
+  const icu::UnicodeString standard_symbol = get_symbol_name(UCURR_SYMBOL_NAME);
   if (!standard_symbol.isEmpty() && standard_symbol != intl_sym) {
-    loc_sym = standard_symbol;
-  } else if (!narrow_symbol.isEmpty()) {
-    loc_sym = narrow_symbol;
-  } else {
-    return nullptr;
+    return standard_symbol;
   }
 
-  return loc_sym;
+  const icu::UnicodeString narrow_symbol =
+      get_symbol_name(UCURR_NARROW_SYMBOL_NAME);
+  if (!narrow_symbol.isEmpty()) {
+    return narrow_symbol;
+  }
+
+  return {};
 }
 
 // Helper function that will the derive the sign position of a locale's currency
@@ -312,13 +306,6 @@ CurrencyLayout DeriveCurrencyLayout(const icu::DecimalFormat* monetary_format,
     monetary_format->getPositivePrefix(prefix);
     monetary_format->getPositiveSuffix(suffix);
   }
-
-  icu::UnicodeString pattern_ustr;
-  monetary_format->toPattern(pattern_ustr);
-
-  // Convert ICU's UnicodeString to standard std::string (UTF-8)
-  std::string pattern_utf8;
-  pattern_ustr.toUTF8String(pattern_utf8);
 
   int sym_p_idx = prefix.indexOf(currency_symbol);
   result.cs_precedes =
@@ -494,7 +481,8 @@ bool UpdateMonetaryLconv(const std::string& locale_name, LconvImpl* cur_lconv) {
   }
 
   // GetCurrencySymbol() may provide a different |loc_sym| than the
-  // one natively used by the locale's |icu::DecimalFormatSymbols::kCurrencySymbol|. 
+  // one natively used by the locale's
+  // |icu::DecimalFormatSymbols::kCurrencySymbol|.
   icu::DecimalFormatSymbols symbols(
       *loc_currency_fmt->getDecimalFormatSymbols());
   symbols.setSymbol(icu::DecimalFormatSymbols::kCurrencySymbol, loc_sym);
@@ -504,7 +492,6 @@ bool UpdateMonetaryLconv(const std::string& locale_name, LconvImpl* cur_lconv) {
       sym.getSymbol(icu::DecimalFormatSymbols::kPlusSignSymbol);
   const icu::UnicodeString minus_sign =
       sym.getSymbol(icu::DecimalFormatSymbols::kMinusSignSymbol);
-
   const CurrencyLayout loc_pos = DeriveCurrencyLayout(
       loc_currency_fmt.get(), loc_sym, plus_sign, /*is_negative=*/false);
   const CurrencyLayout loc_neg = DeriveCurrencyLayout(

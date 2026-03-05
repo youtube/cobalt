@@ -53,7 +53,7 @@ constexpr LocaleconvTestData kLocaleconvTestData[] = {
     .int_p_sign_posn = CHAR_MAX,
     .int_n_sign_posn = CHAR_MAX,
   },
-{
+  {
     .locale_name = "af_ZA",
     .decimal_point = "\x2c",
     .thousands_sep = "\xc2\xa0",
@@ -1187,7 +1187,7 @@ constexpr LocaleconvTestData kLocaleconvTestData[] = {
     .int_p_sign_posn = 1,
     .int_n_sign_posn = 1,
   },
-    {
+  {
     .locale_name = "km_KH",
     .decimal_point = "\x2e",
     .thousands_sep = "\x2c",
