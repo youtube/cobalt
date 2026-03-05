@@ -91,6 +91,25 @@ class TestRunTestsTemplate(unittest.TestCase):
     self.assertEqual(args, ['socat', '-t', '10', 'addr1', 'addr2'])
 
 
+  @mock.patch('os.path.abspath', return_value='/tmp/stage')
+  @mock.patch('os.path.isfile', return_value=True)
+  @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
+  @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('sys.argv', [
+      'run_tests.py', 'linux_target', '--json-results-file', 'res.json',
+      '--logcat-output-file', 'log.txt'
+  ])
+  @mock.patch('sys.executable', '/usr/bin/python3')
+  def test_sink_flags_forwarding(self, mock_call, *args):
+    del args  # Unused.
+    run_tests_template.main()
+
+    call_args = mock_call.call_args[0][0]
+    self.assertIn('--json-results-file', call_args)
+    self.assertIn('res.json', call_args)
+    self.assertIn('--logcat-output-file', call_args)
+    self.assertIn('log.txt', call_args)
+
 
 if __name__ == '__main__':
   unittest.main()

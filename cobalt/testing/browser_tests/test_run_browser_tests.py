@@ -53,7 +53,9 @@ class TestCobaltTestRunner(unittest.TestCase):
         gtest_shard_index=0,
         tl_total_shards=0,
         tl_shard_index=0,
-        user_data_dir=None)
+        user_data_dir=None,
+        json_results_file=None,
+        logcat_output_file=None)
     for k, v in kwargs.items():
       setattr(args, k, v)
     return run_browser_tests.CobaltTestRunner(args, [])
@@ -128,6 +130,28 @@ class TestCobaltTestRunner(unittest.TestCase):
     self.assertEqual(root.attrib['failures'], '0')
     self.assertEqual(len(root.findall('testsuite')), 1)
     self.assertEqual(root.find('testsuite').attrib['name'], 'SuiteA')
+
+  def test_json_results_file_fallback(self):
+    """Verifies that --json-results-file is used if --gtest_output is missing.
+    """
+    results_xml = os.path.join(self.test_dir, 'results.xml')
+    # Use json_results_file instead of gtest_output
+    runner = self._create_runner(
+        gtest_output=None, json_results_file=results_xml)
+    self.assertEqual(runner.xml_output_file, results_xml)
+
+    runner._initialize_xml()  # pylint: disable=protected-access
+    temp_xml = os.path.join(self.test_dir, 'temp.xml')
+    with open(temp_xml, 'w', encoding='utf-8') as f:
+      f.write(
+          '<testsuites><testsuite name="SuiteA" tests="1">'
+          '<testcase name="Test1" classname="SuiteA"/></testsuite></testsuites>'
+      )
+
+    runner._merge_test_xml('SuiteA.Test1', temp_xml)  # pylint: disable=protected-access
+    runner._finalize_and_write_xml(1, 0)  # pylint: disable=protected-access
+
+    self.assertTrue(os.path.exists(results_xml))
 
   def test_xml_crash_handling(self):
     """Verifies that a crash result is synthesized when XML is missing."""

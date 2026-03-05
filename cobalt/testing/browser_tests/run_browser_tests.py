@@ -175,6 +175,8 @@ class CobaltTestRunner:
     """Extracts the XML output file path from arguments."""
     if self.args.gtest_output and self.args.gtest_output.startswith("xml:"):
       return self.args.gtest_output[4:]
+    if self.args.json_results_file:
+      return self.args.json_results_file
     return None
 
   def list_tests(self) -> str:
@@ -469,6 +471,8 @@ def parse_args() -> Tuple[argparse.Namespace, List[str]]:
       help="Path to the user data directory for the test binary. "
       "Overrides TEST_USER_DATA_DIR env var. "
       "If not set, a temporary directory is used.")
+  parser.add_argument("--json-results-file", help="JSON results file.")
+  parser.add_argument("--logcat-output-file", help="Logcat output file.")
   parser.add_argument(
       "-h", "--help", action="store_true", help="Show this help message.")
 

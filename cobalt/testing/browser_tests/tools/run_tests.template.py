@@ -72,8 +72,6 @@ def main():
   # We sink them here so they don't cause errors or conflicts with the runner.
   parser.add_argument("--test-filter", help="Test filter (sink).")
   parser.add_argument("--test-arguments", help="Additional test args (sink).")
-  parser.add_argument("--json-results-file", help="JSON results file (sink).")
-  parser.add_argument("--logcat-output-file", help="Logcat output file (sink).")
   parser.add_argument("--environment", help="Execution environment (sink).")
 
 >>>>>>> 9a16f3b3b0a (ci: Implement foundational browser tests and runner improvements for Linux and Android)
