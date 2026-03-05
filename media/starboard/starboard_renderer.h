@@ -199,6 +199,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
+  const int max_samples_per_write_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
@@ -252,7 +253,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   Time last_time_media_time_retrieved_;
 
   bool audio_read_delayed_ = false;
-  const int max_samples_per_write_;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 

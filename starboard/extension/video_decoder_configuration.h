@@ -52,6 +52,10 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Specifies the video poll interval in milliseconds.
   void (*SetVideoDecoderPollIntervalMsForCurrentThread)(
       int video_decoder_poll_interval_ms);
+
+  // Specifies the MediaCodec delay in milliseconds.
+  void (*SetMediaCodecResetDelayMsForCurrentThread)(
+      int media_codec_reset_delay_ms);
 } StarboardExtensionVideoDecoderConfigurationApi;
 
 #ifdef __cplusplus

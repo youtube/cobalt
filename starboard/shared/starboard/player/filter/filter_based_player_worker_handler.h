@@ -69,6 +69,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       int video_decoder_initial_preroll_count) override;
   void SetVideoDecoderPollIntervalMs(
       int video_decoder_poll_interval_ms) override;
+  void SetMediaCodecResetDelayMs(int media_codec_reset_delay_ms) override;
   void Stop() override;
 
   void Update();
@@ -127,6 +128,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   std::optional<int> video_max_pending_input_frames_;
   std::optional<int> video_decoder_initial_preroll_count_;
   std::optional<int> video_decoder_poll_interval_ms_;
+  std::optional<int> media_codec_reset_delay_ms_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const media::VideoStreamInfo video_stream_info_;

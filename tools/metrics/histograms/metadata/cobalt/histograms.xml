@@ -143,6 +143,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
+    enum="LocalStorageDatabaseResetReason" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the reason why the Local Storage database was reset.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>

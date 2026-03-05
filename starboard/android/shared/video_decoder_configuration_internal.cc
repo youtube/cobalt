@@ -29,6 +29,7 @@ pthread_key_t g_initial_max_frames_key = 0;
 pthread_key_t g_max_pending_frames_key = 0;
 pthread_key_t g_video_decoder_initial_preroll_count_key = 0;
 pthread_key_t g_video_decoder_poll_interval_key = 0;
+pthread_key_t g_media_codec_reset_delay_key = 0;
 
 void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
   uintptr_t ptr_val = static_cast<uintptr_t>(value);
@@ -62,6 +63,9 @@ void InitializeKeys() {
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_video_decoder_poll_interval_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_media_codec_reset_delay_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
 }
@@ -137,6 +141,22 @@ void SetVideoDecoderPollIntervalMsForCurrentThread(
   EnsureThreadLocalKeyInitedForDecoderConfig();
   WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key,
                                video_decoder_poll_interval_ms);
+}
+
+std::optional<int> GetMediaCodecResetDelayMsForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_media_codec_reset_delay_key);
+}
+
+void SetMediaCodecResetDelayMsForCurrentThread(int media_codec_reset_delay_ms) {
+  if (media_codec_reset_delay_ms < 0) {
+    SB_LOG(WARNING) << "Invalid media_codec_reset_delay_ms: "
+                    << media_codec_reset_delay_ms;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_media_codec_reset_delay_key,
+                               media_codec_reset_delay_ms);
 }
 
 }  // namespace starboard::android::shared

@@ -232,6 +232,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
   }
+  if (auto media_codec_reset_delay_ms = starboard::android::shared::
+          GetMediaCodecResetDelayMsForCurrentThread()) {
+    handler->SetMediaCodecResetDelayMs(*media_codec_reset_delay_ms);
+  }
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(

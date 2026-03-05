@@ -55,6 +55,8 @@ const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
     "Media.VideoDecoderPollIntervalMs";
 const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
     "Media.MaxSamplesPerWrite";
+const char kH5vccSettingsKeyMediaMediaCodecResetDelayMs[] =
+    "Media.MediaCodecResetDelayMs";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -177,6 +179,7 @@ const T* GetSettingValue(
 
 constexpr int kMaxFramesInDecoderLimit = 10'000;
 constexpr int kMaxVideoDecoderPollIntervalMs = 60'000;  // 1 minute.
+constexpr int kMaxMediaCodecResetDelayMs = 1'000;       // 1 second.
 // Experiment framework uses 0 as the sentinel value for unset.
 // e.g.)
 // http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
@@ -239,6 +242,9 @@ ExperimentalFeatures ProcessH5vccSettings(
   parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
       /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.media_codec_reset_delay_ms = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaMediaCodecResetDelayMs,
+      /*min_val=*/0, kMaxMediaCodecResetDelayMs, kH5vccUnsetSentinel);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);

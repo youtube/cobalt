@@ -54,6 +54,14 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="7" label="Parse error"/>
 </enum>
 
+<enum name="LocalStorageDatabaseResetReason">
+  <int value="0" label="Failure to open the database"/>
+  <int value="1" label="Schema version mismatch"/>
+  <int value="2" label="Database corruption or read errors"/>
+  <int value="3" label="Excessive commit errors"/>
+  <int value="4" label="Unknown"/>
+</enum>
+
 </enums>
 
 </histogram-configuration>

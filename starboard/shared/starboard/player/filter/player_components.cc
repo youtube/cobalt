@@ -98,6 +98,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> media_codec_reset_delay_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -112,6 +113,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      media_codec_reset_delay_ms_(media_codec_reset_delay_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -133,6 +135,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> media_codec_reset_delay_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
@@ -148,6 +151,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      media_codec_reset_delay_ms_(media_codec_reset_delay_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -171,6 +175,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->video_decoder_initial_preroll_count_ =
       that.video_decoder_initial_preroll_count_;
   this->video_decoder_poll_interval_ms_ = that.video_decoder_poll_interval_ms_;
+  this->media_codec_reset_delay_ms_ = that.media_codec_reset_delay_ms_;
   this->surface_view_ = that.surface_view_;
   this->decode_target_graphics_context_provider_ =
       that.decode_target_graphics_context_provider_;

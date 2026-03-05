@@ -229,7 +229,8 @@ SbPlayerBridge::SbPlayerBridge(
     std::optional<int> initial_max_frames_in_decoder,
     std::optional<int> max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
-    std::optional<int> video_decoder_poll_interval_ms
+    std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> media_codec_reset_delay_ms
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -261,7 +262,8 @@ SbPlayerBridge::SbPlayerBridge(
       initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
       max_pending_input_frames_(max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms)
+      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      media_codec_reset_delay_ms_(media_codec_reset_delay_ms)
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -852,6 +854,11 @@ void SbPlayerBridge::CreatePlayer() {
       video_decoder_configuration_extension
           ->SetVideoDecoderPollIntervalMsForCurrentThread(
               *video_decoder_poll_interval_ms_);
+    }
+    if (media_codec_reset_delay_ms_) {
+      video_decoder_configuration_extension
+          ->SetMediaCodecResetDelayMsForCurrentThread(
+              *media_codec_reset_delay_ms_);
     }
   }
 
