@@ -23,6 +23,7 @@
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/tts_controller.h"
 #include "starboard/speech_synthesis.h"
+#include "starboard/system.h"
 
 namespace content {
 
@@ -90,10 +91,9 @@ void TtsPlatformImplStarboard::Speak(
 
   // Parse SSML and process speech.
   TtsController::GetInstance()->StripSSML(
-      utterance,
-      base::BindOnce(&TtsPlatformImplStarboard::ProcessSpeech,
-                     weak_factory_.GetWeakPtr(), utterance_id, lang, voice,
-                     params, std::move(on_speak_finished)));
+      utterance, base::BindOnce(&TtsPlatformImplStarboard::ProcessSpeech,
+                                weak_factory_.GetWeakPtr(), utterance_id, lang,
+                                voice, params, std::move(on_speak_finished)));
 }
 
 void TtsPlatformImplStarboard::ProcessSpeech(
@@ -114,12 +114,12 @@ void TtsPlatformImplStarboard::ProcessSpeech(
   TtsController::GetInstance()->OnTtsEvent(
       utterance_id_, TTS_EVENT_START, 0,
       static_cast<int>(parsed_utterance.length()), std::string());
-      
+
   // And we immediately send an end event as we can't track it.
   TtsController::GetInstance()->OnTtsEvent(
       utterance_id_, TTS_EVENT_END, static_cast<int>(parsed_utterance.length()),
       0, std::string());
-      
+
   utterance_id_ = -1;
 }
 
@@ -150,15 +150,18 @@ void TtsPlatformImplStarboard::GetVoices(std::vector<VoiceData>* out_voices) {
   VoiceData& voice = out_voices->back();
   voice.native = true;
   voice.name = "Starboard";
-  // Starboard API dictates language should be the same as SbSystemGetLocaleId().
+  // Starboard API dictates language should be the same as
+  // SbSystemGetLocaleId().
+  voice.lang = SbSystemGetLocaleId();
   voice.events.insert(TTS_EVENT_START);
   voice.events.insert(TTS_EVENT_END);
 }
 
 // static
 TtsPlatformImplStarboard* TtsPlatformImplStarboard::GetInstance() {
-  return base::Singleton<TtsPlatformImplStarboard,
-                         base::LeakySingletonTraits<TtsPlatformImplStarboard>>::get();
+  return base::Singleton<
+      TtsPlatformImplStarboard,
+      base::LeakySingletonTraits<TtsPlatformImplStarboard>>::get();
 }
 
 // static
