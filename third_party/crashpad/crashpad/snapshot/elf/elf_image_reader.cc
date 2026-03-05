@@ -519,7 +519,7 @@ bool ElfImageReader::SoName(std::string* name) {
   }
 
   VMSize offset;
-  if (!dynamic_array_->GetValue(DT_SONAME, true, &offset)) {
+  if (!dynamic_array_->GetValue(DT_SONAME, false, &offset)) {
     return false;
   }
 
