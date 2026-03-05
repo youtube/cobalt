@@ -99,7 +99,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       const scoped_refptr<SiteInstance>& site_instance,
       const gfx::Size& initial_size,
       const bool create_splash_screen_web_contents = false,
-      const std::string& topic = "");
+      const std::string& deep_link = "");
 
   // Returns the Shell object corresponding to the given WebContents.
   static Shell* FromWebContents(WebContents* web_contents);
@@ -226,7 +226,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   Shell(std::unique_ptr<WebContents> web_contents,
         std::unique_ptr<WebContents> splash_screen_web_contents,
         bool should_set_delegate,
-        const std::string& topic = "",
+        const std::string& deep_link = "",
         bool skip_for_testing = false);
 
   // Helper to create a new Shell given a newly created WebContents.
@@ -235,7 +235,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       std::unique_ptr<WebContents> splash_screen_web_contents,
       const gfx::Size& initial_size,
       bool should_set_delegate,
-      const std::string& topic = "");
+      const std::string& deep_link = "");
 
   // Adjust the size when Blink sends 0 for width and/or height.
   // This happens when Blink requests a default-sized window.

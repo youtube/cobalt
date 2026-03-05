@@ -151,7 +151,9 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient() {
+CobaltContentBrowserClient::CobaltContentBrowserClient(
+    const std::string& deep_link)
+    : deep_link_(deep_link) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -167,7 +169,8 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
+  auto browser_main_parts =
+      std::make_unique<CobaltBrowserMainParts>(deep_link_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }

@@ -82,6 +82,9 @@ void InitializeBrowserMemoryInstrumentationClient() {
 
 }  // namespace
 
+CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link)
+    : ShellBrowserMainParts(deep_link) {}
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()
