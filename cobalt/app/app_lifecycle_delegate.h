@@ -43,7 +43,8 @@ class AppLifecycleRunner {
 
   // Creates the main delegate for the content process.
   virtual void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
-                                  bool is_visible) = 0;
+                                  bool is_visible,
+                                  const char* initial_deep_link) = 0;
 
   // Returns the main delegate.
   virtual cobalt::CobaltMainDelegate* GetMainDelegate() = 0;

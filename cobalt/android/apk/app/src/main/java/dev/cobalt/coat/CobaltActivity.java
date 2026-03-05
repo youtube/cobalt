@@ -103,8 +103,7 @@ public abstract class CobaltActivity extends Activity {
   private String diagnosticFinishReason = "Unknown";
   private PlatformError mPlatformError;
 
-  private static final String URL_TOPIC_NAME = "topic";
-  private String mUrlTopic;
+  private String mStartDeepLink;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -131,23 +130,18 @@ public abstract class CobaltActivity extends Activity {
     // variables, and needs to set up an early copy.
 
     // TODO(b/374147993): how to handle deeplink in Chrobalt?
-    String startDeepLink = getIntentUrlAsString(getIntent());
-    if (startDeepLink == null) {
-      Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
-      startDeepLink = "";
-    }
-    Uri startDeepLinkUri = Uri.parse(startDeepLink);
-    mUrlTopic = startDeepLinkUri.getQueryParameter(URL_TOPIC_NAME);
-    if (mUrlTopic == null) {
-      mUrlTopic = "";
+    mStartDeepLink = getIntentUrlAsString(getIntent());
+    if (mStartDeepLink == null) {
+      Log.w(TAG, "mStartDeepLink cannot be null, set it to empty string.");
+      mStartDeepLink = "";
     }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
-      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
+      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
-      getStarboardBridge().handleDeepLink(startDeepLink);
+      getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
 
     mShellManager = new ShellManager(this);
@@ -257,7 +251,7 @@ public abstract class CobaltActivity extends Activity {
     // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("", mUrlTopic,
+    mShellManager.launchShell("", mStartDeepLink,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {

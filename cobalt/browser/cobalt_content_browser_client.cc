@@ -153,8 +153,11 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
     absl::optional<int64_t> startup_time,
-    bool is_visible)
-    : startup_timestamp_(startup_time), is_visible_(is_visible) {
+    bool is_visible,
+    const std::string& deep_link)
+    : startup_timestamp_(startup_time),
+      is_visible_(is_visible),
+      deep_link_(deep_link) {
   DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
@@ -181,7 +184,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto browser_main_parts =
-      std::make_unique<CobaltBrowserMainParts>(is_visible_);
+      std::make_unique<CobaltBrowserMainParts>(is_visible_, deep_link_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }

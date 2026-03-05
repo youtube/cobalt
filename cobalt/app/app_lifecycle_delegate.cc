@@ -64,9 +64,11 @@ class DefaultAppLifecycleRunner : public cobalt::AppLifecycleRunner {
   }
 
   void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
-                          bool is_visible) override {
+                          bool is_visible,
+                          const char* initial_deep_link) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-        startup_timestamp, false /* is_content_browsertests */, is_visible);
+        startup_timestamp, false /* is_content_browsertests */, is_visible,
+        initial_deep_link);
   }
 
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
@@ -291,7 +293,7 @@ int AppLifecycleDelegate::Run(absl::optional<int64_t> startup_timestamp,
                               int argc,
                               const char** argv,
                               const char* initial_deep_link) {
-  runner_->CreateMainDelegate(startup_timestamp, is_visible);
+  runner_->CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
 
   content::ContentMainParams params(runner_->GetMainDelegate());
 
