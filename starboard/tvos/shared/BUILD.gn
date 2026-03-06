@@ -198,6 +198,11 @@ static_library("starboard_platform") {
     "//third_party/opus",
   ]
 
+  if (is_internal_build) {
+    deps -= [ "//third_party/libvpx" ]
+    deps += [ "//third_party/internal/libvpx_tvos:libvpx_tvos_arm64" ]
+  }
+
   frameworks = [
     "AVFoundation.framework",
     "AVKit.framework",
