@@ -28,7 +28,7 @@ namespace browser {
 H5vccAccessibilityManager::H5vccAccessibilityManager() {
   DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_IOS_TVOS)
-  h5vcc_accessibility::InstallVoiceOverStatusMonitor();
+  InstallVoiceOverStatusMonitor();
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 }
 

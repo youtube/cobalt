@@ -18,7 +18,7 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 
-namespace h5vcc_accessibility {
+namespace cobalt::browser {
 
 void InstallVoiceOverStatusMonitor() {
   [[NSNotificationCenter defaultCenter]
@@ -26,10 +26,10 @@ void InstallVoiceOverStatusMonitor() {
                   object:nil
                    queue:nil
               usingBlock:^(NSNotification* notification) {
-                cobalt::browser::H5vccAccessibilityManager::GetInstance()
+                H5vccAccessibilityManager::GetInstance()
                     ->OnTextToSpeechStateChanged(
                         UIAccessibilityIsVoiceOverRunning());
               }];
 }
 
-}  // namespace h5vcc_accessibility
+}  // namespace cobalt::browser

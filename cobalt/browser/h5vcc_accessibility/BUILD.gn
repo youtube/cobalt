@@ -27,6 +27,13 @@ source_set("manager") {
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//mojo/public/cpp/bindings",
   ]
+
+  if (is_ios && target_platform == "tvos") {
+    sources += [
+      "voice_over_status_monitor_tvos.h",
+      "voice_over_status_monitor_tvos.mm",
+    ]
+  }
 }
 
 source_set("h5vcc_accessibility") {
@@ -43,11 +50,4 @@ source_set("h5vcc_accessibility") {
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
   ]
-
-  if (is_ios && target_platform == "tvos") {
-    sources += [
-      "voice_over_status_monitor_tvos.h",
-      "voice_over_status_monitor_tvos.mm",
-    ]
-  }
 }
