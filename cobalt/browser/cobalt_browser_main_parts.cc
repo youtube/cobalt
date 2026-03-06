@@ -79,6 +79,9 @@ void InitializeBrowserMemoryInstrumentationClient() {
 
 }  // namespace
 
+CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link)
+    : ShellBrowserMainParts(deep_link) {}
+
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
 

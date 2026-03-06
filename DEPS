@@ -2111,6 +2111,11 @@ deps = {
     'condition': 'checkout_instrumented_libraries',
   },
 
+  'src/third_party/internal': {
+    'url': Var('cobalt_internal_git') + '/third_party/internal.git' + '@' + 'main',
+    'condition': 'checkout_cobalt_internal',
+  },
+
   'src/third_party/jszip/src': {
     'url': Var('chromium_git') + '/external/github.com/Stuk/jszip.git' + '@' + '2ceb998e29d4171b4f3f2ecab1a2195c696543c0',
     'condition': 'checkout_ios',
@@ -5776,7 +5781,6 @@ recursedeps = [
   # clank has its own DEPS file, does not need to be in trybot_analyze_config
   # since the roller does not run tests.
   'src/clank',
-  'src/cobalt/internal',
   'src/components/optimization_guide/internal',
   'src/ios_internal',
 ]

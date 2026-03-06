@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Other source files should never include this header directly, but should
-// include the generic "starboard/configuration.h" instead.
+#ifndef COBALT_BROWSER_H5VCC_ACCESSIBILITY_VOICE_OVER_STATUS_MONITOR_TVOS_H_
+#define COBALT_BROWSER_H5VCC_ACCESSIBILITY_VOICE_OVER_STATUS_MONITOR_TVOS_H_
 
-#ifndef STARBOARD_DARWIN_TVOS_ARM64_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_DARWIN_TVOS_ARM64_CONFIGURATION_PUBLIC_H_
+namespace h5vcc_accessibility {
 
-#include "starboard/darwin/tvos/shared/configuration_public.h"
+// Starts monitoring VoiceOver status change notifications from the platform
+// and forwarding them to H5vccAccessibilityManager.
+void InstallVoiceOverStatusMonitor();
 
-#endif  // STARBOARD_DARWIN_TVOS_ARM64_CONFIGURATION_PUBLIC_H_
+}  // namespace h5vcc_accessibility
+
+#endif  // COBALT_BROWSER_H5VCC_ACCESSIBILITY_VOICE_OVER_STATUS_MONITOR_TVOS_H_

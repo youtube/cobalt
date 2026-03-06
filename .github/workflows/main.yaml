@@ -36,7 +36,6 @@ env:
     .github
     cobalt/build
     cobalt/docker
-    cobalt/testing/browser_tests/tools
     cobalt/testing/filters
     cobalt/tools
 
@@ -221,20 +220,6 @@ jobs:
           set -x
           browser_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.browser_test_targets // []')
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
-
-          # Also export just the target strings for the results matrix.
-          PLATFORM="${{ inputs.platform }}"
-          if [[ "$PLATFORM" == *linux* ]]; then
-             # For Linux host, the target is in the primary 'targets' list.
-             if cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -e '.targets[] | select(contains("cobalt_browsertests_runner"))' > /dev/null; then
-               browser_test_targets_json='["cobalt/testing/browser_tests:cobalt_browsertests_runner"]'
-             else
-               browser_test_targets_json='[]'
-             fi
-          else
-             browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
-          fi
-          echo "browser_test_targets_json=${browser_test_targets_json}" >> $GITHUB_OUTPUT
       - name: Set YTS WPT test targets
         id: set-yts-wpt-test-targets
         shell: bash
@@ -295,6 +280,7 @@ jobs:
       targets: ${{ steps.set-targets.outputs.targets }}
       build_configs: ${{ steps.set-build-configs.outputs.build_configs }}
       includes: ${{ steps.set-includes.outputs.includes }}
+      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
@@ -313,12 +299,10 @@ jobs:
       browser_test_targets: ${{ steps.set-browser-test-targets.outputs.browser_test_targets }}
       yts_wpt_test_targets: ${{ steps.set-yts-wpt-test-targets.outputs.yts_wpt_test_targets }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
-      browser_test_targets_json: ${{ steps.set-browser-test-targets.outputs.browser_test_targets_json }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
-      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -471,9 +455,6 @@ jobs:
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-          archive_browsertests: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_browser == 'true' }}
-          platform: ${{ matrix.platform }}
-          config: ${{ matrix.config }}
 
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
@@ -621,20 +602,18 @@ jobs:
           test_type: 'yts_test'
           test_targets: '${{ needs.initialize.outputs.yts_playback_test_targets }}'
 
-  browser-test-on-host:
-    needs: [initialize, build, docker-unittest-image]
+  browser-test:
+    needs: [initialize, build]
     if: |
       needs.initialize.outputs.test_browser == 'true' &&
-      needs.initialize.outputs.test_on_host == 'true' &&
-      (
-        (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-        ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-        (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
-      )
+        (
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
+          (github.event_name == 'push')
+        )
     runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_browser_tests_on_host
-    container:
-      image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
+    name: ${{ matrix.name }}_browser_tests
+    permissions: {}
     strategy:
       fail-fast: false
       matrix:
@@ -648,16 +627,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Run Browser Tests (Linux)
-        uses: ./.github/actions/linux_browser_tests
+      - name: Run Browser Tests
+        uses: ./.github/actions/internal_tests
         with:
-          test_artifacts_key: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-          test_results_key: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
-          platform: ${{ matrix.platform }}
-          config: ${{ matrix.config }}
-    outputs:
-      # Browser tests are fixed to a single target.
-      test_targets_json: '["cobalt/testing/browser_tests:cobalt_browsertests"]'
+          test_type: 'browser_test'
+          test_targets: '${{ needs.initialize.outputs.browser_test_targets }}'
 
   yts-wpt-test:
     needs: [initialize, build]
@@ -786,8 +760,7 @@ jobs:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
         (
-          needs.on-device-test.result != 'skipped' ||
-          needs.on-host-test.result != 'skipped'
+          needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped'
         )
     permissions: {}
     runs-on: ubuntu-latest
@@ -800,7 +773,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json || '[]') }}
+        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -865,64 +838,8 @@ jobs:
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
 
-  browser-test-results:
-    needs: [initialize, build, browser-test-on-host]
-    if: always() && needs.browser-test-on-host.result != 'skipped'
-    permissions: {}
-    runs-on: ubuntu-latest
-    name: ${{ matrix.test_target }}
-    env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-        test_target: ${{ fromJson(needs.initialize.outputs.browser_test_targets_json || '[]') }}
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Extract Test Target Name
-        id: extract-target-name
-        env:
-          test_target_with_path: ${{ matrix.test_target }}
-        run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
-        shell: bash
-      - name: Download Test Results
-        uses: actions/download-artifact@v5
-        continue-on-error: true
-        with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}
-          path: results/
-      - name: Test Results
-        uses: ./.github/actions/process_test_results
-        with:
-          target_name: ${{ matrix.test_target }}
-          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          datadog_api_key: ${{ secrets.datadog_api_key }}
-          num_gtest_shards: 1
-      - name: ${{ matrix.test_target }} Device Logs
-        if: always() && needs.initialize.outputs.test_on_device == 'true'
-        continue-on-error: true
-        uses: ./.github/actions/print_logs
-        with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
-          symbolize: 'false'
-      - name: ${{ matrix.test_target }} Test Logs
-        if: always()
-        uses: ./.github/actions/print_logs
-        with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
-          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          symbolize: 'false'
-
   validate-test-result:
-    needs: [initialize, build, test-results, browser-test-results]
+    needs: [initialize, build, test-results]
     if: always()
     permissions: {}
     runs-on: ubuntu-latest
@@ -941,25 +858,16 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Download Unit Test Results
+      - name: Download Test Results
         uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
-      - name: Download Browser Test Results
-        uses: actions/download-artifact@v5
-        continue-on-error: true
-        with:
-          pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
-          path: results/
       - name: Failed Tests
-        if: needs.test-results.result == 'failure' || needs.browser-test-results.result == 'failure'
+        if: needs.test-results.result == 'failure'
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
           python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
-
-          if [[ "${{ needs.test-results.result }}" == "failure" || "${{ needs.browser-test-results.result }}" == "failure" ]]; then
-            exit 1
-          fi
+          exit 1
         shell: bash

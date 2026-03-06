@@ -69,11 +69,22 @@ group("gn_all") {
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
-  if (use_evergreen && use_crashpad) {
-    deps += [
-      "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
-      "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
-    ]
+  if (use_crashpad) {
+    # On Starboard platforms, build both the crashpad_handler binary and the
+    # crashpad_database_util tool. On other platforms (e.g. ATV, tvOS) it is
+    # still useful to build the crashpad_database_util binary to inspect crash
+    # databases on the host.
+    if (is_starboard) {
+      deps += [
+        "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
+        "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
+      ]
+    } else if (is_ios) {
+      deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
+    } else {
+      # This applies to e.g. ATV, where the default toolchain is the host one.
+      deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
+    }
   }
 }
 
