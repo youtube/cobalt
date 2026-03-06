@@ -3470,10 +3470,16 @@ void PrettyUnitTestResultPrinter::OnTestIterationStart(
   }
 
   if (internal::ShouldShard(kTestTotalShards, kTestShardIndex, false)) {
+#if BUILDFLAG(IS_STARBOARD)
+    ColoredPrintf(GTestColor::kYellow, "Note: This is test shard %d of %d.\n",
+                  static_cast<int>(GTEST_FLAG_GET(shard_index)) + 1,
+                  static_cast<int>(GTEST_FLAG_GET(total_shards)) + 1);
+#else
     const int32_t shard_index = Int32FromEnvOrDie(kTestShardIndex, -1);
     ColoredPrintf(GTestColor::kYellow, "Note: This is test shard %d of %s.\n",
                   static_cast<int>(shard_index) + 1,
                   internal::posix::GetEnv(kTestTotalShards));
+#endif  // BUILDFLAG(IS_STARBOARD)
   }
 
   if (GTEST_FLAG_GET(shuffle)) {
@@ -6196,7 +6202,7 @@ bool ShouldShard(const char* total_shards_env, const char* shard_index_env,
   #else
   const int32_t total_shards = Int32FromEnvOrDie(total_shards_env, -1);
   const int32_t shard_index = Int32FromEnvOrDie(shard_index_env, -1);
-  #endif
+  #endif  // BUILDFLAG(IS_STARBOARD)
 
   if (total_shards == -1 && shard_index == -1) {
     return false;
