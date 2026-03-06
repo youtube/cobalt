@@ -15,12 +15,14 @@
 #ifndef COBALT_BROWSER_H5VCC_ACCESSIBILITY_VOICE_OVER_STATUS_MONITOR_TVOS_H_
 #define COBALT_BROWSER_H5VCC_ACCESSIBILITY_VOICE_OVER_STATUS_MONITOR_TVOS_H_
 
-namespace h5vcc_accessibility {
+namespace cobalt {
+namespace browser {
 
 // Starts monitoring VoiceOver status change notifications from the platform
 // and forwarding them to H5vccAccessibilityManager.
 void InstallVoiceOverStatusMonitor();
 
-}  // namespace h5vcc_accessibility
+}  // namespace browser
+}  // namespace cobalt
 
 #endif  // COBALT_BROWSER_H5VCC_ACCESSIBILITY_VOICE_OVER_STATUS_MONITOR_TVOS_H_
