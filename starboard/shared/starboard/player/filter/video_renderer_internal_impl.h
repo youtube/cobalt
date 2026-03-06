@@ -19,6 +19,7 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <optional>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -83,6 +84,11 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
+  struct PrerollParameters {
+    int min_input_buffers;
+    int min_decoded_frames;
+  };
+  const std::optional<PrerollParameters> preroll_params_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
@@ -99,6 +105,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   std::atomic_bool need_more_input_{true};
   std::atomic_bool seeking_{false};
+  std::atomic<int32_t> input_buffers_sent_{0};
   int64_t seeking_to_time_ = 0;  // microseconds
 
   // |number_of_frames_| = decoder_frames_.size() + sink_frames_.size()
