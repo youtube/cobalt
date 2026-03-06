@@ -68,7 +68,7 @@ uint64_t PerformanceExtensions::measureReservedVirtualMemory(ScriptState* script
   return virtual_memory_size;
 }
 
-ScriptPromise PerformanceExtensions::getAppStartupTime(
+ScriptPromise<IDLLongLong> PerformanceExtensions::getAppStartupTime(
     ScriptState* script_state,
     const Performance&,
     ExceptionState& exception_state) {
