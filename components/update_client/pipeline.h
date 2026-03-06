@@ -43,11 +43,6 @@ using PipelineStartCallback = base::OnceCallback<base::OnceClosure(
 // to expose to observers. It also calls `event_adder` to record events to be
 // sent to the update server, and `diff_outcome_recorder` to record the outcome
 // of the differential update (if any).
-#if defined(IN_MEMORY_UPDATES)
-// |crx_str| points to a string that the Crx package should be downloaded to.
-// These functions do not take ownership of |crx_str|, which must refer to a valid
-// string that outlives this object.
-#endif
 void MakePipeline(
     scoped_refptr<Configurator> config,
     base::RepeatingCallback<int64_t(const base::FilePath&)> get_available_space,
@@ -60,6 +55,9 @@ void MakePipeline(
     const std::string& install_data_index,
     scoped_refptr<CrxInstaller> installer,
 #if defined(IN_MEMORY_UPDATES)
+    // `crx_str` points to a string that the CRX package should be downloaded to.
+    // This function does not take ownership of `crx_str`, which must refer to a
+    // valid string that outlives the created pipeline operations.
     std::string* crx_str,
 #endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
