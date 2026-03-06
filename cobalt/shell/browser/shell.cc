@@ -94,9 +94,18 @@ namespace {
 
 constexpr char kMusicTopic[] = "music";
 
+// The maximum number of redirects to follow when parsing a deep link.
+constexpr int kMaxDeepLinkRedirectDepth = 10;
+
 // Helper function to check if a URL is a valid deep link for a specific topic.
 // It requires both a "launch" parameter and a matching "topic" parameter.
-bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
+bool IsDeepLinkTopic(const GURL& link_url,
+                     std::string_view target_topic,
+                     int depth = 0) {
+  if (depth > kMaxDeepLinkRedirectDepth) {
+    return false;
+  }
+
   if (!link_url.is_valid() || !link_url.has_query()) {
     return false;
   }
@@ -131,7 +140,8 @@ bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
   // Check for nested deep link in "redirect" parameter.
   for (net::QueryIterator it(link_url); !it.IsAtEnd(); it.Advance()) {
     if (it.GetKey() == "redirect") {
-      if (IsDeepLinkTopic(GURL(it.GetUnescapedValue()), target_topic)) {
+      if (IsDeepLinkTopic(GURL(it.GetUnescapedValue()), target_topic,
+                          depth + 1)) {
         return true;
       }
     }
@@ -336,6 +346,12 @@ void Shell::SetShellCreatedCallback(
 bool Shell::ShouldHideToolbar() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kContentShellHideToolbar);
+}
+
+// static
+bool Shell::IsDeepLinkTopicForTesting(const GURL& link_url,
+                                      std::string_view target_topic) {
+  return IsDeepLinkTopic(link_url, target_topic);
 }
 
 // static

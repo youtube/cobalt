@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
@@ -118,6 +119,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       base::OnceCallback<void(Shell*)> shell_created_callback);
 
   static bool ShouldHideToolbar();
+
+  static bool IsDeepLinkTopicForTesting(const GURL& link_url,
+                                        std::string_view target_topic);
 
   WebContents* web_contents() const { return web_contents_.get(); }
 
