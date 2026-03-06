@@ -32,7 +32,10 @@ class MockAppLifecycleRunner : public AppLifecycleRunner {
   ~MockAppLifecycleRunner() override = default;
 
   MOCK_METHOD(void, InitializeSystem, (), (override));
-  MOCK_METHOD(void, CreateMainDelegate, (bool), (override));
+  MOCK_METHOD(void,
+              CreateMainDelegate,
+              (absl::optional<int64_t>, bool),
+              (override));
   MOCK_METHOD(cobalt::CobaltMainDelegate*, GetMainDelegate, (), (override));
   MOCK_METHOD(int, Run, (content::ContentMainParams), (override));
   MOCK_METHOD(void, ShutDown, (), (override));
@@ -95,7 +98,7 @@ TEST_F(AppLifecycleDelegateTest, StartVisible) {
   InitializeShell(true);
 
   EXPECT_CALL(*runner_, InitializeSystem());
-  EXPECT_CALL(*runner_, CreateMainDelegate(true));
+  EXPECT_CALL(*runner_, CreateMainDelegate(_, true));
   EXPECT_CALL(*runner_, GetMainDelegate()).WillOnce(Return(nullptr));
   EXPECT_CALL(*runner_, Run(_)).WillOnce(Return(0));
 
@@ -110,7 +113,7 @@ TEST_F(AppLifecycleDelegateTest, StartPreloaded) {
   InitializeShell(false);
 
   EXPECT_CALL(*runner_, InitializeSystem());
-  EXPECT_CALL(*runner_, CreateMainDelegate(false));
+  EXPECT_CALL(*runner_, CreateMainDelegate(_, false));
   EXPECT_CALL(*runner_, GetMainDelegate()).WillOnce(Return(nullptr));
   EXPECT_CALL(*runner_, Run(_)).WillOnce(Return(0));
 
@@ -156,7 +159,7 @@ TEST_F(AppLifecycleDelegateTest, RevealBeforeStartDoesNotCrash) {
 TEST_F(AppLifecycleDelegateTest, Stop) {
   // Expectations for OnStart (from SendStartEvent)
   EXPECT_CALL(*runner_, InitializeSystem());
-  EXPECT_CALL(*runner_, CreateMainDelegate(true));
+  EXPECT_CALL(*runner_, CreateMainDelegate(_, true));
   EXPECT_CALL(*runner_, GetMainDelegate()).WillOnce(Return(nullptr));
   EXPECT_CALL(*runner_, Run(_)).WillOnce(Return(0));
   SendStartEvent(kSbEventTypeStart);

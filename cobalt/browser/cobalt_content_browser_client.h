@@ -58,7 +58,8 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  explicit CobaltContentBrowserClient(bool is_visible = true);
+  explicit CobaltContentBrowserClient(absl::optional<int64_t> startup_timestamp,
+                                      bool is_visible = true);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -137,6 +138,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  private:
   void OnSbWindowCreated(SbWindow window);
 
+  const absl::optional<int64_t> startup_timestamp_;
   bool is_visible_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 
