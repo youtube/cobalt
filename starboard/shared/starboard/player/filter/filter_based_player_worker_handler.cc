@@ -578,52 +578,40 @@ void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
 void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
     int video_initial_max_frames_in_decoder) {
   SB_LOG(INFO) << "Set video_initial_max_frames_in_decoder from "
-               << (video_initial_max_frames_in_decoder_.has_value()
-                       ? std::to_string(
-                             video_initial_max_frames_in_decoder_.value())
-                       : "(nullopt)")
-               << " to " << video_initial_max_frames_in_decoder;
+               << ToString(video_initial_max_frames_in_decoder_) << " to "
+               << video_initial_max_frames_in_decoder;
   video_initial_max_frames_in_decoder_ = video_initial_max_frames_in_decoder;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
     int video_max_pending_input_frames) {
   SB_LOG(INFO) << "Set video_max_pending_input_frames from "
-               << (video_max_pending_input_frames_.has_value()
-                       ? std::to_string(video_max_pending_input_frames_.value())
-                       : "(nullopt)")
-               << " to " << video_max_pending_input_frames;
+               << ToString(video_max_pending_input_frames_) << " to "
+               << video_max_pending_input_frames;
   video_max_pending_input_frames_ = video_max_pending_input_frames;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoDecoderInitialPrerollCount(
     int video_decoder_initial_preroll_count) {
   SB_LOG(INFO) << "Set video_decoder_initial_preroll_count from "
-               << (video_decoder_initial_preroll_count_.has_value()
-                       ? std::to_string(
-                             video_decoder_initial_preroll_count_.value())
-                       : "(nullopt)")
-               << " to " << video_decoder_initial_preroll_count;
+               << ToString(video_decoder_initial_preroll_count_) << " to "
+               << video_decoder_initial_preroll_count;
   video_decoder_initial_preroll_count_ = video_decoder_initial_preroll_count;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
     int video_decoder_poll_interval_ms) {
   SB_LOG(INFO) << "Set video_decoder_poll_interval_ms from "
-               << (video_decoder_poll_interval_ms_.has_value()
-                       ? std::to_string(video_decoder_poll_interval_ms_.value())
-                       : "(nullopt)")
-               << " to " << video_decoder_poll_interval_ms;
+               << ToString(video_decoder_poll_interval_ms_) << " to "
+               << video_decoder_poll_interval_ms;
   video_decoder_poll_interval_ms_ = video_decoder_poll_interval_ms;
 }
 
 void FilterBasedPlayerWorkerHandler::SetMediaCodecResetDelayMs(
     int media_codec_reset_delay_ms) {
   SB_LOG(INFO) << "Set media_codec_reset_delay_ms from "
-               << (media_codec_reset_delay_ms_.has_value()
-                       ? std::to_string(media_codec_reset_delay_ms_.value())
-                       : "(nullopt)")
-               << " to " << media_codec_reset_delay_ms;
+               << ToString(media_codec_reset_delay_ms_) << " to "
+               << media_codec_reset_delay_ms;
   media_codec_reset_delay_ms_ = media_codec_reset_delay_ms;
 }
 

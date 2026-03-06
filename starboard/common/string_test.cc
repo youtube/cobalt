@@ -172,5 +172,40 @@ TEST(StringTest, FormatWithDigitSeparators_Negative) {
   EXPECT_EQ("-123'456'789", FormatWithDigitSeparators(-123456789));
 }
 
+TEST(StringTest, ToString_Bool) {
+  EXPECT_EQ("true", ToString(true));
+  EXPECT_EQ("false", ToString(false));
+}
+
+TEST(StringTest, ToString_Optional) {
+  std::optional<int> opt_int;
+  EXPECT_EQ("(nullopt)", ToString(opt_int));
+
+  opt_int = 42;
+  EXPECT_EQ("42", ToString(opt_int));
+
+  std::optional<std::string> opt_str;
+  EXPECT_EQ("(nullopt)", ToString(opt_str));
+
+  opt_str = "hello";
+  EXPECT_EQ("hello", ToString(opt_str));
+
+  std::optional<bool> opt_bool;
+  EXPECT_EQ("(nullopt)", ToString(opt_bool));
+
+  opt_bool = true;
+  EXPECT_EQ("true", ToString(opt_bool));
+
+  opt_bool = false;
+  EXPECT_EQ("false", ToString(opt_bool));
+}
+
+TEST(StringTest, ToString_Generic) {
+  EXPECT_EQ("123", ToString(123));
+  EXPECT_EQ("3.14", ToString(3.14));
+  EXPECT_EQ("test", ToString("test"));
+  EXPECT_EQ("test", ToString(std::string("test")));
+}
+
 }  // namespace
 }  // namespace starboard
