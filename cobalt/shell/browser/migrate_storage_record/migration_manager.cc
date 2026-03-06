@@ -43,6 +43,8 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/base/schemeful_site.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_options.h"
@@ -70,9 +72,16 @@ network::mojom::CookieManager* GetCookieManager(
 void GetLocalStorageArea(content::StoragePartition* partition,
                          const url::Origin& origin,
                          mojo::Remote<blink::mojom::StorageArea>& out_area) {
+  auto storage_key = blink::StorageKey::CreateFirstParty(origin);
+
+  LOG(INFO) << "ColinL: [Migration-V10-Verify] Binding LocalStorage";
+  LOG(INFO) << "ColinL:   Origin: " << origin.Serialize();
+  LOG(INFO) << "ColinL:   StorageKey Debug: " << storage_key.GetDebugString();
+  LOG(INFO) << "ColinL:   SerializedKey: "
+            << storage_key.SerializeForLocalStorage();
+
   partition->GetLocalStorageControl()->BindStorageArea(
-      blink::StorageKey::CreateFirstParty(origin),
-      out_area.BindNewPipeAndPassReceiver());
+      storage_key, out_area.BindNewPipeAndPassReceiver());
 }
 
 std::string GetApplicationKey(const GURL& url) {
@@ -148,28 +157,36 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     LOG(ERROR) << "ColinL: Failed to parse Storage protobuf.";
     return nullptr;
   }
+
+  // Log all origins found in the storage record to debug "lost user" issues.
+  for (const auto& local_storage_group : storage->local_storages()) {
+    LOG(INFO) << "ColinL: Found legacy LocalStorage group for origin: "
+              << local_storage_group.serialized_origin();
+  }
+
   LOG(INFO) << "ColinL: Successfully parsed storage. Cookies: "
             << storage->cookies_size()
             << ", LocalStorage groups: " << storage->local_storages_size();
   return storage;
 }
 
-content::RenderFrameHost* RenderFrameHost(
-    content::WeakDocumentPtr weak_document_ptr) {
-  auto* render_frame_host = weak_document_ptr.AsRenderFrameHostIfValid();
-  CHECK(render_frame_host);
-  return render_frame_host;
-}
+// content::RenderFrameHost* RenderFrameHost(
+//     content::WeakDocumentPtr weak_document_ptr) {
+//   auto* render_frame_host = weak_document_ptr.AsRenderFrameHostIfValid();
+//   CHECK(render_frame_host);
+//   return render_frame_host;
+// }
 
-network::mojom::CookieManager* CookieManager(
-    content::WeakDocumentPtr weak_document_ptr) {
-  auto* storage_partition =
-      RenderFrameHost(weak_document_ptr)->GetStoragePartition();
-  CHECK(storage_partition);
-  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
-  return cookie_manager;
-}
+// network::mojom::CookieManager* CookieManager(
+//     content::WeakDocumentPtr weak_document_ptr) {
+//   auto* storage_partition =
+//       RenderFrameHost(weak_document_ptr)->GetStoragePartition();
+//   CHECK(storage_partition);
+//   auto* cookie_manager =
+//   storage_partition->GetCookieManagerForBrowserProcess();
+//   CHECK(cookie_manager);
+//   return cookie_manager;
+// }
 
 #if !defined(COBALT_IS_RELEASE_BUILD)
 Task LogElapsedTimeTask() {
@@ -184,24 +201,26 @@ Task LogElapsedTimeTask() {
 }
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
 
-Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
-  return base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr, const GURL& url,
-         base::OnceClosure callback) {
-        auto* rfh = RenderFrameHost(weak_document_ptr);
-        content::WebContents* web_contents =
-            content::WebContents::FromRenderFrameHost(rfh);
-        if (web_contents) {
-          LOG(INFO) << "ColinL: MigrationManager Reloading URL: " << url.spec();
-          content::NavigationController::LoadURLParams params(url);
-          params.transition_type = ui::PageTransitionFromInt(
-              ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
-          web_contents->GetController().LoadURLWithParams(params);
-        }
-        std::move(callback).Run();
-      },
-      weak_document_ptr, url);
-}
+// Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url)
+// {
+//   return base::BindOnce(
+//       [](content::WeakDocumentPtr weak_document_ptr, const GURL& url,
+//          base::OnceClosure callback) {
+//         auto* rfh = RenderFrameHost(weak_document_ptr);
+//         content::WebContents* web_contents =
+//             content::WebContents::FromRenderFrameHost(rfh);
+//         if (web_contents) {
+//           LOG(INFO) << "ColinL: MigrationManager Reloading URL: " <<
+//           url.spec(); content::NavigationController::LoadURLParams
+//           params(url); params.transition_type = ui::PageTransitionFromInt(
+//               ui::PAGE_TRANSITION_TYPED |
+//               ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+//           web_contents->GetController().LoadURLWithParams(params);
+//         }
+//         std::move(callback).Run();
+//       },
+//       weak_document_ptr, url);
+// }
 
 base::FilePath GetOldCachePath() {
   std::vector<char> path(kSbFileMaxPath, 0);
@@ -268,7 +287,7 @@ Task DeleteOldCacheDirectoryTask() {
 }  // namespace
 
 // static
-std::atomic_flag MigrationManager::migration_attempted_ = ATOMIC_FLAG_INIT;
+// std::atomic_flag MigrationManager::migration_attempted_ = ATOMIC_FLAG_INIT;
 
 // static
 Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
@@ -286,9 +305,9 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 
 void MigrationManager::RunMigration(content::StoragePartition* partition,
                                     base::OnceClosure done_callback) {
-  LOG(INFO) << "ColinL: Starting Pre-MainLoop Migration.";
+  LOG(INFO)
+      << "ColinL: [Migration-V10-Verify] Starting Pre-MainLoop Migration.";
 
-  // 2. Get the target URL (to determine the Origin/StorageKey)
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   if (!initial_url.is_valid()) {
@@ -297,7 +316,6 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   }
   url::Origin origin = url::Origin::Create(initial_url);
 
-  // 3. Read the legacy storage record
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
@@ -306,7 +324,6 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
     return;
   }
 
-  // 4. Build and Run Task Group
   std::vector<Task> tasks;
   tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));
   tasks.push_back(LocalStorageTask(partition, origin,
@@ -330,17 +347,18 @@ Task MigrationManager::CookieTask(
         }
 
         auto* cookie_manager = GetCookieManager(partition);
-
         base::RepeatingClosure barrier =
             base::BarrierClosure(cookies.size(), std::move(callback));
 
         for (auto& cookie : cookies) {
+          std::string name = cookie->Name();
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
           cookie_manager->SetCanonicalCookie(
               *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
-              base::BindOnce([](base::RepeatingClosure barrier,
-                                net::CookieAccessResult) { barrier.Run(); },
-                             barrier));
+              base::BindOnce(
+                  [](base::RepeatingClosure barrier, std::string cookie_name,
+                     net::CookieAccessResult result) { barrier.Run(); },
+                  barrier, name));
         }
       },
       partition, std::move(cookies));
@@ -359,52 +377,100 @@ Task MigrationManager::LocalStorageTask(
         auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
         GetLocalStorageArea(partition, origin, *area);
 
-        // area is a unique_ptr to a mojo::Remote. To call DeleteAll, we need
-        // to dereference the unique_ptr to get the Remote, then use -> to
-        // access the interface.
-        (*area)->DeleteAll(
-            "migration", mojo::NullRemote(),
-            base::BindOnce(
-                [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>>
-                       area,
-                   std::vector<std::unique_ptr<
-                       std::pair<std::string, std::string>>> pairs,
-                   base::OnceClosure callback, bool success) {
-                  if (pairs.empty()) {
-                    std::move(callback).Run();
-                    return;
-                  }
+        if (pairs.empty()) {
+          std::move(callback).Run();
+          return;
+        }
 
-                  // Pointer for the loop before ownership is transferred to
-                  // final_task. We dereference the unique_ptr to get a raw
-                  // pointer to the Remote.
-                  auto* raw_remote_ptr = area.get();
+        auto* raw_remote_ptr = area.get();
 
-                  base::OnceClosure final_task = base::BindOnce(
-                      [](std::unique_ptr<
-                             mojo::Remote<blink::mojom::StorageArea>> area,
-                         base::OnceClosure cb) { std::move(cb).Run(); },
-                      std::move(area), std::move(callback));
+        base::OnceClosure on_all_puts_done = base::BindOnce(
+            [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
+               content::StoragePartition* partition, url::Origin origin,
+               base::OnceClosure cb) {
+              LOG(INFO) << "ColinL: [Migration-V10-Verify] LocalStorage Puts "
+                           "complete. Flushing...";
 
-                  base::RepeatingClosure barrier =
-                      base::BarrierClosure(pairs.size(), std::move(final_task));
+              partition->GetLocalStorageControl()->Flush(base::BindOnce(
+                  [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>>
+                         area,
+                     content::StoragePartition* partition, url::Origin origin,
+                     base::OnceClosure final_cb) {
+                    LOG(INFO)
+                        << "ColinL: [Migration-V10-Verify] Flush complete. "
+                           "Performing Browser-side read-back check...";
 
-                  for (const auto& pair : pairs) {
-                    std::vector<uint8_t> key(pair->first.begin(),
-                                             pair->first.end());
-                    std::vector<uint8_t> value(pair->second.begin(),
-                                               pair->second.end());
+                    // Independent verification read.
+                    auto verify_remote = std::make_unique<
+                        mojo::Remote<blink::mojom::StorageArea>>();
+                    GetLocalStorageArea(partition, origin, *verify_remote);
 
-                    // Use the raw pointer to the Remote to call Put.
-                    (*raw_remote_ptr)
-                        ->Put(
-                            key, value, absl::nullopt, "migration",
-                            base::BindOnce([](base::RepeatingClosure barrier,
-                                              bool success) { barrier.Run(); },
-                                           barrier));
-                  }
-                },
-                std::move(area), std::move(pairs), std::move(callback)));
+                    auto* raw_verify = verify_remote->get();
+                    std::vector<uint8_t> key_vec;
+                    std::string target_key =
+                        "yt.leanback.default::last-identity-used";
+                    key_vec.assign(target_key.begin(), target_key.end());
+
+                    raw_verify->Get(
+                        key_vec,
+                        base::BindOnce(
+                            [](std::unique_ptr<mojo::Remote<
+                                   blink::mojom::StorageArea>> area_hold,
+                               std::unique_ptr<mojo::Remote<
+                                   blink::mojom::StorageArea>> verify_hold,
+                               content::StoragePartition* partition,
+                               base::OnceClosure done_cb, bool success,
+                               const std::vector<uint8_t>& value) {
+                              std::string val_str(value.begin(), value.end());
+                              if (val_str.empty()) {
+                                LOG(ERROR)
+                                    << "ColinL: [PROOF] Browser read-back "
+                                       "FAILED. Data missing in memory.";
+                              } else {
+                                LOG(INFO) << "ColinL: [PROOF] Browser "
+                                             "read-back SUCCESS. Value: "
+                                          << val_str.substr(0, 40) << "...";
+                              }
+
+                              // NEW FIX: Force the Storage Service to drop its
+                              // handle for this origin.
+                              LOG(INFO) << "ColinL: [FIX] Purging Storage "
+                                           "Service handles to force Renderer "
+                                           "synchronization.";
+                              partition->GetLocalStorageControl()
+                                  ->PurgeMemory();
+
+                              // TEST: Add a 10-second delay before continuing
+                              // to unblock the browser startup.
+                              LOG(INFO) << "ColinL: [TEST] Delaying migration "
+                                           "completion by 10 seconds to test "
+                                           "timing race...";
+                              base::SequencedTaskRunner::GetCurrentDefault()
+                                  ->PostDelayedTask(FROM_HERE,
+                                                    std::move(done_cb),
+                                                    base::Seconds(10));
+                            },
+                            std::move(area), std::move(verify_remote),
+                            base::Unretained(partition), std::move(final_cb)));
+                  },
+                  std::move(area), base::Unretained(partition), origin,
+                  std::move(cb)));
+            },
+            std::move(area), base::Unretained(partition), origin,
+            std::move(callback));
+
+        base::RepeatingClosure barrier =
+            base::BarrierClosure(pairs.size(), std::move(on_all_puts_done));
+
+        for (const auto& pair : pairs) {
+          std::vector<uint8_t> key(pair->first.begin(), pair->first.end());
+          std::vector<uint8_t> value(pair->second.begin(), pair->second.end());
+          (*raw_remote_ptr)
+              ->Put(key, value, absl::nullopt, "migration",
+                    base::BindOnce([](base::RepeatingClosure barrier,
+                                      bool success) { barrier.Run(); },
+                                   barrier));
+        }
       },
       partition, origin, std::move(pairs));
 }
@@ -432,10 +498,46 @@ std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
 MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
                                       const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<std::pair<std::string, std::string>>> entries;
+
+  // Get the registrable domain for the current page (e.g., "youtube.com").
+  std::string target_domain =
+      net::registry_controlled_domains::GetDomainAndRegistry(
+          page_origin.GetURL(),
+          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+
   for (const auto& local_storages : storage.local_storages()) {
-    GURL local_storage_origin(local_storages.serialized_origin());
-    if (!local_storage_origin.SchemeIs("https") ||
-        !page_origin.IsSameOriginWith(local_storage_origin)) {
+    std::string legacy_origin_str = local_storages.serialized_origin();
+    GURL legacy_gurl(legacy_origin_str);
+
+    LOG(INFO) << "ColinL: Examining legacy storage group for origin: "
+              << legacy_origin_str;
+
+    if (!legacy_gurl.is_valid()) {
+      LOG(WARNING) << "ColinL: Skipping invalid legacy origin: "
+                   << legacy_origin_str;
+      continue;
+    }
+
+    // Relaxed matching: If strict origin matching fails, check if the
+    // registrable domains match. This allows migration from http to https or
+    // between subdomains.
+    bool match = page_origin.IsSameOriginWith(legacy_gurl);
+    if (!match && !target_domain.empty()) {
+      std::string legacy_domain =
+          net::registry_controlled_domains::GetDomainAndRegistry(
+              legacy_gurl,
+              net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+      if (target_domain == legacy_domain) {
+        LOG(INFO) << "ColinL: Strict origin mismatch but Domain match found: "
+                  << legacy_domain;
+        match = true;
+      }
+    }
+
+    if (!match) {
+      LOG(WARNING) << "ColinL: Domain Mismatch! Legacy: " << legacy_origin_str
+                   << " vs Target: " << page_origin.Serialize()
+                   << ". Skipping migration.";
       continue;
     }
 

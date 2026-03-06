@@ -102,19 +102,35 @@ String StorageArea::key(unsigned index, ExceptionState& exception_state) const {
 
 String StorageArea::getItem(const String& key,
                             ExceptionState& exception_state) const {
+  // Use this version in storage_area.cc to avoid the ExecutionContext error
+  // Correct logging for third_party/blink/renderer/modules/storage/storage_area.cc
+  if (GetExecutionContext()) {
+      // Convert SecurityOrigin to url::Origin for StorageKey consumption
+      url::Origin renderer_origin = GetExecutionContext()->GetSecurityOrigin()->ToUrlOrigin();
+      
+      // Create the StorageKey used by the renderer locally for debug output
+      blink::StorageKey renderer_key = blink::StorageKey::CreateFirstParty(renderer_origin);
+      
+      LOG(INFO) << "ColinL: [JS LocalStorage] Renderer Origin: " << renderer_origin.Serialize();
+      LOG(INFO) << "ColinL: [JS LocalStorage] Renderer Key Debug: " << renderer_key.GetDebugString();
+      LOG(INFO) << "ColinL: [JS LocalStorage] Renderer Key Serialized: " << renderer_key.SerializeForLocalStorage();
+  }
+
   LOG(INFO) << "ColinL: sm telemetry: [JS LocalStorage] getItem: " << key.Utf8();
   if (!CanAccessStorage()) {
     exception_state.ThrowSecurityError("access is denied for this document.");
     return String();
   }
-  return cached_area_->GetItem(key);
+  String value = cached_area_->GetItem(key);
+  LOG(INFO) << "ColinL: sm telemetry: [JS LocalStorage] getItem: " << key.Utf8() << " = " << value.Utf8();
+  return value;
 }
 
 NamedPropertySetterResult StorageArea::setItem(
     const String& key,
     const String& value,
     ExceptionState& exception_state) {
-  LOG(INFO) << "ColinL: sm telemetry: [JS LocalStorage] setItem: " << key.Utf8();
+  LOG(INFO) << "ColinL: sm telemetry: [JS LocalStorage] setItem: " << key.Utf8() << " = " << value.Utf8();
   if (!CanAccessStorage()) {
     exception_state.ThrowSecurityError("access is denied for this document.");
     return NamedPropertySetterResult::kIntercepted;

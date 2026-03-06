@@ -5849,7 +5849,9 @@ String Document::cookie(ExceptionState& exception_state) const {
     CountUse(WebFeature::kFileAccessedCookies);
   }
 
-  return cookie_jar_->Cookies();
+  String value = cookie_jar_->Cookies();
+  LOG(INFO) << "ColinL: sm telemetry: [JS Cookie] GET result: " << value.Utf8();
+  return value;
 }
 
 void Document::setCookie(const String& value, ExceptionState& exception_state) {
