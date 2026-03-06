@@ -151,6 +151,26 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Total.PrivateFootprintSwap" units="MB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    A rough estimate of the private memory footprint that has been swapped out
+    to disk for the Cobalt process. Recorded at regular intervals when memory
+    metrics are emitted.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Total.VmSize" units="MB" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    The virtual memory size of the Cobalt process. Virtual memory size includes
+    all memory the process can access, including shared libraries, stack, heap,
+    and memory-mapped files. Recorded at regular intervals when memory metrics
+    are emitted.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
