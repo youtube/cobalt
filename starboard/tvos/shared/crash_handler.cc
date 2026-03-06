@@ -64,6 +64,9 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
 }
 
 bool SetString(const char* key, const char* value) {
+  SB_CHECK(key);
+  SB_CHECK(value);
+
   // These keys are not supposed to be overridable.
   static constexpr std::array<std::string_view, 2> kDisallowedKeys = {
       "prod",
