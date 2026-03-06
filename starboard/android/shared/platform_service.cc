@@ -29,19 +29,10 @@
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
   ReceiveMessageCallback receive_callback;
-  const char* name;
-  jobject cobalt_service;
+  std::string name;
+  base::android::ScopedJavaGlobalRef<jobject> cobalt_service;
 
-  ~CobaltExtensionPlatformServicePrivate() {
-    if (name) {
-      delete name;
-    }
-    if (cobalt_service) {
-      JNIEnv* env = base::android::AttachCurrentThread();
-      env->DeleteGlobalRef(cobalt_service);
-      cobalt_service = nullptr;
-    }
-  }
+  ~CobaltExtensionPlatformServicePrivate() = default;
 } CobaltExtensionPlatformServicePrivate;
 
 namespace starboard {
@@ -63,6 +54,7 @@ CobaltExtensionPlatformService Open(void* context,
     SB_LOG(ERROR) << "Can't open Service " << name;
     return kCobaltExtensionPlatformServiceInvalid;
   }
+
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate(
           {context, receive_callback, name});
@@ -73,7 +65,7 @@ CobaltExtensionPlatformService Open(void* context,
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
   }
-  service->cobalt_service = env->NewGlobalRef(cobalt_service.obj());
+  service->cobalt_service.Reset(env, cobalt_service.obj());
   return service;
 }
 
@@ -83,12 +75,10 @@ void Close(CobaltExtensionPlatformService service) {
   }
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto j_cobalt_service =
-      base::android::JavaParamRef<jobject>(env, service->cobalt_service);
-  Java_CobaltService_onClose(env, j_cobalt_service);
+  Java_CobaltService_onClose(env, service->cobalt_service);
 
-  starboard::StarboardBridge::GetInstance()->CloseCobaltService(env,
-                                                                service->name);
+  starboard::StarboardBridge::GetInstance()->CloseCobaltService(
+      env, service->name.c_str());
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -101,13 +91,17 @@ void* Send(CobaltExtensionPlatformService service,
   SB_DCHECK(output_length);
   SB_DCHECK(invalid_state);
 
+  if (!service || service->cobalt_service.is_null()) {
+    SB_LOG(ERROR) << "Send failed: Service or Java handle is null.";
+    *invalid_state = true;
+    return nullptr;
+  }
+
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto j_cobalt_service =
-      base::android::JavaParamRef<jobject>(env, service->cobalt_service);
   auto j_data = base::android::ToJavaByteArray(
       env, reinterpret_cast<const uint8_t*>(data), length);
-  auto j_response =
-      Java_CobaltService_receiveFromClient(env, j_cobalt_service, j_data);
+  auto j_response = Java_CobaltService_receiveFromClient(
+      env, service->cobalt_service, j_data);
   if (j_response.is_null()) {
     *invalid_state = true;
     *output_length = 0;
@@ -117,7 +111,12 @@ void* Send(CobaltExtensionPlatformService service,
   auto j_out_data = Java_ResponseToClient_getData(env, j_response);
   int data_length = base::android::SafeGetArrayLength(env, j_out_data);
   SB_CHECK_GE(data_length, 0);
-  char* output = new char[data_length];
+  void* output = malloc(data_length);
+  if (!output) {
+    *output_length = 0;
+    return nullptr;
+  }
+
   env->GetByteArrayRegion(j_out_data.obj(), 0, data_length,
                           reinterpret_cast<jbyte*>(output));
 

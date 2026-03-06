@@ -204,24 +204,14 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
-  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
+  auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
-
-  if (SbPlayerIsValid(player)) {
-    if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
-      // TODO: accomplish this through more direct means.
-      // Set the bounds to initialize the VideoSurfaceView. The initial values
-      // don't matter.
-      SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
-    }
-    return player;
+  if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
+    // TODO: accomplish this through more direct means.
+    // Set the bounds to initialize the VideoSurfaceView. The initial values
+    // don't matter.
+    SbPlayerSetBounds(player.get(), 0, 0, 0, 0, 0);
   }
-
-  SB_LOG(ERROR)
-      << "Invalid player returned by SbPlayerPrivateImpl::CreateInstance().";
-  player_error_func(
-      kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-      "Invalid player returned by SbPlayerPrivateImpl::CreateInstance()");
-  return kSbPlayerInvalid;
+  return player.release();
 }

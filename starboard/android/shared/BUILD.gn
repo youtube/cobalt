@@ -380,6 +380,8 @@ test("starboard_platform_tests") {
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
               "media_capabilities_cache_test.cc",
+              "mock_media_capabilities_cache.cc",
+              "mock_media_capabilities_cache.h",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",

@@ -142,6 +142,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
+                           int max_buffers,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
@@ -185,6 +186,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const int max_samples_per_write_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
@@ -241,8 +243,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   Time last_time_media_time_retrieved_;
 
   bool audio_read_delayed_ = false;
-  // TODO(b/375674101): Support batched samples write.
-  const int max_audio_samples_per_write_ = 1;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 

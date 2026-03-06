@@ -223,8 +223,9 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
     raise ValueError(f'--targets is not in JSON format: {e}') from e
 
   for target_data in targets:
+    test_type = args.test_type
 
-    if args.test_type == 'unit_test':
+    if test_type == 'unit_test':
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
       test_target = target_data
@@ -244,7 +245,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
 
-    elif args.test_type in ('e2e_test', 'yts_test'):
+    elif test_type in ('e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'):
       test_target = target_data['target']
       test_attempts = target_data.get('test_attempts', '')
       if test_attempts:
@@ -252,16 +253,24 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-      params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
       files = []
-      if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
-        params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+      if test_type in ('browser_test', 'yts_wpt_test'):
+        test_type = 'e2e_test'
+        params = []
       else:
-        bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
-        files.append(f'cobalt_path={bigstore_path}')
+        params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+        if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
+          params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+        else:
+          bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
+          if test_type == 'yts_test':
+            files.append(f'build_apk={bigstore_path}')
+            params.append('app=dev.cobalt.coat')
+          else:
+            files.append(f'cobalt_path={bigstore_path}')
 
     else:
-      raise ValueError(f'Unsupported test type: {args.test_type}')
+      raise ValueError(f'Unsupported test type: {test_type}')
 
     test_requests.append({
         'device_type': device_type,
@@ -271,7 +280,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'files': files,
         'params': params,
         'test_target': test_target,
-        'test_type': args.test_type,
+        'test_type': test_type,
     })
 
   return test_requests
@@ -315,7 +324,9 @@ def main() -> int:
       '--test_type',
       type=str,
       required=True,
-      choices=['unit_test', 'e2e_test', 'yts_test'],
+      choices=[
+          'unit_test', 'e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'
+      ],
       help='Type of test to run.',
   )
   trigger_args.add_argument(

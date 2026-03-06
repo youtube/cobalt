@@ -308,7 +308,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '32952ed473705d2ab6127074f4e79d5127ef4145',
+  'v8_revision': 'b40c5631f5d789a9370067e0f492795c0b05bbef',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -2109,6 +2109,11 @@ deps = {
   'src/third_party/instrumented_libs': {
     'url': Var('chromium_git') + '/chromium/third_party/instrumented_libraries.git' + '@' + '69015643b3f68dbd438c010439c59adc52cac808',
     'condition': 'checkout_instrumented_libraries',
+  },
+
+  'src/third_party/internal': {
+    'url': Var('cobalt_internal_git') + '/third_party/internal.git' + '@' + 'main',
+    'condition': 'checkout_cobalt_internal',
   },
 
   'src/third_party/jszip/src': {
@@ -5776,7 +5781,6 @@ recursedeps = [
   # clank has its own DEPS file, does not need to be in trybot_analyze_config
   # since the roller does not run tests.
   'src/clank',
-  'src/cobalt/internal',
   'src/components/optimization_guide/internal',
   'src/ios_internal',
 ]

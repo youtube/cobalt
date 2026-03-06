@@ -583,7 +583,6 @@ class MediaCodecBridge {
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
 
-  @CalledByNative
   public boolean start() {
     return start(null);
   }

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
+}
+
 source_set("manager") {
   sources = [
     "h5vcc_accessibility_manager.cc",
@@ -39,4 +43,11 @@ source_set("h5vcc_accessibility") {
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
   ]
+
+  if (is_ios && target_platform == "tvos") {
+    sources += [
+      "voice_over_status_monitor_tvos.h",
+      "voice_over_status_monitor_tvos.mm",
+    ]
+  }
 }

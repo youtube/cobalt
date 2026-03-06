@@ -109,18 +109,19 @@ class PlayerWorker {
     Handler& operator=(const Handler&) = delete;
   };
 
-  static PlayerWorker* CreateInstance(
-      SbMediaAudioCodec audio_codec,
-      SbMediaVideoCodec video_codec,
-      std::unique_ptr<Handler> handler,
-      UpdateMediaInfoCB update_media_info_cb,
-      SbPlayerDecoderStatusFunc decoder_status_func,
-      SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func,
-      SbPlayer player,
-      void* context);
-
+  PlayerWorker(SbMediaAudioCodec audio_codec,
+               SbMediaVideoCodec video_codec,
+               std::unique_ptr<Handler> handler,
+               UpdateMediaInfoCB update_media_info_cb,
+               SbPlayerDecoderStatusFunc decoder_status_func,
+               SbPlayerStatusFunc player_status_func,
+               SbPlayerErrorFunc player_error_func,
+               SbPlayer player,
+               void* context);
   ~PlayerWorker();
+
+  PlayerWorker(const PlayerWorker&) = delete;
+  PlayerWorker& operator=(const PlayerWorker&) = delete;
 
   void Seek(int64_t seek_to_time, int ticket) {
     job_thread_->Schedule(
@@ -173,19 +174,6 @@ class PlayerWorker {
   }
 
  private:
-  PlayerWorker(SbMediaAudioCodec audio_codec,
-               SbMediaVideoCodec video_codec,
-               std::unique_ptr<Handler> handler,
-               UpdateMediaInfoCB update_media_info_cb,
-               SbPlayerDecoderStatusFunc decoder_status_func,
-               SbPlayerStatusFunc player_status_func,
-               SbPlayerErrorFunc player_error_func,
-               SbPlayer player,
-               void* context);
-
-  PlayerWorker(const PlayerWorker&) = delete;
-  PlayerWorker& operator=(const PlayerWorker&) = delete;
-
   void UpdateMediaInfo(int64_t time, int dropped_video_frames, bool underflow);
 
   SbPlayerState player_state() const { return player_state_; }

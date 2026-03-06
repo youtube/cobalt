@@ -23,8 +23,10 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
@@ -40,9 +42,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -67,14 +67,17 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
-#include "services/service_manager/public/cpp/binder_registry.h"
-#include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 namespace cobalt {
 
@@ -93,6 +96,11 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+// This value is expected by offline data processing and should not be changed.
+constexpr const char kUserAgentAnnotationKey[] = "user_agent_string";
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 void BindPlatformWindowProviderService(
     uint64_t window_handle,
@@ -158,12 +166,9 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient()
-    : video_geometry_setter_service_(
-          std::unique_ptr<cobalt::media::VideoGeometrySetterService,
-                          base::OnTaskRunnerDeleter>(
-              nullptr,
-              base::OnTaskRunnerDeleter(nullptr))) {
+CobaltContentBrowserClient::CobaltContentBrowserClient(
+    const std::string& deep_link)
+    : deep_link_(deep_link) {
   COBALT_DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
@@ -189,7 +194,8 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
+  auto browser_main_parts =
+      std::make_unique<CobaltBrowserMainParts>(deep_link_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
@@ -362,40 +368,6 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   PopulateCobaltFrameBinders(render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
-}
-
-void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
-  DCHECK(!video_geometry_setter_service_);
-  video_geometry_setter_service_ =
-      std::unique_ptr<cobalt::media::VideoGeometrySetterService,
-                      base::OnTaskRunnerDeleter>(
-          new media::VideoGeometrySetterService,
-          base::OnTaskRunnerDeleter(
-              base::SingleThreadTaskRunner::GetCurrentDefault()));
-}
-
-void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
-    service_manager::BinderRegistry* registry,
-    blink::AssociatedInterfaceRegistry* associated_registry,
-    content::RenderProcessHost* render_process_host) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (!video_geometry_setter_service_) {
-    CreateVideoGeometrySetterService();
-  }
-  registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
-      video_geometry_setter_service_->GetBindSubscriberCallback(),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
-}
-
-void CobaltContentBrowserClient::BindGpuHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (!video_geometry_setter_service_) {
-    CreateVideoGeometrySetterService();
-  }
-  if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
-    video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
-  }
 }
 
 void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
@@ -573,6 +545,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  UMA_HISTOGRAM_BOOLEAN(
+      "Cobalt.Features.TestFinchFeature",
+      base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  base::UmaHistogramSparse("Cobalt.Features.TestFinchFeatureParam",
+                           base::Hash(features::kTestFinchFeatureParam.Get()));
   LOG(INFO) << "CobaltCommandLine: enable_features=["
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["
@@ -585,5 +562,30 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();
 }
+
+#if !BUILDFLAG(IS_ANDROIDTV)
+// TODO: b/411198914 - Consider making this implementation platform-agnostic by
+// using the mojom::CrashAnnotator interface.
+void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
+  std::string user_agent_string = GetUserAgent();
+  if (user_agent_string.empty()) {
+    LOG(ERROR) << "Not setting the user agent annotation because the string is "
+               << "empty";
+    return;
+  }
+
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2) {
+    crash_handler_extension->SetString(kUserAgentAnnotationKey,
+                                       user_agent_string.c_str());
+  } else {
+    LOG(ERROR) << "The plaform does not implement (the required version of) "
+               << "the CrashHandler Starboard extension; not setting the user "
+               << "agent annotation";
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt
