@@ -332,6 +332,17 @@ class NET_EXPORT NetworkChangeNotifier {
         observer_list_;
   };
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_STARBOARD)
+  // TODO(crbug.com/1347382): Remove this section and align the behavior
+  // with other platforms or confirm that Lacros needs to be separated.
+  static constexpr ConnectionType kDefaultInitialConnectionType =
+      CONNECTION_UNKNOWN;
+  static constexpr ConnectionSubtype kDefaultInitialConnectionSubtype =
+      SUBTYPE_UNKNOWN;
+#else
+>>>>>>> e0890de6fa (starboard: Implement network API (#9349))
   static constexpr ConnectionType kDefaultInitialConnectionType =
       CONNECTION_NONE;
   static constexpr ConnectionSubtype kDefaultInitialConnectionSubtype =
