@@ -15,26 +15,10 @@
 #ifndef STARBOARD_TVOS_SHARED_CRASH_HANDLER_H_
 #define STARBOARD_TVOS_SHARED_CRASH_HANDLER_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-// When making changes to BreakpadSetAnnotationsCallback, definition in
-// starboard/darwin/tvos/main.mm and
-// googlemac/iPhone/YouTubeTV/v2/main.m should also be updated.
-typedef void (*BreakpadSetAnnotationsCallback)(const char* key,
-                                               const char* value);
-#ifdef __cplusplus
-}
-#endif
-
 namespace starboard {
-namespace shared {
-namespace uikit {
 
 const void* GetCrashHandlerApi();
 
-}  // namespace uikit
-}  // namespace shared
 }  // namespace starboard
 
 #endif  // STARBOARD_TVOS_SHARED_CRASH_HANDLER_H_
