@@ -261,6 +261,7 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
+    "//cobalt/browser:browser",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser:switches",
