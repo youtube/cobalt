@@ -85,8 +85,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
   struct PrerollParameters {
-    int min_input_buffers;
-    int min_decoded_frames;
+    int32_t min_input_buffers;
+    int32_t min_decoded_frames;
   };
   const std::optional<PrerollParameters> preroll_params_;
 
