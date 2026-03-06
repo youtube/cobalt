@@ -72,7 +72,6 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
-<<<<<<< HEAD
   <owner>hwarriner@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>
@@ -118,10 +117,6 @@ Always run the pretty print utility on this file after editing:
 <histogram name="CPU.Total.Usage" units="%" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
-=======
-  <owner>tasunny@google.com</owner>
-  <summary>
->>>>>>> d342d325baa (fix)
     Total CPU utilization of the Cobalt process as a percentage over an interval.
     100% indicates that the equivalent of one core is fully utilized;
     on a multi-core system, this value can exceed 100%. This metric is recorded
