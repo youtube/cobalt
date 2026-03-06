@@ -25,6 +25,10 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include <sys/system_properties.h>
+#endif
+
 namespace starboard::shared::starboard::player::filter {
 
 namespace {
@@ -33,6 +37,23 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 
 const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
+
+std::optional<int> GetSystemPropertyInt(const char* name) {
+#if BUILDFLAG(IS_ANDROID)
+  char value[PROP_VALUE_MAX];
+  if (__system_property_get(name, value) > 0) {
+    return atoi(value);
+  }
+#endif
+  return std::nullopt;
+}
+
+std::string ToString(const std::optional<int>& val) {
+  if (!val) {
+    return "(nullopt)";
+  }
+  return std::to_string(*val);
+}
 
 }  // namespace
 
@@ -44,7 +65,11 @@ VideoRendererImpl::VideoRendererImpl(
     : media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
-      decoder_(std::move(decoder)) {
+      decoder_(std::move(decoder)),
+      min_input_buffer_for_preroll_(
+          GetSystemPropertyInt("debug.cobalt.preroll.min_input_buffer")),
+      min_decoded_frames_for_preroll_(
+          GetSystemPropertyInt("debug.cobalt.preroll.min_decoded_frames")) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -61,6 +86,11 @@ VideoRendererImpl::VideoRendererImpl(
            kCheckBufferingStateInterval);
   time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  SB_LOG(INFO) << "VideoRendererImpl created: "
+               << "min_input_buffer_for_preroll="
+               << ToString(min_input_buffer_for_preroll_)
+               << ", min_decoded_frames_for_preroll="
+               << ToString(min_decoded_frames_for_preroll_);
 }
 
 VideoRendererImpl::~VideoRendererImpl() {
@@ -130,6 +160,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
 
+  input_buffers_sent_.fetch_add(static_cast<int32_t>(input_buffers.size()));
   decoder_->WriteInputBuffers(input_buffers);
 }
 
@@ -161,6 +192,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   // WriteSample().  So it is safe to modify |seeking_to_time_| here.
   seeking_to_time_ = std::max<int64_t>(seek_to_time, 0);
   seeking_.store(true);
+  input_buffers_sent_.store(0);
   end_of_stream_written_.store(false);
   end_of_stream_decoded_.store(false);
   ended_cb_called_.store(false);
@@ -281,14 +313,25 @@ void VideoRendererImpl::OnDecoderStatus(
       }
     }
 
-    if (number_of_frames_.load() >=
-            static_cast<int32_t>(decoder_->GetPrerollFrameCount()) &&
-        seeking_.exchange(false)) {
+    bool preroll_completed = false;
+    if (min_input_buffer_for_preroll_ && min_decoded_frames_for_preroll_) {
+      preroll_completed =
+          input_buffers_sent_.load() >= *min_input_buffer_for_preroll_ &&
+          number_of_frames_.load() >= *min_decoded_frames_for_preroll_;
+    } else {
+      preroll_completed =
+          number_of_frames_.load() >=
+          static_cast<int32_t>(decoder_->GetPrerollFrameCount());
+    }
+
+    if (preroll_completed && seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      SB_LOG(INFO) << "Video preroll takes "
-                   << FormatWithDigitSeparators(CurrentMonotonicTime() -
-                                                first_input_written_at_)
-                   << " microseconds.";
+      SB_LOG(INFO) << "Video preroll complete: elapsed(msec)="
+                   << FormatWithDigitSeparators(
+                          (CurrentMonotonicTime() - first_input_written_at_) /
+                          1'000)
+                   << ", input_buffers_sent=" << input_buffers_sent_.load()
+                   << ", decoded_frames=" << number_of_frames_.load();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
     }
@@ -355,6 +398,11 @@ void VideoRendererImpl::OnSeekTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
   if (number_of_frames_.load() > 0) {
     if (seeking_.exchange(false)) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      SB_LOG(INFO) << "Video preroll timeout:"
+                   << " input_buffers_sent=" << input_buffers_sent_.load()
+                   << ", decoded_frames=" << number_of_frames_.load();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
     }
   } else if (seeking_.load()) {
