@@ -26,10 +26,6 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include <sys/system_properties.h>
-#endif
-
 namespace starboard::shared::starboard::player::filter {
 
 namespace {
