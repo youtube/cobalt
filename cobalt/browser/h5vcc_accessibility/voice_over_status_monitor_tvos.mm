@@ -18,7 +18,8 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 
-namespace cobalt::browser {
+namespace cobalt {
+namespace browser {
 
 void InstallVoiceOverStatusMonitor() {
   [[NSNotificationCenter defaultCenter]
@@ -32,4 +33,5 @@ void InstallVoiceOverStatusMonitor() {
               }];
 }
 
-}  // namespace cobalt::browser
+}  // namespace browser
+}  // namespace cobalt
