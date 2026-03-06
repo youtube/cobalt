@@ -32,6 +32,8 @@ runs:
       shell: bash
       env:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+        GTEST_SHARD_INDEX: ${{ matrix.shard }}
+        GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         set -x
         env
@@ -63,11 +65,6 @@ runs:
           filename=$(basename "${test_binary_path}")
           test_binary="${filename%%.*}"
 
-          if [[ "${{ matrix.shard }}" != "0" && "${test_binary}" =~ ^nplb ]]; then
-            # Workaround for nplb not supporting sharding.
-            continue
-          fi
-
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
@@ -86,11 +83,11 @@ runs:
           if [ "${test_filter}" == "-*" ]; then
             echo "Skipped due to test filter." >  ${log_path}
           else
-            export GTEST_TOTAL_SHARDS=${{ inputs.num_gtest_shards }}
-            export GTEST_SHARD_INDEX=${{ matrix.shard }}
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 $ENTRYPOINT \
                 --single-process-tests \
+                --gtest_shard_index="${GTEST_SHARD_INDEX}" \
+                --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_binary}"
