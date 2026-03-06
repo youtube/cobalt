@@ -51,7 +51,7 @@ struct CobaltMetricsServiceClient::State
   // Task runner for background memory metrics collection.
   scoped_refptr<base::SequencedTaskRunner> task_runner;
 
-  scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter_; 
+  scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter_;
 
   // Flag to stop logging.
   bool stop_logging = false;
@@ -93,9 +93,7 @@ struct CobaltMetricsServiceClient::State
     if (!cpu_emitter_) {
       cpu_emitter_ = parent_->CreateCpuMetricsEmitter();
     }
-
     cpu_emitter_->FetchAndEmitCpuMetrics();
-
 
     RecordMemoryMetricsAfterDelay();
   }

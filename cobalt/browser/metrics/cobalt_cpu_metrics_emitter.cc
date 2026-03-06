@@ -31,7 +31,8 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
   // Total CPU utilization in percentage of all cores over an interval
   auto cpu_usage = process_metrics_->GetPlatformIndependentCPUUsage();
   if (cpu_usage.has_value()) {
-    base::UmaHistogramCounts1000("CPU.Total.Usage", static_cast<int>(cpu_usage.value() + 0.5));
+    base::UmaHistogramCounts1000("CPU.Total.Usage", 
+                                static_cast<int>(cpu_usage.value() + 0.5));
   }
 }
 
