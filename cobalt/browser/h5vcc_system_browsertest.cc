@@ -33,13 +33,14 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifyApiPresence) {
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
   // Verify that window.h5vcc exists.
-  EXPECT_EQ(true, content::EvalJs(shell()->web_contents(),
-                                  "typeof window.h5vcc !== 'undefined'"));
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "typeof window.h5vcc !== 'undefined'")
+                  .ExtractBool());
 
   // Verify that window.h5vcc.system exists.
-  EXPECT_EQ(true,
-            content::EvalJs(shell()->web_contents(),
-                            "typeof window.h5vcc.system !== 'undefined'"));
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "typeof window.h5vcc.system !== 'undefined'")
+                  .ExtractBool());
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifySystemProperties) {
@@ -48,15 +49,16 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifySystemProperties) {
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
   // Verify advertisingId is a string (might be empty, but should be a string).
-  EXPECT_EQ(true, content::EvalJs(
-                      shell()->web_contents(),
-                      "typeof window.h5vcc.system.advertisingId === 'string'"));
+  EXPECT_TRUE(
+      content::EvalJs(shell()->web_contents(),
+                      "typeof window.h5vcc.system.advertisingId === 'string'")
+          .ExtractBool());
 
   // Verify limitAdTracking is a boolean.
-  EXPECT_EQ(true,
-            content::EvalJs(
-                shell()->web_contents(),
-                "typeof window.h5vcc.system.limitAdTracking === 'boolean'"));
+  EXPECT_TRUE(content::EvalJs(
+                  shell()->web_contents(),
+                  "typeof window.h5vcc.system.limitAdTracking === 'boolean'")
+                  .ExtractBool());
 
   // Verify userOnExitStrategy is one of the expected numbers.
   // 0: close, 1: minimize, 2: no-exit
@@ -66,7 +68,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifySystemProperties) {
       return strategy === 0 || strategy === 1 || strategy === 2;
     })()
   )";
-  EXPECT_EQ(true, content::EvalJs(shell()->web_contents(), check_strategy));
+  EXPECT_TRUE(
+      content::EvalJs(shell()->web_contents(), check_strategy).ExtractBool());
 }
 
 }  // namespace cobalt

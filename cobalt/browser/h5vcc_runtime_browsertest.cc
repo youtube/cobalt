@@ -41,9 +41,9 @@ IN_PROC_BROWSER_TEST_F(H5vccRuntimeBrowserTest, GetInitialDeepLink) {
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
   // 1. Verify that window.h5vcc.runtime exists.
-  EXPECT_EQ(true,
-            content::EvalJs(shell()->web_contents(),
-                            "typeof window.h5vcc.runtime !== 'undefined'"));
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "typeof window.h5vcc.runtime !== 'undefined'")
+                  .ExtractBool());
 
   // 2. Verify that the initial deep link is correctly returned.
   EXPECT_EQ("https://example.com/test_link",
