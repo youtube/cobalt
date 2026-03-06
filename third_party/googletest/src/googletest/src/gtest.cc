@@ -3473,7 +3473,7 @@ void PrettyUnitTestResultPrinter::OnTestIterationStart(
 #if BUILDFLAG(IS_STARBOARD)
     ColoredPrintf(GTestColor::kYellow, "Note: This is test shard %d of %d.\n",
                   static_cast<int>(GTEST_FLAG_GET(shard_index)) + 1,
-                  static_cast<int>(GTEST_FLAG_GET(total_shards)) + 1);
+                  static_cast<int>(GTEST_FLAG_GET(total_shards)));
 #else
     const int32_t shard_index = Int32FromEnvOrDie(kTestShardIndex, -1);
     ColoredPrintf(GTestColor::kYellow, "Note: This is test shard %d of %s.\n",
