@@ -69,7 +69,7 @@ bool SetString(const char* key, const char* value) {
   }
 
   if (std::string_view(value).size() >= kMaxCrashValueSize) {
-    SB_LOG(ERROR) << "Crashpad key " << key << " is too large. Ignoring.";
+    SB_LOG(ERROR) << "Crash value is too large. Ignoring.";
     return false;
   }
 
