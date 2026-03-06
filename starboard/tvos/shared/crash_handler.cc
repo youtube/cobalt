@@ -20,6 +20,7 @@
 #include <string_view>
 
 #include "base/no_destructor.h"
+#include "base/synchronization/lock.h"
 #include "components/crash/core/common/crash_key.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/crash_handler.h"
@@ -52,6 +53,11 @@ class CrashKeyWithName {
   crash_reporter::CrashKeyString<kMaxCrashValueSize> crash_key_;
 };
 
+base::Lock& GetSetStringLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   return false;  // Deprecated
 }
@@ -73,15 +79,20 @@ bool SetString(const char* key, const char* value) {
     return false;
   }
 
-  static base::NoDestructor<std::deque<CrashKeyWithName>> runtime_crash_keys;
-  auto it = std::find_if(runtime_crash_keys->begin(), runtime_crash_keys->end(),
-                         [key](const auto& crash_key_string) {
-                           return crash_key_string.name() == key;
-                         });
-  if (it != runtime_crash_keys->end()) {
-    it->Set(value);
-  } else {
-    runtime_crash_keys->emplace_back(key).Set(value);
+  {
+    base::AutoLock lock(GetSetStringLock());
+
+    static base::NoDestructor<std::deque<CrashKeyWithName>> runtime_crash_keys;
+    auto it =
+        std::find_if(runtime_crash_keys->begin(), runtime_crash_keys->end(),
+                     [key](const auto& crash_key_string) {
+                       return crash_key_string.name() == key;
+                     });
+    if (it != runtime_crash_keys->end()) {
+      it->Set(value);
+    } else {
+      runtime_crash_keys->emplace_back(key).Set(value);
+    }
   }
 
   return true;
