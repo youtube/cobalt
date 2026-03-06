@@ -237,7 +237,12 @@ jobs:
           echo "browser_test_targets_json=${browser_test_targets_json}" >> $GITHUB_OUTPUT
 
           # Centralize "should run browser tests" logic.
-          if [[ "${test_browser}" == "true" && "${browser_test_targets_json}" != "[]" ]]; then
+          # A platform "should run browser tests" only if the test_browser flag is
+          # true AND we have resolved valid targets. This prevents hangs on
+          # platforms that may have the flag enabled but no defined tests, or
+          # for host platforms (like Linux) where targets might be filtered out
+          # based on the primary target list.
+          if [[ "${{ steps.set-test-browser.outputs.test_browser }}" == "true" && "${browser_test_targets_json}" != "[]" ]]; then
             echo "run_browser_tests=true" >> $GITHUB_OUTPUT
           else
             echo "run_browser_tests=false" >> $GITHUB_OUTPUT
