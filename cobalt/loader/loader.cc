@@ -148,6 +148,11 @@ void Loader::Conceal() {
   decoder_->Conceal();
 }
 
+void Loader::Reveal() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  decoder_->Reveal();
+}
+
 bool Loader::DidFailFromTransientError() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return fetcher_ && fetcher_->did_fail_from_transient_error();

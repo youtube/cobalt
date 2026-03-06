@@ -68,6 +68,7 @@ class Decoder {
   virtual bool Suspend() = 0;
 
   virtual void Conceal() {}
+  virtual void Reveal() {}
 
   // Resumes the decode of this resource, starting over from the zero state.
   virtual void Resume(render_tree::ResourceProvider* resource_provider) = 0;

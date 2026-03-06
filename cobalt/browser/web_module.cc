@@ -1190,6 +1190,7 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider,
   window_->document()->PurgeCachedResources();
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
 
+  loader_factory_->Reveal();
   loader_factory_->UpdateResourceProvider(resource_provider_);
   layout_manager_->Resume();
 
