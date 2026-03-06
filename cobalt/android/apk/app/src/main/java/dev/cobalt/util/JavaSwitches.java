@@ -122,6 +122,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-old-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--js-flags=--max-old-space-size=512");
     }
     if (javaSwitches.containsKey(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE)) {
       extraCommandLineArgs.add(

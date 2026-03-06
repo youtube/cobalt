@@ -37,7 +37,8 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--enable-low-end-device-mode");
     assertThat(args).contains("--disable-rgba-4444-textures");
     assertThat(args).contains("--js-flags=--optimize-for-size");
-    assertThat(args).hasSize(4);
+    assertThat(args).contains("--js-flags=--max-old-space-size=512");
+    assertThat(args).hasSize(5);
   }
 
   @Test
