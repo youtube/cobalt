@@ -15,6 +15,7 @@
 #include "starboard/tvos/shared/crash_handler.h"
 
 #include <algorithm>
+#include <array>
 #include <deque>
 #include <string>
 #include <string_view>
