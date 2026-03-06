@@ -273,6 +273,7 @@ void PageSchedulerImpl::SetPageFrozenImpl(
       PageSchedulerImpl::NotificationPolicy::kNotifyFrames)
     NotifyFrames();
   if (frozen) {
+    CHECK(false) << "Freezing pages is not supported. johnxxxx.";
     SetPageLifecycleState(PageLifecycleState::kFrozen);
     main_thread_scheduler_->OnPageFrozen();
   } else {
@@ -684,6 +685,7 @@ void PageSchedulerImpl::UpdatePolicyOnVisibilityChange(
 }
 
 void PageSchedulerImpl::DoThrottleCPUTime() {
+  LOG(INFO)<<"johnxxxx DoThrottleCPUTime";
   do_throttle_cpu_time_callback_.Cancel();
   is_cpu_time_throttled_ = true;
 
@@ -693,12 +695,13 @@ void PageSchedulerImpl::DoThrottleCPUTime() {
 }
 
 void PageSchedulerImpl::DoIntensivelyThrottleWakeUps() {
-  do_intensively_throttle_wake_ups_callback_.Cancel();
-  are_wake_ups_intensively_throttled_ = true;
+  // LOG(INFO)<<"johnxxxx DoIntensivelyThrottleWakeUps";
+  // do_intensively_throttle_wake_ups_callback_.Cancel();
+  // are_wake_ups_intensively_throttled_ = true;
 
-  base::LazyNow lazy_now(main_thread_scheduler_->GetTickClock());
-  UpdateWakeUpBudgetPools(&lazy_now);
-  NotifyFrames();
+  // base::LazyNow lazy_now(main_thread_scheduler_->GetTickClock());
+  // UpdateWakeUpBudgetPools(&lazy_now);
+  // NotifyFrames();
 }
 
 void PageSchedulerImpl::UpdateCPUTimeBudgetPool(base::LazyNow* lazy_now) {

@@ -78,7 +78,7 @@ public class StartupGuard {
             Log.e(TAG, "Invalid milestone: " + milestone);
             return;
         }
-        Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
+        Log.i(TAG, "StartupGuard setStartupMilestone:" + milestone);
         int mask = 1 << milestone;
         startupStatus.updateAndGet(current -> current | mask);
     }

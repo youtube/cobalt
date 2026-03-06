@@ -5061,8 +5061,7 @@ void RenderProcessHostImpl::UpdateProcessPriority() {
   }
 
   RenderProcessPriority priority(
-      visible_clients_ > 0 || base::CommandLine::ForCurrentProcess()->HasSwitch(
-                                  switches::kDisableRendererBackgrounding),
+      visible_clients_ > 0 || true,
       media_stream_count_ > 0, foreground_service_worker_count_ > 0,
       frame_depth_, intersects_viewport_,
       !!pending_views_ /* boost_for_pending_views */
