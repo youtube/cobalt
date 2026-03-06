@@ -59,7 +59,8 @@ void PerformanceImpl::MeasureUsedSwapMemory(
     MeasureUsedSwapMemoryCallback callback) {
   auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
       base::GetCurrentProcessHandle());
-  auto used_swap_memory = process_metrics->GetVmSwapBytes();
+  auto info = process_metrics->GetMemoryInfo();
+  auto used_swap_memory = info.has_value() ? info->vm_swap_bytes : 0;
   std::move(callback).Run(used_swap_memory);
 }
 
@@ -67,7 +68,8 @@ void PerformanceImpl::MeasureReservedVirtualMemory(
     MeasureReservedVirtualMemoryCallback callback) {
   auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
       base::GetCurrentProcessHandle());
-  auto virtual_memory_size = process_metrics->GetVmSizeBytes();
+  auto info = process_metrics->GetMemoryInfo();
+  auto virtual_memory_size = info.has_value() ? info->vm_size_bytes : 0;
   std::move(callback).Run(virtual_memory_size);
 }
 

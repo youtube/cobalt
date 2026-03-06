@@ -156,7 +156,10 @@ ProcessMetrics::GetMemoryInfo() const {
   }
   ProcessMemoryInfo dump;
   for (const auto& [key, value_str] : *pairs) {
-    if (key == "VmSwap") {
+    if (key == "VmSize") {
+      dump.vm_size_bytes =
+          static_cast<uint64_t>(GetKbFieldAsSizeT(value_str)) * 1024;
+    } else if (key == "VmSwap") {
       dump.vm_swap_bytes =
           static_cast<uint64_t>(GetKbFieldAsSizeT(value_str)) * 1024;
     } else if (key == "VmRSS") {
@@ -187,11 +190,6 @@ ProcessMetrics::GetMemoryInfo() const {
   dump.rss_anon_bytes = (resident_pages - shared_pages) * page_size;
   return dump;
 }
-#if BUILDFLAG(IS_COBALT)
-uint64_t ProcessMetrics::GetVmSizeBytes() const {
-  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmSize") * 1024;
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 bool ProcessMetrics::GetPageFaultCounts(PageFaultCounts* counts) const {
   // We are not using internal::ReadStatsFileAndGetFieldAsInt64(), since it
