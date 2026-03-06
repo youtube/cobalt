@@ -60,6 +60,10 @@ std::string ToString(const T& val) {
   return ss.str();
 }
 
+inline std::string ToString(const std::string& val) {
+  return val;
+}
+
 inline std::string ToString(bool val) {
   return val ? "true" : "false";
 }
