@@ -16,6 +16,10 @@
 #include "components/update_client/crx_downloader.h"
 #include "components/update_client/update_engine.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace base {
 class FilePath;
 }
@@ -46,8 +50,13 @@ base::OnceClosure DownloadOperation(
     std::string* crx_str,
 #endif
     CrxDownloader::ProgressCallback progress_callback,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& file,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback);
 
 }  // namespace update_client

@@ -24,8 +24,14 @@ namespace update_client {
 
 namespace {
 
+#if BUILDFLAG(IS_STARBOARD)
+void Done(const OperationResult& in_file_result,
+          base::OnceCallback<
+              void(base::expected<OperationResult, CategorizedError>)> callback,
+#else
 void Done(base::OnceCallback<
               void(base::expected<base::FilePath, CategorizedError>)> callback,
+#endif
           base::RepeatingCallback<void(base::Value::Dict)> event_adder,
           const base::FilePath& out_file,
           bool success) {
@@ -39,10 +45,19 @@ void Done(base::OnceCallback<
       FROM_HERE,
       base::BindOnce(
           std::move(callback),
+#if BUILDFLAG(IS_STARBOARD)
+          [&]() -> base::expected<OperationResult, CategorizedError> {
+            if (success) {
+              OperationResult out_result = in_file_result;
+              out_result.response = out_file;
+              return out_result;
+            }
+#else
           [&]() -> base::expected<base::FilePath, CategorizedError> {
             if (success) {
               return out_file;
             }
+#endif
             return base::unexpected<CategorizedError>(
                 {.category = ErrorCategory::kUnpack,
                  .code = static_cast<int>(UnpackerError::kXzFailed)});
@@ -54,9 +69,16 @@ void Done(base::OnceCallback<
 base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& in_file_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+        callback) {
+  const base::FilePath& in_file = in_file_result.response;
+#else
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback) {
+#endif
   base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
   Unzipper* unzipper_raw = unzipper.get();
   return unzipper_raw->DecodeXz(
@@ -68,8 +90,13 @@ base::OnceClosure XzOperation(
             return result;
           },
           in_file, std::move(unzipper))
+#if BUILDFLAG(IS_STARBOARD)
+          .Then(base::BindPostTaskToCurrentDefault(base::BindOnce(
+              &Done, in_file_result, std::move(callback), event_adder, dest_file))));
+#else
           .Then(base::BindPostTaskToCurrentDefault(base::BindOnce(
               &Done, std::move(callback), event_adder, dest_file))));
+#endif
 }
 
 }  // namespace update_client
