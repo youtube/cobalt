@@ -796,12 +796,14 @@ jobs:
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
   test-results:
-    needs: [initialize, build, on-device-test, on-host-test]
-    if: always() &&
-        (
-          (needs.on-device-test.result != 'skipped' && needs.on-device-test.result != '') ||
-          (needs.on-host-test.result != 'skipped' && needs.on-host-test.result != '')
-        )
+    needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
+    if: |
+      always() &&
+      (
+        needs.on-device-test.result != 'skipped' ||
+        needs.on-host-test.result != 'skipped' ||
+        needs.browser-test-on-host.result != 'skipped'
+      )
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -968,7 +970,7 @@ jobs:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: always()
+        if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
