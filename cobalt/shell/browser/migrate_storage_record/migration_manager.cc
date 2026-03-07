@@ -88,80 +88,28 @@ std::string GetApplicationKey(const GURL& url) {
   return encoded_url;
 }
 
-std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
-  constexpr char kRecordHeader[] = "SAV1";
-  constexpr size_t kRecordHeaderSize = 4;
+std::unique_ptr<starboard::StorageRecord> GetStorageRecord() {
+  GURL initial_url(
+      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+  if (!initial_url.is_valid()) {
+    return nullptr;
+  }
 
-  StorageReadResult result = StorageReadResult::kSuccess;
-  std::unique_ptr<cobalt::storage::Storage> storage;
-
-  [&]() {
-    GURL initial_url(
-        switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
-    if (!initial_url.is_valid()) {
-      result = StorageReadResult::kRecordInvalid;
-      return;
+  std::string partition_key = GetApplicationKey(initial_url);
+  auto record =
+      std::make_unique<starboard::StorageRecord>(partition_key.c_str());
+  if (!record->IsValid()) {
+    bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
+    if (!fallback) {
+      return nullptr;
     }
 
-    std::string partition_key = GetApplicationKey(initial_url);
-    auto record =
-        std::make_unique<starboard::StorageRecord>(partition_key.c_str());
+    record = std::make_unique<starboard::StorageRecord>();
     if (!record->IsValid()) {
-      record->Delete();
-      bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
-      if (!fallback) {
-        result = StorageReadResult::kPartitionKeyNotDefault;
-        return;
-      }
-
-      record = std::make_unique<starboard::StorageRecord>();
-      if (!record->IsValid()) {
-        record->Delete();
-        result = StorageReadResult::kRecordInvalid;
-        return;
-      }
+      return nullptr;
     }
-
-    if (record->GetSize() < kRecordHeaderSize) {
-      record->Delete();
-      result = StorageReadResult::kSizeTooSmall;
-      return;
-    }
-
-    auto bytes = std::vector<uint8_t>(record->GetSize());
-    const int read_result =
-        record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
-    if (!record->Delete()) {
-      LOG(ERROR)
-          << "Failed to delete legacy storage record. Aborting migration "
-             "to prevent overwrite loop.";
-      result = StorageReadResult::kDeleteFailed;
-      return;
-    }
-    if (read_result != bytes.size()) {
-      result = StorageReadResult::kReadMismatch;
-      return;
-    }
-
-    std::string version(reinterpret_cast<const char*>(bytes.data()),
-                        kRecordHeaderSize);
-    if (version != kRecordHeader) {
-      result = StorageReadResult::kHeaderMismatch;
-      return;
-    }
-
-    storage = std::make_unique<cobalt::storage::Storage>();
-    if (!storage->ParseFromArray(
-            reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
-            bytes.size() - kRecordHeaderSize)) {
-      result = StorageReadResult::kParseError;
-      storage.reset();
-      return;
-    }
-  }();
-
-  base::UmaHistogramEnumeration(kReadResultHistogram, result);
-  return storage;
+  }
+  return record;
 }
 
 content::RenderFrameHost* RenderFrameHost(
@@ -280,6 +228,119 @@ Task DeleteOldCacheDirectoryTask() {
 std::atomic_flag MigrationManager::migration_attempted_ = ATOMIC_FLAG_INIT;
 
 // static
+MigrationManager::MigrationState MigrationManager::migration_state_ =
+    MigrationManager::MigrationState::kUnknown;
+
+// static
+std::unique_ptr<cobalt::storage::Storage> MigrationManager::cached_storage_ =
+    nullptr;
+
+// static
+bool MigrationManager::HasStorageToMigrate() {
+  if (migration_state_ == MigrationState::kDeleted ||
+      migration_state_ == MigrationState::kNoLegacyStorage) {
+    return false;
+  }
+  if (migration_state_ == MigrationState::kHasLegacyStorage) {
+    return true;
+  }
+
+  auto record = GetStorageRecord();
+  if (record && record->IsValid() && record->GetSize() > 0) {
+    migration_state_ = MigrationState::kHasLegacyStorage;
+    return true;
+  }
+
+  migration_state_ = MigrationState::kNoLegacyStorage;
+  return false;
+}
+
+// static
+std::unique_ptr<cobalt::storage::Storage> MigrationManager::GetLegacyStorage() {
+  if (migration_state_ == MigrationState::kDeleted ||
+      migration_state_ == MigrationState::kNoLegacyStorage) {
+    return nullptr;
+  }
+
+  if (cached_storage_) {
+    // Return a copy since this is called in multiple places if migration fails
+    // to delete. Actually, in the current flow, we want to return the ownership
+    // if we are sure it's one-off. But since the caller uses unique_ptr, let's
+    // just give them a clone if we want to keep the cache. However, the current
+    // code doesn't have a Clone() method for the proto. Let's just return the
+    // unique_ptr and clear the cache if we are about to migrate.
+    return std::move(cached_storage_);
+  }
+
+  constexpr char kRecordHeader[] = "SAV1";
+  constexpr size_t kRecordHeaderSize = 4;
+
+  StorageReadResult result = StorageReadResult::kSuccess;
+  std::unique_ptr<cobalt::storage::Storage> storage;
+
+  [&]() {
+    auto record = GetStorageRecord();
+    if (!record || !record->IsValid()) {
+      result = StorageReadResult::kRecordInvalid;
+      return;
+    }
+
+    if (record->GetSize() < kRecordHeaderSize) {
+      result = StorageReadResult::kSizeTooSmall;
+      return;
+    }
+
+    auto bytes = std::vector<uint8_t>(record->GetSize());
+    const int read_result =
+        record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+    if (read_result != bytes.size()) {
+      result = StorageReadResult::kReadMismatch;
+      return;
+    }
+
+    std::string version(reinterpret_cast<const char*>(bytes.data()),
+                        kRecordHeaderSize);
+    if (version != kRecordHeader) {
+      result = StorageReadResult::kHeaderMismatch;
+      return;
+    }
+
+    storage = std::make_unique<cobalt::storage::Storage>();
+    if (!storage->ParseFromArray(
+            reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
+            bytes.size() - kRecordHeaderSize)) {
+      result = StorageReadResult::kParseError;
+      storage.reset();
+      return;
+    }
+  }();
+
+  base::UmaHistogramEnumeration(kReadResultHistogram, result);
+  if (storage) {
+    migration_state_ = MigrationState::kHasLegacyStorage;
+  } else if (result != StorageReadResult::kSuccess) {
+    migration_state_ = MigrationState::kNoLegacyStorage;
+  }
+  return storage;
+}
+
+// static
+bool MigrationManager::DeleteLegacyStorage() {
+  cached_storage_.reset();
+  auto record = GetStorageRecord();
+  if (record && record->IsValid()) {
+    if (!record->Delete()) {
+      LOG(ERROR) << "Failed to delete legacy storage record.";
+      return false;
+    }
+    migration_state_ = MigrationState::kDeleted;
+    return true;
+  }
+  migration_state_ = MigrationState::kNoLegacyStorage;
+  return false;
+}
+
+// static
 Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
   return base::BindOnce(
       [](std::vector<Task> tasks, base::OnceClosure callback) {
@@ -293,16 +354,11 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
       std::move(tasks));
 }
 
-// TODO(b/399165612): Add metrics.
-// TODO(b/399165796): Disable and delete migration code when possible.
-// TODO(b/399166308): Add unit and/or integration tests for migration.
 void MigrationManager::DoMigrationTasksOnce(
     content::WebContents* web_contents) {
   if (migration_attempted_.test_and_set()) {
     return;
   }
-
-  auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
@@ -310,32 +366,82 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
-  auto storage = ReadStorage();
+  auto storage = GetLegacyStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
     return;
   }
 
-  base::UmaHistogramCounts1000(kCookiesCountHistogram, storage->cookies_size());
-  base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
-                               storage->local_storages_size());
+  // If we are here, we are using the old late-migration path.
+  // We MUST check if the new storage is empty before proceeding,
+  // to prevent overwriting if legacy storage deletion failed previously.
+  CheckNewStorageAndMigrate(web_contents, std::move(storage),
+                            base::DoNothing());
+}
 
-  GURL url = web_contents->GetLastCommittedURL();
-  web_contents->Stop();
-
+// static
+void MigrationManager::CheckNewStorageAndMigrate(
+    content::WebContents* web_contents,
+    std::unique_ptr<cobalt::storage::Storage> storage,
+    base::OnceClosure completion_callback) {
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
-  CHECK(render_frame_host);
   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
 
-  std::vector<Task> tasks;
-  tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
-  const url::Origin& origin = render_frame_host->GetLastCommittedOrigin();
-  tasks.push_back(LocalStorageTask(weak_document_ptr,
-                                   ToLocalStorageItems(origin, *storage)));
-  tasks.push_back(RecordMetricsTask(std::move(elapsed_timer)));
-  tasks.push_back(DeleteOldCacheDirectoryTask());
-  tasks.push_back(ReloadTask(weak_document_ptr, url));
-  std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
+  // 1. Check if new storage is empty.
+  // We check both localStorage and cookies.
+  render_frame_host->ExecuteJavaScript(
+      u"JSON.stringify({ls: localStorage.length, ck: document.cookie.length})",
+      base::BindOnce(
+          [](content::WeakDocumentPtr weak_document_ptr,
+             std::unique_ptr<cobalt::storage::Storage> storage,
+             base::OnceClosure completion_callback, base::Value value) {
+            bool is_empty = false;
+            if (value.is_string()) {
+              // Parse the JSON. Very simple check.
+              std::string json = value.GetString();
+              if (json.find("\"ls\":0") != std::string::npos &&
+                  json.find("\"ck\":0") != std::string::npos) {
+                is_empty = true;
+              }
+            }
+
+            if (!is_empty) {
+              LOG(INFO) << "MigrationManager: New storage already has data. "
+                           "Skipping migration and deleting legacy storage.";
+              DeleteLegacyStorage();
+              std::move(completion_callback).Run();
+              return;
+            }
+
+            LOG(INFO) << "MigrationManager: New storage is empty. Proceeding "
+                         "with migration.";
+
+            // 2. Proceed with migration tasks.
+            auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
+            base::UmaHistogramCounts1000(kCookiesCountHistogram,
+                                         storage->cookies_size());
+            base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
+                                         storage->local_storages_size());
+
+            std::vector<Task> tasks;
+            tasks.push_back(
+                CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
+            const url::Origin& origin =
+                RenderFrameHost(weak_document_ptr)->GetLastCommittedOrigin();
+            tasks.push_back(LocalStorageTask(
+                weak_document_ptr, ToLocalStorageItems(origin, *storage)));
+            tasks.push_back(RecordMetricsTask(std::move(elapsed_timer)));
+            tasks.push_back(DeleteOldCacheDirectoryTask());
+            tasks.push_back(base::BindOnce([](base::OnceClosure callback) {
+              DeleteLegacyStorage();
+              std::move(callback).Run();
+            }));
+
+            std::move(GroupTasks(std::move(tasks)))
+                .Run(std::move(completion_callback));
+          },
+          weak_document_ptr, std::move(storage),
+          std::move(completion_callback)));
 }
 
 // static
@@ -358,19 +464,19 @@ Task MigrationManager::CookieTask(
            base::OnceClosure callback) {
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
           CookieManager(weak_document_ptr)
-              ->SetCanonicalCookie(
-                  *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
-                  base::BindOnce(
-                      [](base::OnceClosure callback,
-                         net::CookieAccessResult result) {
-                        base::UmaHistogramEnumeration(
-                            kCookieInjectionResultHistogram,
-                            result.status.IsInclude()
-                                ? InjectionResult::kSuccess
-                                : InjectionResult::kError);
-                        std::move(callback).Run();
-                      },
-                      std::move(callback)));
+              ->SetCanonicalCookie(*cookie, source_url,
+                                   net::CookieOptions::MakeAllInclusive(),
+                                   base::BindOnce(
+                                       [](base::OnceClosure callback,
+                                          net::CookieAccessResult result) {
+                                         base::UmaHistogramEnumeration(
+                                             kCookieInjectionResultHistogram,
+                                             result.status.IsInclude()
+                                                 ? InjectionResult::kSuccess
+                                                 : InjectionResult::kError);
+                                         std::move(callback).Run();
+                                       },
+                                       std::move(callback)));
         },
         weak_document_ptr, std::move(cookie)));
   }
@@ -413,9 +519,8 @@ Task MigrationManager::LocalStorageTask(
                       [](base::OnceClosure callback, base::Value value) {
                         base::UmaHistogramEnumeration(
                             kLocalStorageInjectionResultHistogram,
-                            value.is_none()
-                                ? InjectionResult::kSuccess
-                                : InjectionResult::kError);
+                            value.is_none() ? InjectionResult::kSuccess
+                                            : InjectionResult::kError);
                         std::move(callback).Run();
                       },
                       std::move(callback)));

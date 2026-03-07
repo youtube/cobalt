@@ -35,10 +35,27 @@ using Task = base::OnceCallback<void(base::OnceClosure)>;
 
 class MigrationManager {
  public:
+  static bool HasStorageToMigrate();
+  static std::unique_ptr<cobalt::storage::Storage> GetLegacyStorage();
+  static bool DeleteLegacyStorage();
+
   static void DoMigrationTasksOnce(content::WebContents* web_contents);
+
+  // New methods for the Hijack flow
+  static void CheckNewStorageAndMigrate(
+      content::WebContents* web_contents,
+      std::unique_ptr<cobalt::storage::Storage> storage,
+      base::OnceClosure completion_callback);
 
  private:
   friend class MigrationManagerTest;
+
+  enum class MigrationState {
+    kUnknown,
+    kHasLegacyStorage,
+    kNoLegacyStorage,
+    kDeleted,
+  };
 
   // Returns a task. When invoked, the grouped |tasks| are run sequentially.
   static Task GroupTasks(std::vector<Task> tasks);
@@ -54,6 +71,8 @@ class MigrationManager {
   static std::vector<std::unique_ptr<net::CanonicalCookie>> ToCanonicalCookies(
       const cobalt::storage::Storage& storage);
   static std::atomic_flag migration_attempted_;
+  static MigrationState migration_state_;
+  static std::unique_ptr<cobalt::storage::Storage> cached_storage_;
 };
 
 }  // namespace migrate_storage_record

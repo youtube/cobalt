@@ -398,6 +398,22 @@ void Shell::PrimaryMainDocumentElementAvailable() {
   starboard::android::shared::StarboardBridge::GetInstance()
       ->SetStartupMilestone(27);
 #endif
+  if (is_migrating_) {
+    auto storage =
+        cobalt::migrate_storage_record::MigrationManager::GetLegacyStorage();
+    if (storage) {
+      cobalt::migrate_storage_record::MigrationManager::
+          CheckNewStorageAndMigrate(web_contents(), std::move(storage),
+                                    base::BindOnce(&Shell::OnMigrationComplete,
+                                                   weak_factory_.GetWeakPtr()));
+      return;
+    } else {
+      // If we failed to get storage, just finish.
+      OnMigrationComplete();
+      return;
+    }
+  }
+
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
 }
@@ -423,6 +439,39 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
     }
   }
 #endif
+
+  if (!migration_done_ && !is_migrating_ &&
+      navigation_handle->IsInPrimaryMainFrame() &&
+      !navigation_handle->IsSameDocument()) {
+    GURL url = navigation_handle->GetURL();
+    if (url.host() == "www.youtube.com" &&
+        base::StartsWith(url.path(), "/tv", base::CompareCase::SENSITIVE)) {
+      if (cobalt::migrate_storage_record::MigrationManager::
+              HasStorageToMigrate()) {
+        LOG(INFO) << "Shell: Hijacking navigation for storage migration: "
+                  << url.spec();
+        is_migrating_ = true;
+        preserved_url_ = url;
+
+        // Use a task to avoid modifying navigation state inside
+        // DidStartNavigation
+        content::GetUIThreadTaskRunner({})->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](base::WeakPtr<Shell> shell, GURL url) {
+                  if (shell) {
+                    shell->LoadDataWithBaseURL(
+                        url,
+                        "<html><body>Migration in progress...</body></html>",
+                        url);
+                  }
+                },
+                weak_factory_.GetWeakPtr(), url));
+      } else {
+        migration_done_ = true;
+      }
+    }
+  }
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
@@ -1099,6 +1148,14 @@ void Shell::ClosingSplashScreenWebContents() {
     // If main frame WebContents is loaded, switch to it.
     SwitchToMainWebContents();
   }
+}
+
+void Shell::OnMigrationComplete() {
+  LOG(INFO) << "Shell: Migration complete, navigating to: "
+            << preserved_url_.spec();
+  migration_done_ = true;
+  is_migrating_ = false;
+  LoadURL(preserved_url_);
 }
 
 }  // namespace content

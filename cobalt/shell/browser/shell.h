@@ -269,6 +269,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void ClosingSplashScreenWebContents();
   void OnSplashScreenLoadComplete();
 
+  void OnMigrationComplete();
+
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
   std::unique_ptr<WebContents> web_contents_;
@@ -289,6 +291,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool delay_popup_contents_delegate_for_testing_ = false;
 
   std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
+
+  // Storage migration state
+  GURL preserved_url_;
+  bool is_migrating_ = false;
+  bool migration_done_ = false;
 
   // TODO: (cobalt b/468059482) each shell holds a single WebContents.
   std::unique_ptr<SplashScreenWebContentsObserver>
