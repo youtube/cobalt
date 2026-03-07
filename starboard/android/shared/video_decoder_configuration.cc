@@ -24,17 +24,36 @@ namespace {
 // Definitions of any functions included as components in the extension
 // are added here.
 
+void SetVideoConfiguration(
+    const StarboardExtensionVideoConfiguration* configuration) {
+  if (configuration == nullptr) {
+    SetVideoConfigurationForCurrentThread({});
+    return;
+  }
+
+  VideoConfiguration internal_configuration{};
+  if (configuration->renderer_min_input_buffers != nullptr) {
+    internal_configuration.renderer_min_input_buffers =
+        *configuration->renderer_min_input_buffers;
+  }
+  if (configuration->renderer_min_decoded_frames != nullptr) {
+    internal_configuration.renderer_min_decoded_frames =
+        *configuration->renderer_min_decoded_frames;
+  }
+
+  SetVideoConfigurationForCurrentThread(internal_configuration);
+}
+
 const StarboardExtensionVideoDecoderConfigurationApi
     kVideoDecoderConfigurationApi = {
         kStarboardExtensionVideoDecoderConfigurationName,
-        3,
+        2,
         &SetVideoInitialMaxFramesInDecoderForCurrentThread,
         &SetVideoMaxPendingInputFramesForCurrentThread,
         &SetVideoDecoderInitialPrerollCountForCurrentThread,
         &SetVideoDecoderPollIntervalMsForCurrentThread,
         &SetMediaCodecResetDelayMsForCurrentThread,
-        &SetVideoRendererMinInputBuffersForCurrentThread,
-        &SetVideoRendererMinDecodedFramesForCurrentThread,
+        &SetVideoConfiguration,
 };
 
 }  // namespace

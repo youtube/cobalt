@@ -24,6 +24,11 @@ extern "C" {
 #define kStarboardExtensionVideoDecoderConfigurationName \
   "dev.starboard.extension.VideoDecoderConfiguration"
 
+typedef struct StarboardExtensionVideoConfiguration {
+  int* renderer_min_input_buffers;
+  int* renderer_min_decoded_frames;
+} StarboardExtensionVideoConfiguration;
+
 typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Name should be the string
   // |kStarboardExtensionVideoDecoderConfigurationName|. This helps to validate
@@ -57,15 +62,9 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   void (*SetMediaCodecResetDelayMsForCurrentThread)(
       int media_codec_reset_delay_ms);
 
-  // The fields below this point were added in version 3 or later.
-
-  // Specifies the video renderer minimum input buffers.
-  void (*SetVideoRendererMinInputBuffersForCurrentThread)(
-      int video_renderer_min_input_buffers);
-
-  // Specifies the video renderer minimum decoded frames.
-  void (*SetVideoRendererMinDecodedFramesForCurrentThread)(
-      int video_renderer_min_decoded_frames);
+  // Specifies the video configuration.
+  void (*SetVideoConfiguration)(
+      const StarboardExtensionVideoConfiguration* configuration);
 } StarboardExtensionVideoDecoderConfigurationApi;
 
 #ifdef __cplusplus

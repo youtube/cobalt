@@ -16,6 +16,7 @@
 
 #include <pthread.h>
 
+#include "base/threading/thread_local.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
@@ -30,8 +31,17 @@ pthread_key_t g_max_pending_frames_key = 0;
 pthread_key_t g_video_decoder_initial_preroll_count_key = 0;
 pthread_key_t g_video_decoder_poll_interval_key = 0;
 pthread_key_t g_media_codec_reset_delay_key = 0;
-pthread_key_t g_video_renderer_min_input_buffers_key = 0;
-pthread_key_t g_video_renderer_min_decoded_frames_key = 0;
+
+base::ThreadLocalOwnedPointer<VideoConfiguration> g_video_configuration;
+
+VideoConfiguration* GetOrCreateVideoConfiguration() {
+  VideoConfiguration* ptr = g_video_configuration.Get();
+  if (ptr == nullptr) {
+    g_video_configuration.Set(std::make_unique<VideoConfiguration>());
+    ptr = g_video_configuration.Get();
+  }
+  return ptr;
+}
 
 void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
   uintptr_t ptr_val = static_cast<uintptr_t>(value);
@@ -68,12 +78,6 @@ void InitializeKeys() {
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_media_codec_reset_delay_key,
-                           /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_video_renderer_min_input_buffers_key,
-                           /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_video_renderer_min_decoded_frames_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
 }
@@ -167,38 +171,25 @@ void SetMediaCodecResetDelayMsForCurrentThread(int media_codec_reset_delay_ms) {
                                media_codec_reset_delay_ms);
 }
 
-std::optional<int> GetVideoRendererMinInputBuffersForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_video_renderer_min_input_buffers_key);
-}
-
-void SetVideoRendererMinInputBuffersForCurrentThread(
-    int video_renderer_min_input_buffers) {
-  if (video_renderer_min_input_buffers < 0) {
-    SB_LOG(WARNING) << "Invalid video_renderer_min_input_buffers: "
-                    << video_renderer_min_input_buffers;
-    return;
+void SetVideoConfigurationForCurrentThread(
+    const VideoConfiguration& configuration) {
+  VideoConfiguration* ptr = GetOrCreateVideoConfiguration();
+  if (configuration.renderer_min_input_buffers) {
+    ptr->renderer_min_input_buffers = configuration.renderer_min_input_buffers;
   }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_video_renderer_min_input_buffers_key,
-                               video_renderer_min_input_buffers);
-}
-
-std::optional<int> GetVideoRendererMinDecodedFramesForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_video_renderer_min_decoded_frames_key);
-}
-
-void SetVideoRendererMinDecodedFramesForCurrentThread(
-    int video_renderer_min_decoded_frames) {
-  if (video_renderer_min_decoded_frames < 0) {
-    SB_LOG(WARNING) << "Invalid video_renderer_min_decoded_frames: "
-                    << video_renderer_min_decoded_frames;
-    return;
+  if (configuration.renderer_min_decoded_frames) {
+    ptr->renderer_min_decoded_frames =
+        configuration.renderer_min_decoded_frames;
   }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_video_renderer_min_decoded_frames_key,
-                               video_renderer_min_decoded_frames);
+}
+
+VideoConfiguration GetVideoConfigurationForCurrentThread() {
+  VideoConfiguration* ptr = g_video_configuration.Get();
+  SB_CHECK(ptr) << __func__
+                << " > No video configuration set for this thread. The setter "
+                   "was either not called yet (e.g., due to a race condition) "
+                   "or this function is being called on the wrong thread.";
+  return *ptr;
 }
 
 }  // namespace starboard::android::shared

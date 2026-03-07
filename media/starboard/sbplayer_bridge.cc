@@ -859,21 +859,24 @@ void SbPlayerBridge::CreatePlayer() {
           ->SetVideoDecoderPollIntervalMsForCurrentThread(
               *video_decoder_poll_interval_ms_);
     }
-    if (video_renderer_min_input_buffers_) {
-      video_decoder_configuration_extension
-          ->SetVideoRendererMinInputBuffersForCurrentThread(
-              *video_renderer_min_input_buffers_);
-    }
-    if (video_renderer_min_decoded_frames_) {
-      video_decoder_configuration_extension
-          ->SetVideoRendererMinDecodedFramesForCurrentThread(
-              *video_renderer_min_decoded_frames_);
-    }
     if (media_codec_reset_delay_ms_) {
       video_decoder_configuration_extension
           ->SetMediaCodecResetDelayMsForCurrentThread(
               *media_codec_reset_delay_ms_);
     }
+
+    StarboardExtensionVideoConfiguration configuration{};
+    if (video_renderer_min_input_buffers_) {
+      configuration.renderer_min_input_buffers =
+          const_cast<int*>(&*video_renderer_min_input_buffers_);
+    }
+    if (video_renderer_min_decoded_frames_) {
+      configuration.renderer_min_decoded_frames =
+          const_cast<int*>(&*video_renderer_min_decoded_frames_);
+    }
+
+    video_decoder_configuration_extension->SetVideoConfiguration(
+        &configuration);
   }
 
 #if BUILDFLAG(IS_ANDROID)
