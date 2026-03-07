@@ -91,7 +91,19 @@ if (current_toolchain == starboard_toolchain) {
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+  target("executable", "elf_loader_sandbox_main") {
+    output_dir = root_build_dir
+    sources = [ "elf_loader_sandbox_main.cc" ]
+    deps = [ ":elf_loader_sandbox" ]
+    output_name = "elf_loader_sandbox"
+  }
+
+  _elf_loader_lib_type = "static_library"
+  if (starboard_level_final_executable_type == "shared_library") {
+    _elf_loader_lib_type = "shared_library"
+  }
+
+  target(_elf_loader_lib_type, "elf_loader_sandbox") {
     output_dir = root_build_dir
 
     sources = [ "elf_loader_sandbox.cc" ]
@@ -106,6 +118,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
       "//starboard/content/fonts:copy_font_data",
     ]
+    public_deps = [ "//starboard:starboard_headers_only" ]
 
     if (sb_is_evergreen_compatible && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper" ]
