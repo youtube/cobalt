@@ -84,13 +84,11 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
   if (!min_input_buffers && !min_decoded_frames) {
     return std::nullopt;
   }
-
   if (!min_input_buffers) {
     SB_LOG(WARNING) << "Ignoring video_renderer_min_decoded_frames since "
                        "video_renderer_min_input_buffers is missing.";
     return std::nullopt;
   }
-
   if (!min_decoded_frames) {
     SB_LOG(WARNING) << "Ignoring video_renderer_min_input_buffers since "
                        "video_renderer_min_decoded_frames is missing.";
