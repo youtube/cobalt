@@ -24,49 +24,24 @@ namespace starboard::android::shared {
 
 namespace {
 
+struct VideoDecoderConfig {
+  std::optional<int> initial_max_frames;
+  std::optional<int> max_pending_input_frames;
+  std::optional<int> initial_preroll_count;
+  std::optional<int> poll_interval;
+  std::optional<int> media_codec_reset_delay;
+};
+
 pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
-pthread_key_t g_initial_max_frames_key = 0;
-pthread_key_t g_max_pending_frames_key = 0;
-pthread_key_t g_video_decoder_initial_preroll_count_key = 0;
-pthread_key_t g_video_decoder_poll_interval_key = 0;
-pthread_key_t g_media_codec_reset_delay_key = 0;
+pthread_key_t g_video_decoder_config_key = 0;
 
-void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
-  uintptr_t ptr_val = static_cast<uintptr_t>(value);
-  // Sets sentinel value to differentiate 0 vs nullptr.
-  ptr_val <<= 1;
-  ptr_val |= 0x01;
-  pthread_setspecific(key, reinterpret_cast<void*>(ptr_val));
+void DestroyVideoDecoderConfig(void* ptr) {
+  delete static_cast<VideoDecoderConfig*>(ptr);
 }
-
-std::optional<int> ReadIntFromThreadLocalStorage(pthread_key_t key) {
-  void* ptr = pthread_getspecific(key);
-  if (ptr == nullptr) {
-    return std::nullopt;
-  }
-  uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
-  // Removes sentinel value.
-  ptr_val >>= 1;
-  return static_cast<int>(ptr_val);
-}
-
-}  // namespace
 
 void InitializeKeys() {
-  int res =
-      pthread_key_create(&g_initial_max_frames_key, /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_max_pending_frames_key,
-                           /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_video_decoder_initial_preroll_count_key,
-                           /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_video_decoder_poll_interval_key,
-                           /*destructor=*/nullptr);
-  SB_CHECK_EQ(res, 0);
-  res = pthread_key_create(&g_media_codec_reset_delay_key,
-                           /*destructor=*/nullptr);
+  int res = pthread_key_create(&g_video_decoder_config_key,
+                               DestroyVideoDecoderConfig);
   SB_CHECK_EQ(res, 0);
 }
 
@@ -74,89 +49,45 @@ void EnsureThreadLocalKeyInitedForDecoderConfig() {
   pthread_once(&g_once_control, InitializeKeys);
 }
 
-std::optional<int> GetVideoInitialMaxFramesInDecoderForCurrentThread() {
+VideoDecoderConfig* GetOrCreateConfig() {
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_initial_max_frames_key);
-}
-
-void SetVideoInitialMaxFramesInDecoderForCurrentThread(
-    int initial_max_frames_in_decoder) {
-  if (initial_max_frames_in_decoder < 0) {
-    SB_LOG(WARNING) << "Invalid initial_max_frames_in_decoder: "
-                    << initial_max_frames_in_decoder;
-    return;
+  void* ptr = pthread_getspecific(g_video_decoder_config_key);
+  if (ptr == nullptr) {
+    ptr = new VideoDecoderConfig();
+    pthread_setspecific(g_video_decoder_config_key, ptr);
   }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_initial_max_frames_key,
-                               initial_max_frames_in_decoder);
+  return static_cast<VideoDecoderConfig*>(ptr);
 }
 
-std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_max_pending_frames_key);
-}
+}  // namespace
 
-void SetVideoMaxPendingInputFramesForCurrentThread(
-    int max_pending_input_frames) {
-  if (max_pending_input_frames < 0) {
-    SB_LOG(WARNING) << "Invalid max_pending_input_frames: "
-                    << max_pending_input_frames;
-    return;
+#define DEFINE_VIDEO_DECODER_CONFIG_ACCESSORS(name, member, validator) \
+  std::optional<int> Get##name##ForCurrentThread() {                   \
+    return GetOrCreateConfig()->member;                                \
+  }                                                                    \
+  void Set##name##ForCurrentThread(int value) {                        \
+    if (!(validator(value))) {                                         \
+      SB_LOG(WARNING) << "Invalid " #member ": " << value;             \
+      return;                                                          \
+    }                                                                  \
+    GetOrCreateConfig()->member = value;                               \
   }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_max_pending_frames_key,
-                               max_pending_input_frames);
-}
 
-std::optional<int> GetVideoDecoderInitialPrerollCountForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(
-      g_video_decoder_initial_preroll_count_key);
-}
+#define DEFINE_NON_NEGATIVE_ACCESSORS(name, member)   \
+  DEFINE_VIDEO_DECODER_CONFIG_ACCESSORS(name, member, \
+                                        [](int v) { return v >= 0; })
 
-void SetVideoDecoderInitialPrerollCountForCurrentThread(
-    int video_decoder_initial_preroll_count) {
-  if (video_decoder_initial_preroll_count < 0) {
-    SB_LOG(WARNING) << "Invalid video_decoder_initial_preroll_count: "
-                    << video_decoder_initial_preroll_count;
-    return;
-  }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_video_decoder_initial_preroll_count_key,
-                               video_decoder_initial_preroll_count);
-}
+#define DEFINE_POSITIVE_ACCESSORS(name, member)       \
+  DEFINE_VIDEO_DECODER_CONFIG_ACCESSORS(name, member, \
+                                        [](int v) { return v > 0; })
 
-std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_video_decoder_poll_interval_key);
-}
-
-void SetVideoDecoderPollIntervalMsForCurrentThread(
-    int video_decoder_poll_interval_ms) {
-  if (video_decoder_poll_interval_ms <= 0) {
-    SB_LOG(WARNING) << "Invalid video_decoder_poll_interval_ms: "
-                    << video_decoder_poll_interval_ms;
-    return;
-  }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key,
-                               video_decoder_poll_interval_ms);
-}
-
-std::optional<int> GetMediaCodecResetDelayMsForCurrentThread() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  return ReadIntFromThreadLocalStorage(g_media_codec_reset_delay_key);
-}
-
-void SetMediaCodecResetDelayMsForCurrentThread(int media_codec_reset_delay_ms) {
-  if (media_codec_reset_delay_ms < 0) {
-    SB_LOG(WARNING) << "Invalid media_codec_reset_delay_ms: "
-                    << media_codec_reset_delay_ms;
-    return;
-  }
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  WriteIntToThreadLocalStorage(g_media_codec_reset_delay_key,
-                               media_codec_reset_delay_ms);
-}
+DEFINE_NON_NEGATIVE_ACCESSORS(VideoInitialMaxFramesInDecoder,
+                              initial_max_frames)
+DEFINE_NON_NEGATIVE_ACCESSORS(VideoMaxPendingInputFrames,
+                              max_pending_input_frames)
+DEFINE_NON_NEGATIVE_ACCESSORS(VideoDecoderInitialPrerollCount,
+                              initial_preroll_count)
+DEFINE_POSITIVE_ACCESSORS(VideoDecoderPollIntervalMs, poll_interval)
+DEFINE_NON_NEGATIVE_ACCESSORS(MediaCodecResetDelayMs, media_codec_reset_delay)
 
 }  // namespace starboard::android::shared
