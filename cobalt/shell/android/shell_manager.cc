@@ -19,6 +19,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/ShellManager_jni.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
@@ -66,12 +67,21 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
                                   const JavaParamRef<jstring>& jurl,
                                   const JavaParamRef<jstring>& jtopic) {
-  ShellBrowserContext* browserContext =
-      ShellContentBrowserClient::Get()->browser_context();
+  LOG(INFO) << "ColinL: JNI_ShellManager_LaunchShell called from Java!";
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   std::string topic = base::android::ConvertJavaStringToUTF8(env, jtopic);
-  Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
-                         switches::ShouldCreateSplashScreen(), topic);
+
+  auto create_window_task = base::BindOnce(
+      [](GURL url, std::string topic) {
+        ShellBrowserContext* browserContext =
+            ShellContentBrowserClient::Get()->browser_context();
+        Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
+                               switches::ShouldCreateSplashScreen(), topic);
+      },
+      std::move(url), std::move(topic));
+
+  cobalt::CobaltBrowserMainParts::PostOrRunIfMigrationFinished(
+      std::move(create_window_task));
 }
 
 void DestroyShellManager() {

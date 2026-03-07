@@ -346,6 +346,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents,
                               const std::string& topic) {
+  LOG(INFO) << "ColinL: Shell::CreateNewWindow called!";
 #if BUILDFLAG(IS_ANDROIDTV)
   if (create_splash_screen_web_contents) {
     starboard::android::shared::StarboardBridge::GetInstance()
@@ -360,8 +361,10 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
   }
+  LOG(INFO) << "ColinL: Creating WebContents...";
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
+  LOG(INFO) << "ColinL: WebContents created!";
   std::unique_ptr<WebContents> splash_screen_web_contents;
   if (create_splash_screen_web_contents) {
     // Create splash screen WebContents. ATV creates splash screen WebContents

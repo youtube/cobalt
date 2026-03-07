@@ -22,6 +22,7 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -115,17 +116,43 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                                   base::Unretained(this)));
   } else {
     LOG(ERROR) << "ColinL: BrowserContext not available for migration.";
+    OnMigrationComplete();
   }
 
   return result;
 }
 
+void CobaltBrowserMainParts::InitializeMessageLoopContext() {
+  LOG(INFO) << "ColinL: CobaltBrowserMainParts::InitializeMessageLoopContext "
+               "overridden called. Doing nothing.";
+  // Do nothing here to defer WebContents creation until migration finishes.
+  // The base class implementation will be called in OnMigrationComplete().
+}
+
 void CobaltBrowserMainParts::OnMigrationComplete() {
   LOG(INFO)
       << "ColinL: Migration complete. Proceeding with WebContents creation.";
-  // Trigger your WebContents creation / Navigate to Initial URL here
-  base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
-                 base::Unretained(this));
+  migration_finished_ = true;
+  content::ShellBrowserMainParts::InitializeMessageLoopContext();
+  for (auto& task : pending_tasks_) {
+    std::move(task).Run();
+  }
+  pending_tasks_.clear();
+}
+
+// static
+void CobaltBrowserMainParts::PostOrRunIfMigrationFinished(
+    base::OnceClosure task) {
+  auto* parts = static_cast<CobaltBrowserMainParts*>(
+      content::ShellContentBrowserClient::Get()->shell_browser_main_parts());
+  if (parts && !parts->migration_finished_) {
+    LOG(INFO) << "ColinL: Deferring launchShell until migration finishes.";
+    parts->pending_tasks_.push_back(std::move(task));
+  } else {
+    LOG(INFO) << "ColinL: Migration already finished, running launchShell "
+                 "immediately.";
+    std::move(task).Run();
+  }
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
