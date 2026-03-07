@@ -25,11 +25,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-<<<<<<< HEAD
-=======
 #include <optional>
 #include <sstream>
->>>>>>> bd7d8a8635 (starboard: Add ToString helpers for bool and std::optional (#9389))
 #include <string>
 #include <vector>
 
@@ -57,8 +54,6 @@ inline std::string FormatString(const char* format, ...) {
   return std::string(buffer.data(), expected_size);
 }
 
-<<<<<<< HEAD
-=======
 template <typename T>
 std::string ToString(const T& val) {
   std::stringstream ss;
@@ -82,7 +77,6 @@ std::string ToString(const std::optional<T>& val) {
   return ToString(*val);
 }
 
->>>>>>> bd7d8a8635 (starboard: Add ToString helpers for bool and std::optional (#9389))
 std::string HexEncode(const void* data,
                       int size,
                       const char* delimiter = nullptr);

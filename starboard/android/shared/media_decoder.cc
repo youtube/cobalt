@@ -70,13 +70,6 @@ const char* GetDecoderName(SbMediaType media_type) {
   return media_type == kSbMediaTypeAudio ? "audio_decoder" : "video_decoder";
 }
 
-template <typename T>
-std::string to_string(const T& v) {
-  std::ostringstream oss;
-  oss << v;
-  return oss.str();
-}
-
 }  // namespace
 
 class MediaCodecDecoder::DecoderThread : public Thread {
@@ -227,14 +220,6 @@ MediaCodecDecoder::MediaCodecDecoder(
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
-<<<<<<< HEAD
-=======
-  SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
-               << ToString(tunnel_mode_enabled_)
-               << ", initial_max_frames=" << ToString(initial_max_frames)
-               << ", video_decoder_poll_interval(msec)="
-               << video_decoder_poll_interval_us_ / 1'000;
->>>>>>> bd7d8a8635 (starboard: Add ToString helpers for bool and std::optional (#9389))
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
@@ -758,7 +743,7 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
   std::optional<FrameSize> frame_size = media_codec_bridge_->GetOutputSize();
   SB_LOG(INFO) << __func__ << " > resolution="
-               << (frame_size ? to_string(frame_size->display_size) : "(n/a)");
+               << (frame_size ? ToString(frame_size->display_size) : "(n/a)");
 
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
