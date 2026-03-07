@@ -35,7 +35,8 @@ using Task = base::OnceCallback<void(base::OnceClosure)>;
 
 class MigrationManager {
  public:
-  static void DoMigrationTasksOnce(content::WebContents* web_contents);
+  static void RunMigration(content::StoragePartition* partition,
+                           base::OnceClosure done_callback);
 
  private:
   friend class MigrationManagerTest;
@@ -43,10 +44,11 @@ class MigrationManager {
   // Returns a task. When invoked, the grouped |tasks| are run sequentially.
   static Task GroupTasks(std::vector<Task> tasks);
   static Task CookieTask(
-      content::WeakDocumentPtr weak_document_ptr,
+      content::StoragePartition* partition,
       std::vector<std::unique_ptr<net::CanonicalCookie>> cookies);
   static Task LocalStorageTask(
-      content::WeakDocumentPtr weak_document_ptr,
+      content::StoragePartition* partition,
+      const url::Origin& origin,
       std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs);
   static std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
   ToLocalStorageItems(const url::Origin& page_origin,

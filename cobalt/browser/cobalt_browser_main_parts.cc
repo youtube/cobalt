@@ -21,6 +21,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -100,7 +101,31 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  return ShellBrowserMainParts::PreMainMessageLoopRun();
+  int result = ShellBrowserMainParts::PreMainMessageLoopRun();
+
+  LOG(INFO) << "ColinL: CobaltBrowserMainParts::PreMainMessageLoopRun started.";
+
+  // Use the public accessor browser_context() instead of the private member.
+  content::StoragePartition* partition =
+      browser_context()->GetDefaultStoragePartition();
+
+  if (partition) {
+    cobalt::migrate_storage_record::MigrationManager::RunMigration(
+        partition, base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
+                                  base::Unretained(this)));
+  } else {
+    LOG(ERROR) << "ColinL: BrowserContext not available for migration.";
+  }
+
+  return result;
+}
+
+void CobaltBrowserMainParts::OnMigrationComplete() {
+  LOG(INFO)
+      << "ColinL: Migration complete. Proceeding with WebContents creation.";
+  // Trigger your WebContents creation / Navigate to Initial URL here
+  base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
+                 base::Unretained(this));
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
