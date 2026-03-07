@@ -30,6 +30,8 @@ pthread_key_t g_max_pending_frames_key = 0;
 pthread_key_t g_video_decoder_initial_preroll_count_key = 0;
 pthread_key_t g_video_decoder_poll_interval_key = 0;
 pthread_key_t g_media_codec_reset_delay_key = 0;
+pthread_key_t g_video_renderer_min_input_buffers_key = 0;
+pthread_key_t g_video_renderer_min_decoded_frames_key = 0;
 
 void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
   uintptr_t ptr_val = static_cast<uintptr_t>(value);
@@ -66,6 +68,12 @@ void InitializeKeys() {
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_media_codec_reset_delay_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_video_renderer_min_input_buffers_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_video_renderer_min_decoded_frames_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
 }
@@ -157,6 +165,40 @@ void SetMediaCodecResetDelayMsForCurrentThread(int media_codec_reset_delay_ms) {
   EnsureThreadLocalKeyInitedForDecoderConfig();
   WriteIntToThreadLocalStorage(g_media_codec_reset_delay_key,
                                media_codec_reset_delay_ms);
+}
+
+std::optional<int> GetVideoRendererMinInputBuffersForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_video_renderer_min_input_buffers_key);
+}
+
+void SetVideoRendererMinInputBuffersForCurrentThread(
+    int video_renderer_min_input_buffers) {
+  if (video_renderer_min_input_buffers < 0) {
+    SB_LOG(WARNING) << "Invalid video_renderer_min_input_buffers: "
+                    << video_renderer_min_input_buffers;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_video_renderer_min_input_buffers_key,
+                               video_renderer_min_input_buffers);
+}
+
+std::optional<int> GetVideoRendererMinDecodedFramesForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_video_renderer_min_decoded_frames_key);
+}
+
+void SetVideoRendererMinDecodedFramesForCurrentThread(
+    int video_renderer_min_decoded_frames) {
+  if (video_renderer_min_decoded_frames < 0) {
+    SB_LOG(WARNING) << "Invalid video_renderer_min_decoded_frames: "
+                    << video_renderer_min_decoded_frames;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_video_renderer_min_decoded_frames_key,
+                               video_renderer_min_decoded_frames);
 }
 
 }  // namespace starboard::android::shared

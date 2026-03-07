@@ -279,10 +279,18 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         auto video_renderer_sink = video_decoder->GetSink();
         auto media_time_provider = audio_renderer.get();
 
+        std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
+        if (creation_parameters.video_renderer_min_input_buffers() &&
+            creation_parameters.video_renderer_min_decoded_frames()) {
+          preroll_params = VideoRendererImpl::PrerollParameters{
+              *creation_parameters.video_renderer_min_input_buffers(),
+              *creation_parameters.video_renderer_min_decoded_frames()};
+        }
+
         video_renderer = std::make_unique<VideoRendererImpl>(
             std::unique_ptr<VideoDecoderBase>(std::move(video_decoder)),
             media_time_provider, std::move(video_render_algorithm),
-            video_renderer_sink);
+            video_renderer_sink, preroll_params);
       } else {
         return nullptr;
       }
