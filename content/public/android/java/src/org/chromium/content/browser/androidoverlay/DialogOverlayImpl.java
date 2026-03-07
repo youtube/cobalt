@@ -26,9 +26,7 @@ import org.chromium.mojo.system.MojoException;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
- * Default AndroidOverlay impl.  Uses a separate (shared) overlay thread to own a Dialog instance,
- * probably via a separate object that operates only on that thread.  We will post messages to /
- * from that thread from the UI thread.
+ * Default AndroidOverlay impl.  Owns an OverlayCore instance (either Dialog-based or SurfaceView-based).
  */
 @JNINamespace("content")
 public class DialogOverlayImpl
@@ -39,7 +37,7 @@ public class DialogOverlayImpl
     // Runnable that we'll run when the overlay notifies us that it's been released.
     private Runnable mReleasedRunnable;
 
-    private DialogOverlayCore mDialogCore;
+    private OverlayCore mOverlayCore;
 
     private long mNativeHandle;
 
@@ -84,7 +82,7 @@ public class DialogOverlayImpl
         mAsPanel = asPanel;
 
         // Register to get token updates.  Note that this may not call us back directly, since
-        // |mDialogCore| hasn't been initialized yet.
+        // |mOverlayCore| hasn't been initialized yet.
         mNativeHandle = DialogOverlayImplJni.get().init(DialogOverlayImpl.this,
                 config.routingToken.high, config.routingToken.low, config.powerEfficient);
 
@@ -112,12 +110,9 @@ public class DialogOverlayImpl
         // TODO(liberato): verify that this actually works, else add an explicit shutdown and hope
         // that the client calls it.
 
-        // Notify |mDialogCore| that it has been released.
-        if (mDialogCore != null) {
-            mDialogCore.release();
-
-            // Note that we might get messagaes from |mDialogCore| after this, since they might be
-            // dispatched before |r| arrives.  Clearing |mDialogCore| causes us to ignore them.
+        // Notify the core that it has been released.
+        if (mOverlayCore != null) {
+            mOverlayCore.release();
             cleanup();
         }
 
@@ -144,11 +139,11 @@ public class DialogOverlayImpl
 
         mLastRect = copyRect(rect);
 
-        if (mDialogCore == null) return;
+        if (mOverlayCore == null) return;
 
         // |rect| is relative to the compositor surface.  Convert it to be relative to the screen.
         DialogOverlayImplJni.get().getCompositorOffset(mNativeHandle, DialogOverlayImpl.this, rect);
-        mDialogCore.layoutSurface(rect);
+        if (mOverlayCore != null) mOverlayCore.layoutSurface(rect);
     }
 
     // Receive the compositor offset, as part of scheduleLayout.  Adjust the layout position.
@@ -164,7 +159,7 @@ public class DialogOverlayImpl
     public void onSurfaceReady(Surface surface) {
         ThreadUtils.assertOnUiThread();
 
-        if (mDialogCore == null || mClient == null) return;
+        if (mOverlayCore == null || mClient == null) return;
 
         mSurfaceId = DialogOverlayImplJni.get().registerSurface(surface);
         mClient.onSurfaceReady(mSurfaceId);
@@ -175,12 +170,12 @@ public class DialogOverlayImpl
     public void onOverlayDestroyed() {
         ThreadUtils.assertOnUiThread();
 
-        if (mDialogCore == null) return;
+        if (mOverlayCore == null) return;
 
         // Notify the client that the overlay is gone.
         notifyDestroyed();
 
-        // Also clear out |mDialogCore| to prevent us from sending useless messages to it.
+        // Also clear out core to prevent us from sending useless messages to it.
         cleanup();
 
         // Note that we don't notify |mReleasedRunnable| yet, though we could.  We wait for the
@@ -201,18 +196,14 @@ public class DialogOverlayImpl
     public void onWindowAndroid(final WindowAndroid window) {
         ThreadUtils.assertOnUiThread();
 
-        if (mDialogCore == null) {
+        if (mOverlayCore == null) {
             initializeDialogCore(window);
             return;
         }
 
         // Forward this change.
-        // Note that if we don't have a window token, then we could wait until we do, simply by
-        // skipping sending null if we haven't sent any non-null token yet.  If we're transitioning
-        // between windows, that might make the client's job easier. It wouldn't have to guess when
-        // a new token is available.
         IBinder token = window != null ? window.getWindowToken() : null;
-        mDialogCore.onWindowToken(token);
+        if (mOverlayCore != null) mOverlayCore.onWindowToken(token);
     }
 
     @CalledByNative
@@ -238,8 +229,8 @@ public class DialogOverlayImpl
         // Notify the client that the overlay is going away.
         notifyDestroyed();
 
-        // Notify |mDialogCore| that it lost the token, if it had one.
-        if (mDialogCore != null) mDialogCore.onWindowToken(null);
+        // Notify core that it lost the token, if it had one.
+        if (mOverlayCore != null) mOverlayCore.onWindowToken(null);
 
         cleanup();
     }
@@ -250,7 +241,7 @@ public class DialogOverlayImpl
     @CalledByNative
     private void onPowerEfficientState(boolean isPowerEfficient) {
         ThreadUtils.assertOnUiThread();
-        if (mDialogCore == null) return;
+        if (mOverlayCore == null) return;
         if (mClient == null) return;
         mClient.onPowerEfficientState(isPowerEfficient);
     }
@@ -267,7 +258,16 @@ public class DialogOverlayImpl
         mWebContents.addTearDownDialogOverlaysHandler(mTearDownDialogOverlaysHandler);
     }
 
-    /** Initialize |mDialogCore| when the window is available. */
+
+    private boolean shouldUseSurfaceView() {
+        try {
+            return mConfig.getClass().getField("useSurfaceView").getBoolean(mConfig);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            return false;
+        }
+    }
+
+    /** Initialize |mOverlayCore| when the window is available. */
     private void initializeDialogCore(WindowAndroid window) {
         ThreadUtils.assertOnUiThread();
 
@@ -277,14 +277,18 @@ public class DialogOverlayImpl
         Activity activity = ContextUtils.activityFromContext(context);
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
 
-        mDialogCore = new DialogOverlayCore();
-        mDialogCore.initialize(context, mConfig, DialogOverlayImpl.this, mAsPanel);
-        mDialogCore.onWindowToken(window.getWindowToken());
+        if (shouldUseSurfaceView()) {
+            mOverlayCore = new SurfaceViewOverlayCore();
+        } else {
+            mOverlayCore = new DialogOverlayCore();
+        }
+        mOverlayCore.initialize(context, mConfig, DialogOverlayImpl.this, mAsPanel);
+        mOverlayCore.onWindowToken(window.getWindowToken());
     }
 
     /**
      * Unregister for callbacks, unregister any surface that we have, and forget about
-     * |mDialogCore|.  Multiple calls are okay.
+     * |mOverlayCore|.  Multiple calls are okay.
      */
     private void cleanup() {
         ThreadUtils.assertOnUiThread();
@@ -300,10 +304,7 @@ public class DialogOverlayImpl
             mNativeHandle = 0;
         }
 
-        // Also clear out |mDialogCore| to prevent us from sending useless messages to it.  Note
-        // that we might have already sent useless messages to it, and it should be robust against
-        // that sort of thing.
-        mDialogCore = null;
+        mOverlayCore = null;
 
         // If we wanted to send any message to |mClient|, we should have done so already.
         // We close |mClient| first to prevent leaking the mojo router object.
