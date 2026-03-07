@@ -14,8 +14,9 @@
 
 #include "starboard/android/shared/video_decoder_configuration_internal.h"
 
-#include <pthread.h>
+#include <memory>
 
+#include "base/threading/thread_local.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
@@ -32,31 +33,15 @@ struct VideoDecoderConfig {
   std::optional<int> media_codec_reset_delay;
 };
 
-pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
-pthread_key_t g_video_decoder_config_key = 0;
-
-void DestroyVideoDecoderConfig(void* ptr) {
-  delete static_cast<VideoDecoderConfig*>(ptr);
-}
-
-void InitializeKeys() {
-  int res = pthread_key_create(&g_video_decoder_config_key,
-                               DestroyVideoDecoderConfig);
-  SB_CHECK_EQ(res, 0);
-}
-
-void EnsureThreadLocalKeyInitedForDecoderConfig() {
-  pthread_once(&g_once_control, InitializeKeys);
-}
+base::ThreadLocalOwnedPointer<VideoDecoderConfig> g_video_decoder_config;
 
 VideoDecoderConfig* GetOrCreateConfig() {
-  EnsureThreadLocalKeyInitedForDecoderConfig();
-  void* ptr = pthread_getspecific(g_video_decoder_config_key);
+  VideoDecoderConfig* ptr = g_video_decoder_config.Get();
   if (ptr == nullptr) {
-    ptr = new VideoDecoderConfig();
-    pthread_setspecific(g_video_decoder_config_key, ptr);
+    g_video_decoder_config.Set(std::make_unique<VideoDecoderConfig>());
+    ptr = g_video_decoder_config.Get();
   }
-  return static_cast<VideoDecoderConfig*>(ptr);
+  return ptr;
 }
 
 }  // namespace
