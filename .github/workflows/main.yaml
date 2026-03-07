@@ -936,11 +936,7 @@ jobs:
 
   validate-test-result:
     needs: [initialize, build, test-results, browser-test-results]
-    if: always() &&
-        (
-          (needs.test-results.result != 'skipped' && needs.test-results.result != '') ||
-          (needs.initialize.outputs.run_browser_tests == 'true' && needs.browser-test-results.result != 'skipped' && needs.browser-test-results.result != '')
-        )
+    if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
