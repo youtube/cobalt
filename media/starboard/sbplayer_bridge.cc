@@ -868,11 +868,11 @@ void SbPlayerBridge::CreatePlayer() {
     StarboardExtensionVideoConfiguration configuration{};
     if (video_renderer_min_input_buffers_) {
       configuration.renderer_min_input_buffers =
-          const_cast<int*>(&*video_renderer_min_input_buffers_);
+          &*video_renderer_min_input_buffers_;
     }
     if (video_renderer_min_decoded_frames_) {
       configuration.renderer_min_decoded_frames =
-          const_cast<int*>(&*video_renderer_min_decoded_frames_);
+          &*video_renderer_min_decoded_frames_;
     }
 
     video_decoder_configuration_extension->SetVideoConfiguration(

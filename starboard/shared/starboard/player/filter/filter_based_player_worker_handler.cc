@@ -610,17 +610,11 @@ void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
 
 void FilterBasedPlayerWorkerHandler::SetVideoRendererMinInputBuffers(
     int video_renderer_min_input_buffers) {
-  SB_LOG(INFO) << "Set video_renderer_min_input_buffers from "
-               << ToString(video_renderer_min_input_buffers_) << " to "
-               << video_renderer_min_input_buffers;
   video_renderer_min_input_buffers_ = video_renderer_min_input_buffers;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoRendererMinDecodedFrames(
     int video_renderer_min_decoded_frames) {
-  SB_LOG(INFO) << "Set video_renderer_min_decoded_frames from "
-               << ToString(video_renderer_min_decoded_frames_) << " to "
-               << video_renderer_min_decoded_frames;
   video_renderer_min_decoded_frames_ = video_renderer_min_decoded_frames;
 }
 

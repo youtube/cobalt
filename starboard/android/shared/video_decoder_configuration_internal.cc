@@ -173,14 +173,7 @@ void SetMediaCodecResetDelayMsForCurrentThread(int media_codec_reset_delay_ms) {
 
 void SetVideoConfigurationForCurrentThread(
     const VideoConfiguration& configuration) {
-  VideoConfiguration* ptr = GetOrCreateVideoConfiguration();
-  if (configuration.renderer_min_input_buffers) {
-    ptr->renderer_min_input_buffers = configuration.renderer_min_input_buffers;
-  }
-  if (configuration.renderer_min_decoded_frames) {
-    ptr->renderer_min_decoded_frames =
-        configuration.renderer_min_decoded_frames;
-  }
+  *GetOrCreateVideoConfiguration() = configuration;
 }
 
 VideoConfiguration GetVideoConfigurationForCurrentThread() {

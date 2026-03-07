@@ -41,7 +41,7 @@ VideoRendererImpl::VideoRendererImpl(
     MediaTimeProvider* media_time_provider,
     std::unique_ptr<VideoRenderAlgorithm> algorithm,
     scoped_refptr<VideoRendererSink> sink,
-    std::optional<PrerollParameters>& preroll_params)
+    const std::optional<PrerollParameters>& preroll_params)
     : media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),

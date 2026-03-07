@@ -25,8 +25,8 @@ extern "C" {
   "dev.starboard.extension.VideoDecoderConfiguration"
 
 typedef struct StarboardExtensionVideoConfiguration {
-  int* renderer_min_input_buffers;
-  int* renderer_min_decoded_frames;
+  const int* renderer_min_input_buffers;
+  const int* renderer_min_decoded_frames;
 } StarboardExtensionVideoConfiguration;
 
 typedef struct StarboardExtensionVideoDecoderConfigurationApi {
