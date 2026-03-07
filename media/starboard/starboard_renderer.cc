@@ -624,6 +624,8 @@ void StarboardRenderer::CreatePlayerBridge() {
         experimental_features_.max_pending_input_frames,
         experimental_features_.video_decoder_initial_preroll_count,
         experimental_features_.video_decoder_poll_interval_ms,
+        experimental_features_.video_renderer_min_input_buffers,
+        experimental_features_.video_renderer_min_decoded_frames,
         experimental_features_.media_codec_reset_delay_ms
 #if BUILDFLAG(IS_ANDROID)
         ,

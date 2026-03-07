@@ -56,6 +56,16 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Specifies the MediaCodec delay in milliseconds.
   void (*SetMediaCodecResetDelayMsForCurrentThread)(
       int media_codec_reset_delay_ms);
+
+  // The fields below this point were added in version 3 or later.
+
+  // Specifies the video renderer minimum input buffers.
+  void (*SetVideoRendererMinInputBuffersForCurrentThread)(
+      int video_renderer_min_input_buffers);
+
+  // Specifies the video renderer minimum decoded frames.
+  void (*SetVideoRendererMinDecodedFramesForCurrentThread)(
+      int video_renderer_min_decoded_frames);
 } StarboardExtensionVideoDecoderConfigurationApi;
 
 #ifdef __cplusplus

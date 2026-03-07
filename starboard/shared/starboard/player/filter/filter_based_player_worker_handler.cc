@@ -135,6 +135,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
       max_video_input_size_, flush_decoder_during_reset_, reset_audio_decoder_,
       video_initial_max_frames_in_decoder_, video_max_pending_input_frames_,
       video_decoder_initial_preroll_count_, video_decoder_poll_interval_ms_,
+      video_renderer_min_input_buffers_, video_renderer_min_decoded_frames_,
       media_codec_reset_delay_ms_, surface_view_,
       decode_target_graphics_context_provider_, drm_system_);
 
@@ -605,6 +606,16 @@ void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
                << ToString(video_decoder_poll_interval_ms_) << " to "
                << video_decoder_poll_interval_ms;
   video_decoder_poll_interval_ms_ = video_decoder_poll_interval_ms;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoRendererMinInputBuffers(
+    int video_renderer_min_input_buffers) {
+  video_renderer_min_input_buffers_ = video_renderer_min_input_buffers;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoRendererMinDecodedFrames(
+    int video_renderer_min_decoded_frames) {
+  video_renderer_min_decoded_frames_ = video_renderer_min_decoded_frames;
 }
 
 void FilterBasedPlayerWorkerHandler::SetMediaCodecResetDelayMs(

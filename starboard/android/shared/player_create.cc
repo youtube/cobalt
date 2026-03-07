@@ -232,6 +232,15 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
   }
+  if (auto video_renderer_min_input_buffers = starboard::android::shared::
+          GetVideoRendererMinInputBuffersForCurrentThread()) {
+    handler->SetVideoRendererMinInputBuffers(*video_renderer_min_input_buffers);
+  }
+  if (auto video_renderer_min_decoded_frames = starboard::android::shared::
+          GetVideoRendererMinDecodedFramesForCurrentThread()) {
+    handler->SetVideoRendererMinDecodedFrames(
+        *video_renderer_min_decoded_frames);
+  }
   if (auto media_codec_reset_delay_ms = starboard::android::shared::
           GetMediaCodecResetDelayMsForCurrentThread()) {
     handler->SetMediaCodecResetDelayMs(*media_codec_reset_delay_ms);
