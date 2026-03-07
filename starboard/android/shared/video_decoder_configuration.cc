@@ -15,6 +15,7 @@
 #include "starboard/android/shared/video_decoder_configuration.h"
 
 #include "starboard/android/shared/video_decoder_configuration_internal.h"
+#include "starboard/common/log.h"
 #include "starboard/extension/video_decoder_configuration.h"
 
 namespace starboard::android::shared {
@@ -26,10 +27,9 @@ namespace {
 
 void SetVideoConfiguration(
     const StarboardExtensionVideoConfiguration* configuration) {
-  if (configuration == nullptr) {
-    SetVideoConfigurationForCurrentThread({});
-    return;
-  }
+  // 'configuration' is always non-null; passed as a pointer for C
+  // compatibility.
+  SB_CHECK(configuration);
 
   VideoConfiguration internal_configuration{};
   if (configuration->renderer_min_input_buffers != nullptr) {
