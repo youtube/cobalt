@@ -34,9 +34,6 @@ WORKDIR /opt/cobalt_browsertests
 # We use a wild card to be flexible with compression extensions.
 ADD cobalt_browsertests_deps.tar* .
 
-# Verify the contents of the working directory
-RUN ls -laR /opt/cobalt_browsertests | head -n 100
-
 # Extract platform-tools if available
 ENV PATH="/opt/platform-tools:${PATH}"
 RUN ls
