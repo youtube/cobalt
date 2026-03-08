@@ -36,6 +36,7 @@ import("//tools/grit/grit_rule.gni")
 import("//tools/grit/preprocess_if_expr.gni")
 import("//tools/typescript/ts_library.gni")
 import("//v8/gni/v8.gni")
+import("cobalt_test_data.gni")
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
@@ -182,6 +183,18 @@ copy("cobalt_browsertests_runner_script") {
   sources = [ "run_browser_tests.py" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
   deps = [ ":cobalt_browsertests" ]
+}
+
+if (is_ios) {
+  bundle_data_from_filelist("cobalt_test_bundle_data") {
+    testonly = true
+    filelist_name = "cobalt_test_bundle_data_ios.filelist"
+  }
+} else {
+  cobalt_test_data_from_filelist("cobalt_test_bundle_data") {
+    testonly = true
+    filelist_name = "cobalt_test_bundle_data.filelist"
+  }
 }
 
 group("cobalt_browsertests_runner") {
@@ -370,12 +383,10 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
-  data = [
-    "//content/test/data/",
-    "//media/test/data/",
-  ]
+  data = []
 
   data_deps = [
+    ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",

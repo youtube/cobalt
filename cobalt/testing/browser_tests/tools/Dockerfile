@@ -30,8 +30,12 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/cobalt_browsertests
 
 # Add and extract the artifacts tarball.
-# Expects cobalt_browsertests_artifacts.tar.gz to be in the build context.
-ADD cobalt_browsertests_artifacts.tar.gz .
+# Expects cobalt_browsertests_deps.tar.* to be in the build context.
+# We use a wild card to be flexible with compression extensions.
+ADD cobalt_browsertests_deps.tar* .
+
+# Verify the contents of the working directory
+RUN ls -laR /opt/cobalt_browsertests | head -n 100
 
 # Extract platform-tools if available
 ENV PATH="/opt/platform-tools:${PATH}"
