@@ -1,7 +1,7 @@
 //content/test/data/**
--//content/test/data/**/OWNERS
--//content/test/data/**/DIR_METADATA
--//content/test/data/**/README.md
+-**/OWNERS
+-**/DIR_METADATA
+-**/README.md
 -//content/test/data/android/**
 -//content/test/data/file_chooser/**
 -//content/test/data/gpu/gpu_reference/**
@@ -15,6 +15,3 @@
 -//content/test/data/gpu/lots-of-lines.svg
 
 //media/test/data/**
--//media/test/data/**/OWNERS
--//media/test/data/**/DIR_METADATA
--//media/test/data/**/README.md

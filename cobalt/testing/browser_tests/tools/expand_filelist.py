@@ -21,9 +21,9 @@ Supported patterns:
 """
 
 import argparse
-import fnmatch
 import os
 import sys
+from pathlib import PurePath
 
 
 def main():
@@ -59,51 +59,37 @@ def main():
   inclusions = [l for l in lines if not l.startswith('-')]
   exclusions = [l[1:] for l in lines if l.startswith('-')]
 
+  def add_recursive(rel_dir):
+    full_base_dir = os.path.join(args.root, rel_dir)
+    if os.path.isdir(full_base_dir):
+      for root, _, files in os.walk(full_base_dir):
+        for name in files:
+          full_path = os.path.join(root, name)
+          rel_file = os.path.relpath(full_path, args.root)
+          included_files.add('//' + rel_file)
+
   for pattern in inclusions:
     if pattern.startswith('//'):
       pattern = pattern[2:]
 
     if pattern.endswith('**'):
-      base_dir = pattern[:-2]
-      full_base_dir = os.path.join(args.root, base_dir)
-      if os.path.isdir(full_base_dir):
-        for root, _, files in os.walk(full_base_dir):
-          for name in files:
-            full_path = os.path.join(root, name)
-            rel_file = os.path.relpath(full_path, args.root)
-            included_files.add('//' + rel_file)
+      add_recursive(pattern[:-2])
     else:
       full_path = os.path.join(args.root, pattern)
       if os.path.isfile(full_path):
         included_files.add('//' + pattern)
       elif os.path.isdir(full_path):
-        for root, _, files in os.walk(full_path):
-          for name in files:
-            full_path_f = os.path.join(root, name)
-            rel_file = os.path.relpath(full_path_f, args.root)
-            included_files.add('//' + rel_file)
+        add_recursive(pattern)
 
-  for pattern in exclusions:
-    if pattern.startswith('//'):
-      pattern = pattern[2:]
+  to_discard = set()
+  for p in exclusions:
+    # Handle optional // prefix for pattern
+    pattern = p[2:] if p.startswith('//') else p
+    for f in included_files:
+      if PurePath(f[2:]).match(pattern):
+        to_discard.add(f)
 
-    # Handle zero or more directories with **
-    # Try multiple fnmatch patterns to simulate ** behavior
-    match_patterns = []
-    if '/**/' in pattern:
-      match_patterns.append(pattern.replace('/**/', '/'))  # Zero dirs
-      match_patterns.append(pattern.replace('/**', '/*'))  # One or more
-    elif pattern.startswith('**/'):
-      match_patterns.append(pattern[3:])  # Zero dirs at start
-      match_patterns.append('*' + pattern[2:])  # One or more at start
-    else:
-      match_patterns.append(pattern.replace('**', '*'))
-
-    to_discard = set()
-    for mp in match_patterns:
-      to_discard |= {f for f in included_files if fnmatch.fnmatch(f[2:], mp)}
-
-    included_files -= to_discard
+  included_files -= to_discard
 
   for f in sorted(list(included_files)):
     print(f)
