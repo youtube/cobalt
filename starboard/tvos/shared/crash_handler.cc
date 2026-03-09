@@ -34,12 +34,18 @@ namespace {
 // bytes (see doc comment in breakpad/src/common/long_string_dictionary.h), and
 // in Crashpad it is 20480 bytes (see crashpad::Annotation::kValueMaxSize).
 // Stick to the Breakpad maximum since that is what the tvOS port used up to
-// Cobalt 25.
+// Cobalt 25. Breakpad did have an optimization in which it would allocate 255
+// bytes by default and split larger values in chunks up to 2550 bytes if
+// necessary), so we define two constants here to avoid wasting too much space
+// on values that fit in 255 bytes.
+constexpr size_t kSmallValueMaxSize =
+    255;  // Including the NUL byte at the end.
 constexpr size_t kMaxCrashValueSize =
-    2550;  // Including the NUL byte at the end.
+    kSmallValueMaxSize * 10;  // Including the NUL byte at the end.
 
 // A convenient wrapper around a crash key and its name.
 // Lifted from android_webview/browser.
+template <size_t MaxValueSize>
 class CrashKeyWithName {
  public:
   explicit CrashKeyWithName(std::string&& name)
@@ -61,7 +67,7 @@ class CrashKeyWithName {
 
  private:
   std::string name_;
-  crash_reporter::CrashKeyString<kMaxCrashValueSize> crash_key_;
+  crash_reporter::CrashKeyString<MaxValueSize> crash_key_;
 };
 
 base::Lock& GetSetStringLock() {
@@ -100,16 +106,15 @@ bool SetStringImpl(std::string_view key, std::string_view value) {
   {
     base::AutoLock lock(GetSetStringLock());
 
-    static base::NoDestructor<std::deque<CrashKeyWithName>> runtime_crash_keys;
-    auto it =
-        std::find_if(runtime_crash_keys->begin(), runtime_crash_keys->end(),
-                     [key](const auto& crash_key_string) {
-                       return crash_key_string.name() == key;
-                     });
-    if (it != runtime_crash_keys->end()) {
-      it->Set(value);
+    static base::NoDestructor<std::deque<CrashKeyWithName<kSmallValueMaxSize>>>
+        small_runtime_crash_keys;
+    static base::NoDestructor<std::deque<CrashKeyWithName<kMaxCrashValueSize>>>
+        large_runtime_crash_keys;
+
+    if (value.size() < kSmallValueMaxSize) {
+      small_runtime_crash_keys->emplace_back(std::string(key)).Set(value);
     } else {
-      runtime_crash_keys->emplace_back(std::string(key)).Set(value);
+      large_runtime_crash_keys->emplace_back(std::string(key)).Set(value);
     }
   }
 
