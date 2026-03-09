@@ -50,6 +50,9 @@ void CobaltWebContentsObserver::SetTimerForTestInternal(
 
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
+  LOG(INFO) << "ColinL: CobaltWebContentsObserver::DidStartNavigation for URL: "
+            << handle->GetURL()
+            << ", IsInPrimaryMainFrame: " << handle->IsInPrimaryMainFrame();
   if (!handle->IsInPrimaryMainFrame()) {
     LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
               << " not in primary mainframe, returning";
@@ -72,6 +75,10 @@ void CobaltWebContentsObserver::DidStartNavigation(
 // net::ERR_CONNECTION_TIMED_OUT and net::ERR_NAME_NOT_RESOLVED.
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+  LOG(INFO)
+      << "ColinL: CobaltWebContentsObserver::DidFinishNavigation for URL: "
+      << navigation_handle->GetURL()
+      << ", NetErrorCode: " << navigation_handle->GetNetErrorCode();
   if (!navigation_handle->IsInPrimaryMainFrame()) {
     return;
   }
@@ -79,15 +86,17 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   timeout_timer_->Stop();
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
-    LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
-              << net::ErrorToString(net_error_code);
+    LOG(INFO)
+        << "ColinL: DidFinishNavigation: Raising platform error with code: "
+        << net::ErrorToString(net_error_code);
     RaisePlatformError();
   }
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto* starboard_bridge = starboard::android::shared::StarboardBridge::GetInstance();
+  auto* starboard_bridge =
+      starboard::android::shared::StarboardBridge::GetInstance();
 
   // Don't raise a new platform error if one is already showing
   if (starboard_bridge->IsPlatformErrorShowing(env)) {

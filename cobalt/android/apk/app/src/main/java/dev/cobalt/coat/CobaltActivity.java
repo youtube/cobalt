@@ -286,22 +286,28 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // Load an empty page to let shell create WebContents. Override Shell.java's
+    // onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("", mUrlTopic,
+    Log.i(TAG, "ColinL: Calling mShellManager.launchShell with empty URL to create WebContents");
+    mShellManager.launchShell(
+        "",
+        mUrlTopic,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
+            Log.i(TAG, "ColinL: onWebContentsReady() called, WebContents created");
             // Inject JavaBridge objects to the WebContents.
             initializeJavaBridge();
             getStarboardBridge().setWebContents(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
-            Log.i(TAG, "shellManager load url:" + mStartupUrl);
+            Log.i(TAG, "ColinL: shellManager load url: " + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
             // Load splash screen.
+            Log.i(TAG, "ColinL: shellManager load splash screen web contents");
             mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });

@@ -394,6 +394,7 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
+  LOG(INFO) << "ColinL: Shell::PrimaryMainDocumentElementAvailable()";
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()
       ->SetStartupMilestone(27);
@@ -404,6 +405,7 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
                           const GURL& validated_url) {
+  LOG(INFO) << "ColinL: Shell::DidFinishLoad() for URL: " << validated_url;
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()
       ->SetStartupMilestone(31);
@@ -411,6 +413,9 @@ void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
 }
 
 void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
+  LOG(INFO) << "ColinL: Shell::DidStartNavigation() for URL: "
+            << navigation_handle->GetURL() << ", IsInPrimaryMainFrame: "
+            << navigation_handle->IsInPrimaryMainFrame();
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
     if (navigation_handle->GetURL() ==
@@ -426,6 +431,12 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+  LOG(INFO) << "ColinL: Shell::DidFinishNavigation() for URL: "
+            << navigation_handle->GetURL() << ", IsInPrimaryMainFrame: "
+            << navigation_handle->IsInPrimaryMainFrame()
+            << ", HasCommitted: " << navigation_handle->HasCommitted()
+            << ", IsErrorPage: " << navigation_handle->IsErrorPage()
+            << ", NetErrorCode: " << navigation_handle->GetNetErrorCode();
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
     if (navigation_handle->GetURL() ==
@@ -442,6 +453,7 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
 }
 
 void Shell::DidStartLoading() {
+  LOG(INFO) << "ColinL: Shell::DidStartLoading()";
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()
       ->SetStartupMilestone(21);
@@ -449,6 +461,7 @@ void Shell::DidStartLoading() {
 }
 
 void Shell::DidStopLoading() {
+  LOG(INFO) << "ColinL: Shell::DidStopLoading()";
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {
     web_contents()->GetRenderWidgetHostView()->Focus();
@@ -527,6 +540,7 @@ void Shell::LoadSplashScreenWebContents() {
 }
 
 void Shell::LoadURL(const GURL& url) {
+  LOG(INFO) << "ColinL: Shell::LoadURL called for URL: " << url;
   LoadURLForFrame(
       url, std::string(),
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
@@ -541,10 +555,13 @@ void Shell::LoadURL(const GURL& url) {
 void Shell::LoadURLForFrame(const GURL& url,
                             const std::string& frame_name,
                             ui::PageTransition transition_type) {
+  LOG(INFO) << "ColinL: Shell::LoadURLForFrame called for URL: " << url
+            << ", frame_name: " << frame_name;
   NavigationController::LoadURLParams params(url);
   params.frame_name = frame_name;
   params.transition_type = transition_type;
   web_contents_->GetController().LoadURLWithParams(params);
+  LOG(INFO) << "ColinL: LoadURLWithParams completed for URL: " << url;
 }
 
 void Shell::LoadDataWithBaseURL(const GURL& url,
