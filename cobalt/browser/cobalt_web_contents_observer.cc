@@ -41,13 +41,7 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
-CobaltWebContentsObserver::~CobaltWebContentsObserver() {
-#if BUILDFLAG(IS_ANDROIDTV)
-  if (!platform_error_raised_) {
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", false);
-  }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
-}
+CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
 #if BUILDFLAG(IS_ANDROIDTV)
 void CobaltWebContentsObserver::SetTimerForTestInternal(
@@ -103,10 +97,9 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
     return;
   }
-  if (!platform_error_raised_) {
-    platform_error_raised_ = true;
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", true);
-  }
+  platform_error_raised_count_++;
+  UMA_HISTOGRAM_COUNTS_100("Cobalt.Network.CumulativePlatformErrorRaised",
+                           platform_error_raised_count_);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
