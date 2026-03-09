@@ -84,6 +84,18 @@ void InitializeBrowserMemoryInstrumentationClient() {
 
 }  // namespace
 
+void CobaltBrowserMainParts::InitializeMessageLoopContext() {
+  LOG(INFO) << "ColinL: CobaltBrowserMainParts::InitializeMessageLoopContext "
+               "overridden called. Doing nothing.";
+  // On Android, we completely defer WebContents creation until the Java layer
+  // invokes ShellManager.launchShell() which reaches C++ via JNI.
+  // On Linux, we might need the base behavior, but testing here without it
+  // first.
+#if !BUILDFLAG(IS_ANDROID)
+  content::ShellBrowserMainParts::InitializeMessageLoopContext();
+#endif
+}
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::android::shared::StarboardBridge::GetInstance()
@@ -122,18 +134,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   return result;
 }
 
-void CobaltBrowserMainParts::InitializeMessageLoopContext() {
-  LOG(INFO) << "ColinL: CobaltBrowserMainParts::InitializeMessageLoopContext "
-               "overridden called. Doing nothing.";
-  // Do nothing here to defer WebContents creation until migration finishes.
-  // The base class implementation will be called in OnMigrationComplete().
-}
-
 void CobaltBrowserMainParts::OnMigrationComplete() {
-  LOG(INFO)
-      << "ColinL: Migration complete. Proceeding with WebContents creation.";
+  LOG(INFO) << "ColinL: Migration complete. Proceeding with deferred tasks.";
   migration_finished_ = true;
-  content::ShellBrowserMainParts::InitializeMessageLoopContext();
   for (auto& task : pending_tasks_) {
     std::move(task).Run();
   }

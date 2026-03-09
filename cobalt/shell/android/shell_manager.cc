@@ -73,10 +73,13 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
 
   auto create_window_task = base::BindOnce(
       [](GURL url, std::string topic) {
+        LOG(INFO)
+            << "ColinL: Executing deferred Shell::CreateNewWindow task...";
         ShellBrowserContext* browserContext =
             ShellContentBrowserClient::Get()->browser_context();
         Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
                                switches::ShouldCreateSplashScreen(), topic);
+        LOG(INFO) << "ColinL: Executed deferred Shell::CreateNewWindow task!";
       },
       std::move(url), std::move(topic));
 
@@ -84,6 +87,8 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
   if (parts) {
     parts->PostOrRunIfMigrationFinished(std::move(create_window_task));
   } else {
+    LOG(INFO)
+        << "ColinL: No shell_browser_main_parts found, running immediately.";
     std::move(create_window_task).Run();
   }
 }

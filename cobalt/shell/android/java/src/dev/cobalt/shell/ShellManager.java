@@ -121,6 +121,7 @@ public class ShellManager {
      */
     public void launchShell(String url, String topic, Shell.OnWebContentsReadyListener listener) {
         ThreadUtils.assertOnUiThread();
+    android.util.Log.i("ColinL", "ShellManager.launchShell called");
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
         sNatives.launchShell(url, topic);
@@ -129,6 +130,7 @@ public class ShellManager {
 
     @CalledByNative
     private Object createShell(long nativeShellPtr) {
+    android.util.Log.i("ColinL", "ShellManager.createShell called from Native");
         if (mContentViewRenderView == null) {
             mContentViewRenderView = new ContentViewRenderView(getContext());
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
