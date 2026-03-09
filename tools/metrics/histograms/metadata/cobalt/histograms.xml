@@ -88,6 +88,7 @@ Always run the pretty print utility on this file after editing:
     been raised. The a numeric value's count is equal to the its count minus
     the sum of the counts of values larger than itself. ie. platform error raised
     2 times = [count of 2] - [count of 3] - [count of 4] . . . [count of max value].
+    This value is reset to 0 on a successful navigation/app load.
   </summary>
 </histogram>
 
