@@ -58,6 +58,8 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--autoplay-policy=no-user-gesture-required");
         // Remove below if Cobalt rebase to m120+.
         paramOverrides.add("--user-level-memory-pressure-signal-params");
+        // Set default raster threads to 2 for smoother performance.
+        paramOverrides.add("--num-raster-threads=2");
         // Disable rescaling Webpage.
         paramOverrides.add("--force-device-scale-factor=1");
 
