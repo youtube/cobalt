@@ -25,6 +25,12 @@ namespace gpu {
 class GpuMemoryBufferFactory;
 }  // namespace gpu
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace cobalt::media {
+class VideoGeometrySetterService;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class MediaGpuChannelManager;
@@ -46,7 +52,12 @@ std::unique_ptr<MediaService> MEDIA_MOJO_EXPORT CreateGpuMediaService(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager,
     gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory,
-    AndroidOverlayMojoFactoryCB android_overlay_factory_cb);
+    AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    ,
+    cobalt::media::VideoGeometrySetterService* video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    );
 
 // Creates a MediaService instance using the TestMojoMediaClient.
 std::unique_ptr<MediaService> MEDIA_MOJO_EXPORT CreateMediaServiceForTesting(

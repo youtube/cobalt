@@ -32,6 +32,8 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/network_service_instance.h"
+#include "net/base/network_change_notifier_passive.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
@@ -61,9 +63,10 @@ class DefaultAppLifecycleRunner : public cobalt::AppLifecycleRunner {
     exit_manager_ = std::make_unique<base::AtExitManager>();
   }
 
-  void CreateMainDelegate(bool is_visible) override {
+  void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+                          bool is_visible) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-        false /* is_content_browsertests */, is_visible);
+        startup_timestamp, false /* is_content_browsertests */, is_visible);
   }
 
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
@@ -204,7 +207,26 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
 #endif
       break;
     case kSbEventTypeOsNetworkDisconnected:
-    case kSbEventTypeOsNetworkConnected:
+    case kSbEventTypeOsNetworkConnected: {
+#if BUILDFLAG(IS_STARBOARD)
+      auto* notifier = content::GetNetworkChangeNotifier();
+      if (notifier) {
+        auto* passive_notifier =
+            static_cast<net::NetworkChangeNotifierPassive*>(notifier);
+        net::NetworkChangeNotifier::ConnectionType type =
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::CONNECTION_UNKNOWN
+                : net::NetworkChangeNotifier::CONNECTION_NONE;
+        net::NetworkChangeNotifier::ConnectionSubtype subtype =
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::SUBTYPE_UNKNOWN
+                : net::NetworkChangeNotifier::SUBTYPE_NONE;
+        passive_notifier->OnConnectionChanged(type);
+        passive_notifier->OnConnectionSubtypeChanged(type, subtype);
+      }
+      break;
+#endif
+    }
     case kSbEventDateTimeConfigurationChanged:
 #if BUILDFLAG(IS_STARBOARD)
       device::NotifyTimeZoneChangeStarboard();
@@ -229,10 +251,10 @@ void AppLifecycleDelegate::OnStart(const SbEvent* event) {
 
   bool is_visible = event->type == kSbEventTypeStart;
   if (data) {
-    Run(is_visible, data->argument_count,
+    Run(event->timestamp, is_visible, data->argument_count,
         const_cast<const char**>(data->argument_values), data->link);
   } else {
-    Run(is_visible, 0, nullptr, nullptr);
+    Run(event->timestamp, is_visible, 0, nullptr, nullptr);
   }
 
 #if BUILDFLAG(USE_EVERGREEN)
@@ -252,11 +274,12 @@ void AppLifecycleDelegate::OnStop(const SbEvent* event) {
 #endif
 }
 
-int AppLifecycleDelegate::Run(bool is_visible,
+int AppLifecycleDelegate::Run(absl::optional<int64_t> startup_timestamp,
+                              bool is_visible,
                               int argc,
                               const char** argv,
                               const char* initial_deep_link) {
-  runner_->CreateMainDelegate(is_visible);
+  runner_->CreateMainDelegate(startup_timestamp, is_visible);
 
   content::ContentMainParams params(runner_->GetMainDelegate());
 

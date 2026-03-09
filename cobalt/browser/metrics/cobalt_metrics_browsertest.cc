@@ -59,7 +59,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
       run_loop.QuitClosure());
   run_loop.Run();
 
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
   auto check_histogram = [](const std::string& name) {
     auto* histogram = base::StatisticsRecorder::FindHistogram(name);
@@ -102,6 +102,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.Skia");
+  check_histogram("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache");
   check_histogram("Memory.Experimental.Browser2.Small.FontCaches");
   check_histogram("Memory.Experimental.Browser2.Small.LevelDatabase");
   check_histogram("Memory.Experimental.Browser2.Small.UI");
@@ -130,7 +131,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
   static_cast<CobaltMetricsServiceClient*>(client)->ScheduleRecordForTesting(
       run_loop.QuitClosure());
   run_loop.Run();
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
   auto check_histogram = [](const std::string& name) {
     auto* histogram = base::StatisticsRecorder::FindHistogram(name);
