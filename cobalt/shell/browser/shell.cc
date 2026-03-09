@@ -147,7 +147,10 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_screen_web_contents_(std::move(splash_screen_web_contents)),
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
-      skip_for_testing_(skip_for_testing) {
+      skip_for_testing_(skip_for_testing),
+      is_video_splash_screen_(
+          !base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kForceImageSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -503,8 +506,7 @@ void Shell::LoadSplashScreenWebContents() {
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GURL(switches::kSplashScreenURL);
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kForceImageSplashScreen)) {
+    if (!is_video_splash_screen_) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "force_image", "true");
     }
@@ -1044,7 +1046,10 @@ void Shell::ScheduleSwitchToMainWebContents() {
           << "ms, remaining delay: " << remaining_delay.InMilliseconds()
           << "ms.";
   if (web_contents_) {
-    web_contents_->WasHidden();
+    if (is_video_splash_screen_) {
+      // Send hidden event to WebApp if it's video-based splash screen.
+      web_contents_->WasHidden();
+    }
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&Shell::SwitchToMainWebContents,
@@ -1069,7 +1074,10 @@ void Shell::SwitchToMainWebContents() {
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
-      web_contents_->WasShown();
+      if (is_video_splash_screen_) {
+        // Send shown event to WebApp if it's video-based splash screen.
+        web_contents_->WasShown();
+      }
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }
