@@ -30,22 +30,20 @@
 namespace starboard {
 namespace {
 
-// This value is somewhat arbitrary. In Breakpad, the maximum value was 2550
-// bytes (see doc comment in breakpad/src/common/long_string_dictionary.h), and
-// in Crashpad it is 20480 bytes (see crashpad::Annotation::kValueMaxSize).
+// This value is somewhat arbitrary. In Breakpad, the maximum usable value was
+// 2550 bytes (see doc comment in breakpad/src/common/long_string_dictionary.h),
+// and in Crashpad it is 20480 bytes (see crashpad::Annotation::kValueMaxSize).
 // Stick to the Breakpad maximum since that is what the tvOS port used up to
-// Cobalt 25. Breakpad did have an optimization in which it would allocate 255
-// bytes by default and split larger values in chunks up to 2550 bytes if
-// necessary), so we define two constants here to avoid wasting too much space
-// on values that fit in 255 bytes.
-constexpr size_t kSmallValueMaxSize =
-    255;  // Including the NUL byte at the end.
+// Cobalt 25.
 constexpr size_t kMaxCrashValueSize =
-    kSmallValueMaxSize * 10;  // Including the NUL byte at the end.
+    2550;  // Including the NUL byte at the end.
+
+// This value comes from Breakpad, where a SimpleStringDictionary could have a
+// maximum of 64 entries.
+constexpr size_t kMaxCrashKeys = 64;
 
 // A convenient wrapper around a crash key and its name.
 // Lifted from android_webview/browser.
-template <size_t MaxValueSize>
 class CrashKeyWithName {
  public:
   explicit CrashKeyWithName(std::string&& name)
@@ -67,7 +65,7 @@ class CrashKeyWithName {
 
  private:
   std::string name_;
-  crash_reporter::CrashKeyString<MaxValueSize> crash_key_;
+  crash_reporter::CrashKeyString<kMaxCrashValueSize> crash_key_;
 };
 
 base::Lock& GetSetStringLock() {
@@ -106,16 +104,17 @@ bool SetStringImpl(std::string_view key, std::string_view value) {
   {
     base::AutoLock lock(GetSetStringLock());
 
-    static base::NoDestructor<std::deque<CrashKeyWithName<kSmallValueMaxSize>>>
-        small_runtime_crash_keys;
-    static base::NoDestructor<std::deque<CrashKeyWithName<kMaxCrashValueSize>>>
-        large_runtime_crash_keys;
+    // `runtime_crash_keys` can have at most kMaxCrashKeys entries, so this
+    // structure occupies at most (kMaxCrashKeys * (kMaxCrashValueSize +
+    // crashpad::Annotation::kNameMaxLength)) bytes (plus some extra bytes that
+    // are not relevant), so under 200kB.
+    static base::NoDestructor<std::deque<CrashKeyWithName>> runtime_crash_keys;
 
-    if (value.size() < kSmallValueMaxSize) {
-      small_runtime_crash_keys->emplace_back(std::string(key)).Set(value);
-    } else {
-      large_runtime_crash_keys->emplace_back(std::string(key)).Set(value);
+    if (runtime_crash_keys->size() == kMaxCrashKeys) {
+      SB_LOG(ERROR) << "Crash key limit reached. Ignoring key " << key;
+      return false;
     }
+    runtime_crash_keys->emplace_back(std::string(key)).Set(value);
   }
 
   return true;
