@@ -29,8 +29,13 @@
 namespace starboard {
 namespace {
 
+// This value is somewhat arbitrary. In Breakpad, the maximum value was 2550
+// bytes (see doc comment in breakpad/src/common/long_string_dictionary.h), and
+// in Crashpad it is 20480 bytes (see crashpad::Annotation::kValueMaxSize).
+// Stick to the Breakpad maximum since that is what the tvOS port used up to
+// Cobalt 25.
 constexpr size_t kMaxCrashValueSize =
-    1024;  // Including the NUL byte at the end.
+    2550;  // Including the NUL byte at the end.
 
 // A convenient wrapper around a crash key and its name.
 // Lifted from android_webview/browser.
