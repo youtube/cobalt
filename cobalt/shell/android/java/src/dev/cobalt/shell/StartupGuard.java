@@ -32,32 +32,44 @@ public class StartupGuard {
         // We attach the handler to the Main Looper to ensure the crash occurs on the UI thread
         handler = new Handler(Looper.getMainLooper());
 
-        crashRunnable = new Runnable() {
-            @Override
-            public void run() {
-                int status = startupStatus.get();
-                // Find the highest bit set (0-31).
-                // If status is 0, we'll default to Exception 1.
-                int highestBit = (status == 0) ? 0 : 31 - Integer.numberOfLeadingZeros(status);
+    crashRunnable =
+        new Runnable() {
+          @Override
+          public void run() {
+            int status = startupStatus.get();
+            // Find the highest bit set (0-31).
+            // If status is 0, we'll default to Exception 1.
+            int highestBit = (status == 0) ? 0 : 31 - Integer.numberOfLeadingZeros(status);
 
-                // Class names are 1-indexed (e.g., bit 0 -> StartupGuardException1)
-                int exceptionIndex = highestBit + 1;
-                String className = "dev.cobalt.shell.startupguardexceptions.StartupGuardException" + exceptionIndex;
-                String message = "Application startup failed at milestone " + highestBit
-                                + ". Status: 0x" + Integer.toHexString(status);
+            // Class names are 1-indexed (e.g., bit 0 -> StartupGuardException1)
+            int exceptionIndex = highestBit + 1;
+            String className =
+                "dev.cobalt.shell.startupguardexceptions.StartupGuardException" + exceptionIndex;
+            String message =
+                "Application startup failed at milestone "
+                    + highestBit
+                    + ". Status: 0x"
+                    + Integer.toHexString(status);
 
-                try {
-                    Class<?> clazz = Class.forName(className);
-                    Constructor<?> constructor = clazz.getConstructor(String.class);
-                    RuntimeException customException = (RuntimeException) constructor.newInstance(message);
-                    throw customException;
-                } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
-                        InstantiationException | java.lang.reflect.InvocationTargetException e) {
-                    // Only log if the REFLECTION fails, not if the exception is thrown.
-                    Log.e(TAG, "StartupGuard reflection error, falling back to RuntimeException: " + e.getMessage());
-                    throw new RuntimeException(message);
-                }
+            try {
+              Class<?> clazz = Class.forName(className);
+              Constructor<?> constructor = clazz.getConstructor(String.class);
+              RuntimeException customException =
+                  (RuntimeException) constructor.newInstance(message);
+              throw customException;
+            } catch (ClassNotFoundException
+                | NoSuchMethodException
+                | IllegalAccessException
+                | InstantiationException
+                | java.lang.reflect.InvocationTargetException e) {
+              // Only log if the REFLECTION fails, not if the exception is thrown.
+              Log.e(
+                  TAG,
+                  "StartupGuard reflection error, falling back to RuntimeException: "
+                      + e.getMessage());
+              throw new RuntimeException(message);
             }
+          }
         };
     }
 
@@ -78,7 +90,7 @@ public class StartupGuard {
             Log.e(TAG, "Invalid milestone: " + milestone);
             return;
         }
-        Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
+    Log.i(TAG, "ColinL: StartupGuard setStartupMilestone: " + milestone);
         int mask = 1 << milestone;
         startupStatus.updateAndGet(current -> current | mask);
     }
@@ -92,7 +104,10 @@ public class StartupGuard {
             handler.postDelayed(crashRunnable, delaySeconds * 1000);
             Log.i(TAG, "StartupGuard scheduled crash in " + delaySeconds + " seconds.");
         } else {
-            Log.w(TAG, "StartupGuard fail to schedule crash, because there is already a pending crash scheduled.");
+      Log.w(
+          TAG,
+          "StartupGuard fail to schedule crash, because there is already a pending crash"
+              + " scheduled.");
         }
     }
 
@@ -102,7 +117,9 @@ public class StartupGuard {
     public void disarm() {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
-            Log.i(TAG, "StartupGuard cancelled crash. Status: 0x" + Integer.toHexString(startupStatus.get()));
+      Log.i(
+          TAG,
+          "StartupGuard cancelled crash. Status: 0x" + Integer.toHexString(startupStatus.get()));
         }
     }
 }
