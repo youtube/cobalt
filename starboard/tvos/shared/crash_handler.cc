@@ -41,7 +41,7 @@ constexpr size_t kMaxCrashValueSize =
 // Lifted from android_webview/browser.
 class CrashKeyWithName {
  public:
-  explicit CrashKeyWithName(std::string name)
+  explicit CrashKeyWithName(std::string&& name)
       : name_(std::move(name)), crash_key_(name_.c_str()) {}
   CrashKeyWithName(const CrashKeyWithName&) = delete;
   CrashKeyWithName& operator=(const CrashKeyWithName&) = delete;
@@ -68,10 +68,7 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   return false;  // Deprecated
 }
 
-bool SetString(const char* key, const char* value) {
-  SB_CHECK(key);
-  SB_CHECK(value);
-
+bool SetStringImpl(std::string_view key, std::string_view value) {
   // These keys are not supposed to be overridable.
   static constexpr std::array<std::string_view, 2> kDisallowedKeys = {
       "prod",
@@ -84,7 +81,7 @@ bool SetString(const char* key, const char* value) {
     return false;
   }
 
-  if (std::string_view(value).size() >= kMaxCrashValueSize) {
+  if (value.size() >= kMaxCrashValueSize) {
     SB_LOG(ERROR) << "Crash value is too large. Ignoring.";
     return false;
   }
@@ -101,11 +98,17 @@ bool SetString(const char* key, const char* value) {
     if (it != runtime_crash_keys->end()) {
       it->Set(value);
     } else {
-      runtime_crash_keys->emplace_back(key).Set(value);
+      runtime_crash_keys->emplace_back(std::string(key)).Set(value);
     }
   }
 
   return true;
+}
+
+bool SetString(const char* key, const char* value) {
+  SB_CHECK(key);
+  SB_CHECK(value);
+  return SetStringImpl(key, value);
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
