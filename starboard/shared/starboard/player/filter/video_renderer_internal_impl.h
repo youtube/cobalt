@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <ostream>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -45,6 +46,9 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
     int32_t min_input_buffers;
     int32_t min_decoded_frames;
   };
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const PrerollParameters& params);
+
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
   VideoRendererImpl(std::unique_ptr<VideoDecoder> decoder,

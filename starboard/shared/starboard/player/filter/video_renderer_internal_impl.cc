@@ -37,6 +37,12 @@ const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const VideoRendererImpl::PrerollParameters& params) {
+  return os << "{min_input_buffers=" << params.min_input_buffers
+            << ", min_decoded_frames=" << params.min_decoded_frames << "}";
+}
+
 VideoRendererImpl::VideoRendererImpl(
     std::unique_ptr<VideoDecoder> decoder,
     MediaTimeProvider* media_time_provider,
@@ -64,6 +70,10 @@ VideoRendererImpl::VideoRendererImpl(
            kCheckBufferingStateInterval);
   time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  SB_LOG(INFO) << "VideoRendererImpl is created: "
+               << (preroll_params_
+                       ? "preroll_params=" + ToString(*preroll_params_)
+                       : "using default preroll logic");
 }
 
 VideoRendererImpl::~VideoRendererImpl() {
