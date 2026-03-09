@@ -48,6 +48,10 @@ class CrashKeyWithName {
   CrashKeyWithName& operator=(const CrashKeyWithName&) = delete;
   CrashKeyWithName(CrashKeyWithName&&) = delete;
   CrashKeyWithName& operator=(CrashKeyWithName&&) = delete;
+
+  // This class is supposed to be used with base::NoDestructor in
+  // SetStringImpl(). It is never supposed to be destroyed since it contains
+  // annotations that must be valid for the entire lifetime of the process.
   ~CrashKeyWithName() = delete;
 
   std::string_view name() const { return name_; }
