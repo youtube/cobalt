@@ -19,10 +19,10 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
-#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/ShellManager_jni.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/public/browser/web_contents.h"
@@ -80,8 +80,12 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
       },
       std::move(url), std::move(topic));
 
-  cobalt::CobaltBrowserMainParts::PostOrRunIfMigrationFinished(
-      std::move(create_window_task));
+  auto* parts = ShellContentBrowserClient::Get()->shell_browser_main_parts();
+  if (parts) {
+    parts->PostOrRunIfMigrationFinished(std::move(create_window_task));
+  } else {
+    std::move(create_window_task).Run();
+  }
 }
 
 void DestroyShellManager() {

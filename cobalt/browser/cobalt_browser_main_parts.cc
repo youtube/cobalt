@@ -97,12 +97,12 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   base::android::MemoryPressureListenerAndroid::Initialize(
       base::android::AttachCurrentThread());
 #endif
-  return ShellBrowserMainParts::PreCreateThreads();
+  return content::ShellBrowserMainParts::PreCreateThreads();
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  int result = ShellBrowserMainParts::PreMainMessageLoopRun();
+  int result = content::ShellBrowserMainParts::PreMainMessageLoopRun();
 
   LOG(INFO) << "ColinL: CobaltBrowserMainParts::PreMainMessageLoopRun started.";
 
@@ -140,14 +140,11 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   pending_tasks_.clear();
 }
 
-// static
 void CobaltBrowserMainParts::PostOrRunIfMigrationFinished(
     base::OnceClosure task) {
-  auto* parts = static_cast<CobaltBrowserMainParts*>(
-      content::ShellContentBrowserClient::Get()->shell_browser_main_parts());
-  if (parts && !parts->migration_finished_) {
+  if (!migration_finished_) {
     LOG(INFO) << "ColinL: Deferring launchShell until migration finishes.";
-    parts->pending_tasks_.push_back(std::move(task));
+    pending_tasks_.push_back(std::move(task));
   } else {
     LOG(INFO) << "ColinL: Migration already finished, running launchShell "
                  "immediately.";
@@ -167,12 +164,12 @@ void CobaltBrowserMainParts::PostMainMessageLoopRun() {
       partition->Flush();
     }
   }
-  ShellBrowserMainParts::PostMainMessageLoopRun();
+  content::ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
   GlobalFeatures::GetInstance()->Shutdown();
-  ShellBrowserMainParts::PostDestroyThreads();
+  content::ShellBrowserMainParts::PostDestroyThreads();
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {
@@ -199,7 +196,7 @@ void CobaltBrowserMainParts::PostCreateThreads() {
   // register these interfaces and it seems to work. But we may want to
   // consider if there's a more suitable stage.
   RegisterCobaltJavaMojoInterfaces();
-  ShellBrowserMainParts::PostCreateThreads();
+  content::ShellBrowserMainParts::PostCreateThreads();
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
@@ -221,7 +218,7 @@ void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
   config->should_use_preference = false;
   base::PathService::Get(content::SHELL_DIR_USER_DATA, &config->user_data_path);
   OSCrypt::SetConfig(std::move(config));
-  ShellBrowserMainParts::PostCreateMainMessageLoop();
+  content::ShellBrowserMainParts::PostCreateMainMessageLoop();
 }
 #endif  // BUILDFLAG(IS_LINUX)
 

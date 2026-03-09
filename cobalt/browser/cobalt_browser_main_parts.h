@@ -54,8 +54,6 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
-  static void PostOrRunIfMigrationFinished(base::OnceClosure task);
-
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific
 // behaviors into an ATV implementation of BrowserMainParts. For example, see
 // Chrome's ChromeBrowserMainPartsAndroid.
@@ -75,6 +73,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void StartMetricsRecording();
 
   void OnMigrationComplete();
+
+  void PostOrRunIfMigrationFinished(base::OnceClosure task) override;
 
  protected:
   void InitializeMessageLoopContext() override;
