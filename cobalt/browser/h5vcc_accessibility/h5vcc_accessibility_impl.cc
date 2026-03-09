@@ -25,8 +25,9 @@
 #include "starboard/android/shared/text_to_speech_helper.h"
 #endif
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_IOS_TVOS)
 #include "starboard/extension/accessibility.h"
+#include "starboard/system.h"
 #endif
 
 namespace h5vcc_accessibility {
@@ -59,7 +60,7 @@ void H5vccAccessibilityImpl::Create(
 void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
     IsTextToSpeechEnabledSyncCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_IOS_TVOS)
   auto accessibility_api =
       static_cast<const StarboardExtensionAccessibilityApi*>(
           SbSystemGetExtension(kStarboardExtensionAccessibilityName));
@@ -85,10 +86,6 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
   bool enabled =
       CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
   std::move(callback).Run(enabled);
-#elif BUILDFLAG(IS_IOS_TVOS)
-  // TODO: b/447135715 - Implement text-to-speech availability check for tvOS.
-  NOTIMPLEMENTED();
-  std::move(callback).Run(false);
 #else
 #error "Unsupported platform."
 #endif

@@ -18,7 +18,7 @@ import sys
 TARGET_MAP = {}
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -97,11 +97,13 @@ def main():
       sys.exit(1)
 
   target_config = TARGET_MAP[target_name]
+  logging.debug("Target config: %s", target_config)
   is_android = target_config.get("is_android", False)
 
   # 3. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
   test_runner = os.path.join(src_dir, target_config["runner"])
+  logging.info("Resolved test runner to: %s", test_runner)
 
   # Resolve the specific build root for this target.
   target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])
@@ -131,22 +133,16 @@ def main():
   logging.info("Using vpython3 at: %s", vpython_path)
 
   # 6. Execute
-  if is_android:
-    logging.info("Executing Android test runner for '%s': %s", target_name,
-                 test_runner)
-    cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
-          ] + runner_args
-  else:
-    logging.info(
-        "Executing Linux test runner for '%s' using xvfb.py and "
-        "run_browser_tests.py", target_name)
-    xvfb_py = os.path.join(src_dir, "testing/xvfb.py")
-    run_browser_tests_py = os.path.join(
-        src_dir, "cobalt/testing/browser_tests/run_browser_tests.py")
-    # Wrap the whole command in xvfb.py to provide a DISPLAY
-    cmd = [
-        vpython_path, xvfb_py, sys.executable, run_browser_tests_py, test_runner
-    ] + runner_args
+  if not is_android:
+    logging.error(
+        "Target '%s' is not an Android platform. This runner only "
+        "supports Android for now.", target_name)
+    sys.exit(1)
+
+  logging.info("Executing Android test runner for '%s': %s", target_name,
+               test_runner)
+  cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
+        ] + runner_args
 
   try:
     return subprocess.call(cmd)

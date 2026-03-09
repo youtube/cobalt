@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -28,11 +29,13 @@
 #include "base/location.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
@@ -88,6 +91,55 @@ using ::starboard::StarboardBridge;
 namespace content {
 
 namespace {
+
+constexpr char kMusicTopic[] = "music";
+
+// Helper function to check if a URL is a valid deep link for a specific topic.
+// It requires both a "launch" parameter and a matching "topic" parameter.
+bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
+  if (!link_url.is_valid() || !link_url.has_query()) {
+    return false;
+  }
+
+  std::string query = link_url.query();
+  // Decode URL encoded characters in the entire query string first so that
+  // QueryIterator can correctly split on ampersands, even if they were encoded.
+  std::string unescaped_query = base::UnescapeURLComponent(
+      query, base::UnescapeRule::REPLACE_PLUS_WITH_SPACE |
+                 base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
+  GURL unescaped_url;
+  GURL::Replacements replacements;
+  replacements.SetQueryStr(unescaped_query);
+  unescaped_url = link_url.ReplaceComponents(replacements);
+
+  bool has_launch = false;
+  bool has_target_topic = false;
+
+  for (net::QueryIterator it(unescaped_url); !it.IsAtEnd(); it.Advance()) {
+    if (!has_launch && it.GetKey() == "launch") {
+      has_launch = true;
+    } else if (!has_target_topic && it.GetKey() == "topic" &&
+               it.GetUnescapedValue() == target_topic) {
+      has_target_topic = true;
+    }
+
+    if (has_launch && has_target_topic) {
+      return true;
+    }
+  }
+
+  // Check for nested deep link in "redirect" parameter.
+  for (net::QueryIterator it(link_url); !it.IsAtEnd(); it.Advance()) {
+    if (it.GetKey() == "redirect") {
+      if (IsDeepLinkTopic(GURL(it.GetUnescapedValue()), target_topic)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 // Null until/unless the default main message loop is running.
 base::OnceClosure& GetMainMessageLoopQuitClosure() {
   static base::NoDestructor<base::OnceClosure> closure;
@@ -346,7 +398,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents,
-                              const std::string& topic) {
+                              const std::string& deep_link) {
   WebContents::CreateParams create_params(browser_context, site_instance);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
@@ -364,6 +416,21 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
     splash_screen_create_params.main_frame_name = kCobaltSplashMainFrameName;
     splash_screen_web_contents =
         WebContents::Create(splash_screen_create_params);
+  }
+  // Handle deeplink from url on all devices.
+  std::string topic;
+  GURL link_url;
+  if (!deep_link.empty()) {
+    link_url = GURL(deep_link);
+  } else if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                 cobalt::switches::kInitialURL)) {
+    link_url = GURL(base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+        cobalt::switches::kInitialURL));
+  }
+  if (link_url.is_valid()) {
+    if (IsDeepLinkTopic(link_url, kMusicTopic)) {
+      topic = kMusicTopic;
+    }
   }
   Shell* shell = CreateShell(
       std::move(web_contents), std::move(splash_screen_web_contents),

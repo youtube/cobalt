@@ -348,10 +348,6 @@ test("nplb") {
 
   deps += cobalt_platform_dependencies
 
-  if (is_internal_build) {
-    deps += [ "//internal/starboard/private/nplb:nplb_private" ]
-  }
-
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
   }

@@ -180,10 +180,6 @@ source_set("starboard_headers_only") {
     "window.h",
   ]
 
-  if (is_internal_build) {
-    public_deps = [ "//internal/starboard/private:private_starboard_headers" ]
-  }
-
   all_dependent_configs = [
     "//starboard/build/config:starboard",
     "//starboard/build/config/sabi",

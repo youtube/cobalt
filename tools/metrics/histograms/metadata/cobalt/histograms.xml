@@ -31,37 +31,13 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
-<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
-    enum="BooleanHung" expires_after="never">
-  <owner>antonlunev@google.com</owner>
-  <summary>
-    Every 10 seconds, a boolean is recorded to this histogram to indicate
-    whether the RendererThread of a Browser process was hung. The thread is hung
-    if the current work unit started running more than 10 seconds ago. This is
-    emitted only in single process mode(when renderer is a thread inside
-    BrowserProcess).
-
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
-    expires_after="never">
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
-  </summary>
-</histogram>
-
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the age of the Finch configuration in days each time it is
-    checked at startup. This data is used to determine an appropriate
-    expiration threshold.
+    Records the age of the Finch configuration in days each time it is checked
+    at startup. This data is used to determine an appropriate expiration
+    threshold.
   </summary>
 </histogram>
 
@@ -69,8 +45,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the state of the Finch configuration at startup. This is used
-    to monitor the frequency of expired or invalid configurations.
+    Records the state of the Finch configuration at startup. This is used to
+    monitor the frequency of expired or invalid configurations.
   </summary>
 </histogram>
 
@@ -91,6 +67,50 @@ Always run the pretty print utility on this file after editing:
     Records whether the version strings in the Finch config are valid and can be
     parsed correctly. A false value indicates a malformed version string was
     received.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
+    expires_after="never">
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Network.PlatformErrorRaised" enum="Boolean"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    A boolean is recorded to this histogram to indicate whether a platform error
+    was raised due to a navigation timeout or other network error. This is
+    emitted at most once per WebContents lifetime to measure the prevalence of
+    user-facing errors.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    For every navigation in the primary main frame, this boolean is recorded to
+    indicate whether the navigation resulted in a network error. This is used to
+    track the navigation success rate. Aborted navigations are not included.
+  </summary>
+</histogram>
+
+<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
+    enum="BooleanHung" expires_after="never">
+  <owner>antonlunev@google.com</owner>
+  <summary>
+    Every 10 seconds, a boolean is recorded to this histogram to indicate
+    whether the RendererThread of a Browser process was hung. The thread is hung
+    if the current work unit started running more than 10 seconds ago. This is
+    emitted only in single process mode(when renderer is a thread inside
+    BrowserProcess).
   </summary>
 </histogram>
 
