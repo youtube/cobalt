@@ -75,6 +75,7 @@ bool SetString(const char* key, const char* value) {
 
   if (std::find(kDisallowedKeys.begin(), kDisallowedKeys.end(), key) !=
       kDisallowedKeys.end()) {
+    SB_LOG(ERROR) << "Ignoring disallowed key " << key;
     return false;
   }
 
