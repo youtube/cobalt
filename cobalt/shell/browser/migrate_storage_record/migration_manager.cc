@@ -245,6 +245,26 @@ base::FilePath GetOldCachePath() {
   return base::FilePath(path.data());
 }
 
+base::FilePath GetMigrationSentinelPath() {
+  base::FilePath current_cache_path;
+  if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
+    return base::FilePath();
+  }
+  return current_cache_path.Append("migration_completed.txt");
+}
+
+void WriteMigrationSentinelAsync() {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(FROM_HERE, base::BindOnce([]() {
+                   base::FilePath sentinel_path = GetMigrationSentinelPath();
+                   if (!sentinel_path.empty()) {
+                     base::WriteFile(sentinel_path, "1");
+                   }
+                 }));
+}
+
 void DeleteOldCacheDirectoryAsync() {
   base::ThreadPool::CreateSequencedTaskRunner(
       {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
@@ -290,6 +310,7 @@ void DeleteOldCacheDirectoryAsync() {
 Task DeleteOldCacheDirectoryTask() {
   return base::BindOnce([](base::OnceClosure callback) {
     DeleteOldCacheDirectoryAsync();
+    WriteMigrationSentinelAsync();
     std::move(callback).Run();
   });
 }
@@ -315,15 +336,21 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 
 void MigrationManager::RunMigration(content::StoragePartition* partition,
                                     base::OnceClosure done_callback) {
-  LOG(INFO)
-      << "ColinL: [Migration-V10-Verify] Starting Pre-MainLoop Migration.";
+  LOG(INFO) << "ColinL: Starting Pre-MainLoop Migration.";
 
   auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
-    LOG(INFO) << "ColinL: [Migration-V10-Verify] Storage migration disabled "
-                 "via switch.";
+    LOG(INFO) << "ColinL: Storage migration disabled via switch.";
+    std::move(done_callback).Run();
+    return;
+  }
+
+  // Fast check: if the sentinel file exists, migration is already done.
+  base::FilePath sentinel_path = GetMigrationSentinelPath();
+  if (!sentinel_path.empty() && base::PathExists(sentinel_path)) {
+    LOG(INFO) << "ColinL: Migration sentinel file found. Skipping migration.";
     std::move(done_callback).Run();
     return;
   }
@@ -479,8 +506,8 @@ Task MigrationManager::LocalStorageTask(
           if (print_val.length() > 40) {
             print_val = print_val.substr(0, 40) + "...";
           }
-          LOG(INFO) << "ColinL: [Migration-V10-Verify] Initiating Put for key: "
-                    << key_str << ", value: " << print_val;
+          LOG(INFO) << "ColinL: Initiating Put for key: " << key_str
+                    << ", value: " << print_val;
 
           (*raw_remote_ptr)
               ->Put(key, value, absl::nullopt, "migration",
@@ -488,13 +515,11 @@ Task MigrationManager::LocalStorageTask(
                         [](base::RepeatingClosure barrier, std::string key_str,
                            bool success) {
                           if (success) {
-                            LOG(INFO) << "ColinL: [Migration-V10-Verify] Put "
-                                         "SUCCESS for key: "
-                                      << key_str;
+                            LOG(INFO)
+                                << "ColinL: Put SUCCESS for key: " << key_str;
                           } else {
-                            LOG(ERROR) << "ColinL: [Migration-V10-Verify] Put "
-                                          "FAILED for key: "
-                                       << key_str;
+                            LOG(ERROR)
+                                << "ColinL: Put FAILED for key: " << key_str;
                           }
                           barrier.Run();
                         },
