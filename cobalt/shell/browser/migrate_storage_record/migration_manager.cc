@@ -205,14 +205,18 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
 
   base::UmaHistogramEnumeration(kReadResultHistogram, result);
 
-  for (const auto& local_storage_group : storage->local_storages()) {
-    LOG(INFO) << "ColinL: Found legacy LocalStorage group for origin: "
-              << local_storage_group.serialized_origin();
-  }
+  if (storage) {
+    for (const auto& local_storage_group : storage->local_storages()) {
+      LOG(INFO) << "ColinL: Found legacy LocalStorage group for origin: "
+                << local_storage_group.serialized_origin();
+    }
 
-  LOG(INFO) << "ColinL: Successfully parsed storage. Cookies: "
-            << storage->cookies_size()
-            << ", LocalStorage groups: " << storage->local_storages_size();
+    LOG(INFO) << "ColinL: Successfully parsed storage. Cookies: "
+              << storage->cookies_size()
+              << ", LocalStorage groups: " << storage->local_storages_size();
+  } else {
+    LOG(INFO) << "ColinL: Legacy storage was not found or failed to parse.";
+  }
   return storage;
 }
 
