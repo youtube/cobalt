@@ -91,7 +91,7 @@ if (current_toolchain == starboard_toolchain) {
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+  target(starboard_level_test_target_type, "elf_loader_sandbox") {
     output_dir = root_build_dir
 
     sources = [ "elf_loader_sandbox.cc" ]
