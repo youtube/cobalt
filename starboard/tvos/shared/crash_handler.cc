@@ -25,6 +25,7 @@
 #include "components/crash/core/common/crash_key.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/crash_handler.h"
+#include "third_party/crashpad/crashpad/client/annotation.h"
 
 namespace starboard {
 namespace {
@@ -81,6 +82,12 @@ bool SetStringImpl(std::string_view key, std::string_view value) {
     return false;
   }
 
+  // We use >= rather than just > in the comparisons below to account for the
+  // NUL byte at the end of the C strings that Crashpad will ultimately use.
+  if (key.size() >= crashpad::Annotation::kNameMaxLength) {
+    SB_LOG(ERROR) << "Crash key " << key << " is too long. Ignoring.";
+    return false;
+  }
   if (value.size() >= kMaxCrashValueSize) {
     SB_LOG(ERROR) << "Crash value is too large. Ignoring.";
     return false;
