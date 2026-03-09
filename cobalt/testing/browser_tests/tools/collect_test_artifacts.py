@@ -94,10 +94,12 @@ def copy_if_needed(src, dst, copied_sources):
   abs_src = os.path.abspath(src)
   if abs_src in copied_sources:
     return
-  # Check if any parent directory was already copied.
+
+  # Optimization: If a parent directory of this file/dir was already copied
+  # as a directory, we can skip it.
   parent = os.path.dirname(abs_src)
   while parent and parent != os.path.dirname(parent):
-    if parent in copied_sources:
+    if parent in copied_sources and os.path.isdir(parent):
       return
     parent = os.path.dirname(parent)
 
@@ -195,8 +197,21 @@ def main():
           if not line or line.startswith('#'):
             continue
           full_path = os.path.normpath(os.path.join(build_dir, line))
-          copy_if_needed(full_path, os.path.join(src_stage, full_path),
-                         copied_sources)
+
+          # Optimization: Prefer stripped libraries for browser tests.
+          # Unstripped libraries in lib.unstripped/ are often >2GB.
+          if is_android and 'lib.unstripped' in line and line.endswith('.so'):
+            stripped_name = os.path.basename(line)
+            stripped_path = os.path.join(build_dir, stripped_name)
+            if os.path.isfile(stripped_path):
+              logging.info('Using stripped library: %s instead of %s',
+                           stripped_name, line)
+              full_path = os.path.normpath(stripped_path)
+
+          # Avoid copying unstripped versions from the build dir into the stage
+          # if we already resolved to a stripped one.
+          dest_path = os.path.join(src_stage, full_path)
+          copy_if_needed(full_path, dest_path, copied_sources)
 
       # Ensure the deps file and test runner are included
       copy_if_needed(
@@ -221,7 +236,11 @@ def main():
         'third_party/android_build_tools', 'third_party/catapult/common',
         'third_party/catapult/dependency_manager', 'third_party/catapult/devil',
         'third_party/catapult/third_party', 'third_party/logdog',
-        'third_party/android_sdk/public/platform-tools'
+        'third_party/android_sdk/public/platform-tools',
+        'third_party/android_sdk/public/build-tools',
+        'third_party/android_platform/development/scripts', 'tools/python',
+        'third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer',
+        'third_party/llvm-build/Release+Asserts/bin/llvm-objdump'
     ]
     for d in essential_dirs:
       copy_if_needed(d, os.path.join(src_stage, d), copied_sources)

@@ -149,8 +149,7 @@ def main():
 
   logging.info("Executing Android test runner for '%s': %s", target_name,
                test_runner)
-  cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
-        ] + runner_args
+  cmd = [vpython_path, test_runner] + runner_args
 
   try:
     return subprocess.call(cmd)
