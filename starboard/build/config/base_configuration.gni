@@ -55,7 +55,7 @@ declare_args() {
   # (ex. Android).
   final_executable_type = default_target_type
 
-  starboard_level_gtest_target_type = "executable"
+  starboard_level_test_target_type = "executable"
   starboard_level_final_executable_type = "executable"
 
   # The source of EGL and GLES headers and libraries.
