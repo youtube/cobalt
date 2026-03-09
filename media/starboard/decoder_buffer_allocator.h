@@ -51,8 +51,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetAllocated() const = 0;
   };
 
-  using StrategyCreateCB = base::RepeatingCallback<
-      std::unique_ptr<Strategy>(int initial_capacity, int allocation_unit)>;
+  using StrategyCreateCB =
+      base::RepeatingCallback<std::unique_ptr<Strategy>(int initial_capacity,
+                                                        int allocation_unit)>;
 
   explicit DecoderBufferAllocator();
   DecoderBufferAllocator(bool is_memory_pool_allocated_on_demand,
@@ -85,7 +86,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
-  void SetAllocateOnDemand(bool enabled);
   static void EnableDecommitableAllocatorStrategy();
   static void EnableInPlaceReuseAllocatorBase();
   static void EnableMediaBufferPoolStrategy();
@@ -97,7 +97,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  bool is_memory_pool_allocated_on_demand_ GUARDED_BY(mutex_);
+  const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 
