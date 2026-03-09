@@ -86,6 +86,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     RaisePlatformError();
   } else if (net_error_code == net::OK) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
+    platform_error_raised_count_ = 0;
   }
 }
 
