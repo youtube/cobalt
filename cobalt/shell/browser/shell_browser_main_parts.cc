@@ -16,6 +16,9 @@
 
 #include <utility>
 
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/memory/ref_counted_memory.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/android/shell_descriptors.h"

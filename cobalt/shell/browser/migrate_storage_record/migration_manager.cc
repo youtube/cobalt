@@ -385,6 +385,35 @@ Task MigrationManager::CookieTask(
       partition, std::move(cookies));
 }
 
+namespace {
+std::vector<uint8_t> FormatStringForLocalStorage(const std::string& input) {
+  std::u16string utf16_str = base::UTF8ToUTF16(input);
+  bool is_latin1 = true;
+  for (char16_t c : utf16_str) {
+    if (c > 0xFF) {
+      is_latin1 = false;
+      break;
+    }
+  }
+
+  std::vector<uint8_t> result;
+  if (is_latin1) {
+    result.reserve(utf16_str.size() + 1);
+    result.push_back(1);  // StorageFormat::Latin1
+    for (char16_t c : utf16_str) {
+      result.push_back(static_cast<uint8_t>(c));
+    }
+  } else {
+    result.reserve(utf16_str.size() * sizeof(char16_t) + 1);
+    result.push_back(0);  // StorageFormat::UTF16
+    const uint8_t* chars = reinterpret_cast<const uint8_t*>(utf16_str.data());
+    result.insert(result.end(), chars,
+                  chars + utf16_str.size() * sizeof(char16_t));
+  }
+  return result;
+}
+}  // namespace
+
 // static
 Task MigrationManager::LocalStorageTask(
     content::StoragePartition* partition,
@@ -405,10 +434,15 @@ Task MigrationManager::LocalStorageTask(
 
         auto* raw_remote_ptr = area.get();
 
+        std::vector<std::string> keys_to_verify;
+        for (const auto& pair : pairs) {
+          keys_to_verify.push_back(pair->first);
+        }
+
         base::OnceClosure on_all_puts_done = base::BindOnce(
             [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
                content::StoragePartition* partition, url::Origin origin,
-               base::OnceClosure cb) {
+               std::vector<std::string> keys_to_verify, base::OnceClosure cb) {
               LOG(INFO) << "ColinL: [Migration-V10-Verify] LocalStorage Puts "
                            "complete. Flushing...";
 
@@ -416,6 +450,7 @@ Task MigrationManager::LocalStorageTask(
                   [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>>
                          area,
                      content::StoragePartition* partition, url::Origin origin,
+                     std::vector<std::string> keys_to_verify,
                      base::OnceClosure final_cb) {
                     LOG(INFO)
                         << "ColinL: [Migration-V10-Verify] Flush complete. "
@@ -427,70 +462,109 @@ Task MigrationManager::LocalStorageTask(
                     GetLocalStorageArea(partition, origin, *verify_remote);
 
                     auto* raw_verify = verify_remote->get();
-                    std::vector<uint8_t> key_vec;
-                    std::string target_key =
-                        "yt.leanback.default::last-identity-used";
-                    key_vec.assign(target_key.begin(), target_key.end());
 
-                    raw_verify->Get(
-                        key_vec,
-                        base::BindOnce(
-                            [](std::unique_ptr<mojo::Remote<
-                                   blink::mojom::StorageArea>> area_hold,
-                               std::unique_ptr<mojo::Remote<
-                                   blink::mojom::StorageArea>> verify_hold,
-                               content::StoragePartition* partition,
-                               base::OnceClosure done_cb, bool success,
-                               const std::vector<uint8_t>& value) {
-                              std::string val_str(value.begin(), value.end());
-                              if (val_str.empty()) {
-                                LOG(ERROR)
-                                    << "ColinL: [PROOF] Browser read-back "
-                                       "FAILED. Data missing in memory.";
-                              } else {
-                                LOG(INFO) << "ColinL: [PROOF] Browser "
-                                             "read-back SUCCESS. Value: "
-                                          << val_str.substr(0, 40) << "...";
-                              }
+                    base::RepeatingClosure verify_barrier =
+                        base::BarrierClosure(
+                            keys_to_verify.size(),
+                            base::BindOnce(
+                                [](std::unique_ptr<mojo::Remote<
+                                       blink::mojom::StorageArea>> area_hold,
+                                   std::unique_ptr<mojo::Remote<
+                                       blink::mojom::StorageArea>> verify_hold,
+                                   content::StoragePartition* partition,
+                                   base::OnceClosure done_cb) {
+                                  // NEW FIX: Force the Storage Service to drop
+                                  // its handle for this origin.
+                                  LOG(INFO)
+                                      << "ColinL: [FIX] Purging Storage "
+                                         "Service handles to force Renderer "
+                                         "synchronization.";
+                                  partition->GetLocalStorageControl()
+                                      ->PurgeMemory();
 
-                              // NEW FIX: Force the Storage Service to drop its
-                              // handle for this origin.
-                              LOG(INFO) << "ColinL: [FIX] Purging Storage "
-                                           "Service handles to force Renderer "
-                                           "synchronization.";
-                              partition->GetLocalStorageControl()
-                                  ->PurgeMemory();
+                                  std::move(done_cb).Run();
+                                },
+                                std::move(area), std::move(verify_remote),
+                                base::Unretained(partition),
+                                std::move(final_cb)));
 
-                              // TEST: Add a 10-second delay before continuing
-                              // to unblock the browser startup.
-                              LOG(INFO) << "ColinL: [TEST] Delaying migration "
-                                           "completion by 10 seconds to test "
-                                           "timing race...";
-                              base::SequencedTaskRunner::GetCurrentDefault()
-                                  ->PostDelayedTask(FROM_HERE,
-                                                    std::move(done_cb),
-                                                    base::Seconds(10));
-                            },
-                            std::move(area), std::move(verify_remote),
-                            base::Unretained(partition), std::move(final_cb)));
+                    for (const std::string& target_key : keys_to_verify) {
+                      std::vector<uint8_t> key_vec =
+                          FormatStringForLocalStorage(target_key);
+
+                      raw_verify->Get(
+                          key_vec,
+                          base::BindOnce(
+                              [](std::string key,
+                                 base::RepeatingClosure barrier, bool success,
+                                 const std::vector<uint8_t>& value) {
+                                std::string val_str;
+                                if (value.size() > 1) {
+                                  if (value[0] == 1) {
+                                    val_str.assign(value.begin() + 1,
+                                                   value.end());
+                                  } else if (value[0] == 0) {
+                                    val_str = "UTF16-Data-Skipped";
+                                  }
+                                }
+                                if (!success || val_str.empty()) {
+                                  LOG(ERROR)
+                                      << "ColinL: [PROOF] Browser read-back "
+                                         "FAILED for key: "
+                                      << key << ". Data missing in memory.";
+                                } else {
+                                  std::string print_val = val_str;
+                                  if (print_val.length() > 40) {
+                                    print_val = print_val.substr(0, 40) + "...";
+                                  }
+                                  LOG(INFO) << "ColinL: [PROOF] Browser "
+                                               "read-back SUCCESS for key: "
+                                            << key << ". Value: " << print_val;
+                                }
+                                barrier.Run();
+                              },
+                              target_key, verify_barrier));
+                    }
                   },
                   std::move(area), base::Unretained(partition), origin,
-                  std::move(cb)));
+                  std::move(keys_to_verify), std::move(cb)));
             },
             std::move(area), base::Unretained(partition), origin,
-            std::move(callback));
+            std::move(keys_to_verify), std::move(callback));
 
         base::RepeatingClosure barrier =
             base::BarrierClosure(pairs.size(), std::move(on_all_puts_done));
 
         for (const auto& pair : pairs) {
-          std::vector<uint8_t> key(pair->first.begin(), pair->first.end());
-          std::vector<uint8_t> value(pair->second.begin(), pair->second.end());
+          std::string key_str = pair->first;
+          std::vector<uint8_t> key = FormatStringForLocalStorage(pair->first);
+          std::vector<uint8_t> value =
+              FormatStringForLocalStorage(pair->second);
+
+          std::string print_val = pair->second;
+          if (print_val.length() > 40) {
+            print_val = print_val.substr(0, 40) + "...";
+          }
+          LOG(INFO) << "ColinL: [Migration-V10-Verify] Initiating Put for key: "
+                    << key_str << ", value: " << print_val;
+
           (*raw_remote_ptr)
               ->Put(key, value, absl::nullopt, "migration",
-                    base::BindOnce([](base::RepeatingClosure barrier,
-                                      bool success) { barrier.Run(); },
-                                   barrier));
+                    base::BindOnce(
+                        [](base::RepeatingClosure barrier, std::string key_str,
+                           bool success) {
+                          if (success) {
+                            LOG(INFO) << "ColinL: [Migration-V10-Verify] Put "
+                                         "SUCCESS for key: "
+                                      << key_str;
+                          } else {
+                            LOG(ERROR) << "ColinL: [Migration-V10-Verify] Put "
+                                          "FAILED for key: "
+                                       << key_str;
+                          }
+                          barrier.Run();
+                        },
+                        barrier, key_str));
         }
       },
       partition, origin, std::move(pairs));

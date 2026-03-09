@@ -196,6 +196,9 @@ CachedStorageArea::CachedStorageArea(
       storage_namespace_(storage_namespace),
       is_session_storage_for_prerendering_(is_session_storage_for_prerendering),
       areas_(MakeGarbageCollected<HeapHashMap<WeakMember<Source>, String>>()) {
+  LOG(INFO) << "ColinL: sm telemetry: [JS CachedStorageArea] Constructor for "
+               "StorageKey: "
+            << storage_key.ToDebugString().Utf8();
   BindStorageArea(std::move(storage_area), local_dom_window);
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, "DOMStorage",
