@@ -283,11 +283,11 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
       media_time_provider = media_time_provider_impl.get();
     }
     std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
-    if (creation_parameters.video_renderer_min_input_buffers() ||
+    if (creation_parameters.video_renderer_min_input_buffers() &&
         creation_parameters.video_renderer_min_decoded_frames()) {
       preroll_params = VideoRendererImpl::PrerollParameters{
-          creation_parameters.video_renderer_min_input_buffers().value_or(-1),
-          creation_parameters.video_renderer_min_decoded_frames().value_or(-1)};
+          *creation_parameters.video_renderer_min_input_buffers(),
+          *creation_parameters.video_renderer_min_decoded_frames()};
     }
     video_renderer = std::make_unique<VideoRendererImpl>(
         std::move(video_decoder), media_time_provider,
