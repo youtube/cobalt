@@ -16,8 +16,6 @@
 #include "starboard/system.h"
 // clang-format on
 
-#include "starboard/system.h"
-
 #include <unistd.h>
 
 #include "starboard/common/log.h"
