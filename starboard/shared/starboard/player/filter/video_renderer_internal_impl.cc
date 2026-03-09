@@ -48,12 +48,13 @@ VideoRendererImpl::VideoRendererImpl(
     MediaTimeProvider* media_time_provider,
     std::unique_ptr<VideoRenderAlgorithm> algorithm,
     scoped_refptr<VideoRendererSink> sink,
-    const std::optional<PrerollParameters>& preroll_params)
+    const CreationParameters& creation_params)
     : media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)),
-      preroll_params_(preroll_params) {
+      preroll_params_(creation_params.preroll),
+      disable_trim_on_seek_(creation_params.disable_trim_on_seek) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -73,7 +74,8 @@ VideoRendererImpl::VideoRendererImpl(
   SB_LOG(INFO) << "VideoRendererImpl is created: "
                << (preroll_params_
                        ? "preroll_params=" + ToString(*preroll_params_)
-                       : "using default preroll logic");
+                       : "using default preroll logic")
+               << ", disable_trim_on_seek_=" << ToString(disable_trim_on_seek_);
 }
 
 VideoRendererImpl::~VideoRendererImpl() {
@@ -278,7 +280,8 @@ void VideoRendererImpl::OnDecoderStatus(
         Schedule(prerolled_cb_);
       }
       end_of_stream_decoded_.store(true);
-    } else if (seeking_.load() && frame->timestamp() < seeking_to_time_) {
+    } else if (!disable_trim_on_seek_ && seeking_.load() &&
+               frame->timestamp() < seeking_to_time_) {
       frame_too_early = true;
     }
 

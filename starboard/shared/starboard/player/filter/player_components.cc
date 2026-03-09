@@ -39,6 +39,9 @@ namespace {
 const int kAudioSinkFramesAlignment = 256;
 const int kDefaultAudioSinkMinFramesPerAppend = 1024;
 
+// TODO: b/491123801 - Connect this to the experiment.
+constexpr bool kDisableTrimOnSeek = false;
+
 typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
 
@@ -210,8 +213,9 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
 
     audio_renderer = std::make_unique<AudioRendererPcm>(
         std::move(audio_decoder), std::move(audio_renderer_sink),
-        creation_parameters.audio_stream_info(), max_cached_frames,
-        min_frames_per_append);
+        creation_parameters.audio_stream_info(),
+        AudioRendererPcm::CreationParameters{
+            max_cached_frames, min_frames_per_append, kDisableTrimOnSeek});
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -237,7 +241,9 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     }
     video_renderer = std::make_unique<VideoRendererImpl>(
         std::move(video_decoder), media_time_provider,
-        std::move(video_render_algorithm), video_renderer_sink, preroll_params);
+        std::move(video_render_algorithm), video_renderer_sink,
+        VideoRendererImpl::CreationParameters{preroll_params,
+                                              kDisableTrimOnSeek});
   }
 
   SB_DCHECK(audio_renderer || video_renderer);

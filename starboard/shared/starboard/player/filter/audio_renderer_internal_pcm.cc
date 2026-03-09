@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -68,10 +69,10 @@ AudioRendererPcm::AudioRendererPcm(
     std::unique_ptr<AudioDecoder> decoder,
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
     const media::AudioStreamInfo& audio_stream_info,
-    int max_cached_frames,
-    int min_frames_per_append)
-    : max_cached_frames_(max_cached_frames),
-      min_frames_per_append_(min_frames_per_append),
+    const CreationParameters& creation_params)
+    : max_cached_frames_(creation_params.max_cached_frames),
+      min_frames_per_append_(creation_params.min_frames_per_append),
+      disable_trim_on_seek_(creation_params.disable_trim_on_seek),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_stream_info.number_of_channels),
@@ -620,8 +621,22 @@ void AudioRendererPcm::ProcessAudioData() {
     SB_DCHECK(decoded_audio);
     if (!audio_renderer_sink_->HasStarted()) {
       if (!decoded_audio->is_end_of_stream()) {
-        decoded_audio->AdjustForSeekTime(decoded_audio_sample_rate,
-                                         seeking_to_time_);
+        if (disable_trim_on_seek_) {
+          std::lock_guard lock(mutex_);
+          // When trimming is disabled, we update the seek target to match the
+          // actual timestamp of the first decoded buffer. This ensures that
+          // no data is discarded and that the renderer's internal timeline
+          // starts exactly where the data begins.
+          SB_LOG(INFO) << "Updating seeking_to_time: original target(msec)="
+                       << FormatWithDigitSeparators(seeking_to_time_ / 1'000)
+                       << ", actual(msec)="
+                       << FormatWithDigitSeparators(decoded_audio->timestamp() /
+                                                    1'000);
+          seeking_to_time_ = decoded_audio->timestamp();
+        } else {
+          decoded_audio->AdjustForSeekTime(decoded_audio_sample_rate,
+                                           seeking_to_time_);
+        }
       }
       OnFirstOutput(decoded_audio->sample_type(), decoded_audio->storage_type(),
                     decoded_audio_sample_rate);
@@ -647,7 +662,8 @@ void AudioRendererPcm::ProcessAudioData() {
       resampled_audio = resampler_->WriteEndOfStream();
     } else {
       // Discard any audio data before the seeking target.
-      if (seeking_ && decoded_audio->timestamp() < seeking_to_time_) {
+      if (!disable_trim_on_seek_ && seeking_ &&
+          decoded_audio->timestamp() < seeking_to_time_) {
         continue;
       }
 

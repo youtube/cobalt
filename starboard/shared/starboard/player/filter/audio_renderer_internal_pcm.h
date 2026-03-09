@@ -55,6 +55,11 @@ class AudioRendererPcm : public AudioRenderer,
                          private AudioRendererSink::RenderCallback,
                          private JobQueue::JobOwner {
  public:
+  struct CreationParameters {
+    int max_cached_frames;
+    int min_frames_per_append;
+    bool disable_trim_on_seek = false;
+  };
   // |max_cached_frames| is a soft limit for the max audio frames this class can
   // cache so it can:
   // 1. Avoid using too much memory.
@@ -65,8 +70,7 @@ class AudioRendererPcm : public AudioRenderer,
   AudioRendererPcm(std::unique_ptr<AudioDecoder> decoder,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
                    const media::AudioStreamInfo& audio_stream_info,
-                   int max_cached_frames,
-                   int min_frames_per_append);
+                   const CreationParameters& creation_params);
   ~AudioRendererPcm() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -102,6 +106,7 @@ class AudioRendererPcm : public AudioRenderer,
 
   const int max_cached_frames_;
   const int min_frames_per_append_;
+  const bool disable_trim_on_seek_;
   // |buffered_frames_to_start_| would be initialized in OnFirstOutput().
   // Before it's initialized, set it to a large number.
   int buffered_frames_to_start_ = 48 * 1024;

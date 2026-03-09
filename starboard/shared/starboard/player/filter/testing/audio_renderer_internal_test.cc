@@ -108,12 +108,13 @@ class AudioRendererTest : public ::testing::Test {
     EXPECT_CALL(*audio_decoder_, Initialize(_, _))
         .WillOnce(SaveArg<0>(&output_cb_));
 
-    const int kMaxCachedFrames = 256 * 1024;
-    const int kMaxFramesPerAppend = 16384;
-    audio_renderer_.reset(new AudioRendererPcm(
+    AudioRendererPcm::CreationParameters creation_params;
+    creation_params.max_cached_frames = 256 * 1024;
+    creation_params.min_frames_per_append = 16 * 1024;
+    audio_renderer_ = std::make_unique<AudioRendererPcm>(
         std::unique_ptr<AudioDecoder>(audio_decoder_),
         std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
-        GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
+        GetDefaultAudioStreamInfo(), creation_params);
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),
         std::bind(&AudioRendererTest::OnPrerolled, this),

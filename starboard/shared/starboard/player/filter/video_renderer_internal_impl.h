@@ -49,13 +49,18 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   friend std::ostream& operator<<(std::ostream& os,
                                   const PrerollParameters& params);
 
+  struct CreationParameters {
+    std::optional<PrerollParameters> preroll;
+    bool disable_trim_on_seek = false;
+  };
+
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
   VideoRendererImpl(std::unique_ptr<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
                     std::unique_ptr<VideoRenderAlgorithm> algorithm,
                     scoped_refptr<VideoRendererSink> sink,
-                    const std::optional<PrerollParameters>& preroll_params);
+                    const CreationParameters& creation_params);
   ~VideoRendererImpl() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -94,6 +99,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
   const std::optional<PrerollParameters> preroll_params_;
+  const bool disable_trim_on_seek_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;

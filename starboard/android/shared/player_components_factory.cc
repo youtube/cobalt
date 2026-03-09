@@ -309,7 +309,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         video_renderer = std::make_unique<VideoRendererImpl>(
             std::unique_ptr<VideoDecoderBase>(std::move(video_decoder)),
             media_time_provider, std::move(video_render_algorithm),
-            video_renderer_sink, GetPrerollParams(creation_parameters));
+            video_renderer_sink,
+            VideoRendererImpl::CreationParameters{
+                GetPrerollParams(creation_parameters),
+                experimental_features.disable_trim_on_seek});
       } else {
         return nullptr;
       }
