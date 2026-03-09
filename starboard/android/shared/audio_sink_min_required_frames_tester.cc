@@ -129,7 +129,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     }
 
     audio_sink_ = new AudioTrackAudioSink(
-        NULL, task.number_of_channels, task.sample_rate, task.sample_type,
+        task.number_of_channels, task.sample_rate, task.sample_type,
         frame_buffers, max_required_frames_,
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
