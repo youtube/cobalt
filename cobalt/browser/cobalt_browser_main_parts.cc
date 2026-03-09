@@ -92,7 +92,7 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // On Linux, we might need the base behavior, but testing here without it
   // first.
 #if !BUILDFLAG(IS_ANDROID)
-  content::ShellBrowserMainParts::InitializeMessageLoopContext();
+  ShellBrowserMainParts::InitializeMessageLoopContext();
 #endif
 }
 
@@ -109,12 +109,12 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   base::android::MemoryPressureListenerAndroid::Initialize(
       base::android::AttachCurrentThread());
 #endif
-  return content::ShellBrowserMainParts::PreCreateThreads();
+  return ShellBrowserMainParts::PreCreateThreads();
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  int result = content::ShellBrowserMainParts::PreMainMessageLoopRun();
+  int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
   LOG(INFO) << "ColinL: CobaltBrowserMainParts::PreMainMessageLoopRun started.";
 
@@ -167,12 +167,12 @@ void CobaltBrowserMainParts::PostMainMessageLoopRun() {
       partition->Flush();
     }
   }
-  content::ShellBrowserMainParts::PostMainMessageLoopRun();
+  ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
   GlobalFeatures::GetInstance()->Shutdown();
-  content::ShellBrowserMainParts::PostDestroyThreads();
+  ShellBrowserMainParts::PostDestroyThreads();
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {
@@ -199,7 +199,7 @@ void CobaltBrowserMainParts::PostCreateThreads() {
   // register these interfaces and it seems to work. But we may want to
   // consider if there's a more suitable stage.
   RegisterCobaltJavaMojoInterfaces();
-  content::ShellBrowserMainParts::PostCreateThreads();
+  ShellBrowserMainParts::PostCreateThreads();
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
@@ -221,7 +221,7 @@ void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
   config->should_use_preference = false;
   base::PathService::Get(content::SHELL_DIR_USER_DATA, &config->user_data_path);
   OSCrypt::SetConfig(std::move(config));
-  content::ShellBrowserMainParts::PostCreateMainMessageLoop();
+  ShellBrowserMainParts::PostCreateMainMessageLoop();
 }
 #endif  // BUILDFLAG(IS_LINUX)
 

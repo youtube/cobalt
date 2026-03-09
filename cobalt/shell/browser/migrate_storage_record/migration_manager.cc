@@ -428,116 +428,46 @@ Task MigrationManager::LocalStorageTask(
          std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
              pairs,
          base::OnceClosure callback) {
-        auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
-        GetLocalStorageArea(partition, origin, *area);
-
         if (pairs.empty()) {
           std::move(callback).Run();
           return;
         }
 
+        auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
+        GetLocalStorageArea(partition, origin, *area);
         auto* raw_remote_ptr = area.get();
 
-        std::vector<std::string> keys_to_verify;
-        for (const auto& pair : pairs) {
-          keys_to_verify.push_back(pair->first);
-        }
-
-        base::OnceClosure on_all_puts_done = base::BindOnce(
+        // 3. Purge memory handles step
+        base::OnceClosure purge_memory_step = base::BindOnce(
             [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
-               content::StoragePartition* partition, url::Origin origin,
-               std::vector<std::string> keys_to_verify, base::OnceClosure cb) {
-              LOG(INFO) << "ColinL: [Migration-V10-Verify] LocalStorage Puts "
-                           "complete. Flushing...";
-
-              partition->GetLocalStorageControl()->Flush(base::BindOnce(
-                  [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>>
-                         area,
-                     content::StoragePartition* partition, url::Origin origin,
-                     std::vector<std::string> keys_to_verify,
-                     base::OnceClosure final_cb) {
-                    LOG(INFO)
-                        << "ColinL: [Migration-V10-Verify] Flush complete. "
-                           "Performing Browser-side read-back check...";
-
-                    // Independent verification read.
-                    auto verify_remote = std::make_unique<
-                        mojo::Remote<blink::mojom::StorageArea>>();
-                    GetLocalStorageArea(partition, origin, *verify_remote);
-
-                    auto* raw_verify = verify_remote->get();
-
-                    base::RepeatingClosure verify_barrier =
-                        base::BarrierClosure(
-                            keys_to_verify.size(),
-                            base::BindOnce(
-                                [](std::unique_ptr<mojo::Remote<
-                                       blink::mojom::StorageArea>> area_hold,
-                                   std::unique_ptr<mojo::Remote<
-                                       blink::mojom::StorageArea>> verify_hold,
-                                   content::StoragePartition* partition,
-                                   base::OnceClosure done_cb) {
-                                  // NEW FIX: Force the Storage Service to drop
-                                  // its handle for this origin.
-                                  LOG(INFO)
-                                      << "ColinL: [FIX] Purging Storage "
-                                         "Service handles to force Renderer "
-                                         "synchronization.";
-                                  partition->GetLocalStorageControl()
-                                      ->PurgeMemory();
-
-                                  std::move(done_cb).Run();
-                                },
-                                std::move(area), std::move(verify_remote),
-                                base::Unretained(partition),
-                                std::move(final_cb)));
-
-                    for (const std::string& target_key : keys_to_verify) {
-                      std::vector<uint8_t> key_vec =
-                          FormatStringForLocalStorage(target_key);
-
-                      raw_verify->Get(
-                          key_vec,
-                          base::BindOnce(
-                              [](std::string key,
-                                 base::RepeatingClosure barrier, bool success,
-                                 const std::vector<uint8_t>& value) {
-                                std::string val_str;
-                                if (value.size() > 1) {
-                                  if (value[0] == 1) {
-                                    val_str.assign(value.begin() + 1,
-                                                   value.end());
-                                  } else if (value[0] == 0) {
-                                    val_str = "UTF16-Data-Skipped";
-                                  }
-                                }
-                                if (!success || val_str.empty()) {
-                                  LOG(ERROR)
-                                      << "ColinL: [PROOF] Browser read-back "
-                                         "FAILED for key: "
-                                      << key << ". Data missing in memory.";
-                                } else {
-                                  std::string print_val = val_str;
-                                  if (print_val.length() > 40) {
-                                    print_val = print_val.substr(0, 40) + "...";
-                                  }
-                                  LOG(INFO) << "ColinL: [PROOF] Browser "
-                                               "read-back SUCCESS for key: "
-                                            << key << ". Value: " << print_val;
-                                }
-                                barrier.Run();
-                              },
-                              target_key, verify_barrier));
-                    }
-                  },
-                  std::move(area), base::Unretained(partition), origin,
-                  std::move(keys_to_verify), std::move(cb)));
+               content::StoragePartition* partition, base::OnceClosure cb) {
+              // Force the Storage Service to drop its handle for this origin,
+              // so that the Renderer process will fetch fresh data.
+              LOG(INFO) << "ColinL: Purging Storage Service handles to force "
+                           "Renderer synchronization.";
+              partition->GetLocalStorageControl()->PurgeMemory();
+              std::move(cb).Run();
             },
-            std::move(area), base::Unretained(partition), origin,
-            std::move(keys_to_verify), std::move(callback));
+            std::move(area), base::Unretained(partition), std::move(callback));
 
+        // 2. Flush step
+        base::OnceClosure flush_step = base::BindOnce(
+            [](content::StoragePartition* partition,
+               base::OnceClosure next_step) {
+              LOG(INFO) << "ColinL: LocalStorage Puts complete. Flushing...";
+              partition->GetLocalStorageControl()->Flush(base::BindOnce(
+                  [](base::OnceClosure cb) {
+                    LOG(INFO) << "ColinL: LocalStorage Flush complete callback "
+                                 "executed successfully.";
+                    std::move(cb).Run();
+                  },
+                  std::move(next_step)));
+            },
+            base::Unretained(partition), std::move(purge_memory_step));
+
+        // 1. Put keys step
         base::RepeatingClosure barrier =
-            base::BarrierClosure(pairs.size(), std::move(on_all_puts_done));
+            base::BarrierClosure(pairs.size(), std::move(flush_step));
 
         for (const auto& pair : pairs) {
           std::string key_str = pair->first;
