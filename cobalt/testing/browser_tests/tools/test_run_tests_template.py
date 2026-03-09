@@ -57,10 +57,8 @@ class TestRunTestsTemplate(unittest.TestCase):
 
     # Verify command construction
     # abspath('/tmp/stage') -> dirname is '/tmp' -> src_dir is '/tmp/src'
-    expected_cmd = [
-        '/usr/bin/vpython3', '/tmp/src/bin/run_test', '--runtime-deps-path',
-        '/tmp/src/gen/deps.runtime_deps'
-    ]
+    # Redundant --runtime-deps-path was removed.
+    expected_cmd = ['/usr/bin/vpython3', '/tmp/src/bin/run_test']
     mock_call.assert_called_once_with(expected_cmd)
 
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
