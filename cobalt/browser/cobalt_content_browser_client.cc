@@ -26,6 +26,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -123,7 +124,13 @@ static void JNI_CobaltActivity_FlushCookiesAndLocalStorage(JNIEnv*) {
   if (!client) {
     return;
   }
-  client->FlushCookiesAndLocalStorage(base::DoNothing());
+  auto timer = std::make_unique<base::ElapsedTimer>();
+  client->FlushCookiesAndLocalStorage(base::BindOnce(
+      [](std::unique_ptr<base::ElapsedTimer> timer) {
+        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
+                            timer->Elapsed());
+      },
+      std::move(timer)));
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
