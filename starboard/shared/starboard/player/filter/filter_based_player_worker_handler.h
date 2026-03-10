@@ -70,6 +70,14 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       int video_decoder_initial_preroll_count) override;
   void SetVideoDecoderPollIntervalMs(
       int video_decoder_poll_interval_ms) override;
+<<<<<<< HEAD
+=======
+  void SetVideoRendererMinInputBuffers(
+      int video_renderer_min_input_buffers) override;
+  void SetVideoRendererMinDecodedFrames(
+      int video_renderer_min_decoded_frames) override;
+  void SetMediaCodecResetDelayMs(int media_codec_reset_delay_ms) override;
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
   void Stop() override;
 
   void Update();
@@ -128,6 +136,12 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   std::optional<int> video_max_pending_input_frames_;
   std::optional<int> video_decoder_initial_preroll_count_;
   std::optional<int> video_decoder_poll_interval_ms_;
+<<<<<<< HEAD
+=======
+  std::optional<int> video_renderer_min_input_buffers_;
+  std::optional<int> video_renderer_min_decoded_frames_;
+  std::optional<int> media_codec_reset_delay_ms_;
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const VideoStreamInfo video_stream_info_;

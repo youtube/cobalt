@@ -126,11 +126,20 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
+<<<<<<< HEAD
       max_video_input_size_, surface_view_, flush_decoder_during_reset_,
       reset_audio_decoder_, video_initial_max_frames_in_decoder_,
       video_max_pending_input_frames_, video_decoder_initial_preroll_count_,
       video_decoder_poll_interval_ms_, decode_target_graphics_context_provider_,
       job_queue, drm_system_);
+=======
+      max_video_input_size_, flush_decoder_during_reset_, reset_audio_decoder_,
+      video_initial_max_frames_in_decoder_, video_max_pending_input_frames_,
+      video_decoder_initial_preroll_count_, video_decoder_poll_interval_ms_,
+      video_renderer_min_input_buffers_, video_renderer_min_decoded_frames_,
+      media_codec_reset_delay_ms_, surface_view_,
+      decode_target_graphics_context_provider_, drm_system_);
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -602,4 +611,26 @@ void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
   video_decoder_poll_interval_ms_ = video_decoder_poll_interval_ms;
 }
 
+<<<<<<< HEAD
 }  // namespace starboard
+=======
+void FilterBasedPlayerWorkerHandler::SetVideoRendererMinInputBuffers(
+    int video_renderer_min_input_buffers) {
+  video_renderer_min_input_buffers_ = video_renderer_min_input_buffers;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoRendererMinDecodedFrames(
+    int video_renderer_min_decoded_frames) {
+  video_renderer_min_decoded_frames_ = video_renderer_min_decoded_frames;
+}
+
+void FilterBasedPlayerWorkerHandler::SetMediaCodecResetDelayMs(
+    int media_codec_reset_delay_ms) {
+  SB_LOG(INFO) << "Set media_codec_reset_delay_ms from "
+               << ToString(media_codec_reset_delay_ms_) << " to "
+               << media_codec_reset_delay_ms;
+  media_codec_reset_delay_ms_ = media_codec_reset_delay_ms;
+}
+
+}  // namespace starboard::shared::starboard::player::filter
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))

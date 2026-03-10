@@ -55,6 +55,36 @@ std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
 void SetVideoDecoderPollIntervalMsForCurrentThread(
     int video_decoder_poll_interval_ms);
 
+<<<<<<< HEAD
 }  // namespace starboard
+=======
+// Get media_codec_reset_delay_ms via
+// SetMediaCodecResetDelayMsForCurrentThread().
+std::optional<int> GetMediaCodecResetDelayMsForCurrentThread();
+
+// Specifies the MediaCodec delay in milliseconds.
+// |media_codec_reset_delay_ms| should be positive value.
+void SetMediaCodecResetDelayMsForCurrentThread(int media_codec_reset_delay_ms);
+
+// Get video_renderer_min_input_buffers via
+// SetVideoRendererMinInputBuffersForCurrentThread().
+std::optional<int> GetVideoRendererMinInputBuffersForCurrentThread();
+
+// Specifies the video renderer minimum input buffers.
+// |video_renderer_min_input_buffers| should be non-negative value.
+void SetVideoRendererMinInputBuffersForCurrentThread(
+    int video_renderer_min_input_buffers);
+
+// Get video_renderer_min_decoded_frames via
+// SetVideoRendererMinDecodedFramesForCurrentThread().
+std::optional<int> GetVideoRendererMinDecodedFramesForCurrentThread();
+
+// Specifies the video renderer minimum decoded frames.
+// |video_renderer_min_decoded_frames| should be non-negative value.
+void SetVideoRendererMinDecodedFramesForCurrentThread(
+    int video_renderer_min_decoded_frames);
+
+}  // namespace starboard::android::shared
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_INTERNAL_H_

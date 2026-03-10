@@ -89,7 +89,14 @@ void VideoDecoderTestFixture::Initialize() {
       /*video_max_pending_input_frames=*/std::nullopt,
       /*video_decoder_initial_preroll_count=*/std::nullopt,
       /*video_decoder_poll_interval_ms=*/std::nullopt,
+<<<<<<< HEAD
       fake_graphics_context_provider_->decoder_target_provider(), job_queue_);
+=======
+      /*video_renderer_min_input_buffers=*/std::nullopt,
+      /*video_renderer_min_decoded_frames=*/std::nullopt,
+      /*media_codec_reset_delay_ms=*/std::nullopt,
+      fake_graphics_context_provider_->decoder_target_provider(), nullptr);
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
   ASSERT_EQ(creation_parameters.flush_decoder_during_reset(),
             flush_decoder_during_reset);

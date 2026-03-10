@@ -58,6 +58,8 @@ using base::android::AttachCurrentThread;
 using features::FeatureList;
 
 namespace {
+using ::starboard::shared::starboard::player::filter::PlayerComponents;
+using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -65,6 +67,44 @@ namespace {
 // TODO: Allow this to be configured per playback at run time from the web app.
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
+<<<<<<< HEAD
+=======
+// Forces video surface to reset after tunnel mode playbacks. This prevents
+// video distortion on some platforms.
+constexpr bool kForceResetSurfaceUnderTunnelMode = true;
+
+// By default, Cobalt restarts MediaCodec after stops/flushes during
+// Reset()/Flush(). Set the following variable to > 0 to force it to
+// wait during Reset()/Flush().
+constexpr int64_t kResetDelayUsecOverride = 0;
+constexpr int64_t kFlushDelayUsecOverride = 0;
+
+std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
+    const PlayerComponents::Factory::CreationParameters& creation_parameters) {
+  const auto& min_input_buffers =
+      creation_parameters.video_renderer_min_input_buffers();
+  const auto& min_decoded_frames =
+      creation_parameters.video_renderer_min_decoded_frames();
+
+  if (!min_input_buffers && !min_decoded_frames) {
+    return std::nullopt;
+  }
+  if (!min_input_buffers) {
+    SB_LOG(WARNING) << "Ignoring video_renderer_min_decoded_frames since "
+                       "video_renderer_min_input_buffers is missing.";
+    return std::nullopt;
+  }
+  if (!min_decoded_frames) {
+    SB_LOG(WARNING) << "Ignoring video_renderer_min_input_buffers since "
+                       "video_renderer_min_decoded_frames is missing.";
+    return std::nullopt;
+  }
+
+  return VideoRendererImpl::PrerollParameters{*min_input_buffers,
+                                              *min_decoded_frames};
+}
+
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
@@ -243,7 +283,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             creation_parameters.job_queue(),
             std::unique_ptr<VideoDecoder>(std::move(video_decoder.value())),
             media_time_provider, std::move(video_render_algorithm),
-            video_renderer_sink);
+            video_renderer_sink, GetPrerollParams(creation_parameters));
       } else {
         return Failure("Failed to create video decoder: " +
                        video_decoder.error());

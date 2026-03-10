@@ -32,6 +32,12 @@ const StarboardExtensionVideoDecoderConfigurationApi
         &SetVideoMaxPendingInputFramesForCurrentThread,
         &SetVideoDecoderInitialPrerollCountForCurrentThread,
         &SetVideoDecoderPollIntervalMsForCurrentThread,
+<<<<<<< HEAD
+=======
+        &SetMediaCodecResetDelayMsForCurrentThread,
+        &SetVideoRendererMinInputBuffersForCurrentThread,
+        &SetVideoRendererMinDecodedFramesForCurrentThread,
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 };
 
 }  // namespace

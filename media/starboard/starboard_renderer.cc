@@ -619,6 +619,7 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   LOG(INFO) << "Creating SbPlayerBridge.";
 
+<<<<<<< HEAD
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
       // TODO(b/375070492): Implement decode-to-texture support
@@ -638,6 +639,30 @@ void StarboardRenderer::CreatePlayerBridge() {
       experimental_features_.max_pending_input_frames,
       experimental_features_.video_decoder_initial_preroll_count,
       experimental_features_.video_decoder_poll_interval_ms
+=======
+    player_bridge_.reset(new SbPlayerBridge(
+        GetSbPlayerInterface(), task_runner_,
+        // TODO(b/375070492): Implement decode-to-texture support
+        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
+        audio_config, audio_mime_type, video_config, video_mime_type,
+        // TODO(b/326497953): Support suspend/resume.
+        // TODO(b/326508279): Support background mode.
+        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
+        // TODO(b/326497953): Support suspend/resume.
+        false,
+        // TODO(b/326825450): Revisit 360 videos.
+        kSbPlayerOutputModeInvalid, max_video_capabilities_,
+        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+        -1, experimental_features_.enable_flush_during_seek,
+        experimental_features_.enable_reset_audio_decoder,
+        experimental_features_.initial_max_frames_in_decoder,
+        experimental_features_.max_pending_input_frames,
+        experimental_features_.video_decoder_initial_preroll_count,
+        experimental_features_.video_decoder_poll_interval_ms,
+        experimental_features_.video_renderer_min_input_buffers,
+        experimental_features_.video_renderer_min_decoded_frames,
+        experimental_features_.media_codec_reset_delay_ms
+>>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.
