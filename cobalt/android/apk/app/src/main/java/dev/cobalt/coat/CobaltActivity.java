@@ -535,10 +535,10 @@ public abstract class CobaltActivity extends Activity {
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      // document.onfreeze event
-      webContents.onFreeze();
-    }
+    // if (webContents != null) {
+    //   // document.onfreeze event
+    //   webContents.onFreeze();
+    // }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
       forceCreateNewVideoSurfaceView = true;
