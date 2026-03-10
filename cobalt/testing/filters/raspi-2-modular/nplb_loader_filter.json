@@ -5,17 +5,6 @@
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
     "PosixFileReadTest/*",
     "PosixFileWriteTest/*",
-<<<<<<< HEAD
-    "Posix/NlLanginfoTest.AllItems/as_IN",
-    "Posix/NlLanginfoTest.AllItems/be_BY",
-    "Posix/NlLanginfoTest.AllItems/bs_BA",
-    "Posix/NlLanginfoTest.AllItems/or_IN",
-    "Posix/NlLanginfoLTest.AllItems/as_IN",
-    "Posix/NlLanginfoLTest.AllItems/be_BY",
-    "Posix/NlLanginfoLTest.AllItems/bs_BA",
-    "Posix/NlLanginfoLTest.AllItems/or_IN",
-=======
-    "PosixTimeClockTests.ClockIncreasesOverTime",
     "Posix/NlLanginfo*Test.AllItems/as_IN",
     "Posix/NlLanginfo*Test.AllItems/be_BY",
     "Posix/NlLanginfo*Test.AllItems/bs_BA",
@@ -24,7 +13,6 @@
     "Posix/*LocaleconvTest.AllItems/be_BY",
     "Posix/*LocaleconvTest.AllItems/bs_BA",
     "Posix/*LocaleconvTest.AllItems/or_IN",
->>>>>>> 3b1cc38c2c (3p: add hermetic localeconv tests (#9234))
     "SbAudioSinkTest.*",
     "SbMediaSetAudioWriteDurationTests*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
