@@ -38,6 +38,7 @@ extern const char kContentShellHideToolbar[];
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 extern const char kContentShellDevToolsTabTarget[];
 #endif
+extern const char kForceImageSplashScreen[];
 extern const char kIsolatedContextOrigins[];
 extern const char kLink[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];

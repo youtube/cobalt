@@ -282,6 +282,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   State splash_state_;
   const std::string splash_topic_;
   bool skip_for_testing_;
+  bool is_video_splash_screen_;
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;
   base::TimeTicks splash_screen_start_time_;
