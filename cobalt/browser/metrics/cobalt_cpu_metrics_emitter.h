@@ -17,17 +17,16 @@
 
 #include <memory>
 
-#include "base/memory/ref_counted.h"
 #include "base/process/process_metrics.h"
-#include "base/sequence_checker.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 
 namespace cobalt {
 
 // This class fetches CPU metrics for the current process and its threads,
 // and emits UMA metrics. It maintains state to calculate deltas between
-// emissions.
-class CobaltCpuMetricsEmitter
-    : public base::RefCountedThreadSafe<CobaltCpuMetricsEmitter> {
+// emissions. This class is not thread-safe and must be called from the same
+// TaskRunner it was created on.
+class CobaltCpuMetricsEmitter {
  public:
   CobaltCpuMetricsEmitter();
 
@@ -35,16 +34,12 @@ class CobaltCpuMetricsEmitter
   CobaltCpuMetricsEmitter& operator=(const CobaltCpuMetricsEmitter&) = delete;
 
   void FetchAndEmitCpuMetrics();
-
- protected:
   virtual ~CobaltCpuMetricsEmitter();
 
  private:
-  friend class base::RefCountedThreadSafe<CobaltCpuMetricsEmitter>;
-
   std::unique_ptr<base::ProcessMetrics> process_metrics_;
 
-  SEQUENCE_CHECKER(sequence_checker_);
+  COBALT_THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace cobalt

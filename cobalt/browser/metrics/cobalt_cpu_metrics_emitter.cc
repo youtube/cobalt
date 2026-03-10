@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
-#include "base/numerics/safe_conversions.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/system/sys_info.h"
 
 namespace cobalt {
@@ -22,20 +22,23 @@ namespace cobalt {
 CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter()
     : process_metrics_(base::ProcessMetrics::CreateProcessMetrics(
           base::GetCurrentProcessHandle())) {
-  DETACH_FROM_SEQUENCE(sequence_checker_);
+  COBALT_DETACH_FROM_THREAD(thread_checker_);
 }
 
 CobaltCpuMetricsEmitter::~CobaltCpuMetricsEmitter() = default;
 
 void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Total CPU utilization in percentage of all cores in between every call.
-  // This will be zero on first call or when GetPlatformIndependentCPUUsage returns on error.
-  const double cpu_usage = process_metrics_->GetPlatformIndependentCPUUsage().value_or(0.0);
+  constexpr double kInvalidCPUUsageValue = 0.0;
+  const double cpu_usage =
+      process_metrics_->GetPlatformIndependentCPUUsage().value_or(
+          kInvalidCPUUsageValue);
   // Divide by the number of processors to log average per core CPU usage.
-  base::UmaHistogramPercentage("CPU.Total.UsageInPercentage",
-                               base::ClampRound<int>(cpu_usage / base::SysInfo::NumberOfProcessors()));
+  base::UmaHistogramPercentage(
+      "CPU.Total.UsageInPercentage",
+      base::ClampRound<int>(cpu_usage / base::SysInfo::NumberOfProcessors()));
 }
 
 }  // namespace cobalt

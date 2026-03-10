@@ -51,7 +51,7 @@ struct CobaltMetricsServiceClient::State
   // Task runner for background memory metrics collection.
   scoped_refptr<base::SequencedTaskRunner> task_runner;
 
-  scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter_;
+  std::unique_ptr<CobaltCpuMetricsEmitter> cpu_emitter_;
 
   // Flag to stop logging.
   bool stop_logging = false;
@@ -358,9 +358,9 @@ CobaltMetricsServiceClient::CreateMemoryMetricsEmitter() {
   return base::MakeRefCounted<CobaltMemoryMetricsEmitter>();
 }
 
-scoped_refptr<CobaltCpuMetricsEmitter>
+std::unique_ptr<CobaltCpuMetricsEmitter>
 CobaltMetricsServiceClient::CreateCpuMetricsEmitter() {
-  return base::MakeRefCounted<CobaltCpuMetricsEmitter>();
+  return std::make_unique<CobaltCpuMetricsEmitter>();
 }
 
 }  // namespace cobalt

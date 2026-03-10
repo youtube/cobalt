@@ -141,7 +141,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   virtual scoped_refptr<CobaltMemoryMetricsEmitter>
   CreateMemoryMetricsEmitter();
 
-  virtual scoped_refptr<CobaltCpuMetricsEmitter> CreateCpuMetricsEmitter();
+  virtual std::unique_ptr<CobaltCpuMetricsEmitter> CreateCpuMetricsEmitter();
 
   // Virtual to be overridden in tests.
   virtual void OnApplicationNotIdleInternal();
