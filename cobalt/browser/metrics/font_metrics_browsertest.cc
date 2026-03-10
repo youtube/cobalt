@@ -42,7 +42,7 @@ class FontMetricsBrowserTest : public content::ContentBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(FontMetricsBrowserTest, DISABLED_RecordsFontHistograms) {
+IN_PROC_BROWSER_TEST_F(FontMetricsBrowserTest, RecordsFontHistograms) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
