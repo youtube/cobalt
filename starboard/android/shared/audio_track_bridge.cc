@@ -244,8 +244,9 @@ void AudioTrackBridge::SetPlaybackRate(double playback_rate,
   // AudioTrack doesn't support playback speed of 0.
   SB_DCHECK_GT(playback_rate, 0.0);
 
-  jboolean status = env->CallBooleanMethodOrAbort(j_audio_track_bridge_, "setPlaybackRate",
-                                          "(F)Z", static_cast<float>(playback_rate));
+  jboolean status =
+      env->CallBooleanMethodOrAbort(j_audio_track_bridge_, "setPlaybackRate",
+                                    "(F)Z", static_cast<float>(playback_rate));
 
   if (!status) {
     SB_LOG(ERROR) << "Failed to set playback rate to " << playback_rate;
@@ -310,6 +311,14 @@ int AudioTrackBridge::GetStartThresholdInFrames(
 
   return env->CallIntMethodOrAbort(j_audio_track_bridge_,
                                    "getStartThresholdInFrames", "()I");
+}
+
+int AudioTrackBridge::GetPlayState(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  SB_DCHECK(env);
+  SB_DCHECK(is_valid());
+
+  return env->CallIntMethodOrAbort(j_audio_track_bridge_, "getPlayState",
+                                   "()I");
 }
 
 }  // namespace starboard::android::shared
