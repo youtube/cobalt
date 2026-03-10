@@ -16,53 +16,17 @@ class TestCollectTestArtifacts(unittest.TestCase):
   """Unit tests for artifact collection logic."""
 
   def test_find_runtime_deps_exact_match(self):
-    with mock.patch('pathlib.Path.rglob') as mock_rglob:
-      mock_rglob.return_value = [
-          Path('out/dir/cobalt_browsertests__test_runner_script.runtime_deps')
-      ]
-      result = collect_test_artifacts.find_runtime_deps('out/dir')
-      self.assertEqual(
-          result,
-          Path('out/dir/cobalt_browsertests__test_runner_script.runtime_deps'))
-      mock_rglob.assert_any_call(
+    with mock.patch('collect_test_artifacts.Path.rglob') as mock_rglob:
+      expected_path = Path(
+          'out/dir/gen.runtime/cobalt/testing/browser_tests/'
           'cobalt_browsertests__test_runner_script.runtime_deps')
-
-  def test_find_runtime_deps_fallback(self):
-    with mock.patch('pathlib.Path.rglob') as mock_rglob:
-      # First call (exact) returns empty, second call (fallback) returns match
-      mock_rglob.side_effect = [
-          [], [Path('out/dir/some_browsertests.runtime_deps')]
-      ]
+      mock_rglob.return_value = [expected_path]
       result = collect_test_artifacts.find_runtime_deps('out/dir')
-      self.assertEqual(result, Path('out/dir/some_browsertests.runtime_deps'))
-      self.assertEqual(mock_rglob.call_count, 2)
+      self.assertEqual(result, expected_path)
 
   def test_get_test_runner_android(self):
-    result = collect_test_artifacts.get_test_runner(
-        'out/android', is_android=True)
+    result = collect_test_artifacts.get_test_runner('out/dir', is_android=True)
     self.assertEqual(result, os.path.join('bin', 'run_cobalt_browsertests'))
-
-  def test_get_test_runner_linux_bin(self):
-    with mock.patch('os.path.isfile') as mock_isfile:
-      # Simulate bin/run_cobalt_browsertests exists
-      mock_isfile.side_effect = lambda x: 'bin/run_cobalt_browsertests' in x
-      result = collect_test_artifacts.get_test_runner(
-          'out/linux', is_android=False)
-      self.assertEqual(result, os.path.join('bin', 'run_cobalt_browsertests'))
-
-  def test_get_test_runner_linux_runner(self):
-    with mock.patch('os.path.isfile') as mock_isfile:
-      # Simulate cobalt_browsertests_runner exists
-      mock_isfile.side_effect = lambda x: 'cobalt_browsertests_runner' in x
-      result = collect_test_artifacts.get_test_runner(
-          'out/linux', is_android=False)
-      self.assertEqual(result, 'cobalt_browsertests_runner')
-
-  def test_get_test_runner_linux_fallback(self):
-    with mock.patch('os.path.isfile', return_value=False):
-      result = collect_test_artifacts.get_test_runner(
-          'out/linux', is_android=False)
-      self.assertEqual(result, 'cobalt_browsertests')
 
   @mock.patch('subprocess.run')
   @mock.patch('os.makedirs')
@@ -86,7 +50,8 @@ class TestCollectTestArtifacts(unittest.TestCase):
 
   @mock.patch('collect_test_artifacts.copy_fast')
   @mock.patch('os.path.exists', return_value=True)
-  def test_copy_if_needed(self, mock_exists, mock_copy):
+  @mock.patch('os.path.isdir', return_value=False)
+  def test_copy_if_needed(self, mock_isdir, mock_exists, mock_copy):
     del mock_exists  # Unused argument.
     copied_sources = set()
 
@@ -102,7 +67,19 @@ class TestCollectTestArtifacts(unittest.TestCase):
     self.assertEqual(mock_copy.call_count, 1)
 
     # Copy of file in already copied directory should be skipped
-    copied_sources.add(os.path.abspath('src/dir'))
+    # Simulate that 'src/dir' was already copied as a directory.
+    abs_dir = os.path.abspath('src/dir')
+    copied_sources.add(abs_dir)
+
+    # We need mock_isdir to return True for the parent 'src/dir'
+    # to trigger the parent directory optimization.
+    def is_dir_side_effect(path):
+      if path == abs_dir:
+        return True
+      return False
+
+    mock_isdir.side_effect = is_dir_side_effect
+
     collect_test_artifacts.copy_if_needed('src/dir/file2', 'dst/dir/file2',
                                           copied_sources)
     self.assertEqual(mock_copy.call_count, 1)

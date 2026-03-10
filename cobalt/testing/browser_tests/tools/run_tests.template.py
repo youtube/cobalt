@@ -8,14 +8,18 @@ It configures the environment and invokes the appropriate platform runner.
 """
 
 import argparse
+import atexit
 import logging
 import os
+import shlex
 import shutil
 import subprocess
 import sys
 
 # TARGET_MAP will be injected by the collection script.
 TARGET_MAP = {}
+SOCAT_CMD = ("socat tcp-listen:5037,bind=127.0.0.1,reuseaddr,fork "
+             "tcp-connect:host.docker.internal:5037")
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -55,7 +59,8 @@ def main():
   parser = argparse.ArgumentParser(
       description="Portable test runner for Cobalt browser tests.",
       add_help=False)
-  parser.add_argument("--init-command", help="Command to run before tests.")
+  parser.add_argument(
+      "--init-command", default=SOCAT_CMD, help="Command to run before tests.")
   parser.add_argument(
       "target", nargs="?", help="Target platform to run tests for.")
   parser.add_argument(
@@ -71,7 +76,10 @@ def main():
 
   if args.init_command:
     logging.info("Executing init-command: %s", args.init_command)
-    subprocess.run(args.init_command, shell=True, check=True)
+    command_parts = shlex.split(args.init_command)
+    # pylint: disable=consider-using-with
+    proc = subprocess.Popen(command_parts)
+    atexit.register(proc.terminate)
 
   target_name = os.environ.get("TARGET_PLATFORM") or args.target
 
