@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
+
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/system/sys_info.h"
