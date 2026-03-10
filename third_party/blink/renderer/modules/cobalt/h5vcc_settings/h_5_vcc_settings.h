@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
 
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
@@ -41,15 +42,15 @@ class MODULES_EXPORT H5vccSettings final
 
   // Web-exposed interface:
 
-  ScriptPromise set(ScriptState* script_state,
-                    const WTF::String& name,
-                    const V8UnionLongOrString* value,
-                    ExceptionState& exception_state);
+  ScriptPromise<IDLUndefined> set(ScriptState* script_state,
+                                  const WTF::String& name,
+                                  const V8UnionLongOrString* value,
+                                  ExceptionState& exception_state);
 
   void Trace(Visitor*) const override;
 
  private:
-  void OnSetValueFinished(ScriptPromiseResolver*);
+  void OnSetValueFinished(ScriptPromiseResolver<IDLUndefined>*);
   void OnConnectionError();
   void EnsureReceiverIsBound();
 
@@ -58,9 +59,9 @@ class MODULES_EXPORT H5vccSettings final
   // Holds promises associated with outstanding async remote_h5vcc_settings_
   // requests so that they can be rejected in the case of a Mojo connection
   // error.
-  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
+  HeapHashSet<Member<ScriptPromiseResolver<IDLUndefined>>> ongoing_requests_;
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_

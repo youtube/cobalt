@@ -45,28 +45,20 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       accessibility_(MakeGarbageCollected<H5vccAccessibility>(window)),
       experiments_(MakeGarbageCollected<H5vccExperiments>(window)),
       metrics_(MakeGarbageCollected<H5vccMetrics>(window)),
-<<<<<<< HEAD
-=======
-      settings_(MakeGarbageCollected<H5vccSettings>(window)),
-      storage_(MakeGarbageCollected<H5vccStorage>(window)),
->>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
       system_(MakeGarbageCollected<H5vccSystem>(window)),
       runtime_(MakeGarbageCollected<H5vccRuntime>(window)),
-      storage_(MakeGarbageCollected<H5vccStorage>(window)) {}
+      storage_(MakeGarbageCollected<H5vccStorage>(window)),
+      settings_(MakeGarbageCollected<H5vccSettings>(window)) {}
 
 void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(crash_log_);
   visitor->Trace(accessibility_);
   visitor->Trace(experiments_);
   visitor->Trace(metrics_);
-<<<<<<< HEAD
-=======
-  visitor->Trace(settings_);
-  visitor->Trace(storage_);
->>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
   visitor->Trace(system_);
   visitor->Trace(runtime_);
   visitor->Trace(storage_);
+  visitor->Trace(settings_);
   Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

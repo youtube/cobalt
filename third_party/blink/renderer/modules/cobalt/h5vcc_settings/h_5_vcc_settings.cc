@@ -16,7 +16,8 @@
 
 #include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
@@ -39,11 +40,12 @@ void H5vccSettings::ContextDestroyed() {
   ongoing_requests_.clear();
 }
 
-ScriptPromise H5vccSettings::set(ScriptState* script_state,
-                                 const WTF::String& name,
-                                 const V8UnionLongOrString* value,
-                                 ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLUndefined> H5vccSettings::set(
+    ScriptState* script_state,
+    const WTF::String& name,
+    const V8UnionLongOrString* value,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
@@ -58,9 +60,6 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
     NOTREACHED();
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kInvalidAccessError, "Unsupported type."));
-    return promise;
   }
 
   ongoing_requests_.insert(resolver);
@@ -71,14 +70,16 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
   return promise;
 }
 
-void H5vccSettings::OnSetValueFinished(ScriptPromiseResolver* resolver) {
+void H5vccSettings::OnSetValueFinished(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
 
 void H5vccSettings::OnConnectionError() {
   remote_h5vcc_settings_.reset();
-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_settings_promises;
+  HeapHashSet<Member<ScriptPromiseResolver<IDLUndefined>>>
+      h5vcc_settings_promises;
   // Script may execute during a call to Resolve(). Swap these sets to prevent
   // concurrent modification.
   ongoing_requests_.swap(h5vcc_settings_promises);

@@ -17,11 +17,8 @@
 #include <variant>
 
 #include "base/feature_list.h"
-<<<<<<< HEAD
 #include "base/files/file_util.h"
-=======
 #include "base/json/string_escape.h"
->>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
@@ -117,7 +114,6 @@ void GlobalFeatures::SetSettings(const std::string& key,
       return std::to_string(*i);
     }
     NOTREACHED();
-    return std::string("unknown");
   }();
 }
 

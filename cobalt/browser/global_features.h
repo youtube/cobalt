@@ -70,19 +70,17 @@ class GlobalFeatures {
 
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
-<<<<<<< HEAD
   // Explicitly shuts down the metrics service. This is to ensure the
   // CobaltMetricsServiceClient destructor is called, which logs a clean
   // shutdown. The specific shutdown order here is required to nullify
   // a raw pointer and prevent a use-after-free crash
   // that would otherwise occur on exit.
   void Shutdown();
-=======
+
   using SettingValue = std::variant<std::string, int64_t>;
 
   std::optional<SettingValue> GetSetting(const std::string& key) const;
   void SetSettings(const std::string& key, const SettingValue& value);
->>>>>>> 8c26bf4658 (Revive h5vcc_settings for in-memory experimentation on M26 (#7784))
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;

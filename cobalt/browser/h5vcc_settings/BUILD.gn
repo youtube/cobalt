@@ -13,7 +13,6 @@
 # limitations under the License.
 
 source_set("h5vcc_settings") {
-  testonly = true
   sources = [
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
