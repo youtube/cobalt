@@ -452,7 +452,6 @@ test("cobalt_browsertests") {
   }
 }
 
-
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
