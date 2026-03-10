@@ -343,14 +343,23 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
     LOG(INFO) << "ColinL: Storage migration disabled via switch.";
+    LOG(INFO) << "ColinL: RunMigration early exit took "
+              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
     std::move(done_callback).Run();
     return;
   }
 
   // Fast check: if the sentinel file exists, migration is already done.
+  base::ElapsedTimer sentinel_timer;
   base::FilePath sentinel_path = GetMigrationSentinelPath();
-  if (!sentinel_path.empty() && base::PathExists(sentinel_path)) {
+  bool sentinel_exists =
+      !sentinel_path.empty() && base::PathExists(sentinel_path);
+  LOG(INFO) << "ColinL: Checking sentinel file took "
+            << sentinel_timer.Elapsed().InMilliseconds() << " ms.";
+  if (sentinel_exists) {
     LOG(INFO) << "ColinL: Migration sentinel file found. Skipping migration.";
+    LOG(INFO) << "ColinL: RunMigration fast path took "
+              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
     std::move(done_callback).Run();
     return;
   }
@@ -358,6 +367,8 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   if (!initial_url.is_valid()) {
+    LOG(INFO) << "ColinL: RunMigration invalid URL early exit took "
+              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
     std::move(done_callback).Run();
     return;
   }
@@ -367,6 +378,8 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
     LOG(INFO) << "ColinL: Nothing to migrate.";
+    LOG(INFO) << "ColinL: RunMigration fast path took "
+              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
     std::move(done_callback).Run();
     return;
   }
@@ -374,6 +387,9 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   base::UmaHistogramCounts1000(kCookiesCountHistogram, storage->cookies_size());
   base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
                                storage->local_storages_size());
+
+  LOG(INFO) << "ColinL: RunMigration synchronous setup took "
+            << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
 
   std::vector<Task> tasks;
   tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));

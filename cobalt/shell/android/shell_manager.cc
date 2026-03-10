@@ -14,11 +14,14 @@
 
 #include "cobalt/shell/android/shell_manager.h"
 
+#include <memory>
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
+
 #include "base/lazy_instance.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/ShellManager_jni.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
@@ -67,21 +70,26 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
                                   const JavaParamRef<jstring>& jurl,
                                   const JavaParamRef<jstring>& jtopic) {
+  base::ElapsedTimer launch_shell_timer;
   LOG(INFO) << "ColinL: JNI_ShellManager_LaunchShell called from Java!";
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   std::string topic = base::android::ConvertJavaStringToUTF8(env, jtopic);
 
+  auto wait_timer = std::make_unique<base::ElapsedTimer>();
   auto create_window_task = base::BindOnce(
-      [](GURL url, std::string topic) {
+      [](GURL url, std::string topic,
+         std::unique_ptr<base::ElapsedTimer> wait_timer) {
         LOG(INFO)
             << "ColinL: Executing deferred Shell::CreateNewWindow task...";
+        LOG(INFO) << "ColinL: Wait for migration before creating window took "
+                  << wait_timer->Elapsed().InMilliseconds() << " ms.";
         ShellBrowserContext* browserContext =
             ShellContentBrowserClient::Get()->browser_context();
         Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
                                switches::ShouldCreateSplashScreen(), topic);
         LOG(INFO) << "ColinL: Executed deferred Shell::CreateNewWindow task!";
       },
-      std::move(url), std::move(topic));
+      std::move(url), std::move(topic), std::move(wait_timer));
 
   auto* parts = ShellContentBrowserClient::Get()->shell_browser_main_parts();
   if (parts) {
@@ -91,6 +99,10 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
         << "ColinL: No shell_browser_main_parts found, running immediately.";
     std::move(create_window_task).Run();
   }
+
+  LOG(INFO)
+      << "ColinL: JNI_ShellManager_LaunchShell synchronous execution took "
+      << launch_shell_timer.Elapsed().InMilliseconds() << " ms.";
 }
 
 void DestroyShellManager() {
