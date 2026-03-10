@@ -81,6 +81,11 @@ public class JavaSwitches {
   /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
   public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
 
+  /** flag to re-enable freeze and resume events */
+  public static final String ENABLE_FREEZE = "EnableFreeze";
+  /** flag to reduce background activity */
+  public static final String NO_STOP_IN_BACKGROUND = "NoStopInBackground";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -185,6 +190,12 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--skia-ganesh-resource-cache-limit-mb="
               + javaSwitches.get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.NO_STOP_IN_BACKGROUND)) {
+      extraCommandLineArgs.add("--disable-renderer-backgrounding");
+      extraCommandLineArgs.add("--disable-features=StopInBackground");
+      extraCommandLineArgs.add("--disable-features=IntensiveWakeUpThrottling");
     }
 
     return extraCommandLineArgs;
