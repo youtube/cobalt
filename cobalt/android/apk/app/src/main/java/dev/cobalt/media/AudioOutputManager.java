@@ -541,13 +541,14 @@ public class AudioOutputManager {
 
   private static boolean audioDeviceListenerAdded = false;
 
-  public static void addAudioDeviceListener(Context context) {
+  public static void addAudioDeviceListener(Context context, android.os.Handler handler) {
     if (audioDeviceListenerAdded) {
       return;
     }
 
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-    audioManager.registerAudioDeviceCallback(audioDeviceCallback, null);
+    // Passing the handler here moves the callback execution off the Main Thread
+    audioManager.registerAudioDeviceCallback(audioDeviceCallback, handler);
     audioDeviceListenerAdded = true;
   }
 

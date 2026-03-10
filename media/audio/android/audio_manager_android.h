@@ -95,6 +95,9 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
   static int GetSinkAudioEncodingFormats();
 
+  void PreWarmAudioInput();
+  void StopAnchor();
+
  protected:
   void ShutdownOnAudioThread() override;
   AudioParameters GetPreferredOutputStreamParameters(
@@ -137,6 +140,8 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   // If set, overrides volume level on output streams
   bool output_volume_override_set_;
   double output_volume_override_;
+
+  std::unique_ptr<AudioInputStream> warmed_up_stream_;
 };
 
 }  // namespace media

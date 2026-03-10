@@ -13,6 +13,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.media.MediaRecorder;
 import android.media.audiofx.AcousticEchoCanceler;
 import android.os.Build;
 import android.os.Handler;
@@ -36,6 +37,8 @@ class AudioManagerAndroid {
     // Set to true to enable debug logs. Avoid in production builds.
     // NOTE: always check in as false.
     private static final boolean DEBUG = false;
+
+    private static android.media.AudioRecord sGlobalAnchorRecord = null;
 
     /** Simple container for device information. */
     public static class AudioDeviceName {
@@ -104,6 +107,8 @@ class AudioManagerAndroid {
         } else {
             mAudioDeviceSelector = new AudioDeviceSelectorPostS(mAudioManager);
         }
+
+        startAnchor(48000);
     }
 
     /**
@@ -155,46 +160,47 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private void setCommunicationAudioModeOn(boolean on) {
-        mThreadChecker.assertOnValidThread();
-        if (DEBUG) logd("setCommunicationAudioModeOn" + on + ")");
-        if (!mIsInitialized) return;
+      return;
+        // mThreadChecker.assertOnValidThread();
+        // if (DEBUG) logd("setCommunicationAudioModeOn" + on + ")");
+        // if (!mIsInitialized) return;
 
-        // The MODIFY_AUDIO_SETTINGS permission is required to allow an
-        // application to modify global audio settings.
-        if (!mHasModifyAudioSettingsPermission) {
-            Log.w(TAG,
-                    "MODIFY_AUDIO_SETTINGS is missing => client will run "
-                            + "with reduced functionality");
-            return;
-        }
+        // // The MODIFY_AUDIO_SETTINGS permission is required to allow an
+        // // application to modify global audio settings.
+        // if (!mHasModifyAudioSettingsPermission) {
+        //     Log.w(TAG,
+        //             "MODIFY_AUDIO_SETTINGS is missing => client will run "
+        //                     + "with reduced functionality");
+        //     return;
+        // }
 
-        // TODO(crbug.com/1317548): Should we exit early if we are already in/out of
-        // communication mode?
-        if (on) {
-            // Store microphone mute state and speakerphone state so it can
-            // be restored when closing.
-            mSavedIsSpeakerphoneOn = mAudioDeviceSelector.isSpeakerphoneOn();
-            mSavedIsMicrophoneMute = mAudioManager.isMicrophoneMute();
+        // // TODO(crbug.com/1317548): Should we exit early if we are already in/out of
+        // // communication mode?
+        // if (on) {
+        //     // Store microphone mute state and speakerphone state so it can
+        //     // be restored when closing.
+        //     mSavedIsSpeakerphoneOn = mAudioDeviceSelector.isSpeakerphoneOn();
+        //     mSavedIsMicrophoneMute = mAudioManager.isMicrophoneMute();
 
-            mAudioDeviceSelector.setCommunicationAudioModeOn(true);
+        //     mAudioDeviceSelector.setCommunicationAudioModeOn(true);
 
-            // Start observing volume changes to detect when the
-            // voice/communication stream volume is at its lowest level.
-            // It is only possible to pull down the volume slider to about 20%
-            // of the absolute minimum (slider at far left) in communication
-            // mode but we want to be able to mute it completely.
-            startObservingVolumeChanges();
-        } else {
-            stopObservingVolumeChanges();
+        //     // Start observing volume changes to detect when the
+        //     // voice/communication stream volume is at its lowest level.
+        //     // It is only possible to pull down the volume slider to about 20%
+        //     // of the absolute minimum (slider at far left) in communication
+        //     // mode but we want to be able to mute it completely.
+        //     startObservingVolumeChanges();
+        // } else {
+        //     stopObservingVolumeChanges();
 
-            mAudioDeviceSelector.setCommunicationAudioModeOn(false);
+        //     mAudioDeviceSelector.setCommunicationAudioModeOn(false);
 
-            // Restore previously stored audio states.
-            setMicrophoneMute(mSavedIsMicrophoneMute);
-            mAudioDeviceSelector.setSpeakerphoneOn(mSavedIsSpeakerphoneOn);
-        }
+        //     // Restore previously stored audio states.
+        //     setMicrophoneMute(mSavedIsMicrophoneMute);
+        //     mAudioDeviceSelector.setSpeakerphoneOn(mSavedIsSpeakerphoneOn);
+        // }
 
-        setCommunicationAudioModeOnInternal(on);
+        // setCommunicationAudioModeOnInternal(on);
     }
 
     /**
@@ -202,26 +208,27 @@ class AudioManagerAndroid {
      * Restores audio mode to MODE_NORMAL if input parameter is false.
      */
     private void setCommunicationAudioModeOnInternal(boolean on) {
-        if (DEBUG) logd("setCommunicationAudioModeOn(" + on + ")");
+      return;
+        // if (DEBUG) logd("setCommunicationAudioModeOn(" + on + ")");
 
-        if (on) {
-            try {
-                mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-            } catch (SecurityException e) {
-                logDeviceInfo();
-                throw e;
-            }
+        // if (on) {
+        //     try {
+        //         mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+        //     } catch (SecurityException e) {
+        //         logDeviceInfo();
+        //         throw e;
+        //     }
 
-        } else {
-            // Restore the mode that was used before we switched to
-            // communication mode.
-            try {
-                mAudioManager.setMode(AudioManager.MODE_NORMAL);
-            } catch (SecurityException e) {
-                logDeviceInfo();
-                throw e;
-            }
-        }
+        // } else {
+        //     // Restore the mode that was used before we switched to
+        //     // communication mode.
+        //     try {
+        //         mAudioManager.setMode(AudioManager.MODE_NORMAL);
+        //     } catch (SecurityException e) {
+        //         logDeviceInfo();
+        //         throw e;
+        //     }
+        // }
     }
 
     /**
@@ -536,6 +543,40 @@ class AudioManagerAndroid {
             }
         }
         return intersection_mask;
+    }
+
+    @CalledByNative
+    private void startAnchor(int sampleRate) {
+        if (sGlobalAnchorRecord == null) {
+            try {
+                int bufferSize = AudioRecord.getMinBufferSize(sampleRate,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+
+                sGlobalAnchorRecord = new AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    sampleRate, AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+
+                sGlobalAnchorRecord.startRecording();
+                android.util.Log.i("YO THOR", "Anchor started: Hardware is idling.");
+            } catch (Exception e) {
+                android.util.Log.e("YO THOR", "Failed to start anchor", e);
+            }
+        }
+    }
+
+    @CalledByNative
+    private void stopAnchor() {
+        if (sGlobalAnchorRecord != null) {
+            try {
+                sGlobalAnchorRecord.stop();
+                sGlobalAnchorRecord.release();
+                sGlobalAnchorRecord = null;
+                Log.i(TAG, "THOR: Anchor dropped. Path clear for Cobalt.");
+            } catch (Exception e) {
+                Log.e(TAG, "THOR: Failed to stop anchor", e);
+            }
+        }
     }
 
     @NativeMethods

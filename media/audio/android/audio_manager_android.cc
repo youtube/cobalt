@@ -179,9 +179,9 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
       ChannelLayoutToChannelCount(channel_layout));
   buffer_size = buffer_size <= 0 ? kDefaultInputBufferSize : buffer_size;
   int effects = AudioParameters::NO_EFFECTS;
-  effects |= Java_AudioManagerAndroid_acousticEchoCancelerIsAvailable(env)
-                 ? AudioParameters::ECHO_CANCELLER
-                 : AudioParameters::NO_EFFECTS;
+  //effects |= Java_AudioManagerAndroid_acousticEchoCancelerIsAvailable(env)
+  //               ? AudioParameters::ECHO_CANCELLER
+  //               : AudioParameters::NO_EFFECTS;
 
   int user_buffer_size = GetUserBufferSize();
   if (user_buffer_size)
@@ -220,16 +220,27 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
 
+  communication_mode_is_on_ = false;
+
   // By default, the audio manager for Android creates streams intended for
   // real-time VoIP sessions and therefore sets the audio mode to
   // MODE_IN_COMMUNICATION. However, the user might have asked for a special
   // mode where all audio input processing is disabled, and if that is the case
   // we avoid changing the mode.
-  if (stream && has_no_input_streams &&
-      params.effects() != AudioParameters::NO_EFFECTS) {
-    communication_mode_is_on_ = true;
-    SetCommunicationAudioModeOn(true);
-  }
+  // if (stream && has_no_input_streams &&
+  //     params.effects() != AudioParameters::NO_EFFECTS) {
+  //   communication_mode_is_on_ = true;
+  //   SetCommunicationAudioModeOn(true);
+  // }
+
+  // if ((params.effects() != AudioParameters::NO_EFFECTS) && !force_communication_mode) {
+  //   // Check if this is a voice recognition attempt (often indicated by NO_EFFECTS)
+  //   // If we skip this, we avoid the 300ms setMode(MODE_IN_COMMUNICATION) stall.
+  //   communication_mode_is_on_ = true;
+  //   SetCommunicationAudioModeOn(true);
+  // } else {
+  //     DVLOG(1) << "Skipping Communication Mode to avoid system-server stall.";
+  // }
   return stream;
 }
 
@@ -249,6 +260,13 @@ void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
     communication_mode_is_on_ = false;
     SetCommunicationAudioModeOn(false);
   }
+
+  // 2. Direct call to Java to restart the hardware warmup
+  // We use the existing startAnchor method.
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_AudioManagerAndroid_startAnchor(env, j_audio_manager_, 48000);
+
+  LOG(INFO) << "YO THOR: Search finished. Re-arming the 48k Java Anchor.";
 }
 
 AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
@@ -307,6 +325,14 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+
+
+  if (warmed_up_stream_) {
+    LOG(INFO) << "YO THOR: High-speed hand-off! Bypassing Open().";
+    return warmed_up_stream_.release(); // Returns the pointer and clears our member
+  }
+
+
   TRACE_EVENT0("media", "AudioManagerAndroid::MakeLowLatencyInputStream");
   LOG(INFO) << "YO THOR AudioManagerAndroid::MakeLowLatencyInputStream called at " << base::TimeTicks::Now();
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
@@ -314,22 +340,25 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 
-  // Use the device ID to select the correct input device.
-  // Note that the input device is always associated with a certain output
-  // device, i.e., this selection does also switch the output device.
-  // All input and output streams will be affected by the device selection.
-  auto set_audio_device_start = base::TimeTicks::Now();
-  bool device_set = SetAudioDevice(device_id);
-  LOG(INFO) << "YO THOR AudioManagerAndroid::SetAudioDevice took " << (base::TimeTicks::Now() - set_audio_device_start).InMillisecondsF() << " ms, result=" << device_set;
-  if (!device_set) {
-    LOG(ERROR) << "Unable to select audio device!";
-    return NULL;
-  }
+  // // Use the device ID to select the correct input device.
+  // // Note that the input device is always associated with a certain output
+  // // device, i.e., this selection does also switch the output device.
+  // // All input and output streams will be affected by the device selection.
+  // auto set_audio_device_start = base::TimeTicks::Now();
+  // bool device_set = SetAudioDevice(device_id);
+  // LOG(INFO) << "YO THOR AudioManagerAndroid::SetAudioDevice took " << (base::TimeTicks::Now() - set_audio_device_start).InMillisecondsF() << " ms, result=" << device_set;
+  // if (!device_set) {
+  //   LOG(ERROR) << "Unable to select audio device!";
+  //   return NULL;
+  // }
 
   // Create a new audio input stream and enable or disable all audio effects
   // given |params.effects()|.
   auto create_stream_start = base::TimeTicks::Now();
-  OpenSLESInputStream* stream = new OpenSLESInputStream(this, params);
+  AudioParameters clean_params = params;
+  clean_params.set_effects(AudioParameters::NO_EFFECTS);
+
+  OpenSLESInputStream* stream = new OpenSLESInputStream(this, clean_params);
   LOG(INFO) << "YO THOR AudioManagerAndroid::new OpenSLESInputStream took " << (base::TimeTicks::Now() - create_stream_start).InMillisecondsF() << " ms";
   return stream;
 }
@@ -421,6 +450,9 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   if (j_audio_manager_.is_null()) {
     // Create the Android audio manager on the audio thread.
+
+    base::PlatformThread::SetCurrentThreadType(base::ThreadType::kRealtimeAudio);
+
     DVLOG(2) << "Creating Java part of the audio manager";
     j_audio_manager_.Reset(Java_AudioManagerAndroid_createAudioManagerAndroid(
         base::android::AttachCurrentThread(),
@@ -435,9 +467,9 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
 }
 
 void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
-  DVLOG(1) << __FUNCTION__ << ": " << on;
-  Java_AudioManagerAndroid_setCommunicationAudioModeOn(
-      base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
+  // DVLOG(1) << __FUNCTION__ << ": " << on;
+  // Java_AudioManagerAndroid_setCommunicationAudioModeOn(
+  //     base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
 }
 
 bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
@@ -456,8 +488,14 @@ bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
 }
 
 int AudioManagerAndroid::GetNativeOutputSampleRate() {
-  return Java_AudioManagerAndroid_getNativeOutputSampleRate(
-      base::android::AttachCurrentThread(), GetJavaAudioManager());
+  static int cached_sample_rate = 0;
+  if (cached_sample_rate > 0) return cached_sample_rate;
+
+  cached_sample_rate = Java_AudioManagerAndroid_getNativeOutputSampleRate(base::android::AttachCurrentThread(), GetJavaAudioManager());
+  return cached_sample_rate;
+
+  //return Java_AudioManagerAndroid_getNativeOutputSampleRate(
+  //    base::android::AttachCurrentThread(), GetJavaAudioManager());
 }
 
 bool AudioManagerAndroid::IsAudioLowLatencySupported() {
@@ -540,6 +578,32 @@ bool AudioManagerAndroid::UseAAudio() {
     is_aaudio_available_ = InitAAudio();
 
   return is_aaudio_available_.value();
+}
+
+void AudioManagerAndroid::PreWarmAudioInput() {
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+
+  if (warmed_up_stream_) return; // Already warm
+
+  // Use the same params the search will eventually use
+  AudioParameters params = GetInputStreamParameters(AudioDeviceDescription::kDefaultDeviceId);
+
+  params.set_effects(AudioParameters::NO_EFFECTS);
+
+  // Create the object (This calls the Constructor)
+  auto stream = std::make_unique<OpenSLESInputStream>(this, params);
+
+  // Call Open (This triggers the 80ms Realize/Binder handshake)
+  if (stream->Open() == AudioInputStream::OpenOutcome::kSuccess) {
+    LOG(INFO) << "YO THOR: Audio hardware is now REALIZED and WARM";
+    warmed_up_stream_ = std::move(stream);
+  }
+}
+
+void AudioManagerAndroid::StopAnchor() {
+  // This jumps from C++ to the @CalledByNative stopAnchor in Java
+  Java_AudioManagerAndroid_stopAnchor(base::android::AttachCurrentThread(),
+                                       j_audio_manager_);
 }
 
 }  // namespace media

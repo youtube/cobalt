@@ -18,11 +18,13 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -31,6 +33,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
@@ -119,6 +122,9 @@ public abstract class CobaltActivity extends Activity {
   private boolean mEnableSplashScreen;
   private static final String URL_TOPIC_NAME = "topic";
   private String mUrlTopic;
+
+  private android.os.HandlerThread mAudioHandlerThread;
+  private android.os.Handler mAudioHandler;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -330,6 +336,14 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER && event.getAction() == KeyEvent.ACTION_DOWN) {
+        if (event.getRepeatCount() == 0) {
+            Log.i(TAG, "YO THOR: Center Down - Warming up Audio HW");
+            // CobaltActivityJni.get().preWarmAudioInput();
+            Window cobaltWindow = getWindow();
+            cobaltWindow.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
+        }
+    }
     // Filter D-pad Center key repeats to avoid flood on softmic activation
     if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
       if (event.getRepeatCount() > 0) {
@@ -349,6 +363,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+        // Restore the Window Manager's normal behavior
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
+        Log.i(TAG, "YO THOR: Center Up - Restoring InputDispatcher defaults");
+    }
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyUp(keyCode, event);
     }
@@ -416,6 +435,24 @@ public abstract class CobaltActivity extends Activity {
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
     timeInNanoseconds = System.nanoTime();
+
+    mAudioHandlerThread = new android.os.HandlerThread("CobaltAudioHandler");
+    mAudioHandlerThread.start();
+    mAudioHandler = new android.os.Handler(mAudioHandlerThread.getLooper());
+
+    // Audio warmup - force class loading and audio enumeration early
+    mAudioHandler.post(() -> {
+            try {
+                AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    am.getDevices(AudioManager.GET_DEVICES_INPUTS);
+                    am.getMicrophones();
+                    MediaRecorder.getAudioSourceMax();
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Audio pre-warm failed", e);
+            }
+        });
 
     // To ensure that volume controls adjust the correct stream, make this call
     // early in the app's lifecycle. This connects the volume controls to
@@ -513,7 +550,8 @@ public abstract class CobaltActivity extends Activity {
 
     DisplayUtil.cacheDefaultDisplay(this);
     DisplayUtil.addDisplayListener(this);
-    AudioOutputManager.addAudioDeviceListener(this);
+
+    AudioOutputManager.addAudioDeviceListener(this, mAudioHandler);
 
     getStarboardBridge().onActivityStart(this);
     super.onStart();
@@ -574,6 +612,12 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
+
+    if (mAudioHandlerThread != null) {
+      mAudioHandler.removeCallbacksAndMessages(null);
+       mAudioHandlerThread.quitSafely();
+    }
+
     if (mShellManager != null) {
       mShellManager.destroy();
     }

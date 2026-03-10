@@ -9,6 +9,9 @@
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
 
+#include <sys/resource.h>
+#include <sys/time.h>
+
 #define LOG_ON_FAILURE_AND_RETURN(op, ...)      \
   do {                                          \
     SLresult err = (op);                        \
@@ -70,8 +73,11 @@ AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
   if (engine_object_.Get())
     return AudioInputStream::OpenOutcome::kFailed;
 
+  audio_manager_->StopAnchor();
   auto create_recorder_start = base::TimeTicks::Now();
   bool recorder_created = CreateRecorder();
+
+
   LOG(INFO) << "YO THOR OpenSLESInputStream::CreateRecorder took " << (base::TimeTicks::Now() - create_recorder_start).InMillisecondsF() << " ms, result=" << recorder_created;
   if (!recorder_created)
     return AudioInputStream::OpenOutcome::kFailed;
@@ -316,6 +322,16 @@ void OpenSLESInputStream::SimpleBufferQueueCallback(
 }
 
 void OpenSLESInputStream::ReadBufferQueue() {
+
+  // THOR_POC: Elevate this thread's priority to ensure we don't drop the 'tail' of speech
+  static bool priority_set = false;
+  if (!priority_set) {
+    // -16 is ANDROID_PRIORITY_AUDIO.
+    // This tells the Linux scheduler to prioritize this thread over input/UI.
+    setpriority(PRIO_PROCESS, 0, -16);
+    priority_set = true;
+    LOG(INFO) << "YO THOR: OpenSLES Callback Thread boosted to priority -16";
+  }
   base::AutoLock lock(lock_);
   if (!started_)
     return;
