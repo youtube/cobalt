@@ -15,6 +15,7 @@
 // clang-format off
 #include "starboard/microphone.h"
 // clang-format on
+
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
 SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,

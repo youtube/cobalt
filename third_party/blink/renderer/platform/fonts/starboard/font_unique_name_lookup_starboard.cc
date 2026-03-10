@@ -13,10 +13,8 @@
 // limitations under the License.
 
 // clang-format off
-#include "third_party/blink/renderer/platform/fonts/font_unique_name_lookup.h"
-// clang-format on
-
 #include "third_party/blink/renderer/platform/fonts/starboard/font_unique_name_lookup_starboard.h"
+// clang-format on
 
 namespace blink {
 sk_sp<SkTypeface> FontUniqueNameLookupStarboard::MatchUniqueName(
