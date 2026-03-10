@@ -60,8 +60,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   ~H5vccSystemImpl();
 
   void PerformExitStrategy();
-  void OnFlushCookiesAndLocalStorageComplete(
-      std::unique_ptr<base::ElapsedTimer> timer);
+  void OnFlushCookiesComplete(std::unique_ptr<base::ElapsedTimer> timer);
 
   COBALT_THREAD_CHECKER(thread_checker_);
 

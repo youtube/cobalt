@@ -73,21 +73,25 @@ void H5vccSystemImpl::Exit() {
   auto* storage_partition = render_frame_host().GetStoragePartition();
   CHECK(storage_partition);
   // Flushes localStorage.
+  base::ElapsedTimer local_storage_flush_timer;
   storage_partition->Flush();
+  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.LocalStorageFlushDuration",
+                      local_storage_flush_timer.Elapsed());
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   CHECK(cookie_manager);
   // Sequencing exit strategy after flushing delays performing exit strategy by
   // 20ms when tested on a chromecast.
   auto start_time = std::make_unique<base::ElapsedTimer>();
   cookie_manager->FlushCookieStore(
-      base::BindOnce(&H5vccSystemImpl::OnFlushCookiesAndLocalStorageComplete,
+      base::BindOnce(&H5vccSystemImpl::OnFlushCookiesComplete,
                      weak_factory_.GetWeakPtr(), std::move(start_time)));
 }
 
-void H5vccSystemImpl::OnFlushCookiesAndLocalStorageComplete(
+void H5vccSystemImpl::OnFlushCookiesComplete(
     std::unique_ptr<base::ElapsedTimer> timer) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.FlushDuration", timer->Elapsed());
+  UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.CookieFlushDuration",
+                      timer->Elapsed());
   PerformExitStrategy();
 }
 
