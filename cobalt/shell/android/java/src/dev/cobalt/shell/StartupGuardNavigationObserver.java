@@ -22,15 +22,20 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     }
 
     @Override
-    public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
-        if (navigationHandle.getUrl() != null &&
-            navigationHandle.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
+    public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigation) {
+        if (navigation.getUrl() != null &&
+            navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
             StartupGuard.getInstance().setStartupMilestone(33);
         }
     }
 
     @Override
     public void didRedirectNavigation(NavigationHandle navigation) {
+        if (navigation.getUrl() != null &&
+            navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
+            StartupGuard.getInstance().setStartupMilestone(36);
+        }
+
         // If the page starts to navigate, the app is functioning.
         // Network-specific errors (e.g., DNS failure, offline) are handled by
         // separate error-handling logic, so we disarm the guard here.
@@ -55,6 +60,11 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
 
     @Override
     public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigation) {
+        if (navigation.getUrl() != null &&
+            navigation.getUrl().getSpec().startsWith(YOUTUBE_URL)) {
+            StartupGuard.getInstance().setStartupMilestone(35);
+        }
+
         StartupGuard.getInstance().disarm();
         destroy();
     }
