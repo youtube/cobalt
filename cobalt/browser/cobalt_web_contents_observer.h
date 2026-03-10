@@ -50,6 +50,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
  private:
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
+  bool platform_error_raised_ = false;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 };
 

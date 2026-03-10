@@ -54,6 +54,12 @@ void MakePipeline(
     const std::vector<uint8_t>& pk_hash,
     const std::string& install_data_index,
     scoped_refptr<CrxInstaller> installer,
+#if defined(IN_MEMORY_UPDATES)
+    // `crx_str` points to a string that the CRX package should be downloaded to.
+    // This function does not take ownership of `crx_str`, which must refer to a
+    // valid string that outlives the created pipeline operations.
+    std::string* crx_str,
+#endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     CrxDownloader::ProgressCallback download_progress_callback,

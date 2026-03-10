@@ -134,6 +134,19 @@ source_set("global_features") {
   ]
 }
 
+if (is_androidtv) {
+  source_set("hang_watcher_delegate") {
+    sources = [
+      "hang_watcher_delegate_impl.cc",
+      "hang_watcher_delegate_impl.h",
+    ]
+    deps = [
+      ":global_features",
+      "//base",
+    ]
+  }
+}
+
 source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",

@@ -16,8 +16,27 @@
 #define STARBOARD_LOADER_APP_SLOT_MANAGEMENT_H_
 
 #include <string>
+#include <vector>
 
 namespace loader_app {
+
+// Compares the Evergreen versions v1 and v2. Returns 1 if v1 is newer than v2;
+// returns -1 if v1 is older than v2; returns 0 if v1 is the same as v2, or if
+// either of them is invalid.
+// TODO: b/489518648 - The visiblity of this formerly private helper has been
+// increased so that it can be exposed to unit tests. The tests should be
+// rewritten to test the behavior via public APIs.
+int CompareEvergreenVersion(const std::vector<char>& v1,
+                            const std::vector<char>& v2);
+
+// Reads the Evergreen version from the manifest file at the
+// |manifest_file_path|, and stores in |version|.
+// TODO: b/489518648 - The visiblity of this formerly private helper has been
+// increased so that it can be exposed to unit tests. The tests should be
+// rewritten to test the behavior via public APIs.
+bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
+                          char* version,
+                          int version_length);
 
 // Interface for loading a library.
 class LibraryLoader {

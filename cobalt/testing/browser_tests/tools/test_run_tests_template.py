@@ -38,6 +38,12 @@ class TestRunTestsTemplate(unittest.TestCase):
     }
     # Reset TARGET_MAP for each test
     run_tests_template.TARGET_MAP = self.target_map
+    # Mock Popen globally to avoid actual execution or FileNotFoundError
+    self.popen_patcher = mock.patch('subprocess.Popen')
+    self.mock_popen = self.popen_patcher.start()
+
+  def tearDown(self):
+    self.popen_patcher.stop()
 
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
   @mock.patch('os.path.isfile', return_value=True)
@@ -60,21 +66,17 @@ class TestRunTestsTemplate(unittest.TestCase):
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
-  @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('sys.exit', side_effect=SystemExit(1))
   @mock.patch('sys.argv', ['run_tests.py', 'linux_target'])
-  @mock.patch('sys.executable', '/usr/bin/python3')
-  def test_linux_execution(self, mock_call, *args):
+  @mock.patch('logging.error')
+  def test_non_android_target_error(self, mock_log_error, mock_exit, *args):
     del args  # Unused.
-    exit_code = run_tests_template.main()
-    self.assertEqual(exit_code, 0)
-
-    # Verify command construction with xvfb.py
-    expected_cmd = [
-        '/usr/bin/vpython3', '/tmp/src/testing/xvfb.py', '/usr/bin/python3',
-        '/tmp/src/cobalt/testing/browser_tests/run_browser_tests.py',
-        '/tmp/src/cobalt_browsertests'
-    ]
-    mock_call.assert_called_once_with(expected_cmd)
+    with self.assertRaises(SystemExit):
+      run_tests_template.main()
+    mock_exit.assert_called_once_with(1)
+    mock_log_error.assert_any_call(
+        'Target \'%s\' is not an Android platform. This runner only '
+        'supports Android for now.', 'linux_target')
 
   @mock.patch('sys.argv', ['run_tests.py'])
   @mock.patch('sys.exit', side_effect=SystemExit(1))
@@ -119,14 +121,13 @@ class TestRunTestsTemplate(unittest.TestCase):
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
   @mock.patch('subprocess.call', return_value=0)
-  @mock.patch('subprocess.run')
   @mock.patch('sys.argv',
               ['run_tests.py', '--init-command', 'ls -l', 'android_target'])
-  def test_init_command_execution(self, mock_run, mock_call, *args):
+  def test_init_command_execution(self, mock_call, *args):
     del args, mock_call  # Unused.
     exit_code = run_tests_template.main()
     self.assertEqual(exit_code, 0)
-    mock_run.assert_called_once_with('ls -l', shell=True, check=True)
+    self.mock_popen.assert_called_once_with(['ls', '-l'])
 
 
 if __name__ == '__main__':

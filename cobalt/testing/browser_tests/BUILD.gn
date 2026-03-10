@@ -179,10 +179,7 @@ if (is_android) {
 
 copy("cobalt_browsertests_runner_script") {
   testonly = true
-
-  # TODO(433354983): Switch back to the run_browser_tests.py
-  # once the infra supports python.
-  sources = [ "cobalt_browsertests_runner.sh" ]
+  sources = [ "run_browser_tests.py" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
   deps = [ ":cobalt_browsertests" ]
 }
@@ -384,6 +381,10 @@ test("cobalt_browsertests") {
     "//third_party/mesa_headers",
   ]
 
+  if (is_ios) {
+    bundle_deps = [ ":cobalt_test_bundle_data" ]
+  }
+
   if (is_android) {
     deps += [
       ":content_browsertests_java",
@@ -437,6 +438,13 @@ test("cobalt_browsertests") {
     if (use_ozone) {
       deps += [ "//ui/ozone" ]
     }
+  }
+}
+
+if (is_ios) {
+  bundle_data_from_filelist("cobalt_test_bundle_data") {
+    testonly = true
+    filelist_name = "cobalt_test_bundle_data.filelist"
   }
 }
 

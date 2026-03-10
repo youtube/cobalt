@@ -54,6 +54,7 @@ std::atomic<LoggingLevel> g_main_thread_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_compositor_thread_log_level{LoggingLevel::kNone};
 #if BUILDFLAG(IS_COBALT)
 std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{LoggingLevel::kNone};
+static inline HangWatcher::Delegate* g_hang_watcher_delegate = nullptr;
 #endif
 
 // Indicates whether HangWatcher::Run() should return after the next monitoring.
@@ -228,6 +229,13 @@ bool ThreadTypeLoggingLevelGreaterOrEqual(HangWatcher::ThreadType thread_type,
 }
 
 }  // namespace
+
+#if BUILDFLAG(IS_COBALT)
+void HangWatcher::SetDelegate(Delegate* delegate) {
+  DCHECK(!g_instance) << "SetDelegate must be called before Start()";
+  g_hang_watcher_delegate = delegate;
+}
+#endif
 
 // Enables the HangWatcher. When disabled, the HangWatcher thread should not be
 // started. Enabled by default only on platforms where the generated data is
@@ -1090,7 +1098,14 @@ void HangWatcher::DoDumpWithoutCrashing(
   if (on_hang_closure_for_testing_) {
     on_hang_closure_for_testing_.Run();
   } else {
+#if BUILDFLAG(IS_COBALT)
+    if (g_hang_watcher_delegate &&
+        g_hang_watcher_delegate->IsHangReportingEnabled()) {
+      RecordHang();
+    }
+#else
     RecordHang();
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   // Update after running the actual capture.

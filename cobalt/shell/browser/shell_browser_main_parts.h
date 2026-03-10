@@ -37,7 +37,7 @@ class ShellPlatformDelegate;
 
 class ShellBrowserMainParts : public BrowserMainParts {
  public:
-  ShellBrowserMainParts();
+  explicit ShellBrowserMainParts(const std::string& deep_link = "");
 
   ShellBrowserMainParts(const ShellBrowserMainParts&) = delete;
   ShellBrowserMainParts& operator=(const ShellBrowserMainParts&) = delete;
@@ -76,6 +76,8 @@ class ShellBrowserMainParts : public BrowserMainParts {
   }
 
  private:
+  std::string deep_link_;
+
   std::unique_ptr<ShellBrowserContext> browser_context_;
   std::unique_ptr<ShellBrowserContext> off_the_record_browser_context_;
 
