@@ -128,15 +128,6 @@ bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
     }
   }
 
-  // Check for nested deep link in "redirect" parameter.
-  for (net::QueryIterator it(link_url); !it.IsAtEnd(); it.Advance()) {
-    if (it.GetKey() == "redirect") {
-      if (IsDeepLinkTopic(GURL(it.GetUnescapedValue()), target_topic)) {
-        return true;
-      }
-    }
-  }
-
   return false;
 }
 
