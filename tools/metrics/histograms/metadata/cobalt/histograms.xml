@@ -92,14 +92,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Storage.Cookie.CommitDuration" units="ms"
+<histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    Measures the time spent on the background thread writing a batch of pending
-    cookie operations to the SQLite database. Spikes in this metric could
-    indicate I/O contention on the device or issues with the database that could
-    affect overall application stability and responsiveness.
+    Measures the average time spent per cookie operation during a batch commit
+    to the SQLite database. This provides a normalized view of commit
+    performance, helping to identify how efficiently the database handles
+    operations as the batch size changes.
   </summary>
 </histogram>
 
