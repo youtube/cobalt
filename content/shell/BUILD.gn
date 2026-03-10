@@ -316,6 +316,7 @@ static_library("content_shell_lib") {
     ":shell_controller_mojom",
     "//base",
     "//base:base_static",
+    "//build:lightweight_buildflags",
     "//cc/base",
     "//components/cdm/renderer",
     "//components/custom_handlers",
