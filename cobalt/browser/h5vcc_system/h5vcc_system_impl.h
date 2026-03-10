@@ -15,14 +15,11 @@
 #ifndef COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_H_
 #define COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_H_
 
-<<<<<<< HEAD:cobalt/browser/h5vcc_system/h5vcc_system_impl.h
 #include <string>
 
-#include "base/threading/thread_checker.h"
-=======
 #include "base/memory/weak_ptr.h"
+#include "base/threading/thread_checker.h"
 #include "base/timer/elapsed_timer.h"
->>>>>>> 4d94dff812 (Local Storage and cookie UMAs (#9365)):cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -65,19 +62,13 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
                   mojo::PendingReceiver<mojom::H5vccSystem> receiver);
   ~H5vccSystemImpl();
 
-<<<<<<< HEAD:cobalt/browser/h5vcc_system/h5vcc_system_impl.h
   THREAD_CHECKER(thread_checker_);
-=======
-  void PerformExitStrategy();
   void OnFlushCookiesComplete(std::unique_ptr<base::ElapsedTimer> timer);
-
-  COBALT_THREAD_CHECKER(thread_checker_);
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.
   // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<H5vccSystemImpl> weak_factory_{this};
->>>>>>> 4d94dff812 (Local Storage and cookie UMAs (#9365)):cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h
 };
 
 }  // namespace h5vcc_system

@@ -23,13 +23,10 @@
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
-<<<<<<< HEAD
-=======
-#include "base/strings/utf_string_conversions.h"
-#include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
->>>>>>> 4d94dff812 (Local Storage and cookie UMAs (#9365))
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
