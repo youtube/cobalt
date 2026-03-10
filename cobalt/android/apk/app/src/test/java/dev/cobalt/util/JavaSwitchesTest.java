@@ -110,6 +110,16 @@ public class JavaSwitchesTest {
   }
 
   @Test
+  public void getExtraCommandLineArgs_DisableBackForwardCache() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.DISABLE_BACK_FORWARD_CACHE, "true");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--disable-back-forward-cache");
+  }
+
+  @Test
   public void getExtraCommandLineArgs_SanitizeValues() {
     Map<String, String> javaSwitches = new HashMap<>();
     javaSwitches.put(JavaSwitches.V8_GC_INTERVAL, "1,000ms");

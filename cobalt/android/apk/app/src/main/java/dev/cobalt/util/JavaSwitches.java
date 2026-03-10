@@ -25,6 +25,7 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
   public static final String DISABLE_STORAGE_MIGRATION = "DisableStorageMigration";
+  public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
   public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
       "EnableLowEndDeviceModeNoSimulatedMemory";
@@ -147,6 +148,9 @@ public class JavaSwitches {
     }
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_STORAGE_MIGRATION)) {
       extraCommandLineArgs.add("--disable-storage-migration");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BACK_FORWARD_CACHE)) {
+      extraCommandLineArgs.add("--disable-back-forward-cache");
     }
     if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--force-image-splash-screen");
