@@ -248,6 +248,8 @@ public abstract class CobaltActivity extends Activity {
               .orElse(null);
     }
 
+    // META_DATA_APP_URL is configured to be the same as hardcoded YOUTUBE_URL.
+    // However, if the app is used to start other web applications e.g google.com, we should not disarm Startup Guard.
     if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
       Log.i(TAG, "Non-Youtube startup URL detected.");
       StartupGuard.getInstance().disarm();
