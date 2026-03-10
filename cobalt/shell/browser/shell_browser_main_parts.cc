@@ -30,6 +30,7 @@
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/android/shell_descriptors.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
@@ -177,6 +178,10 @@ int ShellBrowserMainParts::PreMainMessageLoopRun() {
   Shell::Initialize(CreateShellPlatformDelegate());
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
+
+  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
+      browser_context_.get());
+
   InitializeMessageLoopContext();
   return 0;
 }

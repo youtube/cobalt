@@ -24,22 +24,28 @@
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/url_matcher/url_util.h"
-#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_options.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "starboard/common/storage.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
+#include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace cobalt {
 namespace migrate_storage_record {
@@ -88,7 +94,31 @@ std::string GetApplicationKey(const GURL& url) {
   return encoded_url;
 }
 
-std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
+std::unique_ptr<starboard::StorageRecord> GetStorageRecord() {
+  GURL initial_url(
+      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+  if (!initial_url.is_valid()) {
+    return nullptr;
+  }
+
+  std::string partition_key = GetApplicationKey(initial_url);
+  auto record =
+      std::make_unique<starboard::StorageRecord>(partition_key.c_str());
+  if (!record->IsValid()) {
+    bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
+    if (!fallback) {
+      return nullptr;
+    }
+
+    record = std::make_unique<starboard::StorageRecord>();
+    if (!record->IsValid()) {
+      return nullptr;
+    }
+  }
+  return record;
+}
+
+std::unique_ptr<cobalt::storage::Storage> ReadStorage(starboard::StorageRecord* record) {
   constexpr char kRecordHeader[] = "SAV1";
   constexpr size_t kRecordHeaderSize = 4;
 
@@ -96,34 +126,12 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   std::unique_ptr<cobalt::storage::Storage> storage;
 
   [&]() {
-    GURL initial_url(
-        switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
-    if (!initial_url.is_valid()) {
+    if (!record || !record->IsValid()) {
       result = StorageReadResult::kRecordInvalid;
       return;
     }
 
-    std::string partition_key = GetApplicationKey(initial_url);
-    auto record =
-        std::make_unique<starboard::StorageRecord>(partition_key.c_str());
-    if (!record->IsValid()) {
-      record->Delete();
-      bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
-      if (!fallback) {
-        result = StorageReadResult::kPartitionKeyNotDefault;
-        return;
-      }
-
-      record = std::make_unique<starboard::StorageRecord>();
-      if (!record->IsValid()) {
-        record->Delete();
-        result = StorageReadResult::kRecordInvalid;
-        return;
-      }
-    }
-
     if (record->GetSize() < kRecordHeaderSize) {
-      record->Delete();
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -131,13 +139,6 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     auto bytes = std::vector<uint8_t>(record->GetSize());
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
-    if (!record->Delete()) {
-      LOG(ERROR)
-          << "Failed to delete legacy storage record. Aborting migration "
-             "to prevent overwrite loop.";
-      result = StorageReadResult::kDeleteFailed;
-      return;
-    }
     if (read_result != bytes.size()) {
       result = StorageReadResult::kReadMismatch;
       return;
@@ -164,55 +165,15 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   return storage;
 }
 
-content::RenderFrameHost* RenderFrameHost(
-    content::WeakDocumentPtr weak_document_ptr) {
-  auto* render_frame_host = weak_document_ptr.AsRenderFrameHostIfValid();
-  CHECK(render_frame_host);
-  return render_frame_host;
-}
-
-network::mojom::CookieManager* CookieManager(
-    content::WeakDocumentPtr weak_document_ptr) {
-  auto* storage_partition =
-      RenderFrameHost(weak_document_ptr)->GetStoragePartition();
-  CHECK(storage_partition);
-  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
-  return cookie_manager;
-}
-
 Task RecordMetricsTask(std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
   return base::BindOnce(
       [](std::unique_ptr<base::ElapsedTimer> elapsed_timer,
          base::OnceClosure callback) {
         base::TimeDelta elapsed = elapsed_timer->Elapsed();
         base::UmaHistogramTimes(kDurationHistogram, elapsed);
-#if !defined(COBALT_IS_RELEASE_BUILD)
-        LOG(INFO) << "Cookie and localStorage migration completed in "
-                  << elapsed.InMilliseconds() << " ms.";
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
         std::move(callback).Run();
       },
       std::move(elapsed_timer));
-}
-
-Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
-  return base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr, const GURL& url,
-         base::OnceClosure callback) {
-        auto* rfh = RenderFrameHost(weak_document_ptr);
-        content::WebContents* web_contents =
-            content::WebContents::FromRenderFrameHost(rfh);
-        if (web_contents) {
-          LOG(INFO) << "MigrationManager: Reloading URL: " << url.spec();
-          content::NavigationController::LoadURLParams params(url);
-          params.transition_type = ui::PageTransitionFromInt(
-              ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
-          web_contents->GetController().LoadURLWithParams(params);
-        }
-        std::move(callback).Run();
-      },
-      weak_document_ptr, url);
 }
 
 base::FilePath GetOldCachePath() {
@@ -297,7 +258,7 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 // TODO(b/399165796): Disable and delete migration code when possible.
 // TODO(b/399166308): Add unit and/or integration tests for migration.
 void MigrationManager::DoMigrationTasksOnce(
-    content::WebContents* web_contents) {
+    content::BrowserContext* browser_context) {
   if (migration_attempted_.test_and_set()) {
     return;
   }
@@ -310,9 +271,15 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
-  auto storage = ReadStorage();
+  auto record = GetStorageRecord();
+  if (!record) {
+    return;
+  }
+
+  auto storage = ReadStorage(record.get());
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
+    record->Delete();
     return;
   }
 
@@ -320,108 +287,138 @@ void MigrationManager::DoMigrationTasksOnce(
   base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
                                storage->local_storages_size());
 
-  GURL url = web_contents->GetLastCommittedURL();
-  web_contents->Stop();
-
-  auto* render_frame_host = web_contents->GetPrimaryMainFrame();
-  CHECK(render_frame_host);
-  auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
-
   std::vector<Task> tasks;
-  tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
-  const url::Origin& origin = render_frame_host->GetLastCommittedOrigin();
-  tasks.push_back(LocalStorageTask(weak_document_ptr,
-                                   ToLocalStorageItems(origin, *storage)));
+  tasks.push_back(CookieTask(browser_context, ToCanonicalCookies(*storage)));
+
+  for (const auto& local_storage : storage->local_storages()) {
+    GURL origin_url(local_storage.serialized_origin());
+    if (origin_url.is_valid() && origin_url.SchemeIs("https")) {
+      url::Origin origin = url::Origin::Create(origin_url);
+      tasks.push_back(LocalStorageTask(browser_context, origin,
+                                       ToLocalStorageItems(local_storage)));
+    }
+  }
+
   tasks.push_back(RecordMetricsTask(std::move(elapsed_timer)));
   tasks.push_back(DeleteOldCacheDirectoryTask());
-  tasks.push_back(ReloadTask(weak_document_ptr, url));
-  std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
+
+  base::RunLoop run_loop;
+  std::move(GroupTasks(std::move(tasks))).Run(run_loop.QuitClosure());
+  run_loop.Run();
+
+  if (!record->Delete()) {
+    LOG(ERROR) << "Failed to delete legacy storage record after migration.";
+  }
 }
 
 // static
 Task MigrationManager::CookieTask(
-    content::WeakDocumentPtr weak_document_ptr,
+    content::BrowserContext* browser_context,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+  auto* cookie_manager = browser_context->GetDefaultStoragePartition()
+                             ->GetCookieManagerForBrowserProcess();
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+      [](network::mojom::CookieManager* cookie_manager,
          base::OnceClosure callback) {
-        CookieManager(weak_document_ptr)
-            ->DeleteCookies(network::mojom::CookieDeletionFilter::New(),
-                            base::IgnoreArgs<uint32_t>(std::move(callback)));
+        cookie_manager->DeleteCookies(
+            network::mojom::CookieDeletionFilter::New(),
+            base::IgnoreArgs<uint32_t>(std::move(callback)));
       },
-      weak_document_ptr));
+      cookie_manager));
   for (auto& cookie : cookies) {
     tasks.push_back(base::BindOnce(
-        [](content::WeakDocumentPtr weak_document_ptr,
+        [](network::mojom::CookieManager* cookie_manager,
            std::unique_ptr<net::CanonicalCookie> cookie,
            base::OnceClosure callback) {
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
-          CookieManager(weak_document_ptr)
-              ->SetCanonicalCookie(
-                  *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
-                  base::BindOnce(
-                      [](base::OnceClosure callback,
-                         net::CookieAccessResult result) {
-                        base::UmaHistogramEnumeration(
-                            kCookieInjectionResultHistogram,
-                            result.status.IsInclude()
-                                ? InjectionResult::kSuccess
+          cookie_manager->SetCanonicalCookie(
+              *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
+              base::BindOnce(
+                  [](base::OnceClosure callback,
+                     net::CookieAccessResult result) {
+                    bool success = result.status.IsInclude();
+                    if (!success) {
+                      LOG(WARNING)
+                          << "Cookie injection failed: "
+                          << result.status.GetDebugString();
+                    }
+                    base::UmaHistogramEnumeration(
+                        kCookieInjectionResultHistogram,
+                        success ? InjectionResult::kSuccess
                                 : InjectionResult::kError);
-                        std::move(callback).Run();
-                      },
-                      std::move(callback)));
+                    std::move(callback).Run();
+                  },
+                  std::move(callback)));
         },
-        weak_document_ptr, std::move(cookie)));
+        cookie_manager, std::move(cookie)));
   }
   tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+      [](network::mojom::CookieManager* cookie_manager,
          base::OnceClosure callback) {
-        CookieManager(weak_document_ptr)->FlushCookieStore(std::move(callback));
+        cookie_manager->FlushCookieStore(std::move(callback));
       },
-      weak_document_ptr));
+      cookie_manager));
   return GroupTasks(std::move(tasks));
 }
 
 // static
 Task MigrationManager::LocalStorageTask(
-    content::WeakDocumentPtr weak_document_ptr,
+    content::BrowserContext* browser_context,
+    const url::Origin& origin,
     std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs) {
+  auto* storage_control = browser_context->GetDefaultStoragePartition()
+                              ->GetLocalStorageControl();
+  blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
+
   std::vector<Task> tasks;
   tasks.push_back(base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
-         base::OnceClosure callback) {
-        RenderFrameHost(weak_document_ptr)
-            ->ExecuteJavaScriptMethod(
-                base::ASCIIToUTF16(std::string("localStorage")),
-                base::ASCIIToUTF16(std::string("clear")), base::Value::List(),
-                base::IgnoreArgs<base::Value>(std::move(callback)));
+      [](::storage::mojom::LocalStorageControl* storage_control,
+         blink::StorageKey storage_key, base::OnceClosure callback) {
+        storage_control->DeleteStorage(storage_key, std::move(callback));
       },
-      weak_document_ptr));
+      storage_control, storage_key));
 
   for (auto& pair : pairs) {
     tasks.push_back(base::BindOnce(
-        [](content::WeakDocumentPtr weak_document_ptr,
+        [](::storage::mojom::LocalStorageControl* storage_control,
+           blink::StorageKey storage_key,
            std::unique_ptr<std::pair<std::string, std::string>> pair,
            base::OnceClosure callback) {
-          RenderFrameHost(weak_document_ptr)
-              ->ExecuteJavaScriptMethod(
-                  base::ASCIIToUTF16(std::string("localStorage")),
-                  base::ASCIIToUTF16(std::string("setItem")),
-                  base::Value::List().Append(pair->first).Append(pair->second),
-                  base::BindOnce(
-                      [](base::OnceClosure callback, base::Value value) {
-                        base::UmaHistogramEnumeration(
-                            kLocalStorageInjectionResultHistogram,
-                            value.is_none()
-                                ? InjectionResult::kSuccess
+          mojo::Remote<blink::mojom::StorageArea> area;
+          storage_control->BindStorageArea(storage_key,
+                                           area.BindNewPipeAndPassReceiver());
+          std::string ls_key = pair->first;
+          std::string ls_value = pair->second;
+
+          auto* area_ptr = area.get();
+          area_ptr->Put(
+              std::vector<uint8_t>(ls_key.begin(), ls_key.end()),
+              std::vector<uint8_t>(ls_value.begin(), ls_value.end()),
+              absl::nullopt, "migration",
+              base::BindOnce(
+                  [](mojo::Remote<blink::mojom::StorageArea> area,
+                     base::OnceClosure callback, bool success) {
+                    if (!success) {
+                      LOG(WARNING)
+                          << "LocalStorage injection failed.";
+                    }
+                    base::UmaHistogramEnumeration(
+                        kLocalStorageInjectionResultHistogram,
+                        success ? InjectionResult::kSuccess
                                 : InjectionResult::kError);
-                        std::move(callback).Run();
-                      },
-                      std::move(callback)));
+                    std::move(callback).Run();
+                  },
+                  std::move(area), std::move(callback)));
         },
-        weak_document_ptr, std::move(pair)));
+        storage_control, storage_key, std::move(pair)));
   }
+  tasks.push_back(base::BindOnce(
+      [](::storage::mojom::LocalStorageControl* storage_control,
+         base::OnceClosure callback) {
+        storage_control->Flush(std::move(callback));
+      },
+      storage_control));
   return GroupTasks(std::move(tasks));
 }
 
@@ -445,21 +442,13 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
 
 // static
 std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
-MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
-                                      const cobalt::storage::Storage& storage) {
+MigrationManager::ToLocalStorageItems(
+    const cobalt::storage::LocalStorage& local_storage) {
   std::vector<std::unique_ptr<std::pair<std::string, std::string>>> entries;
-  for (const auto& local_storages : storage.local_storages()) {
-    GURL local_storage_origin(local_storages.serialized_origin());
-    if (!local_storage_origin.SchemeIs("https") ||
-        !page_origin.IsSameOriginWith(local_storage_origin)) {
-      continue;
-    }
-
-    for (const auto& local_storage_entry :
-         local_storages.local_storage_entries()) {
-      entries.emplace_back(new std::pair<std::string, std::string>(
-          local_storage_entry.key(), local_storage_entry.value()));
-    }
+  for (const auto& local_storage_entry :
+       local_storage.local_storage_entries()) {
+    entries.emplace_back(new std::pair<std::string, std::string>(
+        local_storage_entry.key(), local_storage_entry.value()));
   }
   return entries;
 }

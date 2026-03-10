@@ -42,9 +42,8 @@ class MigrationManagerTest : public testing::Test {
   }
 
   std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
-  ToLocalStorageItems(const url::Origin& page_origin,
-                      const cobalt::storage::Storage& storage) {
-    return MigrationManager::ToLocalStorageItems(page_origin, storage);
+  ToLocalStorageItems(const cobalt::storage::LocalStorage& local_storage) {
+    return MigrationManager::ToLocalStorageItems(local_storage);
   }
 
  private:
@@ -172,29 +171,26 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
   local_storage4_entry2->set_key("local_storage4_entry2_key");
   local_storage4_entry2->set_value("local_storage4_entry2_value");
 
-  auto actual1 = ToLocalStorageItems(
-      url::Origin::Create(GURL("https://example1.com")), storage);
-  EXPECT_EQ(4, actual1.size());
+  auto actual1 = ToLocalStorageItems(storage.local_storages(0));
+  EXPECT_EQ(2, actual1.size());
   EXPECT_EQ("local_storage1_entry1_key", actual1[0]->first);
   EXPECT_EQ("local_storage1_entry1_value", actual1[0]->second);
   EXPECT_EQ("local_storage1_entry2_key", actual1[1]->first);
   EXPECT_EQ("local_storage1_entry2_value", actual1[1]->second);
-  EXPECT_EQ("local_storage4_entry1_key", actual1[2]->first);
-  EXPECT_EQ("local_storage4_entry1_value", actual1[2]->second);
-  EXPECT_EQ("local_storage4_entry2_key", actual1[3]->first);
-  EXPECT_EQ("local_storage4_entry2_value", actual1[3]->second);
 
-  auto actual2 = ToLocalStorageItems(
-      url::Origin::Create(GURL("https://example2.com")), storage);
+  auto actual2 = ToLocalStorageItems(storage.local_storages(1));
   EXPECT_EQ(2, actual2.size());
   EXPECT_EQ("local_storage2_entry1_key", actual2[0]->first);
   EXPECT_EQ("local_storage2_entry1_value", actual2[0]->second);
   EXPECT_EQ("local_storage2_entry2_key", actual2[1]->first);
   EXPECT_EQ("local_storage2_entry2_value", actual2[1]->second);
 
-  auto actual3 = ToLocalStorageItems(
-      url::Origin::Create(GURL("http://example2.com")), storage);
-  EXPECT_TRUE(actual3.empty());
+  auto actual3 = ToLocalStorageItems(storage.local_storages(3));
+  EXPECT_EQ(2, actual3.size());
+  EXPECT_EQ("local_storage4_entry1_key", actual3[0]->first);
+  EXPECT_EQ("local_storage4_entry1_value", actual3[0]->second);
+  EXPECT_EQ("local_storage4_entry2_key", actual3[1]->first);
+  EXPECT_EQ("local_storage4_entry2_value", actual3[1]->second);
 }
 
 }  // namespace migrate_storage_record
