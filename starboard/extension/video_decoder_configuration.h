@@ -43,8 +43,6 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   void (*SetVideoMaxPendingInputFramesForCurrentThread)(
       int max_pending_input_frames);
 
-  // The fields below this point were added in version 2 or later.
-
   // Specifies the video initial preroll count.
   void (*SetVideoDecoderInitialPrerollCountForCurrentThread)(
       int video_decoder_initial_preroll_count);
@@ -56,8 +54,6 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Specifies the MediaCodec delay in milliseconds.
   void (*SetMediaCodecResetDelayMsForCurrentThread)(
       int media_codec_reset_delay_ms);
-
-  // The fields below this point were added in version 3 or later.
 
   // Specifies the video renderer minimum input buffers.
   void (*SetVideoRendererMinInputBuffersForCurrentThread)(
