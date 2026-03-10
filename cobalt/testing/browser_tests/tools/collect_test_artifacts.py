@@ -28,20 +28,38 @@ logging.basicConfig(
 
 def find_runtime_deps(build_dir):
   """Finds the runtime_deps file for cobalt_browsertests in the build dir."""
-  deps_file = os.path.join(
+  # Try exact match first
+  exact_deps_file = os.path.join(
       build_dir, 'gen.runtime/cobalt/testing/browser_tests/'
       'cobalt_browsertests__test_runner_script.runtime_deps')
-  if os.path.isfile(deps_file):
-    return Path(deps_file)
+  if os.path.isfile(exact_deps_file):
+    return Path(exact_deps_file)
+
+  # Fallback to rglob
+  results = list(
+      Path(build_dir).rglob(
+          'cobalt_browsertests__test_runner_script.runtime_deps'))
+  if results:
+    return results[0]
   return None
 
 
-def get_test_runner(is_android):
+def get_test_runner(build_dir, is_android):
   """Returns the relative path to the test runner within the build dir."""
   if is_android:
-    return 'bin/run_cobalt_browsertests'
+    return os.path.join('bin', 'run_cobalt_browsertests')
+
   # For Linux/non-android, we will use the binary directly via
   # run_browser_tests.py. However, some platforms might have a runner script.
+  runner_names = [
+      os.path.join('bin', 'run_cobalt_browsertests'),
+      'cobalt_browsertests_runner',
+      'cobalt_browsertests',
+  ]
+  for name in runner_names:
+    if os.path.isfile(os.path.join(build_dir, name)):
+      return name
+
   return 'cobalt_browsertests'
 
 
@@ -162,7 +180,7 @@ def main():
                        os.path.join(stage_dir, 'tools/platform-tools.zip'),
                        copied_sources)
 
-      test_runner_rel = get_test_runner(is_android)
+      test_runner_rel = get_test_runner(build_dir, is_android)
       logging.info('Processing build directory: %s', build_dir)
 
       # Record target info
