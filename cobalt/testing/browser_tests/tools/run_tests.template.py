@@ -106,7 +106,6 @@ def main():
 
   target_config = TARGET_MAP[target_name]
   logging.debug("Target config: %s", target_config)
-  is_android = target_config.get("is_android", False)
 
   # 3. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
@@ -141,15 +140,12 @@ def main():
   logging.info("Using vpython3 at: %s", vpython_path)
 
   # 6. Execute
-  if not is_android:
-    logging.error(
-        "Target '%s' is not an Android platform. This runner only "
-        "supports Android for now.", target_name)
-    sys.exit(1)
+  logging.info("Executing test runner for '%s': %s", target_name, test_runner)
 
-  logging.info("Executing Android test runner for '%s': %s", target_name,
-               test_runner)
-  cmd = [vpython_path, test_runner] + runner_args
+  if test_runner.endswith(".py"):
+    cmd = [vpython_path, test_runner] + runner_args
+  else:
+    cmd = [test_runner] + runner_args
 
   try:
     return subprocess.call(cmd)

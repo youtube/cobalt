@@ -26,7 +26,7 @@ class TestRunTestsTemplate(unittest.TestCase):
         'android_target': {
             'is_android': True,
             'deps': 'gen/deps.runtime_deps',
-            'runner': 'bin/run_test',
+            'runner': 'bin/run_test.py',
             'build_dir': 'out/android'
         },
         'linux_target': {
@@ -38,48 +38,44 @@ class TestRunTestsTemplate(unittest.TestCase):
     }
     # Reset TARGET_MAP for each test
     run_tests_template.TARGET_MAP = self.target_map
-    # Mock Popen globally to avoid actual execution or FileNotFoundError
-    self.popen_patcher = mock.patch('subprocess.Popen')
-    self.mock_popen = self.popen_patcher.start()
-
-  def tearDown(self):
-    self.popen_patcher.stop()
 
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
   @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('subprocess.Popen')
   @mock.patch('sys.argv', ['run_tests.py', 'android_target'])
-  def test_android_execution(self, mock_call, *args):
-    del args  # Unused.
+  def test_android_execution(self, mock_popen, mock_call, *args):
+    del args, mock_popen  # Unused.
     exit_code = run_tests_template.main()
     self.assertEqual(exit_code, 0)
 
-    # Verify command construction
-    # abspath('/tmp/stage') -> dirname is '/tmp' -> src_dir is '/tmp/src'
-    # Redundant --runtime-deps-path was removed.
-    expected_cmd = ['/usr/bin/vpython3', '/tmp/src/bin/run_test']
+    # Verify command construction for script-based runner
+    expected_cmd = ['/usr/bin/vpython3', '/tmp/src/bin/run_test.py']
     mock_call.assert_called_once_with(expected_cmd)
 
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
-  @mock.patch('sys.exit', side_effect=SystemExit(1))
+  @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('subprocess.Popen')
   @mock.patch('sys.argv', ['run_tests.py', 'linux_target'])
-  @mock.patch('logging.error')
-  def test_non_android_target_error(self, mock_log_error, mock_exit, *args):
-    del args  # Unused.
-    with self.assertRaises(SystemExit):
-      run_tests_template.main()
-    mock_exit.assert_called_once_with(1)
-    mock_log_error.assert_any_call(
-        'Target \'%s\' is not an Android platform. This runner only '
-        'supports Android for now.', 'linux_target')
+  def test_linux_binary_execution(self, mock_popen, mock_call, *args):
+    del args, mock_popen  # Unused.
+    exit_code = run_tests_template.main()
+    self.assertEqual(exit_code, 0)
 
+    # Verify command construction for binary runner
+    expected_cmd = ['/tmp/src/cobalt_browsertests']
+    mock_call.assert_called_once_with(expected_cmd)
+
+  @mock.patch('subprocess.Popen')
   @mock.patch('sys.argv', ['run_tests.py'])
   @mock.patch('sys.exit', side_effect=SystemExit(1))
   @mock.patch('logging.error')
-  def test_multiple_targets_no_selection_error(self, mock_log_error, mock_exit):
+  def test_multiple_targets_no_selection_error(self, mock_log_error, mock_exit,
+                                               mock_popen):
+    del mock_popen  # Unused.
     with self.assertRaises(SystemExit):
       run_tests_template.main()
     mock_exit.assert_called_once_with(1)
@@ -91,26 +87,28 @@ class TestRunTestsTemplate(unittest.TestCase):
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
   @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('subprocess.Popen')
   @mock.patch('sys.argv', ['run_tests.py'])
-  def test_default_single_target(self, mock_call, *args):
-    del args  # Unused.
+  def test_default_single_target(self, mock_popen, mock_call, *args):
+    del args, mock_popen  # Unused.
     run_tests_template.TARGET_MAP = {
         'single': {
             'is_android': True,
             'deps': 'd',
-            'runner': 'r',
+            'runner': 'r.py',
             'build_dir': 'out/single'
         }
     }
     run_tests_template.main()
-    self.assertEqual(mock_call.call_args[0][0][1], '/tmp/src/r')
+    self.assertEqual(mock_call.call_args[0][0][1], '/tmp/src/r.py')
 
   @mock.patch('shutil.which', return_value=None)
   @mock.patch('os.path.isfile', return_value=True)
+  @mock.patch('subprocess.Popen')
   @mock.patch('sys.exit', side_effect=SystemExit(1))
   @mock.patch('sys.argv', ['run_tests.py', 'android_target'])
-  def test_missing_vpython_error(self, mock_exit, *args):
-    del args  # Unused.
+  def test_missing_vpython_error(self, mock_exit, mock_popen, *args):
+    del args, mock_popen  # Unused.
     with self.assertRaises(SystemExit):
       run_tests_template.main()
     mock_exit.assert_called_once_with(1)
@@ -119,13 +117,14 @@ class TestRunTestsTemplate(unittest.TestCase):
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
   @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('subprocess.Popen')
   @mock.patch('sys.argv',
               ['run_tests.py', '--init-command', 'ls -l', 'android_target'])
-  def test_init_command_execution(self, mock_call, *args):
+  def test_init_command_execution(self, mock_popen, mock_call, *args):
     del args, mock_call  # Unused.
     exit_code = run_tests_template.main()
     self.assertEqual(exit_code, 0)
-    self.mock_popen.assert_called_once_with(['ls', '-l'])
+    mock_popen.assert_called_once_with(['ls', '-l'])
 
 
 if __name__ == '__main__':
