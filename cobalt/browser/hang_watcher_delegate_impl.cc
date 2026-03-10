@@ -12,30 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_FEATURES_H_
-#define COBALT_BROWSER_FEATURES_H_
+#include "cobalt/browser/hang_watcher_delegate_impl.h"
 
-#include <string>
+#include <cstdint>
+#include <optional>
 
 #include "base/feature_list.h"
-#include "base/metrics/field_trial_params.h"
+#include "cobalt/browser/features.h"
 
 namespace cobalt {
-namespace features {
+namespace browser {
 
-// Enables the variations config expiration check.
-extern const base::Feature kExperimentConfigExpiration;
+// static
+void CobaltHangWatcherDelegate::Initialize() {
+  static base::NoDestructor<CobaltHangWatcherDelegate> instance;
+  base::HangWatcher::SetDelegate(instance.get());
+}
 
-// Test finch feature for Finch end to end testing.
-extern const base::Feature kTestFinchFeature;
+bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
+  return base::FeatureList::IsEnabled(cobalt::features::kHangReporting);
+}
 
-// Test finch feature param for Finch end to end testing.
-extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
-
-// Enables native hang reporting via Crashpad.
-extern const base::Feature kHangReporting;
-
-}  // namespace features
+}  // namespace browser
 }  // namespace cobalt
-
-#endif  // COBALT_BROWSER_FEATURES_H_

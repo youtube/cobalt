@@ -87,6 +87,18 @@ runs:
         fi
         gclient validate
 
+    - name: Set target CPU
+      shell: bash
+      run: |
+        cd cobalt
+
+        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+          echo "target_cpu=['x64', 'arm64']" >> .gclient
+        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+          echo "target_cpu=['x64', 'arm']" >> .gclient
+        fi
+        gclient validate
+
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
       env:

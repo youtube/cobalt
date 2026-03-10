@@ -994,9 +994,9 @@ static_library("c_internal") {
 
   if (musl_arch == "i386" || musl_arch == "x86_64" || musl_arch == "aarch64") {
     sources += [
-      "src/fenv/$musl_arch/fenv.s",
-      "src/setjmp/$musl_arch/longjmp.s",
-      "src/setjmp/$musl_arch/setjmp.s",
+      "src/fenv/$musl_arch/fenv.S",
+      "src/setjmp/$musl_arch/longjmp.S",
+      "src/setjmp/$musl_arch/setjmp.S",
     ]
   }
   if (musl_arch == "arm") {
@@ -1009,9 +1009,9 @@ static_library("c_internal") {
   }
   if (musl_arch == "i386" || musl_arch == "x86_64") {
     sources += [
-      "src/string/$musl_arch/memcpy.s",
-      "src/string/$musl_arch/memmove.s",
-      "src/string/$musl_arch/memset.s",
+      "src/string/$musl_arch/memcpy.S",
+      "src/string/$musl_arch/memmove.S",
+      "src/string/$musl_arch/memset.S",
     ]
     sources -= [
       "src/string/memcpy.c",

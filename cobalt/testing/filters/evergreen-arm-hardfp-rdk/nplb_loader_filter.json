@@ -1,5 +1,4 @@
 {
-  "_comment": "TODO: b/467701409 - Investigate failing langinfo tests.",
   "failing_tests": [
     "CrashpadConfigTest.VerifyUploadCert",
     "MadviseTest.BadSizeValue",
@@ -14,14 +13,14 @@
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SymlinkNoFollow",
-    "Posix/NlLanginfoTest.AllItems/as_IN",
-    "Posix/NlLanginfoTest.AllItems/be_BY",
-    "Posix/NlLanginfoTest.AllItems/bs_BA",
-    "Posix/NlLanginfoTest.AllItems/or_IN",
-    "Posix/NlLanginfoLTest.AllItems/as_IN",
-    "Posix/NlLanginfoLTest.AllItems/be_BY",
-    "Posix/NlLanginfoLTest.AllItems/bs_BA",
-    "Posix/NlLanginfoLTest.AllItems/or_IN",
+    "Posix/NlLanginfo*Test.AllItems/as_IN",
+    "Posix/NlLanginfo*Test.AllItems/be_BY",
+    "Posix/NlLanginfo*Test.AllItems/bs_BA",
+    "Posix/NlLanginfo*Test.AllItems/or_IN",
+    "Posix/*LocaleconvTest.AllItems/as_IN",
+    "Posix/*LocaleconvTest.AllItems/be_BY",
+    "Posix/*LocaleconvTest.AllItems/bs_BA",
+    "Posix/*LocaleconvTest.AllItems/or_IN",
     "SbAudioSinkCreateTest.MultiSink",
     "SbAudioSinkTest.*",
     "SbLogFlushTest.DontCrashMeBro",
@@ -40,5 +39,16 @@
     "SbTimeZoneGetNameTest.IsIANAFormat",
     "SbWindowGetSizeTest.SunnyDay",
     "VerticalVideoTests/VerticalVideoTest*"
+  ],
+
+  "_filtered_b/467701409": [
+    "Posix/NlLanginfo*Test.AllItems/as_IN",
+    "Posix/NlLanginfo*Test.AllItems/be_BY",
+    "Posix/NlLanginfo*Test.AllItems/bs_BA",
+    "Posix/NlLanginfo*Test.AllItems/or_IN",
+    "Posix/*LocaleconvTest.AllItems/as_IN",
+    "Posix/*LocaleconvTest.AllItems/be_BY",
+    "Posix/*LocaleconvTest.AllItems/bs_BA",
+    "Posix/*LocaleconvTest.AllItems/or_IN"
   ]
 }
