@@ -5135,6 +5135,8 @@ class NetworkIsolationSplitCacheAppendIframeOrigin
 // test server, have the sandboxed document requests the same subresource. The
 // request should fail. To make sure the request is actually in the cache, the
 // main document should be able to request it again.
+// TODO(b/432532766): Investigate test failure. This test is genuinely broken on
+// this platform.
 IN_PROC_BROWSER_TEST_F(NetworkIsolationSplitCacheAppendIframeOrigin,
                        DISABLED_SandboxedUsesDifferentCache) {
   auto server = std::make_unique<net::EmbeddedTestServer>();
@@ -9383,6 +9385,8 @@ class DeferSpeculativeRFHCreationRenderProcessTest
 // Verify the common flow for with DeferSpeculativeRFHCreation feature.
 // The creation of the speculative RFH will be deferred until the network
 // request is sent.
+// TODO(b/432532766): Investigate test failure. This test is genuinely broken on
+// this platform.
 IN_PROC_BROWSER_TEST_P(DeferSpeculativeRFHCreationRenderProcessTest,
                        DISABLED_SpeculativeRFHCreationDeferred) {
   ASSERT_TRUE(NavigateToURL(
@@ -9543,8 +9547,10 @@ IN_PROC_BROWSER_TEST_F(DeferSpeculativeRFHCreationTest,
   ASSERT_FALSE(GetMainFrameSpeculativeRFH(web_contents));
 }
 
-// Verify that the created speculative RFH after the network request will
-// be correctly replaced if the redirection points to a different site.
+// TODO(b/432532766): Investigate test failure. This test is genuinely broken on
+// this platform. Verify that the created speculative RFH after the network
+// request will be correctly replaced if the redirection points to a different
+// site.
 IN_PROC_BROWSER_TEST_F(DeferSpeculativeRFHCreationTest,
                        DISABLED_SpeculativeRFHWithRedirect) {
   ASSERT_TRUE(NavigateToURL(
@@ -9889,6 +9895,8 @@ IN_PROC_BROWSER_TEST_P(AndroidPrewarmSpareRendererTest, ReuseSpareRenderer) {
   ASSERT_EQ(web_contents->GetSiteInstance()->GetProcess(), created_process);
 }
 
+// TODO(b/432532766): Investigate test failure. This test is genuinely broken on
+// this platform.
 IN_PROC_BROWSER_TEST_P(AndroidPrewarmSpareRendererTest,
                        DISABLED_RendererTimeout) {
   scoped_refptr<base::TestMockTimeTaskRunner> task_runner =
@@ -9944,8 +9952,9 @@ class HstsUpgradeBrowserTest : public NavigationBrowserTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-// Tests that when HstsTopLevelNavigationsOnly is enabled only top-level
-// navigations will be upgraded by HSTS.
+// TODO(b/432532766): Investigate test failure. This test is genuinely broken on
+// this platform. Tests that when HstsTopLevelNavigationsOnly is enabled only
+// top-level navigations will be upgraded by HSTS.
 IN_PROC_BROWSER_TEST_F(HstsUpgradeBrowserTest, DISABLED_UpgradeTopLevelOnly) {
   // Url that loads a page with the HSTS url, http://b.com, as an iframe under
   // an http://a.com main frame.

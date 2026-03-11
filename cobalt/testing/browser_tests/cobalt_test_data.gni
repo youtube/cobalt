@@ -24,6 +24,7 @@ template("cobalt_test_data_from_filelist") {
                       "--root",
                       rebase_path("//"),
                     ],
-                    "list lines")
+                    "list lines",
+                    [ invoker.filelist_name ])
   }
 }
