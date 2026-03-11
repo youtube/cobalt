@@ -293,6 +293,7 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
+    StartupGuard.getInstance().setStartupMilestone(37);
     mPlatformError = new PlatformError(mActivityHolder, errorType, data);
     mPlatformError.raise();
   }
