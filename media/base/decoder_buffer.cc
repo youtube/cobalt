@@ -189,7 +189,9 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
 
   int alignment = s_allocator->GetBufferAlignment();
   int padding = s_allocator->GetBufferPadding();
-  size_t allocated_size = size_ + padding;
+  base::CheckedNumeric<size_t> checked_allocated_size = size_;
+  checked_allocated_size += padding;
+  size_t allocated_size = checked_allocated_size.ValueOrDie();
   allocator_data_.emplace(static_cast<uint8_t*>(s_allocator->Allocate(
                               type, allocated_size, alignment)),
                           allocated_size);

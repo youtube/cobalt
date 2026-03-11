@@ -310,19 +310,20 @@ class MEDIA_EXPORT DecoderBuffer
   }
   
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void shrink_to(size_t size) {
-    if (!allocator_data_) {
-      // shrink_to is necessary only when DecoderBufferAllocator is used.
-      return;
+  bool end_of_stream() const {
+    if (allocator_data_) {
+      return !allocator_data_->data;
     }
+    return data_.empty();
+  }
+  void shrink_to(size_t size) {
     DCHECK_LE(size, size_);
     size_ = size;
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-  bool end_of_stream() const {
-    return is_end_of_stream_;
-  }
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool end_of_stream() const { return is_end_of_stream_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
