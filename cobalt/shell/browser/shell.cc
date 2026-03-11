@@ -133,7 +133,7 @@ constexpr int kSplashTimeoutMs = 1500;
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
-ShellPlatformDelegate* g_platform;
+ShellPlatformDelegate* g_platform = nullptr;
 }  // namespace
 
 std::vector<Shell*> Shell::windows_;
@@ -199,6 +199,7 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
 }
 
 Shell::~Shell() {
+  CHECK(g_platform);
   g_platform->CleanUp(this);
 
   for (size_t i = 0; i < windows_.size(); ++i) {
@@ -364,6 +365,12 @@ void Shell::Shutdown() {
     return;
   }
 
+  static bool is_shutting_down = false;
+  if (is_shutting_down) {
+    return;
+  }
+  is_shutting_down = true;
+
   DevToolsAgentHost::DetachAllClients();
 
   while (!Shell::windows().empty()) {
@@ -386,6 +393,8 @@ void Shell::Shutdown() {
   // Pump the message loop to allow window teardown tasks to run.
   base::RunLoop().RunUntilIdle();
 #endif  // !BUILDFLAG(IS_STARBOARD)
+
+  is_shutting_down = false;
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {
@@ -790,6 +799,7 @@ void Shell::RequestToLockMouse(WebContents* web_contents,
 void Shell::Close() {
   // Shell is "self-owned" and destroys itself. The ShellPlatformDelegate
   // has the chance to co-opt this and do its own destruction.
+  CHECK(g_platform);
   if (!g_platform->DestroyShell(this)) {
     delete this;
   }
@@ -1074,6 +1084,7 @@ void Shell::SwitchToMainWebContents() {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
+      CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
       if (GetPlatform()->IsVisible()) {
         web_contents_->WasShown();

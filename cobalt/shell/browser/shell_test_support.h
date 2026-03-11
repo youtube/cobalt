@@ -156,6 +156,9 @@ class CobaltShellTestBase : public ::testing::Test {
     ON_CALL(*platform_, OnStop()).WillByDefault([this]() {
       platform_->ShellPlatformDelegate::OnStop();
     });
+    ON_CALL(*platform_, DidCloseLastWindow()).WillByDefault([this]() {
+      platform_->ShellPlatformDelegate::DidCloseLastWindow();
+    });
 
     Shell::Initialize(std::move(platform), is_visible);
   }
