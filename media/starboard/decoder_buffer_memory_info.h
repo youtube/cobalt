@@ -15,16 +15,11 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 
-<<<<<<< HEAD
 #include <cstddef>
 
-#include "starboard/media.h"
-=======
 #include "media/base/video_codecs.h"
 #include "starboard/media.h"
-#include "starboard/types.h"
 #include "ui/gfx/geometry/size.h"
->>>>>>> 7e24c426c4 (media: Decouple decoder memory budget from DecoderBufferAllocator (#7748))
 
 namespace media {
 

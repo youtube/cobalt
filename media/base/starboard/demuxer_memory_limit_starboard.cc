@@ -12,13 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<< HEAD
-// clang-format off
-#include "media/base/demuxer_memory_limit.h"
-// clang-format on
-
-=======
->>>>>>> 7e24c426c4 (media: Decouple decoder memory budget from DecoderBufferAllocator (#7748))
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "media/base/demuxer_memory_limit.h"
