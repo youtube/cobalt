@@ -444,7 +444,7 @@ test("cobalt_browsertests") {
 if (is_ios) {
   bundle_data_from_filelist("cobalt_test_bundle_data") {
     testonly = true
-    filelist_name = "cobalt_test_bundle_data.filelist"
+    filelist_name = "cobalt_test_bundle_data_ios.filelist"
   }
 }
 
