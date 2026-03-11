@@ -76,7 +76,8 @@ constexpr int64_t kFlushDelayUsecOverride = 0;
 
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
-  const auto& experimental_features = creation_parameters.experimental_features();
+  const auto& experimental_features =
+      creation_parameters.experimental_features();
   const auto& min_input_buffers =
       experimental_features.video_renderer_min_input_buffers;
   const auto& min_decoded_frames =
@@ -465,10 +466,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
-      // TODO: b/349854301 - Connect to experimental flag.
       const bool pause_using_audio_track_state =
           starboard::features::FeatureList::IsEnabled(
-              features::kPauseUsingAudioTrackState);
+              features::kPauseUsingAudioTrackState) ||
+          experimental_features.pause_using_audio_track_state;
       SB_LOG_IF(INFO, pause_using_audio_track_state)
           << "kPauseUsingAudioTrackState is set to true, force using "
           << "AudioTrackState while pausing playback.";

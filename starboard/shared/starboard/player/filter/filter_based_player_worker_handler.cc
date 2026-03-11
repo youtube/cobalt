@@ -571,6 +571,9 @@ DEFINE_SET_EXPERIMENTAL_FEATURE(FlushDecoderDuringReset,
                                 flush_decoder_during_reset,
                                 bool)
 DEFINE_SET_EXPERIMENTAL_FEATURE(ResetAudioDecoder, reset_audio_decoder, bool)
+DEFINE_SET_EXPERIMENTAL_FEATURE(PauseUsingAudioTrackState,
+                                pause_using_audio_track_state,
+                                bool)
 
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
   LogAndSetExperimentalFeature("surface_view", surface_view_, surface_view);

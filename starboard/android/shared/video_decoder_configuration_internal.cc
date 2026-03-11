@@ -32,6 +32,7 @@ pthread_key_t g_video_decoder_poll_interval_key = 0;
 pthread_key_t g_media_codec_reset_delay_key = 0;
 pthread_key_t g_video_renderer_min_input_buffers_key = 0;
 pthread_key_t g_video_renderer_min_decoded_frames_key = 0;
+pthread_key_t g_pause_using_audio_track_state_key = 0;
 
 void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
   uintptr_t ptr_val = static_cast<uintptr_t>(value);
@@ -74,6 +75,9 @@ void InitializeKeys() {
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_video_renderer_min_decoded_frames_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_pause_using_audio_track_state_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
 }
@@ -199,6 +203,18 @@ void SetVideoRendererMinDecodedFramesForCurrentThread(
   EnsureThreadLocalKeyInitedForDecoderConfig();
   WriteIntToThreadLocalStorage(g_video_renderer_min_decoded_frames_key,
                                video_renderer_min_decoded_frames);
+}
+
+bool GetPauseUsingAudioTrackStateForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return pthread_getspecific(g_pause_using_audio_track_state_key) != nullptr;
+}
+
+void SetPauseUsingAudioTrackStateForCurrentThread(
+    bool pause_using_audio_track_state) {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_pause_using_audio_track_state_key,
+                               pause_using_audio_track_state);
 }
 
 }  // namespace starboard::android::shared

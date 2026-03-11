@@ -62,6 +62,10 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Specifies the video renderer minimum decoded frames.
   void (*SetVideoRendererMinDecodedFramesForCurrentThread)(
       int video_renderer_min_decoded_frames);
+
+  // Specifies using AudioTrack state while pausing playback.
+  void (*SetPauseUsingAudioTrackStateForCurrentThread)(
+      bool pause_using_audio_track_state);
 } StarboardExtensionVideoDecoderConfigurationApi;
 
 #ifdef __cplusplus

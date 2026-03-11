@@ -626,6 +626,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
         -1, experimental_features_.enable_flush_during_seek,
         experimental_features_.enable_reset_audio_decoder,
+        experimental_features_.pause_using_audio_track_state,
         experimental_features_.initial_max_frames_in_decoder,
         experimental_features_.max_pending_input_frames,
         experimental_features_.video_decoder_initial_preroll_count,

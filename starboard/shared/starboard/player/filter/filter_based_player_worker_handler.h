@@ -60,6 +60,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetMaxVideoInputSize(int max_video_input_size) override;
   void SetFlushDecoderDuringReset(bool flush_decoder_during_reset) override;
   void SetResetAudioDecoder(bool reset_audio_decoder) override;
+  void SetPauseUsingAudioTrackState(
+      bool pause_using_audio_track_state) override;
   void SetVideoSurfaceView(void* surface_view) override;
   void SetVideoInitialMaxFramesInDecoder(
       int video_initial_max_frames_in_decoder) override;

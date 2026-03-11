@@ -215,6 +215,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetForceFlushDecoderDuringResetForCurrentThread());
   handler->SetResetAudioDecoder(
       starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
+  handler->SetPauseUsingAudioTrackState(
+      starboard::android::shared::
+          GetPauseUsingAudioTrackStateForCurrentThread());
   if (auto initial_max_frames_in_decoder = starboard::android::shared::
           GetVideoInitialMaxFramesInDecoderForCurrentThread()) {
     handler->SetVideoInitialMaxFramesInDecoder(*initial_max_frames_in_decoder);

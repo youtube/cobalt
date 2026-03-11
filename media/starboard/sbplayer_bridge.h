@@ -108,6 +108,7 @@ class SbPlayerBridge {
                  int max_video_input_size,
                  bool flush_decoder_during_reset,
                  bool reset_audio_decoder,
+                 bool pause_using_audio_track_state,
                  std::optional<int> initial_max_frames_in_decoder,
                  std::optional<int> max_pending_input_frames,
                  std::optional<int> video_decoder_initial_preroll_count,
@@ -352,6 +353,7 @@ class SbPlayerBridge {
 
   const bool flush_decoder_during_reset_;
   const bool reset_audio_decoder_;
+  const bool pause_using_audio_track_state_;
   const std::optional<int> initial_max_frames_in_decoder_;
   const std::optional<int> max_pending_input_frames_;
   const std::optional<int> video_decoder_initial_preroll_count_;

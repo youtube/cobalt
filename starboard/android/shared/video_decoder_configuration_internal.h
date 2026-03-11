@@ -81,6 +81,15 @@ std::optional<int> GetVideoRendererMinDecodedFramesForCurrentThread();
 void SetVideoRendererMinDecodedFramesForCurrentThread(
     int video_renderer_min_decoded_frames);
 
+// Get pause_using_audio_track_state via
+// SetPauseUsingAudioTrackStateForCurrentThread().
+bool GetPauseUsingAudioTrackStateForCurrentThread();
+
+// Specifies using AudioTrack State while pausing the playback.
+// |pause_using_audio_track_state| is a boolean value.
+void SetPauseUsingAudioTrackStateForCurrentThread(
+    bool pause_using_audio_track_state);
+
 }  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_INTERNAL_H_
