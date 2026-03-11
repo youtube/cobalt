@@ -18,6 +18,9 @@
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/hang_watcher_delegate_impl.h"
+#endif
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "components/memory_system/initializer.h"
@@ -28,9 +31,16 @@
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/app/cobalt_crash_reporter_client.h"
+#include "components/crash/core/app/crashpad.h"
+#endif
+
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate() : content::ShellMainDelegate() {
+CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link)
+    : content::ShellMainDelegate(),
+      deep_link_(initial_deep_link ? initial_deep_link : "") {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
@@ -49,7 +59,7 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  browser_client_ = std::make_unique<CobaltContentBrowserClient>();
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>(deep_link_);
   return browser_client_.get();
 }
 
@@ -85,6 +95,11 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
   }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  // This delegate is for reading the flag value.
+  cobalt::browser::CobaltHangWatcherDelegate::Initialize();
+#endif
 
   InitializeHangWatcher();
 
@@ -140,6 +155,19 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   // to the |ui_task| for browser tests.
   return 0;
 }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+void CobaltMainDelegate::PreSandboxStartup() {
+  std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
+  CobaltCrashReporterClient::Create();
+  crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+  crash_reporter::SetUploadConsent(true);
+
+  content::ShellMainDelegate::PreSandboxStartup();
+}
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);

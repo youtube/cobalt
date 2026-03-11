@@ -23,6 +23,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
+#include "starboard/common/string.h"
 #include "starboard/common/thread.h"
 #include "starboard/shared/starboard/features.h"
 
@@ -83,7 +84,7 @@ DrmSystem::DrmSystem(
   }
   SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system
                << ", enable_app_provisioning="
-               << to_string(enable_app_provisioning_);
+               << ToString(enable_app_provisioning_);
 
   if (!enable_app_provisioning_) {
     Start();

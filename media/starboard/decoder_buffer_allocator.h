@@ -71,18 +71,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                  size_t alignment) override;
   void Free(void* p, size_t size) override;
 
-  int GetAudioBufferBudget() const override;
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
-  int GetProgressiveBufferBudget(VideoCodec codec,
-                                 int resolution_width,
-                                 int resolution_height,
-                                 int bits_per_pixel) const override;
-  int GetVideoBufferBudget(VideoCodec codec,
-                           int resolution_width,
-                           int resolution_height,
-                           int bits_per_pixel) const override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);

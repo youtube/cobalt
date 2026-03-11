@@ -147,5 +147,5 @@ declare_args() {
   # implementation will be built and used.
   # TODO: b/406511608 - remove once crashpad builds and behaves as expected on
   # all Early Access Program platforms.
-  use_crashpad = true
+  use_crashpad = use_evergreen
 }

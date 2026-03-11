@@ -15,6 +15,10 @@
 import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
 source_set("browser") {
   sources = [
     "cobalt_browser_interface_binders.cc",
@@ -59,6 +63,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//cobalt/browser/h5vcc_settings",
+    "//cobalt/browser/h5vcc_settings/public/mojom",
     "//cobalt/browser/h5vcc_storage",
     "//cobalt/browser/h5vcc_storage/public/mojom",
     "//cobalt/browser/h5vcc_system",
@@ -88,6 +94,10 @@ source_set("browser") {
     ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
+  }
+
+  if (is_ios && target_platform == "tvos") {
+    deps += [ "//cobalt/browser/tvos:network_error_handler" ]
   }
 
   if (is_starboard) {
@@ -131,7 +141,21 @@ source_set("global_features") {
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
+    "//third_party/abseil-cpp:absl",
   ]
+}
+
+if (is_androidtv) {
+  source_set("hang_watcher_delegate") {
+    sources = [
+      "hang_watcher_delegate_impl.cc",
+      "hang_watcher_delegate_impl.h",
+    ]
+    deps = [
+      ":global_features",
+      "//base",
+    ]
+  }
 }
 
 source_set("metrics") {

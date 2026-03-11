@@ -252,11 +252,7 @@ bool PlayerComponents::Factory::OutputModeSupported(
   }
 
   if (codec == kSbMediaVideoCodecVp9) {
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
     return true;
-#else   // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
-    return PlaybackCapabilities::IsHwVp9Supported();
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
   }
   return false;
 }
