@@ -55,6 +55,8 @@
 namespace starboard::android::shared {
 
 namespace {
+using ::starboard::shared::starboard::player::filter::PlayerComponents;
+using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -72,11 +74,37 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
 
+std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
+    const PlayerComponents::Factory::CreationParameters& creation_parameters) {
+  const auto& min_input_buffers =
+      creation_parameters.video_renderer_min_input_buffers();
+  const auto& min_decoded_frames =
+      creation_parameters.video_renderer_min_decoded_frames();
+
+  if (!min_input_buffers && !min_decoded_frames) {
+    return std::nullopt;
+  }
+  if (!min_input_buffers) {
+    SB_LOG(WARNING) << "Ignoring video_renderer_min_decoded_frames since "
+                       "video_renderer_min_input_buffers is missing.";
+    return std::nullopt;
+  }
+  if (!min_decoded_frames) {
+    SB_LOG(WARNING) << "Ignoring video_renderer_min_input_buffers since "
+                       "video_renderer_min_decoded_frames is missing.";
+    return std::nullopt;
+  }
+
+  return VideoRendererImpl::PrerollParameters{*min_input_buffers,
+                                              *min_decoded_frames};
+}
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
+  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1,
+                                    bool pause_using_audio_track_state = false)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -99,7 +127,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
                   tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  context);
+                  pause_using_audio_track_state, context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
@@ -273,8 +301,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                              kForceSecurePipelineUnderTunnelMode,
                              max_video_input_size, error_message);
       if (video_decoder) {
-        using starboard::shared::starboard::player::filter::VideoRendererImpl;
-
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
         auto media_time_provider = audio_renderer.get();
@@ -282,7 +308,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         video_renderer = std::make_unique<VideoRendererImpl>(
             std::unique_ptr<VideoDecoderBase>(std::move(video_decoder)),
             media_time_provider, std::move(video_render_algorithm),
-            video_renderer_sink);
+            video_renderer_sink, GetPrerollParams(creation_parameters));
       } else {
         return nullptr;
       }
@@ -426,6 +452,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
+      // TODO: b/349854301 - Connect to experimental flag.
+      const bool pause_using_audio_track_state =
+          starboard::features::FeatureList::IsEnabled(
+              features::kPauseUsingAudioTrackState);
+      SB_LOG_IF(INFO, pause_using_audio_track_state)
+          << "kPauseUsingAudioTrackState is set to true, force using "
+          << "AudioTrackState while pausing playback.";
       auto decoder_creator =
           [enable_flush_during_seek, enable_platform_opus_decoder](
               const AudioStreamInfo& audio_stream_info,
@@ -466,7 +499,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         }
       }
       if (!*audio_renderer_sink) {
-        *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>();
+        *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
+            tunnel_mode_audio_session_id, pause_using_audio_track_state);
       }
     }
 

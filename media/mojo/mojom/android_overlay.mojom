@@ -78,4 +78,8 @@ struct AndroidOverlayConfig {
 
   // Is a power-efficient overlay required?
   bool power_efficient;
+
+  // Use a SurfaceView instead of a Dialog.
+  [EnableIf=use_starboard_media]
+  bool use_surface_view;
 };

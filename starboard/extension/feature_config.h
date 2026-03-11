@@ -127,6 +127,13 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 // Set the following variable to true to force it for clear playback.
 STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
 
+// By default, Cobalt pauses AudioTrack without play state from AudioTrack.
+// Set the following variable to true to force it using play state from
+// AudioTrack while pausing the playback.
+STARBOARD_FEATURE(kPauseUsingAudioTrackState,
+                  "PauseUsingAudioTrackState",
+                  false)
+
 // By default, software video codec can be selected when software codec is not
 // required. Set the following variable to true to prevent using low performance
 // software video decoder in MediaCapabilitiesCache when software codec is not

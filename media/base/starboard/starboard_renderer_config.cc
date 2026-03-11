@@ -55,6 +55,10 @@ std::ostream& operator<<(
             << opt_to_string(features.video_decoder_initial_preroll_count)
             << ", video_decoder_poll_interval_ms="
             << opt_to_string(features.video_decoder_poll_interval_ms)
+            << ", video_renderer_min_input_buffers="
+            << opt_to_string(features.video_renderer_min_input_buffers)
+            << ", video_renderer_min_decoded_frames="
+            << opt_to_string(features.video_renderer_min_decoded_frames)
             << ", media_codec_reset_delay_ms="
             << opt_to_string(features.media_codec_reset_delay_ms) << "}";
 }

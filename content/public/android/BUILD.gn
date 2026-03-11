@@ -266,6 +266,8 @@ android_library("content_full_java") {
     "java/src/org/chromium/content/browser/androidoverlay/AndroidOverlayProviderImpl.java",
     "java/src/org/chromium/content/browser/androidoverlay/DialogOverlayCore.java",
     "java/src/org/chromium/content/browser/androidoverlay/DialogOverlayImpl.java",
+    "java/src/org/chromium/content/browser/androidoverlay/OverlayCore.java",
+    "java/src/org/chromium/content/browser/androidoverlay/SurfaceViewOverlayCore.java",
     "java/src/org/chromium/content/browser/font/AndroidFontLookupImpl.java",
     "java/src/org/chromium/content/browser/font/FontsContractWrapper.java",
     "java/src/org/chromium/content/browser/framehost/NavigationControllerImpl.java",

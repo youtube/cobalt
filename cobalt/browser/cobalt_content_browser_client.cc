@@ -23,7 +23,10 @@
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -151,7 +154,9 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient() {
+CobaltContentBrowserClient::CobaltContentBrowserClient(
+    const std::string& deep_link)
+    : deep_link_(deep_link) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -167,7 +172,8 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
+  auto browser_main_parts =
+      std::make_unique<CobaltBrowserMainParts>(deep_link_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
@@ -373,7 +379,13 @@ void CobaltContentBrowserClient::DispatchBlur() {
       web_contents->GetRenderViewHost()->GetWidget()->Blur();
     }
   }
-  FlushCookiesAndLocalStorage(base::DoNothing());
+  auto start_time = std::make_unique<base::ElapsedTimer>();
+  FlushCookiesAndLocalStorage(base::BindOnce(
+      [](std::unique_ptr<base::ElapsedTimer> timer) {
+        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
+                            timer->Elapsed());
+      },
+      std::move(start_time)));
 }
 
 void CobaltContentBrowserClient::DispatchFocus() {

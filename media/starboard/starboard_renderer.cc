@@ -539,8 +539,14 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
                                    weak_factory_.GetWeakPtr());
   config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
                                     weak_factory_.GetWeakPtr());
-  config.rect = gfx::Rect(viewport_size_);
-  config.secure = false;
+  gfx::Rect initial_rect = gfx::Rect(viewport_size_);
+  if (initial_rect.IsEmpty()) {
+    // Provide a default non-zero size, this is fine as it will be
+    // updated by OnVideoGeometryChange().
+    initial_rect = gfx::Rect(0, 0, 1920, 1080);
+  }
+  config.rect = initial_rect;
+  config.secure = cdm_context_ != nullptr;
   config.power_efficient = false;
 
   overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
@@ -624,6 +630,8 @@ void StarboardRenderer::CreatePlayerBridge() {
         experimental_features_.max_pending_input_frames,
         experimental_features_.video_decoder_initial_preroll_count,
         experimental_features_.video_decoder_poll_interval_ms,
+        experimental_features_.video_renderer_min_input_buffers,
+        experimental_features_.video_renderer_min_decoded_frames,
         experimental_features_.media_codec_reset_delay_ms
 #if BUILDFLAG(IS_ANDROID)
         ,

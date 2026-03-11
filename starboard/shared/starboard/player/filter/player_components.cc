@@ -98,6 +98,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> video_renderer_min_input_buffers,
+    std::optional<int> video_renderer_min_decoded_frames,
     std::optional<int> media_codec_reset_delay_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
@@ -113,6 +115,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
+      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
       media_codec_reset_delay_ms_(media_codec_reset_delay_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
@@ -135,6 +139,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> video_renderer_min_input_buffers,
+    std::optional<int> video_renderer_min_decoded_frames,
     std::optional<int> media_codec_reset_delay_ms,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
@@ -151,6 +157,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
+      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
       media_codec_reset_delay_ms_(media_codec_reset_delay_ms),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
@@ -175,6 +183,10 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->video_decoder_initial_preroll_count_ =
       that.video_decoder_initial_preroll_count_;
   this->video_decoder_poll_interval_ms_ = that.video_decoder_poll_interval_ms_;
+  this->video_renderer_min_input_buffers_ =
+      that.video_renderer_min_input_buffers_;
+  this->video_renderer_min_decoded_frames_ =
+      that.video_renderer_min_decoded_frames_;
   this->media_codec_reset_delay_ms_ = that.media_codec_reset_delay_ms_;
   this->surface_view_ = that.surface_view_;
   this->decode_target_graphics_context_provider_ =
@@ -270,9 +282,16 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
+    std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
+    if (creation_parameters.video_renderer_min_input_buffers() &&
+        creation_parameters.video_renderer_min_decoded_frames()) {
+      preroll_params = VideoRendererImpl::PrerollParameters{
+          *creation_parameters.video_renderer_min_input_buffers(),
+          *creation_parameters.video_renderer_min_decoded_frames()};
+    }
     video_renderer = std::make_unique<VideoRendererImpl>(
         std::move(video_decoder), media_time_provider,
-        std::move(video_render_algorithm), video_renderer_sink);
+        std::move(video_render_algorithm), video_renderer_sink, preroll_params);
   }
 
   SB_DCHECK(audio_renderer || video_renderer);

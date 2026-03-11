@@ -61,8 +61,6 @@ public class JavaSwitches {
 
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
-  /** CC flag to set the number of raster threads. Value type: Integer */
-  public static final String NUM_RASTER_THREADS = "NumRasterThreads";
 
   /** flag to disable PartitionAllocBackupRefPtr */
   public static final String DISABLE_BRP = "DisableBRP";
@@ -71,6 +69,8 @@ public class JavaSwitches {
 
   /** flag to enable AndroidOverlay for SbPlayer */
   public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
+  /** flag to use SurfaceView for AndroidOverlay */
+  public static final String USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY = "UsingSurfaceViewForAndroidOverlay";
 
   /** flag to enable SkiaFontCache */
   public static final String SKIA_FONT_CACHE = "SkiaFontCache";
@@ -80,6 +80,11 @@ public class JavaSwitches {
 
   /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
   public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
+
+  /** flag to re-enable freeze and resume events */
+  public static final String ENABLE_FREEZE = "EnableFreeze";
+  /** flag to reduce background activity */
+  public static final String NO_STOP_IN_BACKGROUND = "NoStopInBackground";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -122,6 +127,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-old-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--js-flags=--max-old-space-size=512");
     }
     if (javaSwitches.containsKey(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE)) {
       extraCommandLineArgs.add(
@@ -152,12 +159,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--force-image-splash-screen");
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.NUM_RASTER_THREADS)) {
-      extraCommandLineArgs.add(
-          "--num-raster-threads="
-              + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
-    }
-
     // BRP settings
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
       extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
@@ -169,6 +170,9 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
       extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
       extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
+      if (javaSwitches.containsKey(JavaSwitches.USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY)) {
+        extraCommandLineArgs.add("--enable-features=UseSurfaceViewForAndroidOverlay");
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
@@ -183,6 +187,12 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--skia-ganesh-resource-cache-limit-mb="
               + javaSwitches.get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.NO_STOP_IN_BACKGROUND)) {
+      extraCommandLineArgs.add("--disable-renderer-backgrounding");
+      extraCommandLineArgs.add("--disable-features=StopInBackground");
+      extraCommandLineArgs.add("--disable-features=IntensiveWakeUpThrottling");
     }
 
     return extraCommandLineArgs;

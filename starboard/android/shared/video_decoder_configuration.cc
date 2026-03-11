@@ -33,6 +33,8 @@ const StarboardExtensionVideoDecoderConfigurationApi
         &SetVideoDecoderInitialPrerollCountForCurrentThread,
         &SetVideoDecoderPollIntervalMsForCurrentThread,
         &SetMediaCodecResetDelayMsForCurrentThread,
+        &SetVideoRendererMinInputBuffersForCurrentThread,
+        &SetVideoRendererMinDecodedFramesForCurrentThread,
 };
 
 }  // namespace
