@@ -94,25 +94,22 @@ class ExpandFilelistTest(unittest.TestCase):
     self.create_file('dir1/subdir/deep/g.txt')
     lines = ['//dir1/**', '-//dir1/subdir/**']
     output = self.run_expand(lines)
-    # CURRENT BEHAVIOR: PurePath.match('dir1/subdir/**') matches
-    # 'dir1/subdir/e.txt' but NOT 'dir1/subdir/deep/g.txt'
-    expected = ['//dir1/c.txt', '//dir1/d.txt', '//dir1/subdir/deep/g.txt']
+    # Correct behavior: everything under dir1/subdir/ is excluded.
+    expected = ['//dir1/c.txt', '//dir1/d.txt']
     self.assertEqual(sorted(output), sorted(expected))
 
   def test_single_level_wildcard(self):
-    lines = ['//dir1/*', '-//dir1/subdir/**']
+    lines = ['//dir1/*']
     output = self.run_expand(lines)
-    # CURRENT BEHAVIOR: * is not supported in inclusions, so this
-    # matches nothing.
-    expected = []
+    # glob: * matches only one level. subdir/e.txt should be excluded.
+    expected = ['//dir1/c.txt', '//dir1/d.txt']
     self.assertEqual(sorted(output), sorted(expected))
 
   def test_exclusion_patterns(self):
     lines = ['//**', '-//dir1/**', '-//dir2/f.txt']
     output = self.run_expand(lines)
-    # CURRENT BEHAVIOR: -//dir1/** matches 'dir1/c.txt' and 'dir1/d.txt'
-    # but NOT 'dir1/subdir/e.txt'
-    expected = ['//a.txt', '//b.txt', '//dir1/subdir/e.txt']
+    # Correct behavior: dir1/ and dir2/f.txt are excluded.
+    expected = ['//a.txt', '//b.txt']
     self.assertEqual(sorted(output), sorted(expected))
 
 
