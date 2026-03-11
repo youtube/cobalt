@@ -170,7 +170,7 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
       extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
       extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
-      if (javaSwitches.containsKey(JavaSwitches.USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY) {
+      if (javaSwitches.containsKey(JavaSwitches.USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY)) {
         extraCommandLineArgs.add("--enable-features=UseSurfaceViewForAndroidOverlay");
       }
     }
