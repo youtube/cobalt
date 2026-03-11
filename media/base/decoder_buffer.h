@@ -11,7 +11,6 @@
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <optional>
 #include <string>
 #include <utility>
 
@@ -201,26 +200,13 @@ class MEDIA_EXPORT DecoderBuffer
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
-    return data_;
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (external_memory_)
-      return external_memory_->Span().data();
-    return data_.data();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-=======
     if (allocator_data_) {
       return allocator_data_->data;
     }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (read_only_mapping_.IsValid())
-      return read_only_mapping_.GetMemoryAs<const uint8_t>();
-    if (writable_mapping_.IsValid())
-      return writable_mapping_.GetMemoryAs<const uint8_t>();
     if (external_memory_)
-      return external_memory_->span().data();
-    return data_.get();
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
+      return external_memory_->Span().data();
+    return data_.data();
   }
 
   // The number of bytes in the buffer.
@@ -244,23 +230,19 @@ class MEDIA_EXPORT DecoderBuffer
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK(!end_of_stream());
     DCHECK(!external_memory_);
-<<<<<<< HEAD
     return const_cast<uint8_t*>(data_.data());
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-=======
-    return data_.get();
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
   }
 
   // TODO(crbug.com/41383992): Remove writable_span().
   base::span<uint8_t> writable_span() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return UNSAFE_TODO(base::span(data_, size_));
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return UNSAFE_TODO(base::span(allocator_data_->data, size_));
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     // TODO(crbug.com/40284755): `data_` should be converted to HeapArray, then
     // it can give out a span safely.
     return UNSAFE_TODO(base::span(writable_data(), size()));
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   bool empty() const {
@@ -336,23 +318,11 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK_LE(size, size_);
     size_ = size;
   }
-<<<<<<< HEAD
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool end_of_stream() const { return is_end_of_stream_; }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-=======
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool end_of_stream() const {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (allocator_data_) {
-      return !allocator_data_->data;
-    }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-    return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
-           !external_memory_ && !data_;
+    return is_end_of_stream_;
   }
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -428,20 +398,12 @@ class MEDIA_EXPORT DecoderBuffer
     size_t size = 0;
   };
   // Encoded data, allocated from DecoderBuffer::Allocator.
-<<<<<<< HEAD
-  uint8_t* data_ = nullptr;
-  size_t allocated_size_ = 0;
-  size_t size_ = 0;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Encoded data, if it is stored on the heap.
-  const base::HeapArray<uint8_t> data_;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-=======
   std::optional<AllocatorData> allocator_data_;
+  size_t size_ = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Encoded data, if it is stored on the heap.
-  std::unique_ptr<uint8_t[]> data_;
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
+  base::HeapArray<uint8_t> data_;
 
  private:
   // ***************************************************************************
@@ -472,6 +434,7 @@ class MEDIA_EXPORT DecoderBuffer
   const bool is_end_of_stream_ : 1 = false;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void Initialize();
   void Initialize(DemuxerStream::Type type);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };

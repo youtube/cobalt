@@ -56,18 +56,15 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 }  // namespace
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
-=======
-  memcpy(writable_data(), data, size_);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  memcpy(data_.get(), data, size_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
 
 // --- Starboard-specific Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
-  if (size_ >= 0) {
-    Initialize(DemuxerStream::UNKNOWN);
+  if (size_ > 0) {
+    if (s_allocator) {
+      Initialize(DemuxerStream::UNKNOWN);
+    } else {
+      Initialize();
+    }
   }
 }
 
@@ -79,11 +76,6 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     CHECK_EQ(size_, 0u);
     return;
   }
-<<<<<<< HEAD
-  Initialize(type);
-  memcpy(data_, data, size_);
-}
-=======
 
   if (s_allocator) {
     Initialize(type);
@@ -91,7 +83,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     Initialize();
   }
   memcpy(writable_data(), data, size_);
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
+}
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              base::span<const uint8_t> data)
@@ -99,15 +91,26 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
   if (data.empty()) {
     return;
   }
-  Initialize(type);
-  memcpy(data_, data.data(), data.size());
+  if (s_allocator) {
+    Initialize(type);
+  } else {
+    Initialize();
+  }
+  memcpy(writable_data(), data.data(), data.size());
 }
 
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : DecoderBuffer(DemuxerStream::UNKNOWN, data) {}
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
-    : DecoderBuffer(DemuxerStream::UNKNOWN, base::span<const uint8_t>(data)) {}
+    : size_(data.size()) {
+  if (s_allocator) {
+    Initialize(DemuxerStream::UNKNOWN);
+    memcpy(writable_data(), data.data(), data.size());
+  } else {
+    data_ = std::move(data);
+  }
+}
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : DecoderBuffer(DemuxerStream::UNKNOWN, external_memory->Span()) {}
@@ -159,61 +162,38 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
     : DecoderBuffer(decoder_buffer_type, std::move(next_config)) {}
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
 DecoderBuffer::~DecoderBuffer() {
-  DCHECK(s_allocator);
-  s_allocator->Free(data_, allocated_size_);
-}
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-DecoderBuffer::~DecoderBuffer() = default;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-=======
   if (allocator_data_) {
     CHECK(s_allocator);
     s_allocator->Free(allocator_data_->data, allocator_data_->size);
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-  data_.reset();
-  side_data_.reset();
 }
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::~DecoderBuffer() = default;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+void DecoderBuffer::Initialize() {
   if (s_allocator) {
     // This is used by Mojo.
     Initialize(DemuxerStream::UNKNOWN);
     return;
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  data_.reset(new uint8_t[size_]);
-  if (side_data_size_ > 0)
-    side_data_.reset(new uint8_t[side_data_size_]);
+  data_ = base::HeapArray<uint8_t>::Uninit(size_);
 }
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   DCHECK(s_allocator);
-  DCHECK(!data_);
+  DCHECK(data_.empty());
+  DCHECK(!allocator_data_);
 
   int alignment = s_allocator->GetBufferAlignment();
   int padding = s_allocator->GetBufferPadding();
-<<<<<<< HEAD
-  allocated_size_ = size_ + padding;
-  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
-                                                      allocated_size_,
-                                                      alignment));
-  memset(data_ + size_, 0, padding);
-=======
   size_t allocated_size = size_ + padding;
   allocator_data_.emplace(static_cast<uint8_t*>(s_allocator->Allocate(
                               type, allocated_size, alignment)),
                           allocated_size);
   memset(allocator_data_->data + size_, 0, padding);
-
-  if (side_data_size_ > 0)
-    side_data_.reset(new uint8_t[side_data_size_]);
->>>>>>> 788f4b08cd (media: Make DecoderBuffer use external allocator only when it's set. (#7729))
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
