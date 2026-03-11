@@ -15,3 +15,35 @@
 -//content/test/data/gpu/lots-of-lines.svg
 
 //media/test/data/**
+
+# --- AGGRESSIVE EXCLUSIONS TO REDUCE ARCHIVE SIZE ---
+# Large files (> 1MB)
+-//media/test/data/front-discard.mp4
+-//content/test/data/long_response_body.html
+-//media/test/data/*dolby-vision*
+-//media/test/data/tulip2.webm
+-//content/test/data/media/tulip2.webm
+-//media/test/data/starboard/allocations_*
+-//media/test/data/speech_16b_stereo_48kHz.raw
+-//media/test/data/bear_640x384_40frames.yuv.webm
+-//media/test/data/RGB_noise_2015x2015.webp
+-//media/test/data/yellow_pink_gradient_lossless.webp
+-//media/test/data/bear-1280x720-av_with-aud-nalus_frag.mp4
+-//media/test/data/bear-3840x2160-hevc.mp4
+-//media/test/data/av1-1-b8-02-allintra.ivf
+-//media/test/data/frame_size_change-av_enc-v.webm
+-//content/test/data/media/frame_size_change-av-enc-v.webm
+-//media/test/data/bear_320x192_40frames.yuv.webm
+-//media/test/data/test-25fps.vp9.context
+
+# Redundant or large media types
+-//media/test/data/*.ts
+-//media/test/data/*.vvc
+-//media/test/data/*.ivf
+-//media/test/data/*.y4m
+
+# Additional high-impact exclusions
+-//media/test/data/bbb-320x240-2video-2audio.mp4
+-//media/test/data/bear-1280x720-v_frag-cenc*
+-//media/test/data/bear_192kHz.wav
+-//content/test/data/media/bear_192kHz.wav
