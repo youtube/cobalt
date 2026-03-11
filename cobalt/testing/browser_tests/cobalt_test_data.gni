@@ -25,6 +25,9 @@ template("cobalt_test_data_from_filelist") {
                       rebase_path("//"),
                     ],
                     "list lines",
-                    [ invoker.filelist_name ])
+                    [
+                      "//cobalt/testing/browser_tests/tools/expand_filelist.py",
+                      invoker.filelist_name,
+                    ])
   }
 }
