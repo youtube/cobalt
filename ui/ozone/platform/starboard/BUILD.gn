@@ -49,6 +49,7 @@ source_set("starboard") {
     "//ui/display",
     "//ui/events/ozone/layout:layout",
     "//ui/gfx:native_widget_types",
+    "//ui/gl",
     "//ui/ozone:ozone_base",
     "//ui/ozone/common",
     "//ui/platform_window",

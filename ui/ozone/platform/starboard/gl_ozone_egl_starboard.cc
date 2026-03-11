@@ -18,6 +18,8 @@
 
 #include "starboard/egl.h"
 #include "starboard/gles.h"
+#include "ui/gl/gl_context.h"
+#include "ui/gl/gl_context_egl.h"
 
 namespace ui {
 
@@ -233,6 +235,24 @@ gl::GLFunctionPointerType GetGlesInterfaceProcAddress(
 GLOzoneEGLStarboard::GLOzoneEGLStarboard() = default;
 
 GLOzoneEGLStarboard::~GLOzoneEGLStarboard() = default;
+
+scoped_refptr<gl::GLContext> GLOzoneEGLStarboard::CreateGLContext(
+    gl::GLShareGroup* share_group,
+    gl::GLSurface* compatible_surface,
+    const gl::GLContextAttribs& attribs) {
+  // Starboard EGL does not support the ANGLE extensions that back these
+  // attribs. Setting unsupported attributes to false so 
+  // GLContextEGL::InitializeImpl does not DCHECK on the mismatch.
+  gl::GLContextAttribs sb_attribs = attribs;
+  sb_attribs.bind_generates_resource = false;
+  sb_attribs.webgl_compatibility_context = false;
+  sb_attribs.global_texture_share_group = false;
+  sb_attribs.global_semaphore_share_group = false;
+  sb_attribs.allow_client_arrays = false;
+  sb_attribs.robust_resource_initialization = false;
+  return gl::InitializeGLContext(new gl::GLContextEGL(share_group),
+                                 compatible_surface, sb_attribs);
+}
 
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
     gl::GLDisplay* display,

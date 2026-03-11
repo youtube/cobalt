@@ -28,6 +28,10 @@ class GLOzoneEGLStarboard : public GLOzoneEGL {
 
   ~GLOzoneEGLStarboard() override;
 
+  scoped_refptr<gl::GLContext> CreateGLContext(
+      gl::GLShareGroup* share_group,
+      gl::GLSurface* compatible_surface,
+      const gl::GLContextAttribs& attribs) override;
   scoped_refptr<gl::GLSurface> CreateViewGLSurface(
       gl::GLDisplay* display,
       gfx::AcceleratedWidget window) override;
