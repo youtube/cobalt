@@ -55,7 +55,6 @@ class MigrationManager {
                       const cobalt::storage::Storage& storage);
   static std::vector<std::unique_ptr<net::CanonicalCookie>> ToCanonicalCookies(
       const cobalt::storage::Storage& storage);
-  static std::atomic_flag migration_attempted_;
 };
 
 }  // namespace migrate_storage_record

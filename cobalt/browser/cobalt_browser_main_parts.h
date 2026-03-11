@@ -72,8 +72,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // Starts metrics recording.
   void StartMetricsRecording();
 
+  // C25 Storage Migration
+  void StartStorageMigration();
   void OnMigrationComplete();
-
   void PostOrRunIfMigrationFinished(base::OnceClosure task) override;
 
  protected:

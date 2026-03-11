@@ -105,10 +105,7 @@ String StorageArea::getItem(const String& key,
     exception_state.ThrowSecurityError("access is denied for this document.");
     return String();
   }
-  String value = cached_area_->GetItem(key);
-  LOG(INFO) << "ColinL: sm telemetry: [JS LocalStorage] getItem: " << key.Utf8()
-            << " = " << value.Utf8();
-  return value;
+  return cached_area_->GetItem(key);
 }
 
 NamedPropertySetterResult StorageArea::setItem(

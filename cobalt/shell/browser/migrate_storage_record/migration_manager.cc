@@ -65,6 +65,13 @@ using StorageAreaRemote = mojo::Remote<blink::mojom::StorageArea>;
 
 namespace {
 
+// ============================================================================
+// Shared Utilities
+// ============================================================================
+
+// A thread-safe, reference-counted wrapper around a base::OnceClosure.
+// This is used to ensure a callback is executed exactly once, even if
+// multiple async paths (like an IPC response and a timeout) attempt to run it.
 struct SharedClosureState : public base::RefCounted<SharedClosureState> {
   base::OnceClosure cb;
   void Run() {
@@ -78,29 +85,9 @@ struct SharedClosureState : public base::RefCounted<SharedClosureState> {
   ~SharedClosureState() = default;
 };
 
-network::mojom::CookieManager* GetCookieManager(
-    content::StoragePartition* partition) {
-  return partition->GetCookieManagerForBrowserProcess();
-}
-
-void GetLocalStorageArea(content::StoragePartition* partition,
-                         const url::Origin& origin,
-                         mojo::Remote<blink::mojom::StorageArea>& out_area) {
-  auto storage_key = blink::StorageKey::CreateFirstParty(origin);
-
-  LOG(INFO) << "ColinL: [Migration-V10-Verify] Binding LocalStorage";
-  LOG(INFO) << "ColinL:   Origin: " << origin.Serialize();
-  LOG(INFO) << "ColinL:   StorageKey Debug: " << storage_key.GetDebugString();
-  LOG(INFO) << "ColinL:   SerializedKey: "
-            << storage_key.SerializeForLocalStorage();
-
-  partition->GetLocalStorageControl()->BindStorageArea(
-      storage_key, out_area.BindNewPipeAndPassReceiver());
-}
-
+// Tracks the outcome of attempting to read the legacy Starboard storage record.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
-// Tracks the outcome of attempting to read the legacy Starboard storage record.
 enum class StorageReadResult {
   kSuccess = 0,
   kPartitionKeyNotDefault = 1,
@@ -132,6 +119,121 @@ constexpr char kLocalStorageCountHistogram[] =
     "Cobalt.StorageMigration.LocalStorageCount";
 constexpr char kDurationHistogram[] = "Cobalt.StorageMigration.Duration";
 
+// ============================================================================
+// General File / Cache Utilities
+// ============================================================================
+
+// Retrieves the system cache directory used by the legacy Starboard app.
+base::FilePath GetOldCachePath() {
+  std::vector<char> path(kSbFileMaxPath, 0);
+  bool success =
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path.size());
+  if (!success) {
+    return base::FilePath();
+  }
+  return base::FilePath(path.data());
+}
+
+// Retrieves the path to the sentinel file used to fast-path skip the migration.
+// If this file exists, it means the migration was already completed on a prior
+// app launch.
+base::FilePath GetMigrationSentinelPath() {
+  base::FilePath current_cache_path;
+  if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
+    return base::FilePath();
+  }
+  return current_cache_path.Append("migration_completed.txt");
+}
+
+// Writes the sentinel file `migration_completed.txt` in the background so that
+// future app launches can skip the migration process.
+void WriteMigrationSentinelAsync() {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(FROM_HERE, base::BindOnce([]() {
+                   base::FilePath sentinel_path = GetMigrationSentinelPath();
+                   if (!sentinel_path.empty()) {
+                     base::WriteFile(sentinel_path, "1");
+                   }
+                 }));
+}
+
+// Deletes legacy cache subdirectories asynchronously to free up disk space.
+// It ensures that it does not accidentally delete the current actively used
+// cache directory.
+void DeleteOldCacheDirectoryAsync() {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(
+          FROM_HERE, base::BindOnce([]() {
+            base::FilePath old_cache_path = GetOldCachePath();
+            if (old_cache_path.empty() || !base::PathExists(old_cache_path)) {
+              return;
+            }
+
+            base::FilePath current_cache_path;
+            base::PathService::Get(base::DIR_CACHE, &current_cache_path);
+            if (!old_cache_path.IsParent(current_cache_path) &&
+                old_cache_path != current_cache_path) {
+              base::DeletePathRecursively(old_cache_path);
+              return;
+            }
+
+            std::vector<std::string> old_cache_subpaths = {
+                "cache_settings.json",
+                "compiled_js",
+                "css",
+                "font",
+                "html",
+                "image",
+                "other",
+                "service_worker_settings.json",
+                "settings.json",
+                "splash",
+                "splash_screen",
+                "uncompiled_js",
+            };
+            for (const auto& subpath : old_cache_subpaths) {
+              base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
+              if (base::PathExists(old_cache_subpath)) {
+                base::DeletePathRecursively(old_cache_subpath);
+              }
+            }
+          }));
+}
+
+// Creates a task that triggers the deletion of old cache directories and writes
+// the migration sentinel file, then immediately advances the migration pipeline.
+Task DeleteOldCacheDirectoryTask() {
+  return base::BindOnce([](base::OnceClosure callback) {
+    DeleteOldCacheDirectoryAsync();
+    WriteMigrationSentinelAsync();
+    std::move(callback).Run();
+  });
+}
+
+// Emits UMA metrics for the total duration of the migration process.
+Task RecordMetricsTask(std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
+  return base::BindOnce(
+      [](std::unique_ptr<base::ElapsedTimer> elapsed_timer,
+         base::OnceClosure callback) {
+        base::TimeDelta elapsed = elapsed_timer->Elapsed();
+        base::UmaHistogramTimes(kDurationHistogram, elapsed);
+        LOG(INFO) << "Cookie and localStorage migration completed in "
+                  << elapsed.InMilliseconds() << " ms.";
+        std::move(callback).Run();
+      },
+      std::move(elapsed_timer));
+}
+
+// ============================================================================
+// Legacy Storage Reader
+// ============================================================================
+
+// Generates the Base64 encoded key used to look up the legacy Starboard storage
+// record for the given URL.
 std::string GetApplicationKey(const GURL& url) {
   std::string encoded_url;
   base::Base64UrlEncode(url_matcher::util::Normalize(url).spec(),
@@ -140,7 +242,10 @@ std::string GetApplicationKey(const GURL& url) {
   return encoded_url;
 }
 
+// Reads the legacy Starboard storage record from disk and parses it into a
+// cobalt::storage::Storage protobuf.
 std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
+  // Legacy Storage records start with the header 'SAV1'.
   constexpr char kRecordHeader[] = "SAV1";
   constexpr size_t kRecordHeaderSize = 4;
 
@@ -184,8 +289,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
-    LOG(INFO) << "ColinL: Read " << read_result
-              << " bytes from legacy storage.";
+    LOG(INFO) << "Read " << read_result << " bytes from legacy storage.";
 
     if (!record->Delete()) {
       LOG(ERROR)
@@ -219,258 +323,41 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   base::UmaHistogramEnumeration(kReadResultHistogram, result);
 
   if (storage) {
-    for (const auto& local_storage_group : storage->local_storages()) {
-      LOG(INFO) << "ColinL: Found legacy LocalStorage group for origin: "
-                << local_storage_group.serialized_origin();
-    }
-
-    LOG(INFO) << "ColinL: Successfully parsed storage. Cookies: "
+    LOG(INFO) << "Successfully parsed storage. Cookies: "
               << storage->cookies_size()
               << ", LocalStorage groups: " << storage->local_storages_size();
   } else {
-    LOG(INFO) << "ColinL: Legacy storage was not found or failed to parse.";
+    LOG(INFO) << "Legacy storage was not found or failed to parse.";
   }
   return storage;
 }
 
-Task RecordMetricsTask(std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
-  return base::BindOnce(
-      [](std::unique_ptr<base::ElapsedTimer> elapsed_timer,
-         base::OnceClosure callback) {
-        base::TimeDelta elapsed = elapsed_timer->Elapsed();
-        base::UmaHistogramTimes(kDurationHistogram, elapsed);
-#if !defined(COBALT_IS_RELEASE_BUILD)
-        LOG(INFO) << "Cookie and localStorage migration completed in "
-                  << elapsed.InMilliseconds() << " ms.";
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
-        std::move(callback).Run();
-      },
-      std::move(elapsed_timer));
+// ============================================================================
+// Cookie Migration Utilities
+// ============================================================================
+
+// Retrieves the CookieManager for the given StoragePartition.
+network::mojom::CookieManager* GetCookieManager(
+    content::StoragePartition* partition) {
+  return partition->GetCookieManagerForBrowserProcess();
 }
 
-base::FilePath GetOldCachePath() {
-  std::vector<char> path(kSbFileMaxPath, 0);
-  bool success =
-      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path.size());
-  if (!success) {
-    return base::FilePath();
-  }
-  return base::FilePath(path.data());
+// ============================================================================
+// LocalStorage Migration Utilities
+// ============================================================================
+
+// Binds a mojo remote to the StorageArea for the given origin, allowing direct
+// write access to the DOM Storage subsystem.
+void GetLocalStorageArea(content::StoragePartition* partition,
+                         const url::Origin& origin,
+                         mojo::Remote<blink::mojom::StorageArea>& out_area) {
+  auto storage_key = blink::StorageKey::CreateFirstParty(origin);
+  partition->GetLocalStorageControl()->BindStorageArea(
+      storage_key, out_area.BindNewPipeAndPassReceiver());
 }
 
-base::FilePath GetMigrationSentinelPath() {
-  base::FilePath current_cache_path;
-  if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
-    return base::FilePath();
-  }
-  return current_cache_path.Append("migration_completed.txt");
-}
-
-void WriteMigrationSentinelAsync() {
-  base::ThreadPool::CreateSequencedTaskRunner(
-      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
-      ->PostTask(FROM_HERE, base::BindOnce([]() {
-                   base::FilePath sentinel_path = GetMigrationSentinelPath();
-                   if (!sentinel_path.empty()) {
-                     base::WriteFile(sentinel_path, "1");
-                   }
-                 }));
-}
-
-void DeleteOldCacheDirectoryAsync() {
-  base::ThreadPool::CreateSequencedTaskRunner(
-      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
-      ->PostTask(
-          FROM_HERE, base::BindOnce([]() {
-            base::FilePath old_cache_path = GetOldCachePath();
-            if (old_cache_path.empty() || !base::PathExists(old_cache_path)) {
-              return;
-            }
-
-            base::FilePath current_cache_path;
-            base::PathService::Get(base::DIR_CACHE, &current_cache_path);
-            if (!old_cache_path.IsParent(current_cache_path) &&
-                old_cache_path != current_cache_path) {
-              base::DeletePathRecursively(old_cache_path);
-              return;
-            }
-
-            std::vector<std::string> old_cache_subpaths = {
-                "cache_settings.json",
-                "compiled_js",
-                "css",
-                "font",
-                "html",
-                "image",
-                "other",
-                "service_worker_settings.json",
-                "settings.json",
-                "splash",
-                "splash_screen",
-                "uncompiled_js",
-            };
-            for (const auto& subpath : old_cache_subpaths) {
-              base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
-              if (base::PathExists(old_cache_subpath)) {
-                base::DeletePathRecursively(old_cache_subpath);
-              }
-            }
-          }));
-}
-
-Task DeleteOldCacheDirectoryTask() {
-  return base::BindOnce([](base::OnceClosure callback) {
-    DeleteOldCacheDirectoryAsync();
-    WriteMigrationSentinelAsync();
-    std::move(callback).Run();
-  });
-}
-
-}  // namespace
-
-// static
-std::atomic_flag MigrationManager::migration_attempted_ = ATOMIC_FLAG_INIT;
-
-// static
-Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
-  return base::BindOnce(
-      [](std::vector<Task> tasks, base::OnceClosure callback) {
-        base::OnceClosure all_tasks_closure = std::move(callback);
-        for (Task& task : base::Reversed(tasks)) {
-          all_tasks_closure =
-              base::BindOnce(std::move(task), std::move(all_tasks_closure));
-        }
-        std::move(all_tasks_closure).Run();
-      },
-      std::move(tasks));
-}
-
-void MigrationManager::RunMigration(content::StoragePartition* partition,
-                                    base::OnceClosure done_callback) {
-  LOG(INFO) << "ColinL: Starting Pre-MainLoop Migration.";
-
-  auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
-
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
-    LOG(INFO) << "ColinL: Storage migration disabled via switch.";
-    LOG(INFO) << "ColinL: RunMigration early exit took "
-              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
-    std::move(done_callback).Run();
-    return;
-  }
-
-  // Fast check: if the sentinel file exists, migration is already done.
-  base::ElapsedTimer sentinel_timer;
-  base::FilePath sentinel_path = GetMigrationSentinelPath();
-  bool sentinel_exists =
-      !sentinel_path.empty() && base::PathExists(sentinel_path);
-  LOG(INFO) << "ColinL: Checking sentinel file took "
-            << sentinel_timer.Elapsed().InMilliseconds() << " ms.";
-  if (sentinel_exists) {
-    LOG(INFO) << "ColinL: Migration sentinel file found. Skipping migration.";
-    LOG(INFO) << "ColinL: RunMigration fast path took "
-              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
-    std::move(done_callback).Run();
-    return;
-  }
-
-  GURL initial_url(
-      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
-  if (!initial_url.is_valid()) {
-    LOG(INFO) << "ColinL: RunMigration invalid URL early exit took "
-              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
-    std::move(done_callback).Run();
-    return;
-  }
-  url::Origin origin = url::Origin::Create(initial_url);
-
-  auto storage = ReadStorage();
-  if (!storage ||
-      (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
-    LOG(INFO) << "ColinL: Nothing to migrate.";
-    LOG(INFO) << "ColinL: RunMigration fast path took "
-              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
-    std::move(done_callback).Run();
-    return;
-  }
-
-  base::UmaHistogramCounts1000(kCookiesCountHistogram, storage->cookies_size());
-  base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
-                               storage->local_storages_size());
-
-  LOG(INFO) << "ColinL: RunMigration synchronous setup took "
-            << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
-
-  std::vector<Task> tasks;
-  tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));
-  tasks.push_back(LocalStorageTask(partition, origin,
-                                   ToLocalStorageItems(origin, *storage)));
-  tasks.push_back(RecordMetricsTask(std::move(elapsed_timer)));
-  tasks.push_back(DeleteOldCacheDirectoryTask());
-
-  std::move(GroupTasks(std::move(tasks))).Run(std::move(done_callback));
-}
-
-// static
-Task MigrationManager::CookieTask(
-    content::StoragePartition* partition,
-    std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
-  return base::BindOnce(
-      [](content::StoragePartition* partition,
-         std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
-         base::OnceClosure callback) {
-        if (cookies.empty()) {
-          std::move(callback).Run();
-          return;
-        }
-
-        auto* cookie_manager = GetCookieManager(partition);
-        auto shared_state = base::MakeRefCounted<SharedClosureState>();
-        shared_state->cb = std::move(callback);
-
-        base::RepeatingClosure barrier = base::BarrierClosure(
-            cookies.size(), base::BindOnce(
-                                [](scoped_refptr<SharedClosureState> state) {
-                                  if (state->cb) {
-                                    LOG(INFO)
-                                        << "ColinL: Cookie injection complete.";
-                                    state->Run();
-                                  }
-                                },
-                                shared_state));
-
-        for (auto& cookie : cookies) {
-          std::string name = cookie->Name();
-          GURL source_url("https://" + cookie->Domain() + cookie->Path());
-          cookie_manager->SetCanonicalCookie(
-              *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
-              base::BindOnce(
-                  [](base::RepeatingClosure barrier, std::string cookie_name,
-                     net::CookieAccessResult result) { barrier.Run(); },
-                  barrier, name));
-        }
-
-        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-            FROM_HERE,
-            base::BindOnce(
-                [](scoped_refptr<SharedClosureState> state) {
-                  if (state->cb) {
-                    LOG(ERROR) << "ColinL: Cookie injection timed out after 2 "
-                                  "seconds. Proceeding anyway.";
-                    state->Run();
-                  }
-                },
-                shared_state),
-            base::Seconds(2));
-      },
-      partition, std::move(cookies));
-}
-
-namespace {
-
+// Formats a string to match the internal binary layout expected by the
+// Chromium LocalStorage database backend (LevelDB).
 std::vector<uint8_t> FormatStringForLocalStorage(const std::string& input) {
   std::u16string utf16_str = base::UTF8ToUTF16(input);
   bool is_latin1 = true;
@@ -497,113 +384,96 @@ std::vector<uint8_t> FormatStringForLocalStorage(const std::string& input) {
   }
   return result;
 }
+
 }  // namespace
 
 // static
-Task MigrationManager::LocalStorageTask(
-    content::StoragePartition* partition,
-    const url::Origin& origin,
-    std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs) {
+// Groups multiple sequential asynchronous tasks into a single chain of
+// callbacks. When the returned Task is invoked, it will execute the first task,
+// which in turn will trigger the second, and so on, until all tasks are run.
+Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
   return base::BindOnce(
-      [](content::StoragePartition* partition, url::Origin origin,
-         std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
-             pairs,
-         base::OnceClosure callback) {
-        if (pairs.empty()) {
-          std::move(callback).Run();
-          return;
+      [](std::vector<Task> tasks, base::OnceClosure callback) {
+        base::OnceClosure all_tasks_closure = std::move(callback);
+        for (Task& task : base::Reversed(tasks)) {
+          all_tasks_closure =
+              base::BindOnce(std::move(task), std::move(all_tasks_closure));
         }
-
-        auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
-        GetLocalStorageArea(partition, origin, *area);
-        auto* raw_remote_ptr = area.get();
-
-        // 3. Purge memory handles step
-        base::OnceClosure purge_memory_step = base::BindOnce(
-            [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
-               content::StoragePartition* partition, base::OnceClosure cb) {
-              // Force the Storage Service to drop its handle for this origin,
-              // so that the Renderer process will fetch fresh data.
-              LOG(INFO) << "ColinL: Purging Storage Service handles to force "
-                           "Renderer synchronization.";
-              partition->GetLocalStorageControl()->PurgeMemory();
-              std::move(cb).Run();
-            },
-            std::move(area), base::Unretained(partition), std::move(callback));
-
-        // 2. Flush step
-        base::OnceClosure flush_step = base::BindOnce(
-            [](content::StoragePartition* partition,
-               base::OnceClosure next_step) {
-              LOG(INFO) << "ColinL: LocalStorage Puts complete. Flushing...";
-
-              auto shared_state = base::MakeRefCounted<SharedClosureState>();
-              shared_state->cb = std::move(next_step);
-
-              partition->GetLocalStorageControl()->Flush(base::BindOnce(
-                  [](scoped_refptr<SharedClosureState> state) {
-                    if (state->cb) {
-                      LOG(INFO)
-                          << "ColinL: LocalStorage Flush complete callback "
-                             "executed successfully.";
-                      state->Run();
-                    }
-                  },
-                  shared_state));
-
-              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-                  FROM_HERE,
-                  base::BindOnce(
-                      [](scoped_refptr<SharedClosureState> state) {
-                        if (state->cb) {
-                          LOG(ERROR) << "ColinL: LocalStorage Flush timed out "
-                                        "after 2 seconds. Proceeding anyway.";
-                          state->Run();
-                        }
-                      },
-                      shared_state),
-                  base::Seconds(2));
-            },
-            base::Unretained(partition), std::move(purge_memory_step));
-
-        // 1. Put keys step
-        base::RepeatingClosure barrier =
-            base::BarrierClosure(pairs.size(), std::move(flush_step));
-
-        for (const auto& pair : pairs) {
-          std::string key_str = pair->first;
-          std::vector<uint8_t> key = FormatStringForLocalStorage(pair->first);
-          std::vector<uint8_t> value =
-              FormatStringForLocalStorage(pair->second);
-
-          std::string print_val = pair->second;
-          if (print_val.length() > 40) {
-            print_val = print_val.substr(0, 40) + "...";
-          }
-          LOG(INFO) << "ColinL: Initiating Put for key: " << key_str
-                    << ", value: " << print_val;
-
-          (*raw_remote_ptr)
-              ->Put(key, value, absl::nullopt, "migration",
-                    base::BindOnce(
-                        [](base::RepeatingClosure barrier, std::string key_str,
-                           bool success) {
-                          if (success) {
-                            LOG(INFO)
-                                << "ColinL: Put SUCCESS for key: " << key_str;
-                          } else {
-                            LOG(ERROR)
-                                << "ColinL: Put FAILED for key: " << key_str;
-                          }
-                          barrier.Run();
-                        },
-                        barrier, key_str));
-        }
+        std::move(all_tasks_closure).Run();
       },
-      partition, origin, std::move(pairs));
+      std::move(tasks));
+}
+
+// Executes the entire one-time migration pipeline.
+// If the migration has already completed on a previous launch (determined by
+// the presence of a sentinel file), this function instantly invokes the
+// done_callback to resume app startup immediately.
+void MigrationManager::RunMigration(content::StoragePartition* partition,
+                                    base::OnceClosure done_callback) {
+  LOG(INFO) << "Starting Pre-MainLoop Migration.";
+
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
+    LOG(INFO) << "Storage migration disabled via switch.";
+    std::move(done_callback).Run();
+    return;
+  }
+
+  auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
+
+  // Fast Path: If the sentinel file exists, migration is already done.
+  base::ElapsedTimer sentinel_timer;
+  base::FilePath sentinel_path = GetMigrationSentinelPath();
+  bool sentinel_exists =
+      !sentinel_path.empty() && base::PathExists(sentinel_path);
+  if (sentinel_exists) {
+    LOG(INFO) << "Migration sentinel file found. Skipping migration.";
+    LOG(INFO) << "RunMigration fast path took "
+              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
+    std::move(done_callback).Run();
+    return;
+  }
+
+  // Attempt to read the legacy storage protobuf from disk.
+  GURL initial_url(
+      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+  if (!initial_url.is_valid()) {
+    LOG(INFO) << "RunMigration invalid URL early exit.";
+    std::move(done_callback).Run();
+    return;
+  }
+  url::Origin origin = url::Origin::Create(initial_url);
+
+  auto storage = ReadStorage();
+  if (!storage ||
+      (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
+    LOG(INFO) << "Nothing to migrate.";
+    std::move(done_callback).Run();
+    return;
+  }
+
+  base::UmaHistogramCounts1000(kCookiesCountHistogram, storage->cookies_size());
+  base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
+                               storage->local_storages_size());
+
+  LOG(INFO) << "RunMigration synchronous setup took "
+            << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
+
+  // Build the pipeline of tasks to execute asynchronously.
+  std::vector<Task> tasks;
+  tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));
+  tasks.push_back(LocalStorageTask(partition, origin,
+                                   ToLocalStorageItems(origin, *storage)));
+  tasks.push_back(RecordMetricsTask(std::move(elapsed_timer)));
+  tasks.push_back(DeleteOldCacheDirectoryTask());
+
+  // Execute the chained tasks. The done_callback will be invoked when all
+  // steps, including async background work, have completed.
+  std::move(GroupTasks(std::move(tasks))).Run(std::move(done_callback));
 }
 
 // static
+// Converts the legacy protobuf format for cookies into Chromium's CanonicalCookie format.
 std::vector<std::unique_ptr<net::CanonicalCookie>>
 MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
@@ -622,6 +492,75 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
 }
 
 // static
+// Returns an asynchronous task that injects all legacy cookies into the new Chromium Network Service.
+Task MigrationManager::CookieTask(
+    content::StoragePartition* partition,
+    std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+  return base::BindOnce(
+      [](content::StoragePartition* partition,
+         std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
+         base::OnceClosure callback) {
+        if (cookies.empty()) {
+          std::move(callback).Run();
+          return;
+        }
+
+        auto* cookie_manager = GetCookieManager(partition);
+        auto shared_state = base::MakeRefCounted<SharedClosureState>();
+        shared_state->cb = std::move(callback);
+
+        // A barrier closure that executes the 'shared_state' callback only after
+        // all individual cookie Puts have completed.
+        base::RepeatingClosure barrier = base::BarrierClosure(
+            cookies.size(), base::BindOnce(
+                                [](scoped_refptr<SharedClosureState> state) {
+                                  if (state->cb) {
+                                    LOG(INFO) << "Cookie injection complete.";
+                                    state->Run();
+                                  }
+                                },
+                                shared_state));
+
+        for (auto& cookie : cookies) {
+          std::string name = cookie->Name();
+          GURL source_url("https://" + cookie->Domain() + cookie->Path());
+          // Mojo IPC call to the Network Service.
+          cookie_manager->SetCanonicalCookie(
+              *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
+              base::BindOnce(
+                  [](base::RepeatingClosure barrier, std::string cookie_name,
+                     net::CookieAccessResult result) {
+                    if (!result.status.IsInclude()) {
+                      LOG(ERROR) << "SetCanonicalCookie failed for: "
+                                 << cookie_name << " with status: "
+                                 << result.status.GetDebugString();
+                    }
+                    barrier.Run();
+                  },
+                  barrier, name));
+        }
+
+        // Hard timeout fallback: if the Network Service IPC drops the callback
+        // or hangs, this task guarantees the app startup resumes after 2 seconds.
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](scoped_refptr<SharedClosureState> state) {
+                  if (state->cb) {
+                    LOG(ERROR) << "Cookie injection timed out after 2 "
+                                  "seconds. Proceeding anyway.";
+                    state->Run();
+                  }
+                },
+                shared_state),
+            base::Seconds(2));
+      },
+      partition, std::move(cookies));
+}
+
+// static
+// Filters the legacy protobuf to retrieve only the LocalStorage key-value pairs
+// belonging to the primary URL origin.
 std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
 MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
                                       const cobalt::storage::Storage& storage) {
@@ -640,6 +579,111 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
     }
   }
   return entries;
+}
+
+// static
+// Returns an asynchronous task that injects all legacy LocalStorage key-value pairs
+// into the Chromium Storage Service.
+// This is executed as a multi-step sequence:
+// 1. Send all `Put` commands over Mojo.
+// 2. Call `Flush()` to ensure LevelDB writes the Puts to the physical disk.
+// 3. Call `PurgeMemory()` so that the Renderer fetches fresh data instead of using cached state.
+Task MigrationManager::LocalStorageTask(
+    content::StoragePartition* partition,
+    const url::Origin& origin,
+    std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs) {
+  return base::BindOnce(
+      [](content::StoragePartition* partition, url::Origin origin,
+         std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
+             pairs,
+         base::OnceClosure callback) {
+        if (pairs.empty()) {
+          std::move(callback).Run();
+          return;
+        }
+
+        auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
+        GetLocalStorageArea(partition, origin, *area);
+        auto* raw_remote_ptr = area.get();
+
+        // STEP 3: Purge memory handles.
+        // Force the Storage Service to drop its handle for this origin so that
+        // the newly spawned Renderer process sees the updated disk state.
+        base::OnceClosure purge_memory_step = base::BindOnce(
+            [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
+               content::StoragePartition* partition, base::OnceClosure cb) {
+              LOG(INFO) << "Purging Storage Service handles to force "
+                           "Renderer synchronization.";
+              partition->GetLocalStorageControl()->PurgeMemory();
+              std::move(cb).Run();
+            },
+            std::move(area), base::Unretained(partition), std::move(callback));
+
+        // STEP 2: Flush step.
+        // Tells the Storage Service to commit the LevelDB transactions to disk.
+        base::OnceClosure flush_step = base::BindOnce(
+            [](content::StoragePartition* partition,
+               base::OnceClosure next_step) {
+              LOG(INFO) << "LocalStorage Puts complete. Flushing...";
+
+              auto shared_state = base::MakeRefCounted<SharedClosureState>();
+              shared_state->cb = std::move(next_step);
+
+              partition->GetLocalStorageControl()->Flush(base::BindOnce(
+                  [](scoped_refptr<SharedClosureState> state) {
+                    if (state->cb) {
+                      LOG(INFO) << "LocalStorage Flush complete callback "
+                                   "executed successfully.";
+                      state->Run();
+                    }
+                  },
+                  shared_state));
+
+              // Hard timeout fallback: if the disk IO hangs or the Storage Service
+              // crashes during flush, resume app startup after 2 seconds.
+              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                  FROM_HERE,
+                  base::BindOnce(
+                      [](scoped_refptr<SharedClosureState> state) {
+                        if (state->cb) {
+                          LOG(ERROR) << "LocalStorage Flush timed out "
+                                        "after 2 seconds. Proceeding anyway.";
+                          state->Run();
+                        }
+                      },
+                      shared_state),
+                  base::Seconds(2));
+            },
+            base::Unretained(partition), std::move(purge_memory_step));
+
+        // STEP 1: Put keys step.
+        // Iterates through all k/v pairs and sends Mojo Put commands.
+        // The `flush_step` runs only when the barrier closes (all Puts have responded).
+        base::RepeatingClosure barrier =
+            base::BarrierClosure(pairs.size(), std::move(flush_step));
+
+        for (const auto& pair : pairs) {
+          std::string key_str = pair->first;
+          std::vector<uint8_t> key = FormatStringForLocalStorage(pair->first);
+          std::vector<uint8_t> value =
+              FormatStringForLocalStorage(pair->second);
+
+          (*raw_remote_ptr)
+              ->Put(key, value, absl::nullopt, "migration",
+                    base::BindOnce(
+                        [](base::RepeatingClosure barrier, std::string key_str,
+                           bool success) {
+                          if (success) {
+                            LOG(INFO) << "Put SUCCESS for key: " << key_str;
+                          } else {
+                            LOG(ERROR) << "Put FAILED for key: " << key_str;
+                          }
+                          barrier.Run();
+                        },
+                        barrier, key_str));
+        }
+      },
+      partition, origin, std::move(pairs));
 }
 
 }  // namespace migrate_storage_record

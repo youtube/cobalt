@@ -85,12 +85,10 @@ void InitializeBrowserMemoryInstrumentationClient() {
 }  // namespace
 
 void CobaltBrowserMainParts::InitializeMessageLoopContext() {
-  LOG(INFO) << "ColinL: CobaltBrowserMainParts::InitializeMessageLoopContext "
-               "overridden called. Doing nothing.";
   // On Android, we completely defer WebContents creation until the Java layer
   // invokes ShellManager.launchShell() which reaches C++ via JNI.
-  // On Linux, we might need the base behavior, but testing here without it
-  // first.
+  // On Linux, we might need the base behavior.
+  // go/chrobalt-pre-initialization-storage-migration-pipeline
 #if !BUILDFLAG(IS_ANDROID)
   ShellBrowserMainParts::InitializeMessageLoopContext();
 #endif
@@ -116,9 +114,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
-  LOG(INFO) << "ColinL: CobaltBrowserMainParts::PreMainMessageLoopRun started.";
+  StartStorageMigration();
 
-  // Use the public accessor browser_context() instead of the private member.
+  return result;
+}
+
+void CobaltBrowserMainParts::StartStorageMigration() {
+  DLOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
   content::StoragePartition* partition =
       browser_context()->GetDefaultStoragePartition();
 
@@ -127,15 +129,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
         partition, base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
                                   base::Unretained(this)));
   } else {
-    LOG(ERROR) << "ColinL: BrowserContext not available for migration.";
+    LOG(ERROR) << "BrowserContext not available for storage migration.";
     OnMigrationComplete();
   }
-
-  return result;
 }
 
 void CobaltBrowserMainParts::OnMigrationComplete() {
-  LOG(INFO) << "ColinL: Migration complete. Proceeding with deferred tasks.";
+  DLOG(INFO) << "Migration complete. Proceeding with deferred tasks.";
   migration_finished_ = true;
   for (auto& task : pending_tasks_) {
     std::move(task).Run();
@@ -146,11 +146,11 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
 void CobaltBrowserMainParts::PostOrRunIfMigrationFinished(
     base::OnceClosure task) {
   if (!migration_finished_) {
-    LOG(INFO) << "ColinL: Deferring launchShell until migration finishes.";
+    DLOG(INFO) << "Deferring launchShell until migration finishes.";
     pending_tasks_.push_back(std::move(task));
   } else {
-    LOG(INFO) << "ColinL: Migration already finished, running launchShell "
-                 "immediately.";
+    DLOG(INFO) << "Migration already finished, running launchShell "
+                  "immediately.";
     std::move(task).Run();
   }
 }
