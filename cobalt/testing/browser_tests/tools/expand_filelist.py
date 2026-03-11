@@ -21,6 +21,8 @@ Supported patterns:
 """
 
 import argparse
+import fnmatch
+import glob
 import os
 import sys
 from pathlib import PurePath
@@ -59,34 +61,28 @@ def main():
   inclusions = [l for l in lines if not l.startswith('-')]
   exclusions = [l[1:] for l in lines if l.startswith('-')]
 
-  def add_recursive(rel_dir):
-    full_base_dir = os.path.join(args.root, rel_dir)
-    if os.path.isdir(full_base_dir):
-      for root, _, files in os.walk(full_base_dir):
-        for name in files:
-          full_path = os.path.join(root, name)
-          rel_file = os.path.relpath(full_path, args.root)
-          included_files.add('//' + rel_file)
-
   for pattern in inclusions:
     if pattern.startswith('//'):
       pattern = pattern[2:]
 
-    if pattern.endswith('**'):
-      add_recursive(pattern[:-2])
-    else:
-      full_path = os.path.join(args.root, pattern)
-      if os.path.isfile(full_path):
-        included_files.add('//' + pattern)
-      elif os.path.isdir(full_path):
-        add_recursive(pattern)
+    full_pattern = os.path.join(args.root, pattern)
+    # If it is a directory and doesn't end in wildcard, treat it as dir/**
+    if os.path.isdir(full_pattern) and '*' not in pattern:
+      full_pattern = os.path.join(full_pattern, '**')
+
+    for f in glob.glob(full_pattern, recursive=True):
+      if os.path.isfile(f):
+        rel_f = os.path.relpath(f, args.root)
+        # Convert to POSIX path for consistency (with // prefix)
+        rel_f_posix = PurePath(rel_f).as_posix()
+        included_files.add('//' + rel_f_posix)
 
   to_discard = set()
   for p in exclusions:
     # Handle optional // prefix for pattern
     pattern = p[2:] if p.startswith('//') else p
     for f in included_files:
-      if PurePath(f[2:]).match(pattern):
+      if fnmatch.fnmatch(f[2:], pattern):
         to_discard.add(f)
 
   included_files -= to_discard
