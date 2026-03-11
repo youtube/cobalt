@@ -383,8 +383,6 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
-  data = []
-
   data_deps = [
     ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
