@@ -87,6 +87,7 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
+<<<<<<< HEAD
           max_video_input_size_, dummy_surface_view_,
           /*flush_decoder_during_reset=*/false,
           /*reset_audio_decoder=*/false,
@@ -98,6 +99,11 @@ class PlayerComponentsTest
           /*video_renderer_min_decoded_frames=*/std::nullopt,
           fake_graphics_context_provider_.decoder_target_provider(),
           &job_queue_);
+=======
+          max_video_input_size_, PlayerComponents::ExperimentalFeatures{},
+          dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider());
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
@@ -113,6 +119,7 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
+<<<<<<< HEAD
           max_video_input_size_, dummy_surface_view_,
           /*flush_decoder_during_reset=*/false,
           /*reset_audio_decoder=*/false,
@@ -124,6 +131,11 @@ class PlayerComponentsTest
           /*video_renderer_min_decoded_frames=*/std::nullopt,
           fake_graphics_context_provider_.decoder_target_provider(),
           &job_queue_);
+=======
+          max_video_input_size_, PlayerComponents::ExperimentalFeatures{},
+          dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider());
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =

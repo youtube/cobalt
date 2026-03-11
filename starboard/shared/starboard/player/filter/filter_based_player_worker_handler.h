@@ -125,6 +125,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
+<<<<<<< HEAD
   void* surface_view_ = nullptr;
   bool flush_decoder_during_reset_ = false;
   bool reset_audio_decoder_ = false;
@@ -134,6 +135,10 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   std::optional<int> video_decoder_poll_interval_ms_;
   std::optional<int> video_renderer_min_input_buffers_;
   std::optional<int> video_renderer_min_decoded_frames_;
+=======
+  PlayerComponents::ExperimentalFeatures experimental_features_;
+  void* surface_view_ = nullptr;
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const VideoStreamInfo video_stream_info_;

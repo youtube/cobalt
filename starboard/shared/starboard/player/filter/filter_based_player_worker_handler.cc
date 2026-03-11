@@ -40,6 +40,16 @@ using std::placeholders::_2;
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
+template <typename T, typename U>
+void LogAndSetExperimentalFeature(const char* name, T& feature, U new_value) {
+  if (feature == new_value) {
+    return;
+  }
+  SB_LOG(INFO) << "Set experimental feature " << name << ": new=\"" << new_value
+               << "\", old=\"" << ToString(feature) << "\"";
+  feature = new_value;
+}
+
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DumpInputHash(const InputBuffer* input_buffer) {}
@@ -126,12 +136,17 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
+<<<<<<< HEAD
       max_video_input_size_, surface_view_, flush_decoder_during_reset_,
       reset_audio_decoder_, video_initial_max_frames_in_decoder_,
       video_max_pending_input_frames_, video_decoder_initial_preroll_count_,
       video_decoder_poll_interval_ms_, video_renderer_min_input_buffers_,
       video_renderer_min_decoded_frames_,
       decode_target_graphics_context_provider_, job_queue, drm_system_);
+=======
+      max_video_input_size_, experimental_features_, surface_view_,
+      decode_target_graphics_context_provider_, drm_system_);
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -547,6 +562,7 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
+<<<<<<< HEAD
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
   SB_LOG(INFO) << "Set surface_view from " << surface_view_ << " to "
                << surface_view;
@@ -560,14 +576,20 @@ void FilterBasedPlayerWorkerHandler::SetFlushDecoderDuringReset(
                << flush_decoder_during_reset;
   flush_decoder_during_reset_ = flush_decoder_during_reset;
 }
+=======
+#define DEFINE_SET_EXPERIMENTAL_FEATURE(method_name, field_name, type)     \
+  void FilterBasedPlayerWorkerHandler::Set##method_name(type field_name) { \
+    LogAndSetExperimentalFeature(                                          \
+        #field_name, experimental_features_.field_name, field_name);       \
+  }
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
 
-void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
-    bool reset_audio_decoder) {
-  SB_LOG(INFO) << "Set reset_audio_decoder from " << reset_audio_decoder_
-               << " to " << reset_audio_decoder;
-  reset_audio_decoder_ = reset_audio_decoder;
-}
+DEFINE_SET_EXPERIMENTAL_FEATURE(FlushDecoderDuringReset,
+                                flush_decoder_during_reset,
+                                bool)
+DEFINE_SET_EXPERIMENTAL_FEATURE(ResetAudioDecoder, reset_audio_decoder, bool)
 
+<<<<<<< HEAD
 void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
     int video_initial_max_frames_in_decoder) {
   SB_LOG(INFO) << "Set video_initial_max_frames_in_decoder from "
@@ -614,3 +636,34 @@ void FilterBasedPlayerWorkerHandler::SetVideoRendererMinDecodedFrames(
 }
 
 }  // namespace starboard
+=======
+void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
+  LogAndSetExperimentalFeature("surface_view", surface_view_, surface_view);
+}
+
+DEFINE_SET_EXPERIMENTAL_FEATURE(VideoInitialMaxFramesInDecoder,
+                                video_initial_max_frames_in_decoder,
+                                int)
+DEFINE_SET_EXPERIMENTAL_FEATURE(VideoMaxPendingInputFrames,
+                                video_max_pending_input_frames,
+                                int)
+DEFINE_SET_EXPERIMENTAL_FEATURE(VideoDecoderInitialPrerollCount,
+                                video_decoder_initial_preroll_count,
+                                int)
+DEFINE_SET_EXPERIMENTAL_FEATURE(VideoDecoderPollIntervalMs,
+                                video_decoder_poll_interval_ms,
+                                int)
+DEFINE_SET_EXPERIMENTAL_FEATURE(VideoRendererMinInputBuffers,
+                                video_renderer_min_input_buffers,
+                                int)
+DEFINE_SET_EXPERIMENTAL_FEATURE(VideoRendererMinDecodedFrames,
+                                video_renderer_min_decoded_frames,
+                                int)
+DEFINE_SET_EXPERIMENTAL_FEATURE(MediaCodecResetDelayMs,
+                                media_codec_reset_delay_ms,
+                                int)
+
+#undef DEFINE_SET_EXPERIMENTAL_FEATURE
+
+}  // namespace starboard::shared::starboard::player::filter
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))

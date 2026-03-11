@@ -67,10 +67,11 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
+  const auto& experimental_features = creation_parameters.experimental_features();
   const auto& min_input_buffers =
-      creation_parameters.video_renderer_min_input_buffers();
+      experimental_features.video_renderer_min_input_buffers;
   const auto& min_decoded_frames =
-      creation_parameters.video_renderer_min_decoded_frames();
+      experimental_features.video_renderer_min_decoded_frames;
 
   if (!min_input_buffers && !min_decoded_frames) {
     return std::nullopt;
@@ -89,6 +90,24 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
   return VideoRendererImpl::PrerollParameters{*min_input_buffers,
                                               *min_decoded_frames};
 }
+<<<<<<< HEAD
+=======
+
+VideoDecoder::ExperimentalFeatures GetVideoDecoderExperimentalFeatures(
+    const PlayerComponents::ExperimentalFeatures& features) {
+  VideoDecoder::ExperimentalFeatures video_decoder_features;
+  video_decoder_features.initial_max_frames_in_decoder =
+      features.video_initial_max_frames_in_decoder;
+  video_decoder_features.max_pending_input_frames =
+      features.video_max_pending_input_frames;
+  video_decoder_features.video_decoder_initial_preroll_count =
+      features.video_decoder_initial_preroll_count;
+  video_decoder_features.video_decoder_poll_interval_ms =
+      features.video_decoder_poll_interval_ms;
+  return video_decoder_features;
+}
+
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
@@ -189,6 +208,26 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 }  // namespace
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
+<<<<<<< HEAD
+=======
+  typedef starboard::shared::starboard::media::MimeType MimeType;
+  typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
+  typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
+      AdaptiveAudioDecoder;
+  typedef starboard::shared::starboard::player::filter::AudioDecoder
+      AudioDecoderBase;
+  typedef starboard::shared::starboard::player::filter::AudioRendererSink
+      AudioRendererSink;
+  typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
+      AudioRendererSinkImpl;
+  typedef starboard::shared::starboard::player::filter::VideoDecoder
+      VideoDecoderBase;
+  typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
+      VideoRenderAlgorithmBase;
+  typedef starboard::shared::starboard::player::filter::VideoRendererSink
+      VideoRendererSink;
+
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
 
@@ -218,8 +257,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_flush_during_seek =
+<<<<<<< HEAD
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.flush_decoder_during_reset();
+=======
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.experimental_features().flush_decoder_during_reset;
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -351,9 +396,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << tunnel_mode_audio_session_id << '.';
     }
 
+    const PlayerComponents::ExperimentalFeatures& experimental_features =
+        creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
+<<<<<<< HEAD
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         creation_parameters.reset_audio_decoder() ||
+=======
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceResetAudioDecoder) ||
+        experimental_features.reset_audio_decoder ||
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
         video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`enable_reset_audio_decoder` is set to true, force resetting"
@@ -364,8 +417,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << ".";
 
     bool enable_flush_during_seek =
+<<<<<<< HEAD
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.flush_decoder_during_reset() ||
+=======
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceFlushDecoderDuringReset) ||
+        experimental_features.flush_decoder_during_reset ||
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
         video_mime_type.GetParamBoolValue("enableflushduringseek", false);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
@@ -516,10 +575,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
+<<<<<<< HEAD
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.flush_decoder_during_reset();
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
+=======
+        starboard::features::FeatureList::IsEnabled(
+            starboard::features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.experimental_features().flush_decoder_during_reset;
+    int64_t reset_delay_usec = 0;
+    int64_t flush_delay_usec = 0;
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
@@ -555,6 +622,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
+<<<<<<< HEAD
     MediaCodecVideoDecoder::FlowControlOptions flow_control_options;
     flow_control_options.initial_max_frames_in_decoder =
         creation_parameters.video_initial_max_frames_in_decoder();
@@ -567,6 +635,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
+=======
+    VideoDecoder::ExperimentalFeatures experimental_features =
+        GetVideoDecoderExperimentalFeatures(
+            creation_parameters.experimental_features());
+    if (creation_parameters.experimental_features()
+            .media_codec_reset_delay_ms.has_value()) {
+      reset_delay_usec =
+          static_cast<int64_t>(creation_parameters.experimental_features()
+                                   .media_codec_reset_delay_ms.value()) *
+          1000;
+      SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
+                   << " of " << reset_delay_usec << "us during Reset().";
+    }
+    auto video_decoder = std::make_unique<VideoDecoder>(
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),

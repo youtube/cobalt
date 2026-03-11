@@ -148,6 +148,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
+<<<<<<< HEAD
                 /*surface_view=*/nullptr,
                 /*flush_decoder_during_reset=*/false,
                 /*reset_audio_decoder=*/false,
@@ -157,6 +158,9 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                 /*video_decoder_poll_interval_ms=*/std::nullopt,
                 /*video_renderer_min_input_buffers=*/std::nullopt,
                 /*video_renderer_min_decoded_frames=*/std::nullopt,
+=======
+                PlayerComponents::ExperimentalFeatures{},
+>>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
                 fake_graphics_context_provider_.decoder_target_provider(),
                 &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
