@@ -65,6 +65,19 @@ using StorageAreaRemote = mojo::Remote<blink::mojom::StorageArea>;
 
 namespace {
 
+struct SharedClosureState : public base::RefCounted<SharedClosureState> {
+  base::OnceClosure cb;
+  void Run() {
+    if (cb) {
+      std::move(cb).Run();
+    }
+  }
+
+ private:
+  friend class base::RefCounted<SharedClosureState>;
+  ~SharedClosureState() = default;
+};
+
 network::mojom::CookieManager* GetCookieManager(
     content::StoragePartition* partition) {
   return partition->GetCookieManagerForBrowserProcess();
@@ -415,8 +428,19 @@ Task MigrationManager::CookieTask(
         }
 
         auto* cookie_manager = GetCookieManager(partition);
-        base::RepeatingClosure barrier =
-            base::BarrierClosure(cookies.size(), std::move(callback));
+        auto shared_state = base::MakeRefCounted<SharedClosureState>();
+        shared_state->cb = std::move(callback);
+
+        base::RepeatingClosure barrier = base::BarrierClosure(
+            cookies.size(), base::BindOnce(
+                                [](scoped_refptr<SharedClosureState> state) {
+                                  if (state->cb) {
+                                    LOG(INFO)
+                                        << "ColinL: Cookie injection complete.";
+                                    state->Run();
+                                  }
+                                },
+                                shared_state));
 
         for (auto& cookie : cookies) {
           std::string name = cookie->Name();
@@ -428,11 +452,25 @@ Task MigrationManager::CookieTask(
                      net::CookieAccessResult result) { barrier.Run(); },
                   barrier, name));
         }
+
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](scoped_refptr<SharedClosureState> state) {
+                  if (state->cb) {
+                    LOG(ERROR) << "ColinL: Cookie injection timed out after 2 "
+                                  "seconds. Proceeding anyway.";
+                    state->Run();
+                  }
+                },
+                shared_state),
+            base::Seconds(2));
       },
       partition, std::move(cookies));
 }
 
 namespace {
+
 std::vector<uint8_t> FormatStringForLocalStorage(const std::string& input) {
   std::u16string utf16_str = base::UTF8ToUTF16(input);
   bool is_latin1 = true;
@@ -498,13 +536,33 @@ Task MigrationManager::LocalStorageTask(
             [](content::StoragePartition* partition,
                base::OnceClosure next_step) {
               LOG(INFO) << "ColinL: LocalStorage Puts complete. Flushing...";
+
+              auto shared_state = base::MakeRefCounted<SharedClosureState>();
+              shared_state->cb = std::move(next_step);
+
               partition->GetLocalStorageControl()->Flush(base::BindOnce(
-                  [](base::OnceClosure cb) {
-                    LOG(INFO) << "ColinL: LocalStorage Flush complete callback "
-                                 "executed successfully.";
-                    std::move(cb).Run();
+                  [](scoped_refptr<SharedClosureState> state) {
+                    if (state->cb) {
+                      LOG(INFO)
+                          << "ColinL: LocalStorage Flush complete callback "
+                             "executed successfully.";
+                      state->Run();
+                    }
                   },
-                  std::move(next_step)));
+                  shared_state));
+
+              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                  FROM_HERE,
+                  base::BindOnce(
+                      [](scoped_refptr<SharedClosureState> state) {
+                        if (state->cb) {
+                          LOG(ERROR) << "ColinL: LocalStorage Flush timed out "
+                                        "after 2 seconds. Proceeding anyway.";
+                          state->Run();
+                        }
+                      },
+                      shared_state),
+                  base::Seconds(2));
             },
             base::Unretained(partition), std::move(purge_memory_step));
 
