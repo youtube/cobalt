@@ -4,12 +4,7 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
     branches:
-      - main
-      - feature/*
-  push:
-    branches:
-      - main
-      - feature/*
+      - 27.lts
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}

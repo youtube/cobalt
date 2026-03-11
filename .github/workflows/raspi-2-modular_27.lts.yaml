@@ -1,7 +1,14 @@
-name: tvos
+name: raspi-2-modular_27.lts
 permissions: read-all
 
 on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - 27.lts
+  push:
+    branches:
+      - 27.lts
   workflow_dispatch:
     inputs:
       nightly:
@@ -9,23 +16,16 @@ on:
         required: true
         type: boolean
         default: false
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
 
 jobs:
-  # This is default Chromium build config
-  tvos-arm64-simulator:
+  # This is the raspi build config
+  raspi-2-modular:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: tvos-arm64-simulator
+      platform: raspi-2-modular
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-      sccache_gcs_key: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}
