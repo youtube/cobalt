@@ -18,6 +18,8 @@ jobs:
           fetch-depth: 1
           ref: main
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x

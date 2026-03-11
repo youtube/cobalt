@@ -18,6 +18,8 @@ jobs:
           fetch-depth: 1
           ref: 23.lts.1+
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -38,6 +40,8 @@ jobs:
           fetch-depth: 1
           ref: 22.lts.1+
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -58,6 +62,8 @@ jobs:
           fetch-depth: 1
           ref: 21.lts.1+
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -77,6 +83,8 @@ jobs:
           fetch-depth: 1
           ref: 20.lts.1+
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -95,6 +103,8 @@ jobs:
           fetch-depth: 1
           ref: 19.lts.1+
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -113,6 +123,8 @@ jobs:
           fetch-depth: 1
           ref: rc_11
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -131,6 +143,8 @@ jobs:
           fetch-depth: 1
           ref: COBALT_9
           persist-credentials: false
+          filter: blob:none
+          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
