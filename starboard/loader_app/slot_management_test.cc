@@ -521,7 +521,7 @@ TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
   if (ImGetInstallationPath(kTestSlotIndex, installation_path.data(),
                             kSbFileMaxPath) == IM_ERROR) {
     SB_LOG(WARNING) << "Failed to get installation path.";
-    return false;
+    return;
   }
   std::vector<char> test_dir_path(kSbFileMaxPath);
   snprintf(test_dir_path.data(), kSbFileMaxPath, "%s%s%s",
