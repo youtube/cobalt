@@ -16,12 +16,9 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
-<<<<<<< HEAD
+#include "base/no_destructor.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
-=======
-#include "base/no_destructor.h"
->>>>>>> 1b1c7e1b5e (media: Conditionally enable DecoderBufferAllocator (#7747))
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"

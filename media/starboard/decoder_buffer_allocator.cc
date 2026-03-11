@@ -32,22 +32,8 @@
 
 namespace media {
 
-<<<<<<< HEAD
-DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
-    : DecoderBufferAllocator(type,
-                             SbMediaIsBufferPoolAllocateOnDemand(),
-=======
-namespace {
-
-// Used to determine if the memory allocated is large. The underlying logic can
-// be different.
-const size_t kSmallAllocationThreshold = 512;
-
-}  // namespace
-
 DecoderBufferAllocator::DecoderBufferAllocator()
     : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
->>>>>>> 1b1c7e1b5e (media: Conditionally enable DecoderBufferAllocator (#7747))
                              SbMediaGetInitialBufferCapacity(),
                              SbMediaGetBufferAllocationUnit()) {}
 
