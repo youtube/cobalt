@@ -46,23 +46,13 @@ typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const std::optional<T>& optional) {
-  if (optional) {
-    os << *optional;
-  } else {
-    os << "(nullopt)";
-  }
-  return os;
-}
-
 template <typename T, typename U>
 void LogAndSetExperimentalFeature(const char* name, T& feature, U new_value) {
   if (feature == new_value) {
     return;
   }
   SB_LOG(INFO) << "Set experimental feature " << name << ": new=\"" << new_value
-               << "\", old=\"" << feature << "\"";
+               << "\", old=\"" << ToString(feature) << "\"";
   feature = new_value;
 }
 
