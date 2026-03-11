@@ -417,7 +417,7 @@ test("cobalt_browsertests") {
 
   if (is_linux) {
     deps += [ "//third_party/libyuv" ]
-    data += [
+    data = [
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
     ]
