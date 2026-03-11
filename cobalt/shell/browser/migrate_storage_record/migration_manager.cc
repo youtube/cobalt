@@ -448,6 +448,8 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
     LOG(INFO) << "Nothing to migrate.";
+    DeleteOldCacheDirectoryAsync();
+    WriteMigrationSentinelAsync();
     std::move(done_callback).Run();
     return;
   }
