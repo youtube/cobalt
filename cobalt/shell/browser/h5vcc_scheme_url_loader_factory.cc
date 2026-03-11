@@ -21,6 +21,7 @@
 #include "base/containers/contains.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -249,6 +250,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       SendNotFoundResponse(key);
       return;
     }
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.SplashScreen.FetchedFromCache", false);
     SendResponse();
   }
   ~H5vccSchemeURLLoader() override = default;
@@ -340,6 +342,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     DisconnectCacheStorage();
     content_ = std::string(reinterpret_cast<const char*>(content.data()),
                            content.size());
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.SplashScreen.FetchedFromCache", true);
     SendResponse();
   }
 
@@ -357,6 +360,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void DisconnectCacheAndSendFallback(const std::string& message) {
     LOG(ERROR) << message;
     DisconnectCacheStorage();
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.SplashScreen.FetchedFromCache", false);
     SendResponse();
   }
 

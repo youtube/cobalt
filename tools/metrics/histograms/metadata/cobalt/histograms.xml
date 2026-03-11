@@ -96,6 +96,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.FetchedFromCache" enum="Boolean"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records whether a splash screen resource was successfully retrieved from
+    cache. True indicates a cache hit and false indicates a fallback to the
+    embedded resources (either due to cache miss or an error during retrieval).
+    This is recorded for every splash screen request handled by h5vcc scheme
+    loader.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
