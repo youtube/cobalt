@@ -77,11 +77,11 @@ const char kH5vccContentSecurityPolicy[] =
 enum class SplashScreenFetchedState {
   kOkBuiltIn = 0,
   kOkCache = 1,
-  kErrorOnEmptyEntry = 2,
-  kErrorOnFileOversize = 3,
+  kErrorOnCacheEmptyContent = 2,
+  kErrorOnCacheFileOversize = 3,
   kErrorOnReadCache = 4,
-  kErrorOnNotFound = 5,
-  kMaxValue = kErrorOnNotFound,
+  kErrorOnResourceNotFound = 5,
+  kMaxValue = kErrorOnResourceNotFound,
 };
 
 class BlobReader : public blink::mojom::BlobReaderClient {
@@ -322,6 +322,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void OnCacheMatched(const std::string& cache_name,
                       blink::mojom::MatchResultPtr result) {
     if (!result->is_response()) {
+      // TODO(b/492206459): case on different response types and assign
+      // corresponding state
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(
               "Failed to match splash video from cache %s, error: %d",
