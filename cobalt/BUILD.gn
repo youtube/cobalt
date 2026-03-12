@@ -109,14 +109,14 @@ source_set("common") {
   testonly = true
 
   sources = [
-    "app/app_lifecycle_delegate.cc",
-    "app/app_lifecycle_delegate.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
   ]
 
   if (is_starboard) {
     sources += [
+      "app/app_lifecycle_delegate.cc",
+      "app/app_lifecycle_delegate.h",
       "app/cobalt_switch_defaults_starboard.cc",
       "app/cobalt_switch_defaults_starboard.h",
     ]
