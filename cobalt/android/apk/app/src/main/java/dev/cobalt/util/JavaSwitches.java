@@ -18,9 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Defines the constant names for feature switches used in Kimono.
- */
+/** Defines the constant names for feature switches used in Kimono. */
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
@@ -29,13 +27,18 @@ public class JavaSwitches {
   public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
       "EnableLowEndDeviceModeNoSimulatedMemory";
 
-  /** GPU flag to enable memory settings in layer tree and set max_memory_for_prepaint_percentage. Value type: Integer (MiB) */
+  /**
+   * GPU flag to enable memory settings in layer tree and set max_memory_for_prepaint_percentage.
+   * Value type: Integer (MiB)
+   */
   public static final String CC_LAYER_TREE_OPTIMIZATION = "CCLayerTreeOptimization";
 
   /** V8 flag to enable jitless mode. Value type: Boolean (presence means true) */
   public static final String V8_JITLESS = "V8Jitless";
 
-  /** V8 flag to enable write protection for code memory. Value type: Boolean (presence means true) */
+  /**
+   * V8 flag to enable write protection for code memory. Value type: Boolean (presence means true)
+   */
   public static final String V8_WRITE_PROTECT_CODE_MEMORY = "V8WriteProtectCodeMemory";
 
   /** V8 flag to disable optimize for size. Value type: Boolean (presence means true) */
@@ -64,27 +67,38 @@ public class JavaSwitches {
 
   /** flag to disable PartitionAllocBackupRefPtr */
   public static final String DISABLE_BRP = "DisableBRP";
+
   /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
   public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
 
   /** flag to enable AndroidOverlay for SbPlayer */
   public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
+
   /** flag to use SurfaceView for AndroidOverlay */
-  public static final String USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY = "UsingSurfaceViewForAndroidOverlay";
+  public static final String USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY =
+      "UsingSurfaceViewForAndroidOverlay";
 
   /** flag to enable SkiaFontCache */
   public static final String SKIA_FONT_CACHE = "SkiaFontCache";
 
   /** flag to lower the priority of the network service thread */
-  public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY = "LowerNetworkServiceThreadPriority";
+  public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY =
+      "LowerNetworkServiceThreadPriority";
 
   /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
   public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
 
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
+
   /** flag to reduce background activity */
   public static final String NO_STOP_IN_BACKGROUND = "NoStopInBackground";
+
+  /** flag to enable av1 decoder startup optimization */
+  public static final String ENABLE_AV1_STARTUP_OPTIMIZATION = "EnableAv1StartupOptimization";
+
+  /** flag to disable low performance software av1 decoder */
+  public static final String DISABLE_SW_AV1_DECODER = "DisableLowPerformanceAv1Decoder";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -103,8 +117,8 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
       extraCommandLineArgs.add(
-        "--cc-layer-tree-optimization="
-            + javaSwitches.get(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION).replaceAll("[^0-9]", ""));
+          "--cc-layer-tree-optimization="
+              + javaSwitches.get(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION).replaceAll("[^0-9]", ""));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.V8_JITLESS)) {
@@ -164,7 +178,8 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
     }
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
-      extraCommandLineArgs.add("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+      extraCommandLineArgs.add(
+          "--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
@@ -186,13 +201,23 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)) {
       extraCommandLineArgs.add(
           "--skia-ganesh-resource-cache-limit-mb="
-              + javaSwitches.get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB).replaceAll("[^0-9]", ""));
+              + javaSwitches
+                  .get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)
+                  .replaceAll("[^0-9]", ""));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.NO_STOP_IN_BACKGROUND)) {
       extraCommandLineArgs.add("--disable-renderer-backgrounding");
       extraCommandLineArgs.add("--disable-features=StopInBackground");
       extraCommandLineArgs.add("--disable-features=IntensiveWakeUpThrottling");
+    }
+
+    // AV1 optimization
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_AV1_STARTUP_OPTIMIZATION)) {
+      extraCommandLineArgs.add("--enable-features=EnableAv1StartupOptimization");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_SW_AV1_DECODER)) {
+      extraCommandLineArgs.add("--enable-features=RejectLowPerformanceSoftwareDecoder");
     }
 
     return extraCommandLineArgs;
