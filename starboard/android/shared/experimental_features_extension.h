@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_H_
-#define STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_H_
+#ifndef STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_EXTENSION_H_
+#define STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_EXTENSION_H_
 
 namespace starboard::android::shared {
 
@@ -22,4 +22,4 @@ const void* GetExperimentalFeaturesConfigurationApi();
 
 }  // namespace starboard::android::shared
 
-#endif  // STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_H_
+#endif  // STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_EXTENSION_H_

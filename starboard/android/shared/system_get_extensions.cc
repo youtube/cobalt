@@ -20,7 +20,7 @@
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/crash_handler.h"
-#include "starboard/android/shared/experimental_features.h"
+#include "starboard/android/shared/experimental_features_extension.h"
 #include "starboard/android/shared/features_extension.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/media_buffer_pool_extension.h"

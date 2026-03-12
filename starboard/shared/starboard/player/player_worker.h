@@ -28,7 +28,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/filter/experimental_features.h"
+#include "starboard/shared/starboard/player/filter/experimental_features_types.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/window.h"

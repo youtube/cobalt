@@ -16,7 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_INTERNAL_H_
 
 #include "starboard/extension/experimental_features.h"
-#include "starboard/shared/starboard/player/filter/experimental_features.h"
+#include "starboard/shared/starboard/player/filter/experimental_features_types.h"
 
 namespace starboard::android::shared {
 

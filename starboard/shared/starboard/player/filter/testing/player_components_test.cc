@@ -27,7 +27,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/starboard/player/filter/experimental_features.h"
+#include "starboard/shared/starboard/player/filter/experimental_features_types.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"

@@ -37,11 +37,12 @@ GetExperimentalFeaturesTLS() {
 ExperimentalFeatures* GetOrCreateExperimentalFeatures() {
   auto& tls = GetExperimentalFeaturesTLS();
   ExperimentalFeatures* ptr = tls.Get();
-  if (ptr == nullptr) {
-    tls.Set(std::make_unique<ExperimentalFeatures>());
-    ptr = tls.Get();
+  if (ptr) {
+    return ptr;
   }
-  return ptr;
+
+  tls.Set(std::make_unique<ExperimentalFeatures>());
+  return tls.Get();
 }
 
 std::optional<int> FromIntPointer(const int* val) {

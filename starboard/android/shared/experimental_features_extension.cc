@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/experimental_features.h"
+#include "starboard/android/shared/experimental_features_extension.h"
 
 #include <optional>
 
