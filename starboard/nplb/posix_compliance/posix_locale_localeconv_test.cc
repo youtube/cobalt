@@ -221,10 +221,9 @@ void DumpChar(FILE* file, const char* name, char value) {
 }
 
 TEST(PosixLocaleLocaleconvDumperTest, DISABLED_DumpAllLocaleDataForConstexpr) {
-  FILE* file = fopen(
-      "starboard/nplb/posix_compliance/"
-+     "posix_locale_localeconv_test_data.cc.inc",
-      "w");
+  FILE* file = fopen("starboard/nplb/posix_compliance/" +
++                         "posix_locale_localeconv_test_data.cc.inc",
++                     "w");
   ASSERT_NE(file, nullptr);
 
   fprintf(file, "constexpr LocaleconvTestData kLocaleconvTestData[] = {\n");
