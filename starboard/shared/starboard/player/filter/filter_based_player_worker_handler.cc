@@ -144,10 +144,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_,
-      SeekConfiguration{experimental_features_.flush_decoder_during_reset,
-                        experimental_features_.reset_audio_decoder},
-      experimental_features_, surface_view_,
+      max_video_input_size_, experimental_features_, surface_view_,
       decode_target_graphics_context_provider_, drm_system_);
 
   {

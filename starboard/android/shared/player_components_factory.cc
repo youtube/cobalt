@@ -255,10 +255,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.seek_configuration().flush_decoder_during_reset;
+        experimental_features.flush_decoder_during_reset;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -419,7 +421,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_reset_audio_decoder =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceResetAudioDecoder) ||
-        creation_parameters.seek_configuration().reset_audio_decoder ||
+        experimental_features.reset_audio_decoder ||
         video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`enable_reset_audio_decoder` is set to true, force resetting"
@@ -432,7 +434,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.seek_configuration().flush_decoder_during_reset ||
+        experimental_features.flush_decoder_during_reset ||
         video_mime_type.GetParamBoolValue("enableflushduringseek", false);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
@@ -586,11 +588,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size,
       std::string* error_message) {
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.seek_configuration().flush_decoder_during_reset;
+        experimental_features.flush_decoder_during_reset;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
@@ -627,8 +631,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    const auto& experimental_features =
-        creation_parameters.experimental_features();
     if (experimental_features.media_codec_reset_delay_ms) {
       reset_delay_usec =
           static_cast<int64_t>(
