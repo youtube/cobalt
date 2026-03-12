@@ -20,7 +20,7 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
-import("//cobalt/testing/browser_tests/cobalt_test_data.gni")
+import("//cobalt/testing/browser_tests/cobalt_test_bundle_data.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -197,8 +197,9 @@ if (is_ios) {
     filelist_name = "cobalt_test_bundle_data_ios.filelist"
   }
 } else {
-  cobalt_test_data_from_filelist("cobalt_test_bundle_data") {
+  group("cobalt_test_bundle_data") {
     testonly = true
+    data = cobalt_test_bundle_data_files
   }
 }
 
