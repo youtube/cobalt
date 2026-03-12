@@ -60,19 +60,6 @@ class PlayerComponents {
   typedef ::starboard::shared::starboard::player::filter::VideoRenderer
       VideoRenderer;
 
-  struct ExperimentalFeatures {
-    bool flush_decoder_during_reset = false;
-    bool reset_audio_decoder = false;
-    bool pause_using_audio_track_state = false;
-    std::optional<int> video_initial_max_frames_in_decoder;
-    std::optional<int> video_max_pending_input_frames;
-    std::optional<int> video_decoder_initial_preroll_count;
-    std::optional<int> video_decoder_poll_interval_ms;
-    std::optional<int> video_renderer_min_input_buffers;
-    std::optional<int> video_renderer_min_decoded_frames;
-    std::optional<int> media_codec_reset_delay_ms;
-  };
-
   // This class creates PlayerComponents.
   class Factory {
    public:

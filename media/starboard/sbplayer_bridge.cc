@@ -852,6 +852,8 @@ void SbPlayerBridge::CreatePlayer() {
 
     experimental_features.media_codec_reset_delay_ms =
         ToIntPointer(media_codec_reset_delay_ms_);
+    experimental_features.pause_using_audio_track_state =
+        pause_using_audio_track_state_;
     experimental_features.video_decoder_initial_preroll_count =
         ToIntPointer(video_decoder_initial_preroll_count_);
     experimental_features.video_decoder_poll_interval_ms =

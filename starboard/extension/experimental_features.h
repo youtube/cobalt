@@ -26,9 +26,9 @@ extern "C" {
   "dev.starboard.extension.ExperimentalFeaturesConfiguration"
 
 typedef struct StarboardExtensionExperimentalFeatures {
-  // The fields below are optional. If they are NULL, it means the value is not
-  // set.
+  // If a field is NULL, it means the value is not set.
   const int* media_codec_reset_delay_ms;
+  bool pause_using_audio_track_state;
   const int* video_decoder_initial_preroll_count;
   const int* video_decoder_poll_interval_ms;
   const int* video_initial_max_frames_in_decoder;

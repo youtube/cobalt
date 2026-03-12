@@ -102,20 +102,6 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
                                               *min_decoded_frames};
 }
 
-VideoDecoder::ExperimentalFeatures GetVideoDecoderExperimentalFeatures(
-    const PlayerComponents::ExperimentalFeatures& features) {
-  VideoDecoder::ExperimentalFeatures video_decoder_features;
-  video_decoder_features.initial_max_frames_in_decoder =
-      features.video_initial_max_frames_in_decoder;
-  video_decoder_features.max_pending_input_frames =
-      features.video_max_pending_input_frames;
-  video_decoder_features.video_decoder_initial_preroll_count =
-      features.video_decoder_initial_preroll_count;
-  video_decoder_features.video_decoder_poll_interval_ms =
-      features.video_decoder_poll_interval_ms;
-  return video_decoder_features;
-}
-
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
@@ -428,7 +414,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       is_tunnel_mode_used_ = true;
     }
 
-    const PlayerComponents::ExperimentalFeatures& experimental_features =
+    const auto experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
         starboard::features::FeatureList::IsEnabled(
