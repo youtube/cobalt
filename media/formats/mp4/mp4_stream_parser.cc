@@ -33,6 +33,7 @@
 #include "media/formats/mp4/es_descriptor.h"
 #include "media/formats/mp4/rcheck.h"
 #include "media/formats/mpeg/adts_constants.h"
+#include "media/media_buildflags.h"
 
 namespace media::mp4 {
 
@@ -168,8 +169,39 @@ bool MP4StreamParser::AppendToParseBuffer(const uint8_t* buf, size_t size) {
   return true;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 StreamParser::ParseStatus MP4StreamParser::Parse(
     int max_pending_bytes_to_inspect) {
+  if (!StreamParser::IsIncrementalParseLookAheadEnabled() ||
+      max_pending_bytes_to_inspect == 0) {
+    return ParseInternal(max_pending_bytes_to_inspect);
+  }
+
+  // Safe guard to avoid looping infinitely.
+  constexpr int kMaxLoopCount = 128;
+
+  buffers_parsed_ = false;
+
+  for (int loop_count = 0;;++loop_count) {
+    auto previous_max_parse_offset = max_parse_offset_;
+
+    ParseStatus result = ParseInternal(max_pending_bytes_to_inspect);
+
+    if (result == ParseStatus::kFailed || max_parse_offset_ == queue_.tail() ||
+        previous_max_parse_offset == max_parse_offset_ ||
+        buffers_parsed_ || loop_count == kMaxLoopCount) {
+      return result;
+    }
+  }
+}
+
+StreamParser::ParseStatus MP4StreamParser::ParseInternal(
+    int max_pending_bytes_to_inspect) {
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+StreamParser::ParseStatus MP4StreamParser::Parse(
+    int max_pending_bytes_to_inspect) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   DCHECK_NE(state_, kWaitingForInit);
   DCHECK_GE(max_pending_bytes_to_inspect, 0);
 
@@ -1078,6 +1110,9 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 bool MP4StreamParser::SendAndFlushSamples(BufferQueueMap* buffers) {
   if (buffers->empty())
     return true;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  buffers_parsed_ = true;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool success = new_buffers_cb_.Run(*buffers);
   buffers->clear();
   return success;

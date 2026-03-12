@@ -9,6 +9,11 @@
 #include "gpu/ipc/common/gpu_surface_lookup.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 MojoAndroidOverlay::MojoAndroidOverlay(
@@ -24,6 +29,11 @@ MojoAndroidOverlay::MojoAndroidOverlay(
   mojo_config->rect = config_.rect;
   mojo_config->secure = config_.secure;
   mojo_config->power_efficient = config_.power_efficient;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mojo_config->use_surface_view = base::FeatureList::IsEnabled(
+      media::kUseSurfaceViewForAndroidOverlay);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   mojo::Remote<mojom::AndroidOverlayProvider> provider(
       std::move(pending_provider));

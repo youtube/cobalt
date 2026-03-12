@@ -370,6 +370,12 @@ void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
+  return params_.use_quic_for_unknown_origins;
+}
+#endif
+
 void HttpNetworkSession::ClearSSLSessionCache() {
   ssl_client_session_cache_.Flush();
 }

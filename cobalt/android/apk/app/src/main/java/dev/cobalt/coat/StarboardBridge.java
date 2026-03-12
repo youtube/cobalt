@@ -207,6 +207,7 @@ public class StarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(nativeApp);
       closeAllServices();
+      advertisingId.shutdown();
       activity.finishAndRemoveTask();
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -310,6 +311,7 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
+    StartupGuard.getInstance().setStartupMilestone(37);
     mPlatformError = new PlatformError(activityHolder, errorType, data);
     mPlatformError.raise();
   }
@@ -679,7 +681,11 @@ public class StarboardBridge {
   }
 
   public void closeCobaltService(String serviceName) {
-    cobaltServices.remove(serviceName);
+    CobaltService service = cobaltServices.get(serviceName);
+    if(service != null) {
+      service.onClose();
+      cobaltServices.remove(serviceName);
+    }
     Log.i(TAG, String.format("Closed platform service %s.", serviceName));
   }
 

@@ -15,6 +15,7 @@
 package dev.cobalt.browser.crashannotator;
 
 import dev.cobalt.coat.CrashContext;
+import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.crashannotator.mojom.CrashAnnotator;
 import org.chromium.mojo.system.MojoException;
@@ -37,6 +38,7 @@ public class CrashAnnotatorImplFirstParty implements CrashAnnotator {
                           String value,
                           SetString_Response callback) {
         CrashContext.INSTANCE.setCrashContext(key, value);
+        CrashAnnotatorImplFirstPartyJni.get().setAnnotation(key, value);
 
         // The browser has no visibility into what occurs after it has provided
         // the crash context to StarboardBridge. So we just assume the crash
@@ -51,4 +53,9 @@ public class CrashAnnotatorImplFirstParty implements CrashAnnotator {
     /** This abstract method must be overridden. */
     @Override
     public void onConnectionError(MojoException e) {}
+
+    @NativeMethods
+    interface Natives {
+        void setAnnotation(String key, String value);
+    }
 }

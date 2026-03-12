@@ -61,6 +61,7 @@ class VideoDecoder
   struct ExperimentalFeatures {
     std::optional<int> max_pending_input_frames;
     std::optional<int> initial_max_frames_in_decoder;
+    std::optional<int> video_decoder_initial_preroll_count;
     std::optional<int> video_decoder_poll_interval_ms;
   };
 
@@ -181,6 +182,10 @@ class VideoDecoder
   // Force resetting the video surface after tunnel mode playback, which
   // prevents video distortion on some devices.
   const bool force_reset_surface_under_tunnel_mode_;
+
+  // Codec initialization will be delayed until the decoder receives enough
+  // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
+  const bool needs_fps_to_initialize_codec_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

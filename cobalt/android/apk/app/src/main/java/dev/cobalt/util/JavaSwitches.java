@@ -38,6 +38,9 @@ public class JavaSwitches {
   /** V8 flag to enable write protection for code memory. Value type: Boolean (presence means true) */
   public static final String V8_WRITE_PROTECT_CODE_MEMORY = "V8WriteProtectCodeMemory";
 
+  /** V8 flag to disable optimize for size. Value type: Boolean (presence means true) */
+  public static final String V8_DISABLE_OPTIMIZE_FOR_SIZE = "V8DisableOptimizeForSize";
+
   /** V8 flag to set the GC interval. Value type: Integer */
   public static final String V8_GC_INTERVAL = "V8GcInterval";
 
@@ -50,10 +53,14 @@ public class JavaSwitches {
   /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
   public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
 
+  /** V8 flag to set the heap growing percent. Value type: Integer */
+  public static final String V8_HEAP_GROWING_PERCENT = "V8HeapGrowingPercent";
+
+  /** V8 flag to disable garbage collection for wasm code */
+  public static final String V8_NOWASM_CODE_GC = "V8NoWasmCodeGC";
+
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
-  /** CC flag to set the number of raster threads. Value type: Integer */
-  public static final String NUM_RASTER_THREADS = "NumRasterThreads";
 
   /** flag to disable PartitionAllocBackupRefPtr */
   public static final String DISABLE_BRP = "DisableBRP";
@@ -62,9 +69,22 @@ public class JavaSwitches {
 
   /** flag to enable AndroidOverlay for SbPlayer */
   public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
+  /** flag to use SurfaceView for AndroidOverlay */
+  public static final String USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY = "UsingSurfaceViewForAndroidOverlay";
 
   /** flag to enable SkiaFontCache */
   public static final String SKIA_FONT_CACHE = "SkiaFontCache";
+
+  /** flag to lower the priority of the network service thread */
+  public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY = "LowerNetworkServiceThreadPriority";
+
+  /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
+  public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
+
+  /** flag to re-enable freeze and resume events */
+  public static final String ENABLE_FREEZE = "EnableFreeze";
+  /** flag to reduce background activity */
+  public static final String NO_STOP_IN_BACKGROUND = "NoStopInBackground";
 
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
@@ -77,6 +97,8 @@ public class JavaSwitches {
       if (javaSwitches.containsKey(JavaSwitches.ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY)) {
         extraCommandLineArgs.add("--enable-low-end-device-mode-no-simulated-memory");
       }
+    } else {
+      extraCommandLineArgs.add("--enable-features=PartialLowEndModeOnMidRangeDevices");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
@@ -105,11 +127,26 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--max-old-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--js-flags=--max-old-space-size=512");
     }
     if (javaSwitches.containsKey(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE)) {
       extraCommandLineArgs.add(
           "--js-flags=--max-semi-space-size="
               + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_HEAP_GROWING_PERCENT)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--heap-growing-percent="
+              + javaSwitches.get(JavaSwitches.V8_HEAP_GROWING_PERCENT).replaceAll("[^0-9]", ""));
+    }
+
+    if (!javaSwitches.containsKey(JavaSwitches.V8_DISABLE_OPTIMIZE_FOR_SIZE)) {
+      extraCommandLineArgs.add("--js-flags=--optimize-for-size");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_NOWASM_CODE_GC)) {
+      extraCommandLineArgs.add("--js-flags=--nowasm-code-gc");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {
@@ -120,12 +157,6 @@ public class JavaSwitches {
     }
     if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--force-image-splash-screen");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.NUM_RASTER_THREADS)) {
-      extraCommandLineArgs.add(
-          "--num-raster-threads="
-              + javaSwitches.get(JavaSwitches.NUM_RASTER_THREADS).replaceAll("[^0-9]", ""));
     }
 
     // BRP settings
@@ -139,10 +170,29 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
       extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
       extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
+      if (javaSwitches.containsKey(JavaSwitches.USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY)) {
+        extraCommandLineArgs.add("--enable-features=UseSurfaceViewForAndroidOverlay");
+      }
     }
 
     if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
       extraCommandLineArgs.add("--enable-features=SkiaFontCache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
+      extraCommandLineArgs.add("--enable-features=LowerNetworkServiceThreadPriority");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)) {
+      extraCommandLineArgs.add(
+          "--skia-ganesh-resource-cache-limit-mb="
+              + javaSwitches.get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.NO_STOP_IN_BACKGROUND)) {
+      extraCommandLineArgs.add("--disable-renderer-backgrounding");
+      extraCommandLineArgs.add("--disable-features=StopInBackground");
+      extraCommandLineArgs.add("--disable-features=IntensiveWakeUpThrottling");
     }
 
     return extraCommandLineArgs;

@@ -28,6 +28,7 @@
 #include "build/build_config.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
 #include "starboard/common/log.h"
@@ -37,6 +38,7 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
@@ -405,18 +407,25 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
+      needs_fps_to_initialize_codec_(
+          video_codec_ == kSbMediaVideoCodecAv1 &&
+          MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
-      number_of_preroll_frames_(kInitialPrerollFrameCount) {
+      number_of_preroll_frames_(
+          experimental_features.video_decoder_initial_preroll_count.value_or(
+              kInitialPrerollFrameCount)) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
     SB_DCHECK(!drm_system_);
+    // To create secure pipeline for tunnel mode, we need use
+    // L1("com.widevine.alpha").
     drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
-        "com.youtube.widevine.l3", nullptr, StubDrmSessionUpdateRequestFunc,
+        "com.widevine.alpha", nullptr, StubDrmSessionUpdateRequestFunc,
         StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
@@ -430,7 +439,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
     SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   }
 
-  if (video_codec_ != kSbMediaVideoCodecAv1) {
+  if (!needs_fps_to_initialize_codec_) {
     if (!InitializeCodec(video_stream_info, error_message)) {
       *error_message =
           "Failed to initialize video decoder with error: " + *error_message;
@@ -439,12 +448,13 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
     }
   }
 
-  SB_LOG(INFO) << "Created VideoDecoder for codec "
-               << GetMediaVideoCodecName(video_codec_) << ", with output mode "
-               << GetPlayerOutputModeName(output_mode_)
-               << ", max pending input size " << max_pending_inputs_size_
-               << ", max video capabilities \"" << max_video_capabilities_
-               << "\", and tunnel mode audio session id "
+  SB_LOG(INFO) << "Created VideoDecoder for codec="
+               << GetMediaVideoCodecName(video_codec_)
+               << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
+               << ", preroll count=" << number_of_preroll_frames_
+               << ", max pending input size=" << max_pending_inputs_size_
+               << ", max video capabilities=\"" << max_video_capabilities_
+               << "\", and tunnel mode audio session id="
                << tunnel_mode_audio_session_id_;
 }
 
@@ -520,6 +530,10 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
 
+  MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
+                    input_buffers.front()->timestamp(), "size",
+                    input_buffers.size());
+
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
@@ -537,7 +551,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
     // Re-initialize the codec now if it was torn down either in |Reset| or
     // because we need to change the color metadata.
-    if (video_codec_ != kSbMediaVideoCodecAv1 && media_decoder_ == NULL) {
+    if (!needs_fps_to_initialize_codec_ && media_decoder_ == NULL) {
       std::string error_message;
       if (!InitializeCodec(input_buffers.front()->video_stream_info(),
                            &error_message)) {
@@ -558,7 +572,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   input_buffer_written_ += input_buffers.size();
 
-  if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
+  if (needs_fps_to_initialize_codec_ && video_fps_ == 0) {
     SB_DCHECK(!media_decoder_);
 
     pending_input_buffers_.insert(pending_input_buffers_.end(),
@@ -602,7 +616,7 @@ void VideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
+  if (needs_fps_to_initialize_codec_ && video_fps_ == 0) {
     SB_DCHECK(!media_decoder_);
     SB_DCHECK_EQ(pending_input_buffers_.size(),
                  static_cast<size_t>(input_buffer_written_));
@@ -637,7 +651,7 @@ void VideoDecoder::Reset() {
   SB_CHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
-  // re-create |media_decoder_|. If the codec is kSbMediaVideoCodecAv1,
+  // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
   // set video_fps_ to 0 will call InitializeCodec(),
   // which we do not need if flush the codec.
   if (!enable_flush_during_seek_ || !media_decoder_ ||
@@ -674,7 +688,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(error_message);
 
-  if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
+  if (needs_fps_to_initialize_codec_) {
     SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
 
     // Guesstimate the video fps.
@@ -753,7 +767,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     return false;
   }
 
-  if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
+  if (needs_fps_to_initialize_codec_) {
     SB_DCHECK_GT(video_fps_, 0);
   } else {
     SB_DCHECK_EQ(video_fps_, 0);
@@ -782,7 +796,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     }
     media_decoder_->SetPlaybackRate(playback_rate_);
 
-    if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
+    if (needs_fps_to_initialize_codec_) {
       SB_DCHECK(!pending_input_buffers_.empty());
     } else {
       SB_DCHECK(pending_input_buffers_.empty());

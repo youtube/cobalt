@@ -77,6 +77,10 @@ class Allocator {
   // Frees memory with a size. By default it will delegate to Free().
   virtual void FreeWithSize(void* memory, size_t /*size*/) { Free(memory); }
 
+  // Hints to the allocator that the physical memory backing this range is no
+  // longer needed, but the virtual address space should remain reserved.
+  virtual void Decommit(void* memory, size_t size) {}
+
   // Returns the allocator's total capacity for allocations.  It will always
   // be true that GetSize() <= GetCapacity(), though it is possible for
   // capacity to grow and change over time.  It is also possible that due to,

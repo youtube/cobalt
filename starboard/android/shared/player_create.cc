@@ -29,6 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -46,6 +47,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
+  // Lazy initialization of media specific event tracing.  See comment in
+  // EnsureMediaTracingIsInitialized() for limitations.
+  EnsureMediaTracingIsInitialized();
+
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
     return kSbPlayerInvalid;
@@ -215,6 +220,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetForceFlushDecoderDuringResetForCurrentThread());
   handler->SetResetAudioDecoder(
       starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
+  handler->SetPauseUsingAudioTrackState(
+      starboard::android::shared::
+          GetPauseUsingAudioTrackStateForCurrentThread());
   if (auto initial_max_frames_in_decoder = starboard::android::shared::
           GetVideoInitialMaxFramesInDecoderForCurrentThread()) {
     handler->SetVideoInitialMaxFramesInDecoder(*initial_max_frames_in_decoder);
@@ -223,9 +231,27 @@ SbPlayer SbPlayerCreate(SbWindow window,
           GetVideoMaxPendingInputFramesForCurrentThread()) {
     handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
   }
+  if (auto video_decoder_initial_preroll_count = starboard::android::shared::
+          GetVideoDecoderInitialPrerollCountForCurrentThread()) {
+    handler->SetVideoDecoderInitialPrerollCount(
+        *video_decoder_initial_preroll_count);
+  }
   if (auto video_decoder_poll_interval_ms = starboard::android::shared::
           GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
+  }
+  if (auto video_renderer_min_input_buffers = starboard::android::shared::
+          GetVideoRendererMinInputBuffersForCurrentThread()) {
+    handler->SetVideoRendererMinInputBuffers(*video_renderer_min_input_buffers);
+  }
+  if (auto video_renderer_min_decoded_frames = starboard::android::shared::
+          GetVideoRendererMinDecodedFramesForCurrentThread()) {
+    handler->SetVideoRendererMinDecodedFrames(
+        *video_renderer_min_decoded_frames);
+  }
+  if (auto media_codec_reset_delay_ms = starboard::android::shared::
+          GetMediaCodecResetDelayMsForCurrentThread()) {
+    handler->SetMediaCodecResetDelayMs(*media_codec_reset_delay_ms);
   }
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());

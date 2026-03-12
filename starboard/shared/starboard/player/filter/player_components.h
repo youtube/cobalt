@@ -54,6 +54,19 @@ class PlayerComponents {
   typedef ::starboard::shared::starboard::player::filter::VideoRenderer
       VideoRenderer;
 
+  struct ExperimentalFeatures {
+    bool flush_decoder_during_reset = false;
+    bool reset_audio_decoder = false;
+    bool pause_using_audio_track_state = false;
+    std::optional<int> video_initial_max_frames_in_decoder;
+    std::optional<int> video_max_pending_input_frames;
+    std::optional<int> video_decoder_initial_preroll_count;
+    std::optional<int> video_decoder_poll_interval_ms;
+    std::optional<int> video_renderer_min_input_buffers;
+    std::optional<int> video_renderer_min_decoded_frames;
+    std::optional<int> media_codec_reset_delay_ms;
+  };
+
   // This class creates PlayerComponents.
   class Factory {
    public:
@@ -66,11 +79,7 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
-                         bool flush_decoder_during_reset,
-                         bool reset_audio_decoder,
-                         std::optional<int> video_initial_max_frames_in_decoder,
-                         std::optional<int> video_max_pending_input_frames,
-                         std::optional<int> video_decoder_poll_interval_ms,
+                         const ExperimentalFeatures& experimental_features,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
@@ -80,16 +89,11 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
-                         bool flush_decoder_during_reset,
-                         bool reset_audio_decoder,
-                         std::optional<int> video_initial_max_frames_in_decoder,
-                         std::optional<int> video_max_pending_input_frames,
-                         std::optional<int> video_decoder_poll_interval_ms,
+                         const ExperimentalFeatures& experimental_features,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const CreationParameters& that);
       void operator=(const CreationParameters& that) = delete;
 
       void reset_audio_codec() {
@@ -131,24 +135,14 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
-      bool flush_decoder_during_reset() const {
-        return flush_decoder_during_reset_;
+      const ExperimentalFeatures& experimental_features() const {
+        return experimental_features_;
       }
-      bool reset_audio_decoder() const { return reset_audio_decoder_; }
       void* surface_view() const { return surface_view_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
-      }
-      std::optional<int> video_initial_max_frames_in_decoder() const {
-        return video_initial_max_frames_in_decoder_;
-      }
-      std::optional<int> video_max_pending_input_frames() const {
-        return video_max_pending_input_frames_;
-      }
-      std::optional<int> video_decoder_poll_interval_ms() const {
-        return video_decoder_poll_interval_ms_;
       }
 
       SbDrmSystem drm_system() const { return drm_system_; }
@@ -166,15 +160,10 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
-      bool flush_decoder_during_reset_ = false;
-      bool reset_audio_decoder_ = false;
+      const ExperimentalFeatures experimental_features_;
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
-
-      std::optional<int> video_initial_max_frames_in_decoder_;
-      std::optional<int> video_max_pending_input_frames_;
-      std::optional<int> video_decoder_poll_interval_ms_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.

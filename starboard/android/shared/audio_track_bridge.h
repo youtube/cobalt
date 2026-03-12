@@ -73,6 +73,7 @@ class AudioTrackBridge {
                   int64_t sync_time,
                   JniEnvExt* env = JniEnvExt::Get());
 
+  void SetPlaybackRate(double playback_rate, JniEnvExt* env = JniEnvExt::Get());
   void SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get());
 
   // |updated_at| contains the timestamp when the audio timestamp is updated on
@@ -82,6 +83,7 @@ class AudioTrackBridge {
   bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
   int GetStartThresholdInFrames(JniEnvExt* env = JniEnvExt::Get());
+  int GetPlayState(JniEnvExt* env = JniEnvExt::Get());
 
  private:
   int max_samples_per_write_;

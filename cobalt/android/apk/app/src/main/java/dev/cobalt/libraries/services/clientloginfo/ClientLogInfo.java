@@ -67,7 +67,9 @@ public class ClientLogInfo extends CobaltService {
   }
 
   @Override
-  public void close() {}
+  public void close() {
+    mExecutor.shutdown();
+  }
 
   public static void setClientInfo(String value) {
     sClientInfo = value;

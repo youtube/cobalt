@@ -17,7 +17,9 @@
 
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -61,6 +63,12 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   ~H5vccSystemImpl();
 
   THREAD_CHECKER(thread_checker_);
+  void OnFlushCookiesComplete(std::unique_ptr<base::ElapsedTimer> timer);
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<H5vccSystemImpl> weak_factory_{this};
 };
 
 }  // namespace h5vcc_system

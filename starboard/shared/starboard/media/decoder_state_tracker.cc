@@ -63,14 +63,15 @@ DecoderStateTracker::~DecoderStateTracker() {
   SB_LOG(INFO) << "Destroying DecoderStateTracker.";
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  // Move the thread to a local variable so it can be destroyed (and joined)
+  // outside the lock. This avoids potential deadlocks if the logging thread
+  // is currently trying to acquire |mutex_|.
   std::unique_ptr<shared::starboard::player::JobThread> thread_to_destroy;
   {
     std::lock_guard lock(mutex_);
     thread_to_destroy = std::move(logging_thread_);
   }
-  if (thread_to_destroy) {
-    thread_to_destroy->job_queue()->StopSoon();
-  }
+  // |thread_to_destroy| will be destroyed when it goes out of the scope.
 #endif
 }
 

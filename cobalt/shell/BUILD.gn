@@ -59,6 +59,7 @@ group("cobalt_shell_lib_deps") {
     "//base/third_party/dynamic_annotations",
     "//cc/base",
     "//cobalt/android/oom_intervention",
+    "//cobalt/browser:switches",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",

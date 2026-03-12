@@ -24,6 +24,8 @@ static_library("media_util") {
     "//starboard/shared/starboard/media/key_system_supportability_cache.cc",
     "//starboard/shared/starboard/media/key_system_supportability_cache.h",
     "//starboard/shared/starboard/media/media_support_internal.h",
+    "//starboard/shared/starboard/media/media_tracing.cc",
+    "//starboard/shared/starboard/media/media_tracing.h",
     "//starboard/shared/starboard/media/media_util.cc",
     "//starboard/shared/starboard/media/media_util.h",
     "//starboard/shared/starboard/media/mime_supportability_cache.cc",
@@ -41,5 +43,10 @@ static_library("media_util") {
   ]
 
   public_deps = [ "//starboard/common" ]
+
+  if (!cobalt_is_release_build) {
+    public_deps += [ "//third_party/perfetto:libperfetto" ]
+  }
+
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }

@@ -112,15 +112,12 @@ StarboardRendererTraits::StarboardRendererTraits(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
     mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    cobalt::media::VideoGeometrySetterService* video_geometry_setter_service,
     const base::UnguessableToken& overlay_plane_id,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-    const bool enable_flush_during_seek,
-    const bool enable_reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
@@ -131,15 +128,12 @@ StarboardRendererTraits::StarboardRendererTraits(
     : task_runner(std::move(task_runner)),
       gpu_task_runner(std::move(gpu_task_runner)),
       media_log_remote(std::move(media_log_remote)),
+      video_geometry_setter_service(video_geometry_setter_service),
       overlay_plane_id(overlay_plane_id),
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
-      enable_flush_during_seek(enable_flush_during_seek),
-      enable_reset_audio_decoder(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder(initial_max_frames_in_decoder),
-      max_pending_input_frames(max_pending_input_frames),
-      video_decoder_poll_interval_ms(video_decoder_poll_interval_ms),
+      experimental_features(experimental_features),
       viewport_size(viewport_size),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
@@ -156,7 +150,12 @@ GpuMojoMediaClient::GpuMojoMediaClient(
     scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
     base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager,
     gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory,
-    AndroidOverlayMojoFactoryCB android_overlay_factory_cb)
+    AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    )
     : gpu_preferences_(gpu_preferences),
       gpu_workarounds_(gpu_workarounds),
       gpu_feature_info_(gpu_feature_info),
@@ -164,7 +163,12 @@ GpuMojoMediaClient::GpuMojoMediaClient(
       gpu_task_runner_(std::move(gpu_task_runner)),
       media_gpu_channel_manager_(std::move(media_gpu_channel_manager)),
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb)),
-      gpu_memory_buffer_factory_(gpu_memory_buffer_factory) {
+      gpu_memory_buffer_factory_(gpu_memory_buffer_factory)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      video_geometry_setter_service_(video_geometry_setter_service)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      {
   base::UmaHistogramEnumeration("Media.GPU.VideoDecoderType",
                                 GetDecoderImplementationType());
 }
@@ -306,14 +310,13 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
         client_extension_remote) {
   StarboardRendererTraits traits(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
-      config.overlay_plane_id, config.audio_write_duration_local,
-      config.audio_write_duration_remote, config.max_video_capabilities,
-      config.enable_flush_during_seek, config.enable_reset_audio_decoder,
-      config.initial_max_frames_in_decoder, config.max_pending_input_frames,
-      config.video_decoder_poll_interval_ms,
+      video_geometry_setter_service_, config.overlay_plane_id,
+      config.audio_write_duration_local, config.audio_write_duration_remote,
+      config.max_video_capabilities, config.experimental_features,
       config.viewport_size, std::move(renderer_extension_receiver),
-      std::move(client_extension_remote), base::BindRepeating(
-        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_),
+      std::move(client_extension_remote),
+      base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
+                          media_gpu_channel_manager_),
       android_overlay_factory_cb_);
   return CreatePlatformStarboardRenderer(std::move(traits));
 }

@@ -112,13 +112,24 @@ class PlayerWorker {
     virtual void SetFlushDecoderDuringReset(
         bool flush_decoder_during_reset) = 0;
     virtual void SetResetAudioDecoder(bool reset_audio_decoder) = 0;
+    virtual void SetPauseUsingAudioTrackState(
+        bool pause_using_audio_track_state) = 0;
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
     virtual void SetVideoInitialMaxFramesInDecoder(
         int video_initial_max_frames_in_decoder) = 0;
     virtual void SetVideoMaxPendingInputFrames(
         int video_max_pending_input_frames) = 0;
+    virtual void SetVideoDecoderInitialPrerollCount(
+        int video_decoder_initial_preroll_count) = 0;
     virtual void SetVideoDecoderPollIntervalMs(
         int video_decoder_poll_interval_ms) = 0;
+    // TODO: b/491104896 - Remove this method once the experiment is done.
+    virtual void SetVideoRendererMinInputBuffers(
+        int video_renderer_min_input_buffers) = 0;
+    // TODO: b/491104896 - Remove this method once the experiment is done.
+    virtual void SetVideoRendererMinDecodedFrames(
+        int video_renderer_min_decoded_frames) = 0;
+    virtual void SetMediaCodecResetDelayMs(int media_codec_reset_delay_ms) = 0;
 
    private:
     Handler(const Handler&) = delete;

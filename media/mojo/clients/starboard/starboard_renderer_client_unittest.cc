@@ -72,7 +72,6 @@ class FakeStarboardRendererExtension
   ~FakeStarboardRendererExtension() override = default;
 
   MOCK_METHOD1(GetCurrentVideoFrame, void(GetCurrentVideoFrameCallback cb));
-  MOCK_METHOD1(OnVideoGeometryChange, void(const gfx::Rect&));
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD1(OnOverlayInfoChanged, void(const OverlayInfo& overlay_info));
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -155,7 +154,6 @@ class StarboardRendererClientTest : public ::testing::Test {
         &mock_video_renderer_sink_,
         std::move(starboard_renderer_extensions_remote),
         std::move(client_extension_receiver),
-        /*bind_host_receiver_callback=*/base::DoNothing(),
         with_gpu_factories ? mock_gpu_factories_.get() : nullptr
 #if BUILDFLAG(IS_ANDROID)
         ,

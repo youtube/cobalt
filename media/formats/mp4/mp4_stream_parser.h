@@ -55,6 +55,16 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   [[nodiscard]] bool AppendToParseBuffer(const uint8_t* buf,
                                          size_t size) override;
   [[nodiscard]] ParseStatus Parse(int max_pending_bytes_to_inspect) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+ private:
+  // The following function and variable should technically be moved down.  They
+  // are kept here to make the new feature easy to review and maintain.
+  [[nodiscard]] ParseStatus ParseInternal(int max_pending_bytes_to_inspect);
+
+  bool buffers_parsed_ = false;
+
+ public:
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Calculates the rotation value from the track header display matricies.
   VideoTransformation CalculateRotation(const TrackHeader& track,

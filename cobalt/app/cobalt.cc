@@ -105,7 +105,7 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventTypePreload: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
+      g_content_main_delegate = new cobalt::CobaltMainDelegate(data->link);
       g_platform_event_source = new PlatformEventSourceStarboard();
       // TODO: (cobalt b/392613336) Initialize the musl hardware capabilities.
       // init_musl_hwcap();
@@ -118,7 +118,7 @@ void SbEventHandle(const SbEvent* event) {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 
       g_exit_manager = new base::AtExitManager();
-      g_content_main_delegate = new cobalt::CobaltMainDelegate();
+      g_content_main_delegate = new cobalt::CobaltMainDelegate(data->link);
       g_platform_event_source = new PlatformEventSourceStarboard();
       // TODO: (cobalt b/392613336 Initialize the musl hardware capabilities.
       // init_musl_hwcap();

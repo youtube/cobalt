@@ -25,7 +25,7 @@ import org.chromium.media.mojom.AndroidOverlayConfig;
  * Note that this does not implement AndroidOverlay; we just manage the android side of it.  The
  * mojo interface is implemented by DialogOverlayImpl.
  */
-class DialogOverlayCore {
+class DialogOverlayCore implements OverlayCore {
     private static final String TAG = "DSCore";
 
     // Host interface, since we're on the wrong thread to talk to mojo, or anything else, really.
@@ -67,6 +67,7 @@ class DialogOverlayCore {
      * @param host host interface, for sending messages that (probably) need to thread hop.
      * @param asPanel if true, then we'll be a panel.  This is intended for tests only.
      */
+    @Override
     public void initialize(
             Context context, AndroidOverlayConfig config, Host host, boolean asPanel) {
         mHost = host;
@@ -84,6 +85,7 @@ class DialogOverlayCore {
      * Release the underlying surface, and generally clean up, in response to
      * the client releasing the AndroidOverlay.  This may be called more than once.
      */
+    @Override
     public void release() {
         // If we've not released the dialog yet, then do so.
         dismissDialogQuietly();
@@ -117,6 +119,7 @@ class DialogOverlayCore {
      * Layout the AndroidOverlay.  If we don't have a token, then we ignore it, since a well-behaved
      * client shouldn't call us before getting the surface anyway.
      */
+    @Override
     public void layoutSurface(final Rect rect) {
         if (mDialog == null || mLayoutParams.token == null) return;
 
@@ -156,6 +159,7 @@ class DialogOverlayCore {
         public void surfaceRedrawNeeded(SurfaceHolder holder) {}
     }
 
+    @Override
     public void onWindowToken(IBinder token) {
         if (mDialog == null || mHost == null) return;
 

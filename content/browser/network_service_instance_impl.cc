@@ -144,6 +144,13 @@ BASE_FEATURE(kNetworkServiceDedicatedThread,
 #endif
 );
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kLowerNetworkServiceThreadPriority,
+             "LowerNetworkServiceThreadPriority",
+             base::FEATURE_DISABLED_BY_DEFAULT
+);
+#endif  // BUILDFLAG(IS_COBALT)
+
 base::Thread& GetNetworkServiceDedicatedThread() {
   static base::NoDestructor<base::Thread> thread{"NetworkService"};
   DCHECK(base::FeatureList::IsEnabled(kNetworkServiceDedicatedThread));
@@ -354,6 +361,11 @@ void CreateInProcessNetworkService(
   scoped_refptr<base::SingleThreadTaskRunner> task_runner;
   if (base::FeatureList::IsEnabled(kNetworkServiceDedicatedThread)) {
     base::Thread::Options options(base::MessagePumpType::IO, 0);
+#if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(kLowerNetworkServiceThreadPriority)) {
+      options.thread_type = base::ThreadType::kResourceEfficient;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     GetNetworkServiceDedicatedThread().StartWithOptions(std::move(options));
     task_runner = GetNetworkServiceDedicatedThread().task_runner();
   } else {

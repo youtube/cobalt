@@ -46,7 +46,7 @@ public class CommandLineOverrideHelperTest {
     @Test
     public void testDefaultJsFlagOverridesList() {
         String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
-        assertThat(overrides.contains("--optimize-for-size")).isTrue();
+        assertThat(overrides).isEmpty();
     }
 
     @Test
@@ -101,6 +101,9 @@ public class CommandLineOverrideHelperTest {
         expected =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
         Assert.assertEquals(expected, actual);
+
+        // js-flags should NOT be set as it is empty.
+        Assert.assertFalse(CommandLine.getInstance().hasSwitch("js-flags"));
     }
 
     @Test
@@ -143,9 +146,7 @@ public class CommandLineOverrideHelperTest {
         Assert.assertEquals(expectedDisable, disableFeatures);
 
         String jsFlags = CommandLine.getInstance().getSwitchValue("js-flags");
-        String expectedJs =
-            CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString()
-                + ",--test-flag,--another-flag";
+        String expectedJs = "--test-flag,--another-flag";
         Assert.assertEquals(expectedJs, jsFlags);
     }
 

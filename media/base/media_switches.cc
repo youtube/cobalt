@@ -395,6 +395,13 @@ BASE_FEATURE(kUseAndroidOverlayForSecureOnly,
              "UseAndroidOverlayForSecureOnly",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// When enabled, AndroidOverlay uses a SurfaceView instead of a Dialog.
+BASE_FEATURE(kUseSurfaceViewForAndroidOverlay,
+             "UseSurfaceViewForAndroidOverlay",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 // Allows usage of OS-level (platform) audio encoders.
 BASE_FEATURE(kPlatformAudioEncoder,
              "PlatformAudioEncoder",

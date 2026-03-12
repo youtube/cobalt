@@ -41,6 +41,7 @@ generate_jni("jni_headers") {
   if (!use_evergreen) {
     sources += [
       "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
 }
@@ -187,6 +188,7 @@ shared_library("libchrobalt") {
   testonly = true
   deps = [
     "//cobalt/browser",
+    "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/utility",
@@ -217,6 +219,7 @@ shared_library("libchrobalt") {
     "//cobalt/app/cobalt_crash_reporter_client.h",
     "//cobalt/app/cobalt_main_delegate.cc",
     "//cobalt/app/cobalt_main_delegate.h",
+    "//cobalt/browser/crash_annotator/crash_annotator_jni.cc",
     "cobalt_library_loader.cc",
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
