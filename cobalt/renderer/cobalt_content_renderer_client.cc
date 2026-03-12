@@ -63,6 +63,8 @@ const char kH5vccSettingsKeyMediaMediaCodecResetDelayMs[] =
     "Media.MediaCodecResetDelayMs";
 const char kH5vccSettingsKeyMediaPauseUsingAudioTrackState[] =
     "Media.PauseUsingAudioTrackState";
+const char kH5vccSettingsKeyMediaReportBufferingStateDuringFlush[] =
+    "Media.ReportBufferingStateDuringFlush";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -235,6 +237,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaPauseUsingAudioTrackState)) {
     parsed.pause_using_audio_track_state = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaReportBufferingStateDuringFlush)) {
+    parsed.report_buffering_state_during_flush = *val != 0;
   }
 
   parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
