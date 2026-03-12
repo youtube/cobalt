@@ -32,12 +32,6 @@ namespace media {
 class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
-  enum class Type {
-    kGlobal,  // The global allocator calls `Allocator::Set(this)` to register
-              // itself in the ctor
-    kLocal,
-  };
-
   // Manages the details of the Allocate() and Free(), to allow
   // DecoderBufferAllocator to adopt different strategies at runtime.
   // The class isn't required to be thread safe, and relies on
@@ -55,9 +49,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetAllocated() const = 0;
   };
 
-  explicit DecoderBufferAllocator(Type type = Type::kGlobal);
-  DecoderBufferAllocator(Type type,
-                         bool is_memory_pool_allocated_on_demand,
+  explicit DecoderBufferAllocator();
+  DecoderBufferAllocator(bool is_memory_pool_allocated_on_demand,
                          int initial_capacity,
                          int allocation_unit);
   ~DecoderBufferAllocator() override;
@@ -87,7 +80,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  const Type type_;
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
