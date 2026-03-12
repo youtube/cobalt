@@ -46,13 +46,9 @@ class ShellMainDelegate : public ContentMainDelegate {
   std::optional<int> BasicStartupComplete() override;
   bool ShouldCreateFeatureList(InvokedIn invoked_in) override;
   bool ShouldInitializeMojo(InvokedIn invoked_in) override;
-  void PreSandboxStartup() override;
   std::variant<int, MainFunctionParams> RunProcess(
       const std::string& process_type,
       MainFunctionParams main_function_params) override;
-#if BUILDFLAG(IS_LINUX)
-  void ZygoteForked() override;
-#endif
   std::optional<int> PreBrowserMain() override;
   std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
   ContentClient* CreateContentClient() override;

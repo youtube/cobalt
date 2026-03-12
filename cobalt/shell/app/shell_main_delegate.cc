@@ -34,15 +34,11 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
-#include "cobalt/shell/app/shell_crash_reporter_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
-#if !BUILDFLAG(IS_ANDROIDTV)
-#include "components/crash/core/common/crash_key.h"
-#endif
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -75,16 +71,8 @@
 #include "content/public/browser/android/compositor.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROIDTV)
-#include "components/crash/core/app/crashpad.h"  // nogncheck
-#endif
-
 #if BUILDFLAG(IS_APPLE)
 #include "cobalt/shell/app/paths_mac.h"
-#endif
-
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
-#include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 
 namespace {
@@ -96,11 +84,6 @@ enum class LoggingDest {
   kHandle,
 #endif
 };
-
-#if !BUILDFLAG(IS_ANDROIDTV)
-base::LazyInstance<content::ShellCrashReporterClient>::Leaky
-    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;  // NOLINT
-#endif
 
 void InitLogging(const base::CommandLine& command_line) {
   LoggingDest dest = LoggingDest::kFile;
@@ -227,35 +210,6 @@ bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
   return ShouldCreateFeatureList(invoked_in);
 }
 
-void ShellMainDelegate::PreSandboxStartup() {
-// Disable platform crash handling and initialize the crash reporter, if
-// requested.
-// TODO(crbug.com/40188745): Implement crash reporter integration for Fuchsia.
-#if !BUILDFLAG(IS_ANDROIDTV)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableCrashReporter)) {
-    std::string process_type =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            switches::kProcessType);
-    crash_reporter::SetCrashReporterClient(g_shell_crash_client.Pointer());
-    // Reporting for sub-processes will be initialized in ZygoteForked.
-    if (process_type != switches::kZygoteProcess) {
-      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-#if BUILDFLAG(IS_LINUX)
-      crash_reporter::SetFirstChanceExceptionHandler(
-          v8::TryHandleWebAssemblyTrapPosix);
-#endif
-    }
-  }
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
-
-#if !BUILDFLAG(IS_ANDROIDTV)
-  crash_reporter::InitializeCrashKeys();
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
-
-  InitializeResourceBundle();
-}
-
 std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
     const std::string& process_type,
     MainFunctionParams main_function_params) {
@@ -303,22 +257,6 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   return std::move(main_function_params);
 #endif
 }
-
-#if BUILDFLAG(IS_LINUX)
-void ShellMainDelegate::ZygoteForked() {
-#if !BUILDFLAG(IS_ANDROIDTV)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableCrashReporter)) {
-    std::string process_type =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            switches::kProcessType);
-    crash_reporter::InitializeCrashpad(false, process_type);
-    crash_reporter::SetFirstChanceExceptionHandler(
-        v8::TryHandleWebAssemblyTrapPosix);
-  }
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
-}
-#endif  // BUILDFLAG(IS_LINUX)
 
 void ShellMainDelegate::InitializeResourceBundle() {
 #if BUILDFLAG(IS_ANDROID)
