@@ -37,11 +37,9 @@ namespace {
 const CMVideoCodecType kCMVideoCodecType_VP9 = 'vp09';
 
 bool IsAppleTVHDPriv() {
-  char model_name[128];
-  bool succeeded = SbSystemGetProperty(kSbSystemPropertyModelName, model_name,
-                                       sizeof(model_name));
-  SB_DCHECK(succeeded);
-  return succeeded && strcmp(model_name, "AppleTV5-3") == 0;
+  const std::string model =
+      starboard::GetSystemPropertyString(kSbSystemPropertyModelName);
+  return model == "AppleTV5-3";
 }
 
 bool IsAppleTV4KPriv() {
