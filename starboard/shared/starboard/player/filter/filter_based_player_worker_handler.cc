@@ -625,6 +625,7 @@ void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
                                experimental_features.field_name)
 
   SET_EXPERIMENTAL_FEATURE(media_codec_reset_delay_ms);
+  SET_EXPERIMENTAL_FEATURE(pause_using_audio_track_state);
   SET_EXPERIMENTAL_FEATURE(video_decoder_initial_preroll_count);
   SET_EXPERIMENTAL_FEATURE(video_decoder_poll_interval_ms);
   SET_EXPERIMENTAL_FEATURE(video_initial_max_frames_in_decoder);

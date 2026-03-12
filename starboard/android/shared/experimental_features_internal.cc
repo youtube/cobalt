@@ -19,6 +19,7 @@
 #include "base/no_destructor.h"
 #include "base/threading/thread_local.h"
 #include "starboard/common/log.h"
+#include "starboard/extension/experimental_features.h"
 
 namespace starboard::android::shared {
 
@@ -43,11 +44,41 @@ ExperimentalFeatures* GetOrCreateExperimentalFeatures() {
   return ptr;
 }
 
+std::optional<int> FromIntPointer(const int* val) {
+  if (!val) {
+    return std::nullopt;
+  }
+  return *val;
+}
+
 }  // namespace
 
 void SetExperimentalFeaturesForCurrentThread(
-    const ExperimentalFeatures& experimental_features) {
-  *GetOrCreateExperimentalFeatures() = experimental_features;
+    const StarboardExtensionExperimentalFeatures* extension_features) {
+  // |extension_features| cannot be null. We use a pointer here to support C API
+  // compatibility.
+  SB_CHECK(extension_features);
+
+  ExperimentalFeatures experiment_features;
+
+  experiment_features.media_codec_reset_delay_ms =
+      FromIntPointer(extension_features->media_codec_reset_delay_ms);
+  experiment_features.pause_using_audio_track_state =
+      extension_features->pause_using_audio_track_state;
+  experiment_features.video_decoder_initial_preroll_count =
+      FromIntPointer(extension_features->video_decoder_initial_preroll_count);
+  experiment_features.video_decoder_poll_interval_ms =
+      FromIntPointer(extension_features->video_decoder_poll_interval_ms);
+  experiment_features.video_initial_max_frames_in_decoder =
+      FromIntPointer(extension_features->video_initial_max_frames_in_decoder);
+  experiment_features.video_max_pending_input_frames =
+      FromIntPointer(extension_features->video_max_pending_input_frames);
+  experiment_features.video_renderer_min_decoded_frames =
+      FromIntPointer(extension_features->video_renderer_min_decoded_frames);
+  experiment_features.video_renderer_min_input_buffers =
+      FromIntPointer(extension_features->video_renderer_min_input_buffers);
+
+  *GetOrCreateExperimentalFeatures() = experiment_features;
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
