@@ -143,6 +143,9 @@ void HandleAvailableSpace(
     const std::string& hash,
     CrxDownloader::ProgressCallback progress_callback,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+#if defined(IN_MEMORY_UPDATES)
+    std::string* crx_str,
+#endif
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback,
     int64_t available_bytes) {
@@ -169,6 +172,9 @@ void HandleAvailableSpace(
   crx_downloader->set_progress_callback(progress_callback);
   cancellation->OnCancel(crx_downloader->StartDownload(
       urls, hash,
+#if defined(IN_MEMORY_UPDATES)
+      crx_str,
+#endif
       base::BindOnce(&DownloadComplete, crx_downloader, cancellation,
                      event_adder, std::move(callback))));
 }
@@ -184,6 +190,9 @@ base::OnceClosure DownloadOperation(
     const std::string& hash,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
+#if defined(IN_MEMORY_UPDATES)
+    std::string* crx_str,
+#endif
     CrxDownloader::ProgressCallback progress_callback,
     const base::FilePath& file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
@@ -204,6 +213,9 @@ base::OnceClosure DownloadOperation(
           get_available_space),
       base::BindOnce(&HandleAvailableSpace, config, cancellation, is_foreground,
                      urls, size, hash, progress_callback, event_adder,
+#if defined(IN_MEMORY_UPDATES)
+                     crx_str,
+#endif
                      std::move(callback)));
   return base::BindOnce(&Cancellation::Cancel, cancellation);
 }

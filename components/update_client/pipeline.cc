@@ -247,6 +247,9 @@ std::queue<Operation> MakeOperations(
     const std::vector<uint8_t>& pk_hash,
     const std::string& install_data_index,
     scoped_refptr<CrxInstaller> installer,
+#if defined(IN_MEMORY_UPDATES)
+    std::string* crx_str,
+#endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     CrxDownloader::ProgressCallback download_progress_callback,
@@ -274,6 +277,9 @@ std::queue<Operation> MakeOperations(
           base::BindOnce(&DownloadOperation, config, get_available_space,
                          is_foreground, operation.urls, operation.size,
                          operation.sha256_out, event_adder, state_tracker,
+#if defined(IN_MEMORY_UPDATES)
+                         crx_str,
+#endif
                          download_progress_callback)));
     } else if (operation.type == "puff") {
       // expects: `previous` (hash object) and `out` (hash object)
@@ -359,6 +365,9 @@ void MakePipeline(
     const std::vector<uint8_t>& pk_hash,
     const std::string& install_data_index,
     scoped_refptr<CrxInstaller> installer,
+#if defined(IN_MEMORY_UPDATES)
+    std::string* crx_str,
+#endif
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     CrxDownloader::ProgressCallback download_progress_callback,
@@ -428,6 +437,9 @@ void MakePipeline(
         MakeOperations(
             config, get_available_space, is_foreground, session_id, crx_cache,
             crx_format, id, pk_hash, install_data_index, installer,
+#if defined(IN_MEMORY_UPDATES)
+            crx_str,
+#endif
             state_tracker,
             base::BindRepeating(
                 [](base::RepeatingCallback<void(base::Value::Dict)> event_adder,

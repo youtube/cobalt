@@ -92,6 +92,72 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Measures the average time spent per cookie operation during a batch commit
+    to the SQLite database. This provides a normalized view of commit
+    performance, helping to identify how efficiently the database handles
+    operations as the batch size changes.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Cookie.LoadDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total time it takes to load all cookies from the SQLite database
+    into memory when the application starts and makes its first network request.
+    This helps us understand the performance impact of cookie loading on
+    startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Cookie.PendingOperationsAtCommit"
+    units="operations" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the number of pending cookie operations (add, update, delete) that
+    are being committed to the database in a single batch. This gives an
+    indication of the amount of data at risk of loss if a crash occurs between
+    commits (the &quot;crash gap&quot;).
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Exit.CookieFlushDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to flush cookies during a graceful application
+    exit (e.g., via window.h5vcc.system.exit()). This helps to understand the
+    performance of the operation and can serve as a health signal for the
+    storage backend.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Exit.LocalStorageFlushDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to flush local storage during a graceful
+    application exit (e.g., via window.h5vcc.system.exit()). This helps to
+    understand the performance of the operation and can serve as a health signal
+    for the storage backend.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to flush both cookies and local storage during the
+    onPause event on Android. This helps to understand if the operation
+    completes within the short window granted by the OS before the app is
+    killed.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>

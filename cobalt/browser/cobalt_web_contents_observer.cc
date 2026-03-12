@@ -14,31 +14,32 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
-#if BUILDFLAG(IS_ANDROIDTV)
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/net_errors.h"
+#if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/tvos/network_error_handler.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
 
-#if BUILDFLAG(IS_ANDROIDTV)
 namespace {
 const int kNavigationTimeoutSeconds = 30;
+#if BUILDFLAG(IS_ANDROIDTV)
 const int kJniErrorTypeConnectionError = 0;
-}  // namespace
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+}  // namespace
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents) {
-#if BUILDFLAG(IS_ANDROIDTV)
   timeout_timer_ = std::make_unique<base::OneShotTimer>();
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() {
@@ -49,7 +50,6 @@ CobaltWebContentsObserver::~CobaltWebContentsObserver() {
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
-#if BUILDFLAG(IS_ANDROIDTV)
 void CobaltWebContentsObserver::SetTimerForTestInternal(
     std::unique_ptr<base::OneShotTimer> timer) {
   timeout_timer_ = std::move(timer);
@@ -96,6 +96,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {
+#if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* starboard_bridge = starboard::StarboardBridge::GetInstance();
 
@@ -108,7 +109,11 @@ void CobaltWebContentsObserver::RaisePlatformError() {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", true);
   }
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
-}
+#elif BUILDFLAG(IS_IOS_TVOS)
+  ShowPlatformErrorDialog(web_contents());
+#else
+  NOTIMPLEMENTED();
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+}
 
 }  // namespace cobalt

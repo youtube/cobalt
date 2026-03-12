@@ -85,7 +85,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       if (PlaybackCapabilities::IsHwVp9Supported()) {
         return frame_height <= 2160 && frame_width <= 3840;
       }
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
+
       bool experimental_allowed = false;
       if (mime_type) {
         if (!mime_type->is_valid()) {
@@ -129,7 +129,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
         }
         return false;
       }
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 #else
       SB_LOG(INFO) << "Non-internal build, accepting all VP9";
       return true;

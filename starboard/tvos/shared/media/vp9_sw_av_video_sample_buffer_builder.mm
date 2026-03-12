@@ -673,13 +673,7 @@ size_t Vp9SwAVVideoSampleBufferBuilder::GetPrerollFrameCount() const {
 }
 
 size_t Vp9SwAVVideoSampleBufferBuilder::GetMaxNumberOfCachedFrames() const {
-#if defined(INTERNAL_BUILD)
-  return max_number_of_cached_buffers_ -
-         decoder_get_number_of_allocated_frame_buffers();
-#else
-  // TODO: b/448550237 - Add implementation to get number of allocated frame.
   return max_number_of_cached_buffers_;
-#endif
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::OnCachedFramesWatermarkLow() {
@@ -1106,18 +1100,6 @@ void Vp9SwAVVideoSampleBufferBuilder::CreatePixelBufferPool() {
 Vp9SwAVVideoSampleBufferBuilder::VpxImageWrapper::VpxImageWrapper(
     const scoped_refptr<InputBuffer>& input_buffer,
     const vpx_image_t& vpx_image)
-    : input_buffer_(input_buffer), vpx_image_(vpx_image) {
-#if defined(INTERNAL_BUILD)
-  // TODO: b/448550237 - Check if we need to acquire the hw image.
-  decoder_acquire_hw_image(vpx_image_.fb_priv);
-#endif
-}
-
-Vp9SwAVVideoSampleBufferBuilder::VpxImageWrapper::~VpxImageWrapper() {
-#if defined(INTERNAL_BUILD)
-  // TODO: b/448550237 - Check if we need to release the hw image.
-  decoder_release_hw_image(vpx_image_.fb_priv);
-#endif
-}
+    : input_buffer_(input_buffer), vpx_image_(vpx_image) {}
 
 }  // namespace starboard
