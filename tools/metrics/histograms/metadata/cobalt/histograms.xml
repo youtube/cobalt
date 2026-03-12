@@ -81,14 +81,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Network.PlatformErrorRaised" enum="Boolean"
+<histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
     expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    A boolean is recorded to this histogram to indicate whether a platform error
-    was raised due to a navigation timeout or other network error. This is
-    emitted at most once per WebContents lifetime to measure the prevalence of
-    user-facing errors.
+    Records the number of times a platform error was raised due to a navigation
+    timeout or other network error. This is logged every time RaisePlatformError
+    is called; each logged count is the cumulative number of times the error has
+    been raised. The actual number of sessions with a specific number of platform
+    errors raised can be raised by subtracting the values of counts larger than
+    said number. For example, sessions with 2 calls to RaisePlatformError would be
+    (count for 2 calls) - (count for 3 calls) - ... (count for max calls).
+    This value is reset to 0 on a successful navigation/app load.
   </summary>
 </histogram>
 
