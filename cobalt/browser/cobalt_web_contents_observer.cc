@@ -42,13 +42,7 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
   timeout_timer_ = std::make_unique<base::OneShotTimer>();
 }
 
-CobaltWebContentsObserver::~CobaltWebContentsObserver() {
-#if BUILDFLAG(IS_ANDROIDTV)
-  if (!platform_error_raised_) {
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", false);
-  }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
-}
+CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
 void CobaltWebContentsObserver::SetTimerForTestInternal(
     std::unique_ptr<base::OneShotTimer> timer) {
@@ -92,6 +86,9 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     RaisePlatformError();
   } else if (net_error_code == net::OK) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
+#if BUILDFLAG(IS_ANDROIDTV)
+    platform_error_raised_count_ = 0;
+#endif
   }
 }
 
@@ -104,10 +101,9 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
     return;
   }
-  if (!platform_error_raised_) {
-    platform_error_raised_ = true;
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.Network.PlatformErrorRaised", true);
-  }
+  platform_error_raised_count_++;
+  UMA_HISTOGRAM_COUNTS_100("Cobalt.Network.CumulativePlatformErrorRaised",
+                           platform_error_raised_count_);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
