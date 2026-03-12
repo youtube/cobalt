@@ -417,12 +417,38 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
     // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
-    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-        creation_parameters.audio_stream_info().number_of_channels,
+    const auto sample_type =
         SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
             ? kSbMediaAudioSampleTypeFloat32
-            : kSbMediaAudioSampleTypeInt16Deprecated,
+            : kSbMediaAudioSampleTypeInt16Deprecated;
+
+    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+        creation_parameters.audio_stream_info().number_of_channels, sample_type,
         creation_parameters.audio_stream_info().samples_per_second);
+
+    // To avoid redundant IsTunnelModeSupported() checks, we simply only check
+    // if tunnel mode is enabled here.
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
+        creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      const bool force_tunnel_mode =
+          FeatureList::IsEnabled(features::kForceTunnelMode);
+      MimeType video_mime_type(creation_parameters.video_mime());
+      if (force_tunnel_mode ||
+          video_mime_type.GetParamBoolValue("tunnelmode", false)) {
+        // AudioTrack.setPlaybackParams() might need extra buffer to support
+        // playback speed greater than 1.0x.
+        const double kMaxPlaybackSpeed = 2.0;
+        JNIEnv* env = AttachCurrentThread();
+        min_frames_required = std::max<int>(
+            min_frames_required,
+            AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+                env, sample_type,
+                creation_parameters.audio_stream_info().number_of_channels,
+                creation_parameters.audio_stream_info().samples_per_second) *
+                kMaxPlaybackSpeed);
+      }
+    }
+
     // On Android 5.0, the size of audio renderer sink buffer need to be two
     // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
     // stop working after pause.
