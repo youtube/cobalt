@@ -20,6 +20,7 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
+import("//cobalt/testing/browser_tests/cobalt_test_data.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -36,7 +37,6 @@ import("//tools/grit/grit_rule.gni")
 import("//tools/grit/preprocess_if_expr.gni")
 import("//tools/typescript/ts_library.gni")
 import("//v8/gni/v8.gni")
-import("cobalt_test_data.gni")
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
