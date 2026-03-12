@@ -101,8 +101,8 @@ Always run the pretty print utility on this file after editing:
   <owner>tasunny@google.com</owner>
   <summary>
     Records whether a splash screen resource was successfully retrieved from
-    cache. This is recorded for every splash screen request handled by h5vcc
-    scheme loader.
+    cache and indicates the reason when on error. This is recorded for every
+    splash screen request handled by h5vcc scheme loader.
   </summary>
 </histogram>
 

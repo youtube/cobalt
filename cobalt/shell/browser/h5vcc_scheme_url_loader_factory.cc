@@ -77,8 +77,11 @@ const char kH5vccContentSecurityPolicy[] =
 enum class SplashScreenFetchedState {
   kBuiltIn = 0,
   kCache = 1,
-  kError = 2,
-  kMaxValue = kError,
+  kErrorOnEmptyEntry = 2,
+  kErrorOnFileOversize = 3,
+  kErrorOnReadCache = 4,
+  kErrorOnNotFound = 5,
+  kMaxValue = kErrorOnNotFound,
 };
 
 class BlobReader : public blink::mojom::BlobReaderClient {
@@ -254,10 +257,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       ReadSplashCache(key);
       return;
     }
+
     if (content_.empty()) {
       SendNotFoundResponse(key);
       return;
     }
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
+                              SplashScreenFetchedState::kBuiltIn);
     SendResponse();
   }
   ~H5vccSchemeURLLoader() override = default;
@@ -330,14 +336,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
           base::StringPrintf(
               "Splash video from %s is empty. Fallback to builtin.",
               cache_name.c_str()),
-          SplashScreenFetchedState::kError);
+          SplashScreenFetchedState::kErrorOnEmptyEntry);
     }
     if (response->blob->size > splash_content_size_limit_) {
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(
               "Splash video from %s is too large. Fallback to builtin.",
               cache_name.c_str()),
-          SplashScreenFetchedState::kError);
+          SplashScreenFetchedState::kErrorOnFileOversize);
     }
     mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
         std::move(response->blob->blob);
@@ -351,7 +357,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     if (content.size() != expected_size) {
       return DisconnectCacheAndSendFallback(
           "Failed to read splash cache. Fallback to builtin.",
-          SplashScreenFetchedState::kError);
+          SplashScreenFetchedState::kErrorOnReadCache);
     }
     DisconnectCacheStorage();
     content_ = std::string(reinterpret_cast<const char*>(content.data()),
@@ -366,6 +372,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
                  << " not found.";
     content_ = "Resource not found";
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
+                              SplashScreenFetchedState::kErrorOnNotFound);
     mime_type_ = kMimeTypeTextPlain;
     SendResponse(net::HTTP_NOT_FOUND);
   }
