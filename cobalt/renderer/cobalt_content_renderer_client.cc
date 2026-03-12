@@ -10,6 +10,7 @@
 #include "base/time/time.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
@@ -17,13 +18,13 @@
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
-#include "media/starboard/bind_host_receiver_callback.h"
-#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
@@ -82,16 +83,7 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
-void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
-  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
-}
-
 }  // namespace
-
-static_assert(std::is_same<::media::BindHostReceiverCallback,
-                           base::RepeatingCallback<
-                               decltype(BindHostReceiverWithValuation)>>::value,
-              "These two types must be the same");
 
 CobaltContentRendererClient::CobaltContentRendererClient() {
   DETACH_FROM_THREAD(thread_checker_);
@@ -141,6 +133,13 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
   LOG(INFO) << "Renderer received SbWindow handle: "
             << reinterpret_cast<void*>(handle);
   sb_window_handle_ = handle;
+}
+
+void CobaltContentRendererClient::RenderThreadStarted() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Register h5vcc scheme for renders to use Fetch API.
+  blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
+      blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
@@ -211,12 +210,6 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   communication->RunScriptsAtDocumentStart();
 }
 
-void CobaltContentRendererClient::BindHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  BindHostReceiverWithValuation(std::move(receiver));
-}
-
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -234,11 +227,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
-  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
-  renderer_factory_traits->bind_host_receiver_callback =
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
-                              weak_factory_.GetWeakPtr()));
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

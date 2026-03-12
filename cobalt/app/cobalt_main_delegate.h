@@ -28,7 +28,11 @@ namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate(bool is_content_browsertests = false);
+  explicit CobaltMainDelegate(
+      absl::optional<int64_t> startup_timestamp = absl::nullopt,
+      bool is_content_browsertests = false,
+      bool is_visible = true,
+      const char* initial_deep_link = nullptr);
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
@@ -51,9 +55,14 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   // Shutdown method that trigger the BrowserMainRunner shutdown.
   void Shutdown();
 
+  bool is_visible() const { return is_visible_; }
+
   ~CobaltMainDelegate() override;
 
  private:
+  absl::optional<int64_t> startup_timestamp_;
+  bool is_visible_;
+  std::string deep_link_;
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;

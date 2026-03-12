@@ -39,4 +39,3 @@ if (current_toolchain == default_toolchain &&
   sabi_path = "//starboard/sabi/arm/$rdk_arm_call_convention/sabi-v$sb_api_version.json"
 }
 
-use_crashpad = true

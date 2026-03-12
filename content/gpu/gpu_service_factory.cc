@@ -26,6 +26,12 @@
 #include "ui/gl/gl_angle_util_win.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "content/public/common/content_client.h"
+#include "content/public/gpu/content_gpu_client.h"
+#include "cobalt/media/service/video_geometry_setter_service.h" // nogncheck
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace content {
 
 GpuServiceFactory::GpuServiceFactory(
@@ -81,13 +87,27 @@ void GpuServiceFactory::RunMediaService(
 #endif
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  content::ContentGpuClient* client = GetContentClient()->gpu();
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service = nullptr;
+  if (client) {
+    video_geometry_setter_service =
+        client->GetVideoGeometrySetterService();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   using FactoryCallback =
       base::OnceCallback<std::unique_ptr<media::MediaService>()>;
   FactoryCallback factory =
       base::BindOnce(&media::CreateGpuMediaService, std::move(receiver),
                      gpu_preferences_, gpu_workarounds_, gpu_feature_info_,
                      gpu_info_, task_runner_, media_gpu_channel_manager_,
-                     gpu_memory_buffer_factory_, android_overlay_factory_cb_);
+                     gpu_memory_buffer_factory_, android_overlay_factory_cb_
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                     ,
+                     video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+                     );
   task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(

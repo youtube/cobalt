@@ -44,7 +44,9 @@ struct ShellPlatformDelegate::PlatformData {};
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   // |platform_| is not used on this platform.
 }
 
@@ -148,6 +150,12 @@ void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {}
 bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   return false;  // Shell destroys itself.
 }
+
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {}
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {}
 
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     Shell* shell,
