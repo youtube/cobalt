@@ -64,9 +64,11 @@ class DefaultAppLifecycleRunner : public cobalt::AppLifecycleRunner {
   }
 
   void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
-                          bool is_visible) override {
+                          bool is_visible,
+                          const char* initial_deep_link) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-        startup_timestamp, false /* is_content_browsertests */, is_visible);
+        startup_timestamp, false /* is_content_browsertests */, is_visible,
+        initial_deep_link);
   }
 
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
@@ -84,13 +86,25 @@ class DefaultAppLifecycleRunner : public cobalt::AppLifecycleRunner {
 
   void ShutDown() override {
     content::Shell::Shutdown();
+
+    if (content_main_delegate_) {
+      content_main_delegate_->Shutdown();
+    }
+
+    // Must be called after content_main_delegate_->Shutdown() to prevent
+    // unregistering the main thread from the SequenceManager which
+    // happens with the destruction of the BrowserTaskExecutor. If the order
+    // is reversed the SequenceManager complains (fails DCHECK) that the
+    // ContentMainRunnerImpl::Shutdown() is happening on the wrong thread as
+    // no longer recognizes the main thread as a valid TaskEnvironment.
     if (main_runner_) {
       main_runner_->Shutdown();
     }
-    if (content_main_delegate_) {
-      content_main_delegate_->Shutdown();
-      content_main_delegate_.reset();
-    }
+
+    // Destroy only after main_runner_/ContentMainRunnerImpl is shutdown
+    // as the delegate is used internally.
+    content_main_delegate_.reset();
+
     // We intentionally do not null main_runner_ here to enforce the one-shot
     // rule: once stopped, the process cannot be re-started.
     exit_manager_.reset();
@@ -279,7 +293,7 @@ int AppLifecycleDelegate::Run(absl::optional<int64_t> startup_timestamp,
                               int argc,
                               const char** argv,
                               const char* initial_deep_link) {
-  runner_->CreateMainDelegate(startup_timestamp, is_visible);
+  runner_->CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
 
   content::ContentMainParams params(runner_->GetMainDelegate());
 

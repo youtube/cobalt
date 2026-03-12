@@ -46,12 +46,12 @@ const char kContentShellDevToolsTabTarget[] =
     "content-shell-devtools-tab-target";
 #endif
 
+// Force to display a static image as splash screen.
+const char kForceImageSplashScreen[] = "force-image-splash-screen";
+
 // Enables APIs guarded with the [IsolatedContext] IDL attribute for the given
 // comma-separated list of origins.
 const char kIsolatedContextOrigins[] = "isolated-context-origins";
-
-// The URL passed in via deep link.
-const char kLink[] = "link";
 
 // When set, no device authentication parameters will be appended to the initial
 // URL."
