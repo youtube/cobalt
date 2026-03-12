@@ -40,7 +40,7 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="3"
       label="Error: Content from cache is too large, fallback to builtin."/>
   <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
-  <int value="5" label="Error: Resource not found."/>
+  <int value="5" label="Error: Builtin resource not found."/>
 </enum>
 
 <enum name="VariationsConfigState">

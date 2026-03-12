@@ -262,8 +262,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       SendNotFoundResponse(key);
       return;
     }
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
-                              SplashScreenFetchedState::kOkBuiltIn);
+
     SendResponse();
   }
   ~H5vccSchemeURLLoader() override = default;
@@ -362,9 +361,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     DisconnectCacheStorage();
     content_ = std::string(reinterpret_cast<const char*>(content.data()),
                            content.size());
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
-                              SplashScreenFetchedState::kOkCache);
-    SendResponse();
+    SendResponse(SplashScreenFetchedState::kOkCache);
   }
 
  private:
@@ -372,10 +369,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
                  << " not found.";
     content_ = "Resource not found";
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
-                              SplashScreenFetchedState::kErrorOnNotFound);
     mime_type_ = kMimeTypeTextPlain;
-    SendResponse(net::HTTP_NOT_FOUND);
+    SendResponse(SplashScreenFetchedState::kErrorOnNotFound,
+                 net::HTTP_NOT_FOUND);
   }
 
   void DisconnectCacheStorage() { cache_storage_remote_.reset(); }
@@ -384,16 +380,21 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                                       SplashScreenFetchedState state) {
     LOG(ERROR) << message;
     DisconnectCacheStorage();
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache", state);
-    SendResponse();
+    SendResponse(state);
   }
 
-  void SendResponse(int http_status = net::HTTP_OK) {
+  void SendResponse(
+      std::optional<SplashScreenFetchedState> state = std::nullopt,
+      int http_status = net::HTTP_OK) {
     if (!client_) {
       LOG(ERROR) << "URLLoaderClient is not connected.";
       return;
     }
 
+    if (state.has_value()) {
+      UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
+                                state.value());
+    }
     auto response_head = network::mojom::URLResponseHead::New();
     response_head->mime_type = mime_type_;
     response_head->content_length = content_.size();
