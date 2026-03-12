@@ -318,7 +318,10 @@ struct _CobaltOcdmDecryptorPrivate : public DrmSystemOcdm::Observer {
       const GstStructure *s;
       const gchar *media_type;
       s = gst_caps_get_structure (caps, 0);
-      media_type = gst_structure_get_name (s);
+
+      media_type = gst_structure_has_name(s, "application/x-cenc")
+          ? gst_structure_get_string(s, "original-media-type")
+          : gst_structure_get_name (s);
 
       is_video_ = g_str_has_prefix(media_type, "video");
     }

@@ -28,6 +28,7 @@
 #include <gst/base/gstbytewriter.h>
 #include <gst/base/gstflowcombiner.h>
 #include <gst/video/video.h>
+#include <gst/video/videooverlay.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/base/gstbaseparse.h>
 
@@ -440,7 +441,8 @@ void gst_cobalt_src_setup_and_add_app_src(SbMediaType media_type,
                                           GstElement* appsrc,
                                           GstAppSrcCallbacks* callbacks,
                                           gpointer user_data,
-                                          gboolean inject_decryptor) {
+                                          gboolean inject_decryptor,
+                                          gboolean inject_payloader) {
   const uint32_t kAudioMaxBytes = 256 * 1024;
   const uint32_t kVideoMaxBytes = 8 * 1024 * 1024;
 
@@ -466,10 +468,7 @@ void gst_cobalt_src_setup_and_add_app_src(SbMediaType media_type,
 
   GstElement* src_elem = appsrc;
   GstElement* decryptor = inject_decryptor ? CreateDecryptorElement(nullptr) : nullptr;
-  GstElement* payloader = nullptr;
-  if (decryptor && media_type == kSbMediaTypeVideo && !isRialtoEnabled()) {
-    payloader = CreatePayloader();
-  }
+  GstElement* payloader = decryptor && inject_payloader ? CreatePayloader() : nullptr;
 
   if (decryptor) {
     GST_DEBUG_OBJECT(element, "Injecting decryptor element %" GST_PTR_FORMAT, decryptor);
@@ -1202,6 +1201,11 @@ static GstBuffer* CreateGstBuffer(const SbPlayerSampleInfo& sample_info,
   return buffer;
 }
 
+bool ShouldEnforceSoftwareDecoders(SbMediaVideoCodec video_codec) {
+  static bool gEnforceSoftwareDecoders = !!getenv("COBALT_ENFORCE_SW_DECODERS");
+  return video_codec == kSbMediaVideoCodecVp8 || gEnforceSoftwareDecoders;
+}
+
 }  // namespace
 
 // ********************************* Player ******************************** //
@@ -1529,6 +1533,9 @@ class PlayerImpl : public Player {
                            GstElement* element,
                            PlayerImpl* self);
   static void OnVideoBufferUnderflow(PlayerImpl* self);
+  static GValueArray* OnAutoplugSortCallback(
+      PlayerImpl *self, GstPad*, GstCaps*,
+       GValueArray * factories, GstElement*);
 
   bool ChangePipelineState(GstState state);
   guint DispatchOnWorkerThread(Task* task) const;
@@ -1619,6 +1626,7 @@ class PlayerImpl : public Player {
   }
 
   gboolean HandleBusMessage(GstBus* bus, GstMessage* message);
+  void HandleForwardedMessage(GstMessage* message);
   void HandleApplicationMessage(GstBus* bus, GstMessage* message);
   void UpdatePresentingState();
   void WritePendingSamplesLocked();
@@ -1630,7 +1638,7 @@ class PlayerImpl : public Player {
   void DidEnd();
 
   bool ShouldDecryptToHost() const {
-    return SbDrmSystemIsValid(drm_system_) && max_video_capabilities_.HasLowResolution();
+    return SbDrmSystemIsValid(drm_system_) && (max_video_capabilities_.HasLowResolution() || enforce_sw_decoders_);
   }
 
   bool HasEOSMark() const {
@@ -1702,6 +1710,8 @@ class PlayerImpl : public Player {
 
   mutable GSource* delay_audio_need_data_src_ { nullptr };
   const GstClockTime audio_write_duration_ { GST_CLOCK_TIME_NONE };
+
+  bool enforce_sw_decoders_ { false };
 };
 
 struct PlayerRegistry
@@ -1787,7 +1797,8 @@ PlayerImpl::PlayerImpl(SbPlayer player,
       player_error_func_(player_error_func),
       context_(context),
       max_video_capabilities_(max_video_capabilities),
-      audio_write_duration_(chooseAudioWriteDuration(player)) {
+      audio_write_duration_(chooseAudioWriteDuration(player)),
+      enforce_sw_decoders_(ShouldEnforceSoftwareDecoders(video_codec_)) {
 
   GST_DEBUG_CATEGORY_INIT(cobalt_gst_player_debug, "gstplayer", 0,
                           "Cobalt player");
@@ -1872,6 +1883,7 @@ PlayerImpl::PlayerImpl(SbPlayer player,
 
   GstElement* playsink = (gst_bin_get_by_name(GST_BIN(pipeline_), "playsink"));
   if (playsink) {
+    g_object_set(G_OBJECT(playsink), "message-forward", TRUE, nullptr);
     g_object_set(G_OBJECT(playsink), "send-event-mode", 0, nullptr);
     g_object_unref(playsink);
   } else {
@@ -1976,6 +1988,16 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
   GST_LOG_OBJECT(pipeline_, "Got GST message '%s' from '%s'", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
 
   switch (GST_MESSAGE_TYPE(message)) {
+    case GST_MESSAGE_ELEMENT: {
+      const GstStructure* structure = gst_message_get_structure(message);
+      if (gst_structure_has_name(structure, "GstBinForwarded")) {
+        GstMessage* forwarded_message =
+          GST_MESSAGE(g_value_get_boxed(gst_structure_get_value(structure, "message")));
+        HandleForwardedMessage(forwarded_message);
+      }
+      break;
+    }
+
     case GST_MESSAGE_APPLICATION: {
       HandleApplicationMessage(bus, message);
       break;
@@ -2042,6 +2064,7 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
           bool is_rate_pending = false;
           double rate = 0.;
           GstClockTime pending_seek_pos = GST_CLOCK_TIME_NONE;
+          ::starboard::Rect bounds;
 
           {
             std::lock_guard lock(mutex_);
@@ -2051,6 +2074,7 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
             pending_seek_pos = seek_position_;
             SB_DCHECK(!is_seek_pending || GST_CLOCK_TIME_IS_VALID(seek_position_));
             rate = pending_rate_;
+            bounds = std::exchange(pending_bounds_, {});
             if (is_seek_pending && is_rate_pending) {
               is_rate_pending = false;
               rate_ = rate;
@@ -2064,9 +2088,7 @@ gboolean PlayerImpl::HandleBusMessage(GstBus* bus, GstMessage* message) {
             }
           }
 
-          if (video_codec_ != kSbMediaVideoCodecNone && !pending_bounds_.IsEmpty()) {
-            ::starboard::Rect bounds = pending_bounds_;
-            pending_bounds_ = {};
+          if (video_codec_ != kSbMediaVideoCodecNone && !bounds.IsEmpty()) {
             SetBounds(0, bounds);
           }
 
@@ -2246,12 +2268,13 @@ gboolean PlayerImpl::FinishSourceSetup(gpointer user_data) {
   if (self->audio_codec_ != kSbMediaAudioCodecNone) {
     gst_cobalt_src_setup_and_add_app_src(kSbMediaTypeAudio,
         source, self->audio_appsrc_,
-        &callbacks, self, has_drm_system);
+        &callbacks, self, has_drm_system, false);
   }
   if (self->video_codec_ != kSbMediaVideoCodecNone) {
     gst_cobalt_src_setup_and_add_app_src(kSbMediaTypeVideo,
         source, self->video_appsrc_,
-        &callbacks, self, has_drm_system);
+        &callbacks, self, has_drm_system,
+        has_drm_system && !isRialtoEnabled() && !self->enforce_sw_decoders_);
   }
   gst_cobalt_src_all_app_srcs_added(self->source_);
   self->source_setup_id_ = 0;
@@ -2265,7 +2288,7 @@ void PlayerImpl::AppSrcNeedData(GstAppSrc* src,
                                 gpointer user_data) {
   PlayerImpl* self = static_cast<PlayerImpl*>(user_data);
 
-  GST_LOG_OBJECT(src, "===> Gimme more data");
+  GST_LOG_OBJECT(src, "===> Give me more data");
 
   std::lock_guard lock(self->mutex_);
   int need_data = static_cast<int>(MediaType::kNone);
@@ -2289,7 +2312,7 @@ void PlayerImpl::AppSrcNeedData(GstAppSrc* src,
         static_cast<int>(self->GetBothMediaTypeTakingCodecsIntoAccount());
   }
 
-  GST_LOG_OBJECT(src, "===> Really. Gimme more data need:%d", need_data);
+  GST_LOG_OBJECT(src, "===> Really. Give me more data, need: %d", need_data);
   self->DecoderNeedsData(static_cast<MediaType>(need_data));
 }
 
@@ -2357,18 +2380,52 @@ void PlayerImpl::OnVideoBufferUnderflow(PlayerImpl* self)
 }
 
 // static
+GValueArray* PlayerImpl::OnAutoplugSortCallback(PlayerImpl *self, GstPad*, GstCaps* caps,
+                                                GValueArray *factories, GstElement*) {
+  if (!self->enforce_sw_decoders_ || !factories || !factories->n_values || !caps)
+    return nullptr;
+
+  // Remove HW video factories when SW decoders are enforced
+  const GstStructure *s = gst_caps_get_structure(caps, 0);
+  const gchar *media_type = gst_structure_has_name(s, "application/x-cenc")
+    ? gst_structure_get_string(s, "original-media-type") : gst_structure_get_name(s);
+  if (!g_str_has_prefix(media_type, "video"))
+    return nullptr;
+
+  GValueArray* result = g_value_array_new(0);
+  for (guint i = 0; i < factories->n_values; ++i) {
+    const GValue *value = g_value_array_get_nth(factories, i);
+    GstElementFactory *factory = GST_ELEMENT_FACTORY(g_value_get_object(value));
+    const char* name = gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(factory));
+    if (gst_element_factory_list_is_type(factory, GST_ELEMENT_FACTORY_TYPE_HARDWARE)
+        || g_str_has_prefix(name, "brcm")
+        || g_str_has_prefix(name, "westeros")
+        || g_str_has_prefix(name, "omx")) {
+      GST_DEBUG_OBJECT(self->pipeline_, "skip hw factory %" GST_PTR_FORMAT, factory);
+      continue;
+    }
+    GST_DEBUG_OBJECT(self->pipeline_, "keep factory %" GST_PTR_FORMAT, factory);
+    g_value_array_append(result, value);
+  }
+
+  return result;
+}
+
+// static
 void PlayerImpl::SetupElement(GstElement* pipeline,
                               GstElement* element,
                               PlayerImpl* self) {
   GST_DEBUG_OBJECT(pipeline, "Setup element %" GST_PTR_FORMAT, element);
   if (GST_IS_BASE_SINK(element)) {
-    static bool disable_wait_video = !!getenv("COBALT_AML_DISABLE_WAIT_VIDEO");
     bool has_video = (self->video_codec_ != kSbMediaVideoCodecNone);
-    if (has_video && g_str_has_prefix(GST_ELEMENT_NAME(element), "amlhalasink") && !disable_wait_video) {
-      g_object_set(element, "wait-video", TRUE, "a-wait-timeout", 4000, "disable-xrun", TRUE, nullptr);
+    if (g_str_has_prefix(GST_ELEMENT_NAME(element), "amlhalasink")) {
+      g_object_set(element,"disable-xrun", TRUE, nullptr);
+      if (has_video && !self->enforce_sw_decoders_) {
+        g_object_set(element, "wait-video", TRUE, "a-wait-timeout", 4000, nullptr);
+      }
     }
     else
-    if (has_video && g_str_has_prefix(GST_ELEMENT_NAME(element), "westerossink")) {
+    if (g_str_has_prefix(GST_ELEMENT_NAME(element), "westerossink")) {
       if (g_object_class_find_property(G_OBJECT_GET_CLASS(element), "zoom-mode")) {
         GST_INFO_OBJECT(pipeline, "Setting westerossink zoom-mode to 0");
         g_object_set(element, "zoom-mode", 0, nullptr);
@@ -2405,12 +2462,24 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
                      "max-video-height", *max_caps.height,
                      nullptr);
       }
+      if (max_caps.streaming.value_or(0) && self->enforce_sw_decoders_ &&
+          g_object_class_find_property(oclass, "sync")) {
+        GST_DEBUG_OBJECT(pipeline, "Turn off sync for streaming player");
+        g_object_set(G_OBJECT(element), "sync", FALSE, nullptr);
+      }
     }
 
     if (g_object_class_find_property(oclass, "has-drm")) {
       g_object_set(G_OBJECT(element), "has-drm", self->drm_system_ != nullptr, nullptr);
     }
   }
+
+  if (self->enforce_sw_decoders_) {
+    if (!g_strcmp0(G_OBJECT_TYPE_NAME(G_OBJECT(element)), "GstDecodeBin")) {
+      g_signal_connect_swapped(G_OBJECT(element), "autoplug-sort", G_CALLBACK(OnAutoplugSortCallback), self);
+    }
+  }
+
 }
 
 void PlayerImpl::MarkEOS(SbMediaType stream_type) {
@@ -2916,16 +2985,20 @@ void PlayerImpl::SetBounds(int zindex, const ::starboard::Rect& rect) {
   GST_TRACE_OBJECT(pipeline_, "Set Bounds: %d %d %d %d %d", zindex, rect.x, rect.y, rect.size.width, rect.size.height);
   GstElement* vid_sink = nullptr;
   g_object_get(pipeline_, "video-sink", &vid_sink, nullptr);
-  if (vid_sink && g_object_class_find_property(G_OBJECT_GET_CLASS(vid_sink),
-                                               "rectangle")) {
+  if (!vid_sink) {
+    std::lock_guard lock(mutex_);
+    pending_bounds_ = rect;
+    return;
+  }
+  if (g_object_class_find_property(G_OBJECT_GET_CLASS(vid_sink), "rectangle")) {
     gchar* rect_str = g_strdup_printf("%d,%d,%d,%d", rect.x, rect.y, rect.size.width, rect.size.height);
     g_object_set(vid_sink, "rectangle", rect_str, nullptr);
     g_free(rect_str);
-  } else {
-    pending_bounds_ = rect;
   }
-  if (vid_sink)
-    gst_object_unref(GST_OBJECT(vid_sink));
+  else {
+    gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(pipeline_), rect.x, rect.y, rect.size.width, rect.size.height);
+  }
+  gst_object_unref(GST_OBJECT(vid_sink));
 }
 
 bool PlayerImpl::ChangePipelineState(GstState state) {
@@ -3193,6 +3266,23 @@ GstClockTime PlayerImpl::MinTimestamp(MediaType* origin) const {
   return min_sample_timestamp_;
 }
 
+void PlayerImpl::HandleForwardedMessage(GstMessage* message) {
+  GST_DEBUG_OBJECT(pipeline_, "Got forwarded GST message '%s' from '%s'",
+                   GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
+  switch(GST_MESSAGE_TYPE(message)) {
+    case GST_MESSAGE_EOS: {
+      if (HasEOSMark() && enforce_sw_decoders_ &&
+          g_str_has_prefix(GST_MESSAGE_SRC_NAME(message), "abin")) {
+        GST_DEBUG_OBJECT(pipeline_, "Audio ended, assume EOS");
+        DidEnd();
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 void PlayerImpl::HandleApplicationMessage(GstBus* bus, GstMessage* message) {
   const GstStructure* structure = gst_message_get_structure(message);
   if (gst_structure_has_name(structure, "force-stop") && !force_stop_) {
@@ -3280,22 +3370,24 @@ void PlayerImpl::UpdatePresentingState() {
 
 void PlayerImpl::ConfigureLimitedVideo() {
   if (!isRialtoEnabled()) {
-    GstElementFactory* factory = gst_element_factory_find("westerossink");
-    if (factory) {
-      GstElement* video_sink = gst_element_factory_create(factory, nullptr);
-      if (video_sink) {
-        if (g_object_class_find_property(G_OBJECT_GET_CLASS(video_sink), "res-usage")) {
-          g_object_set(video_sink, "res-usage", 0x0u, nullptr);
+    if (!enforce_sw_decoders_) {
+      GstElementFactory* factory = gst_element_factory_find("westerossink");
+      if (factory) {
+        GstElement* video_sink = gst_element_factory_create(factory, nullptr);
+        if (video_sink) {
+          if (g_object_class_find_property(G_OBJECT_GET_CLASS(video_sink), "res-usage")) {
+            g_object_set(video_sink, "res-usage", 0x0u, nullptr);
+          }
+          else {
+            GST_WARNING_OBJECT(pipeline_, "'westerossink' has no 'res-usage' property, secondary video may steal decoder");
+          }
+          g_object_set(pipeline_, "video-sink", video_sink, nullptr);
         }
         else {
-          GST_WARNING_OBJECT(pipeline_, "'westerossink' has no 'res-usage' property, secondary video may steal decoder");
+          GST_DEBUG_OBJECT(pipeline_, "Failed to create 'westerossink'");
         }
-        g_object_set(pipeline_, "video-sink", video_sink, nullptr);
+        gst_object_unref(GST_OBJECT(factory));
       }
-      else {
-        GST_DEBUG_OBJECT(pipeline_, "Failed to create 'westerossink'");
-      }
-      gst_object_unref(GST_OBJECT(factory));
     }
 
     GstContext* context = gst_context_new("erm", FALSE);
