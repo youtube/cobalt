@@ -416,7 +416,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       is_tunnel_mode_used_ = true;
     }
 
-    const auto experimental_features =
+    const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
         starboard::features::FeatureList::IsEnabled(

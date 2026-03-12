@@ -214,10 +214,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
   handler->SetMaxVideoInputSize(
       starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
-
   handler->SetExperimentalFeatures(
       starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
-
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(

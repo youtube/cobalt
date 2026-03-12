@@ -22,7 +22,6 @@
 #include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/experimental_features.h"
 #include "starboard/android/shared/features_extension.h"
-
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/media_buffer_pool_extension.h"
 #include "starboard/android/shared/media_settings_api.h"
