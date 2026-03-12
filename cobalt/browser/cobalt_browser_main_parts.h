@@ -71,6 +71,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Starts metrics recording.
   void StartMetricsRecording();
+
+  // Configures Async DNS and DoH using the Network Service.
+  void ConfigureAsyncDnsAndDoH();
 };
 
 }  // namespace cobalt

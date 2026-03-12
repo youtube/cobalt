@@ -26,9 +26,13 @@
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/browser/storage_partition.h"
+#include "net/dns/public/dns_over_https_config.h"
+#include "net/dns/public/secure_dns_mode.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
+#include "services/network/public/mojom/network_service.mojom.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
@@ -103,7 +107,28 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+
+  ConfigureAsyncDnsAndDoH();
+
   return ShellBrowserMainParts::PreMainMessageLoopRun();
+}
+
+void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
+  if (auto* network_service = content::GetNetworkService()) {
+    // Use Google Public DNS.
+    auto doh_config = net::DnsOverHttpsConfig::FromString(
+        "https://dns.google/dns-query{?dns}");
+
+    network_service->ConfigureStubHostResolver(
+        /*insecure_dns_client_enabled=*/true,  // Forces Chromium's fast Async
+                                               // DNS
+        // kAutomatic means DnsOverHttps lookups will be performed first if
+        // available. If the DoH server is unreachable, it will gracefully fall
+        // back to using the standard, unencrypted DNS resolution.
+        net::SecureDnsMode::kAutomatic,
+        doh_config ? *doh_config : net::DnsOverHttpsConfig(),
+        /*additional_dns_types_enabled=*/true);
+  }
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
