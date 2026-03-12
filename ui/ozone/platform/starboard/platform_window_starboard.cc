@@ -77,18 +77,7 @@ PlatformWindowStarboard::PlatformWindowStarboard(
         ->AddPlatformEventObserverStarboard(this);
   }
 
-  SbWindowOptions options{};
-  SbWindowSetDefaultOptions(&options);
-  options.size.width = bounds.width();
-  options.size.height = bounds.height();
-  sb_window_ = SbWindowCreate(&options);
-  CHECK(SbWindowIsValid(sb_window_));
-
-  (*g_created_callback).Run(sb_window_);
-
-  widget_available_ = true;
-  delegate->OnAcceleratedWidgetAvailable(
-      reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
+  Show(false /* inactive */);
 }
 
 PlatformWindowStarboard::~PlatformWindowStarboard() {
@@ -163,34 +152,33 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 }
 
 void PlatformWindowStarboard::Show(bool inactive) {
-  if (!SbWindowIsValid(sb_window_)) {
-    SbWindowOptions options{};
-    SbWindowSetDefaultOptions(&options);
-    options.size.width = bounds_.width();
-    options.size.height = bounds_.height();
-    sb_window_ = SbWindowCreate(&options);
-    CHECK(SbWindowIsValid(sb_window_));
-
-    (*g_created_callback).Run(sb_window_);
-  }
-
-  if (SbWindowIsValid(sb_window_) && !widget_available_) {
-    widget_available_ = true;
-    delegate_->OnAcceleratedWidgetAvailable(
-        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
-  }
-}
-
-void PlatformWindowStarboard::Hide() {
-  if (!SbWindowIsValid(sb_window_)) {
+  if (SbWindowIsValid(sb_window_)) {
     return;
   }
 
+  SbWindowOptions options{};
+  SbWindowSetDefaultOptions(&options);
+  options.size.width = bounds_.width();
+  options.size.height = bounds_.height();
+  sb_window_ = SbWindowCreate(&options);
+  CHECK(SbWindowIsValid(sb_window_));
+
+  (*g_created_callback).Run(sb_window_);
+
+  CHECK(!widget_available_);
+  widget_available_ = true;
+  delegate_->OnAcceleratedWidgetAvailable(
+      reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
+}
+
+void PlatformWindowStarboard::Hide() {
+  CHECK(widget_available_);
   if (widget_available_) {
     widget_available_ = false;
     delegate_->OnAcceleratedWidgetDestroyed();
   }
 
+  CHECK(SbWindowIsValid(sb_window_));
   (*g_destroyed_callback).Run(sb_window_);
 
   SbWindowDestroy(sb_window_);
