@@ -96,6 +96,7 @@ assert(!is_win || is_clang,
 
 if (is_android || is_robolectric) {
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_fuchsia) {
