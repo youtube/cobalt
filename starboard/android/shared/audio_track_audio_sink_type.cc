@@ -477,20 +477,6 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
   SB_CHECK(audio_track_audio_sink_type_);
   JNIEnv* env = AttachCurrentThread();
 
-  const bool force_tunnel_mode =
-      features::FeatureList::IsEnabled(features::kForceTunnelMode);
-  if (force_tunnel_mode) {
-    // AudioTrack.setPlaybackParams() needs extra buffer to support playback
-    // speed greater than 1.0x.
-    const double kMaxPlaybackSpeed = 2.0;
-    return std::max<int>(
-        AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
-            env, sample_type, channels, sampling_frequency_hz),
-        audio_track_audio_sink_type_->GetMinBufferSizeInFramesInternal(
-            channels, sample_type, sampling_frequency_hz) *
-            kMaxPlaybackSpeed);
-  }
-
   return std::max(
       AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
           env, sample_type, channels, sampling_frequency_hz),
