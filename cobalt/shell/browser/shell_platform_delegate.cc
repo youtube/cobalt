@@ -27,12 +27,6 @@ bool ShellPlatformDelegate::IsVisible() const {
   return is_visible_;
 }
 
-__attribute__((weak)) void ShellPlatformDelegate::Initialize(
-    const gfx::Size& /*default_window_size*/,
-    bool is_visible) {
-  is_visible_ = is_visible;
-}
-
 void ShellPlatformDelegate::OnBlur() {
   CHECK(IsVisible());
   for (auto* shell : Shell::windows()) {
@@ -80,10 +74,6 @@ void ShellPlatformDelegate::OnUnfreeze() {
 }
 
 void ShellPlatformDelegate::OnStop() {}
-
-__attribute__((weak)) void ShellPlatformDelegate::RevealShell(Shell* shell) {}
-
-__attribute__((weak)) void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
 
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
