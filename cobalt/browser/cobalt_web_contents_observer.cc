@@ -36,17 +36,10 @@ const int kJniErrorTypeConnectionError = 0;
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents) {
-<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROIDTV)
   timeout_timer_ = std::make_unique<base::OneShotTimer>();
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 }
-=======
-  timeout_timer_ = std::make_unique<base::OneShotTimer>();
-}
-
-CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
->>>>>>> 772e242047 (cobalt/browser: Change Network Dialog UMA Histogram to Cumulative Count (#9471))
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
@@ -93,19 +86,16 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     RaisePlatformError();
   } else if (net_error_code == net::OK) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
-<<<<<<< HEAD
-    platform_error_raised_count_ = 0;
-=======
 #if BUILDFLAG(IS_ANDROIDTV)
     platform_error_raised_count_ = 0;
 #endif
->>>>>>> 772e242047 (cobalt/browser: Change Network Dialog UMA Histogram to Cumulative Count (#9471))
   }
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto* starboard_bridge = starboard::android::shared::StarboardBridge::GetInstance();
+  auto* starboard_bridge =
+      starboard::android::shared::StarboardBridge::GetInstance();
 
   // Don't raise a new platform error if one is already showing
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
