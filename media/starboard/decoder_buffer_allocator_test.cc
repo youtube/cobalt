@@ -151,7 +151,7 @@ TEST_P(DecoderBufferAllocatorTest, VerifyAndCacheAllocationLogs) {
 }
 
 TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
-  DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal);
+  DecoderBufferAllocator allocator;
   std::unordered_map<std::string, void*> pointer_to_pointer_map;
   size_t max_allocated = 0, max_capacity = 0;
   base::Time start_time = base::Time::Now();
@@ -223,7 +223,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
                 << kConfigs[i].allocation_increment[buffer_type];
 
       DecoderBufferAllocator allocator(
-          DecoderBufferAllocator::Type::kLocal, false,
+          /*is_memory_pool_allocated_on_demand=*/false,
           kConfigs[i].initial_capacity[buffer_type],
           kConfigs[i].allocation_increment[buffer_type]);
       std::unordered_map<std::string, void*> pointer_to_pointer_map;

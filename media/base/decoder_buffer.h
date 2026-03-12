@@ -77,6 +77,7 @@ class MEDIA_EXPORT DecoderBuffer
   class Allocator {
    public:
     static Allocator* GetInstance();
+    static void Set(Allocator* allocator);
 
     // The function should never return nullptr.  It may terminate the app on
     // allocation failure.
@@ -90,8 +91,6 @@ class MEDIA_EXPORT DecoderBuffer
 
    protected:
     ~Allocator() {}
-
-    static void Set(Allocator* allocator);
   };
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
