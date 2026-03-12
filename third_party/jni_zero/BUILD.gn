@@ -5,6 +5,7 @@
 import("//third_party/jni_zero/jni_zero.gni")
 import("//build/buildflag_header.gni")
 import("//cobalt/build/configs/cobalt_for_google.gni")
+import("//starboard/build/config/android_toolchain.gni")
 
 config("jni_include_dir") {
   include_dirs = [ jni_headers_dir ]
@@ -85,8 +86,8 @@ component("jni_zero") {
   }
 
   deps = [
-    ":generate_jni($default_toolchain)",
-    ":system_jni($default_toolchain)",
+    ":generate_jni($android_toolchain)",
+    ":system_jni($android_toolchain)",
     ":cobalt_for_google3_buildflags",
   ]
   

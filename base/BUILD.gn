@@ -1394,10 +1394,10 @@ component("base") {
       "android/unguessable_token_android.h",
     ]
     deps += [
-      ":base_minimal_jni($default_toolchain)",
-      ":command_line_jni($default_toolchain)",
-      ":library_loader_jni($default_toolchain)",
-      ":tasks_minimal_jni($default_toolchain)",
+      ":base_minimal_jni($android_toolchain)",
+      ":command_line_jni($android_toolchain)",
+      ":library_loader_jni($android_toolchain)",
+      ":tasks_minimal_jni($android_toolchain)",
       "//build:robolectric_buildflags",
     ]
     public_deps += [ "//third_party/jni_zero:jni_zero" ]
