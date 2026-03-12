@@ -177,6 +177,13 @@ class MediaCapabilitiesCache {
 
   bool IsPassthroughSupported(SbMediaAudioCodec codec);
 
+  // Some android devices support av1 up to 8k30 and 4k60. In that case, we
+  // cannot ask it to always use max supported width and height, which would
+  // lead 8k60 being used and exceed system resource limit. See b/173575800.
+  // When IsAv18kCappedAt30() returns true, the device needs extra check of
+  // video fps to prevent 8k60 is used unexpectedly.
+  bool IsAv18kCappedAt30();
+
   bool GetAudioConfiguration(int index,
                              SbMediaAudioConfiguration* configuration);
 
@@ -219,6 +226,7 @@ class MediaCapabilitiesCache {
 
   void UpdateMediaCapabilities_Locked();
   void LoadAudioConfigurations_Locked();
+  void LoadIsAv18kCappedAt30_Locked();
 
   std::mutex mutex_;
 
@@ -238,6 +246,7 @@ class MediaCapabilitiesCache {
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
   bool is_widevine_supported_ = false;
   bool is_cbcs_supported_ = false;
+  bool is_av1_8k_capped_at_30_ = true;
 
   std::atomic_bool is_enabled_{true};
   std::atomic_bool capabilities_is_dirty_{true};
