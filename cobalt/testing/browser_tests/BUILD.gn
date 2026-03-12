@@ -193,7 +193,6 @@ if (is_ios) {
 } else {
   cobalt_test_data_from_filelist("cobalt_test_bundle_data") {
     testonly = true
-    filelist_name = "cobalt_test_bundle_data.filelist"
   }
 }
 

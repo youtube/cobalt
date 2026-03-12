@@ -32,6 +32,8 @@ def main():
   parser = argparse.ArgumentParser(description='Expand file list patterns.')
   parser.add_argument('filelist', help='Input file list with patterns.')
   parser.add_argument('--root', default='.', help='Source root directory.')
+  parser.add_argument(
+      '--gn-output', action='store_true', help='Output in GN list format.')
   args = parser.parse_args()
 
   if not os.path.isfile(args.filelist):
@@ -87,8 +89,14 @@ def main():
 
   included_files -= to_discard
 
-  for f in sorted(list(included_files)):
-    print(f)
+  if args.gn_output:
+    print('cobalt_test_bundle_data_files = [')
+    for f in sorted(list(included_files)):
+      print(f'  "{f}",')
+    print(']')
+  else:
+    for f in sorted(list(included_files)):
+      print(f)
 
   return 0
 

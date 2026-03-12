@@ -12,22 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-template("cobalt_test_data_from_filelist") {
-  assert(defined(invoker.filelist_name), "filelist_name must be defined")
+import("//cobalt/testing/browser_tests/cobalt_test_bundle_data.gni")
 
+template("cobalt_test_data_from_filelist") {
   group(target_name) {
     forward_variables_from(invoker, [ "testonly" ])
-    data =
-        exec_script("//cobalt/testing/browser_tests/tools/expand_filelist.py",
-                    [
-                      rebase_path(invoker.filelist_name),
-                      "--root",
-                      rebase_path("//"),
-                    ],
-                    "list lines",
-                    [
-                      "//cobalt/testing/browser_tests/tools/expand_filelist.py",
-                      invoker.filelist_name,
-                    ])
+    data = cobalt_test_bundle_data_files
   }
 }
