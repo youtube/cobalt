@@ -330,6 +330,14 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+      if (event.getRepeatCount() > 0) {
+        // It's a repeat, consume it and do not propagate
+        return true;
+      }
+      // First press, process as usual
+    }
+
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
