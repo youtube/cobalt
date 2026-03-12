@@ -337,14 +337,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
           base::StringPrintf(
               "Splash video from %s is empty. Fallback to builtin.",
               cache_name.c_str()),
-          SplashScreenFetchedState::kErrorOnEmptyEntry);
+          SplashScreenFetchedState::kErrorOnCacheEmptyContent);
     }
     if (response->blob->size > splash_content_size_limit_) {
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(
               "Splash video from %s is too large. Fallback to builtin.",
               cache_name.c_str()),
-          SplashScreenFetchedState::kErrorOnFileOversize);
+          SplashScreenFetchedState::kErrorOnCacheFileOversize);
     }
     mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
         std::move(response->blob->blob);
@@ -372,7 +372,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                  << " not found.";
     content_ = "Resource not found";
     mime_type_ = kMimeTypeTextPlain;
-    SendResponse(SplashScreenFetchedState::kErrorOnNotFound,
+    SendResponse(SplashScreenFetchedState::kErrorOnResourceNotFound,
                  net::HTTP_NOT_FOUND);
   }
 
