@@ -74,9 +74,11 @@ class PlatformWindowStarboard : public PlatformWindow,
 
   using WindowCreatedCallback = base::RepeatingCallback<void(SbWindow)>;
   static void SetWindowCreatedCallback(WindowCreatedCallback cb);
+  static void ClearWindowCreatedCallback();
 
   using WindowDestroyedCallback = base::RepeatingCallback<void(SbWindow)>;
   static void SetWindowDestroyedCallback(WindowDestroyedCallback cb);
+  static void ClearWindowDestroyedCallback();
 
   // ui::PlatformEventObserverStarboard interface.
   void ProcessWindowSizeChangedEvent(int width, int height) override;

@@ -165,7 +165,7 @@ TEST_F(AppLifecycleDelegateTest, IntegratedConceal) {
 }
 
 TEST_F(AppLifecycleDelegateTest, IntegratedFreezeUnfreeze) {
-  content::Shell* shell = CreateTestShell(true /* is_visible */);
+  content::Shell* shell = CreateTestShell(false /* is_visible */);
   content::TestWebContents* test_web_contents =
       static_cast<content::TestWebContents*>(shell->web_contents());
 
@@ -206,10 +206,6 @@ TEST_F(AppLifecycleDelegateTest, IntegratedBlurFocus) {
   EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
   task_environment()->RunUntilIdle();
-}
-
-TEST_F(AppLifecycleDelegateTest, RevealBeforeStartDoesNotCrash) {
-  SendRevealEvent();
 }
 
 TEST_F(AppLifecycleDelegateTest, Stop) {

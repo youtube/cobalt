@@ -96,27 +96,6 @@ TEST_F(LifecycleTest, Reveal) {
   task_environment()->RunUntilIdle();
 }
 
-TEST_F(LifecycleTest, RedundantReveal) {
-  Shell* shell = CreateTestShell(false /* is_visible */);
-
-  // First reveal.
-  EXPECT_CALL(*platform_, OnReveal());
-  EXPECT_CALL(*platform_, RevealShell(shell)).Times(1);
-  Shell::OnReveal();
-
-  // Redundant reveal should do nothing.
-  EXPECT_CALL(*platform_, OnReveal());
-  EXPECT_CALL(*platform_, RevealShell(_)).Times(0);
-  Shell::OnReveal();
-
-  EXPECT_TRUE(platform_->IsVisible());
-
-  EXPECT_CALL(*platform_, DestroyShell(shell));
-  EXPECT_CALL(*platform_, CleanUp(shell));
-  shell->Close();
-  task_environment()->RunUntilIdle();
-}
-
 TEST_F(LifecycleTest, Conceal) {
   Shell* shell = CreateTestShell(true /* is_visible */);
   EXPECT_TRUE(platform_->IsVisible());
@@ -137,7 +116,7 @@ TEST_F(LifecycleTest, Conceal) {
 }
 
 TEST_F(LifecycleTest, FreezeUnfreeze) {
-  Shell* shell = CreateTestShell(true /* is_visible */);
+  Shell* shell = CreateTestShell(false /* is_visible */);
   TestWebContents* test_web_contents =
       static_cast<TestWebContents*>(shell->web_contents());
 

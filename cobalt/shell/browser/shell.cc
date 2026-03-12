@@ -224,51 +224,44 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 
 // static
 void Shell::OnBlur() {
-  if (g_platform) {
-    g_platform->OnBlur();
-  }
+  CHECK(g_platform);
+  g_platform->OnBlur();
 }
 
 // static
 void Shell::OnFocus() {
-  if (g_platform) {
-    g_platform->OnFocus();
-  }
+  CHECK(g_platform);
+  g_platform->OnFocus();
 }
 
 // static
 void Shell::OnConceal() {
-  if (g_platform) {
-    g_platform->OnConceal();
-  }
+  CHECK(g_platform);
+  g_platform->OnConceal();
 }
 
 // static
 void Shell::OnReveal() {
-  if (g_platform) {
-    g_platform->OnReveal();
-  }
+  CHECK(g_platform);
+  g_platform->OnReveal();
 }
 
 // static
 void Shell::OnFreeze() {
-  if (g_platform) {
-    g_platform->OnFreeze();
-  }
+  CHECK(g_platform);
+  g_platform->OnFreeze();
 }
 
 // static
 void Shell::OnUnfreeze() {
-  if (g_platform) {
-    g_platform->OnUnfreeze();
-  }
+  CHECK(g_platform);
+  g_platform->OnUnfreeze();
 }
 
 // static
 void Shell::OnStop() {
-  if (g_platform) {
-    g_platform->OnStop();
-  }
+  CHECK(g_platform);
+  g_platform->OnStop();
 }
 
 void Shell::FinishShellInitialization(Shell* shell) {
@@ -365,12 +358,6 @@ void Shell::Shutdown() {
     return;
   }
 
-  static bool is_shutting_down = false;
-  if (is_shutting_down) {
-    return;
-  }
-  is_shutting_down = true;
-
   DevToolsAgentHost::DetachAllClients();
 
   while (!Shell::windows().empty()) {
@@ -393,8 +380,6 @@ void Shell::Shutdown() {
   // Pump the message loop to allow window teardown tasks to run.
   base::RunLoop().RunUntilIdle();
 #endif  // !BUILDFLAG(IS_STARBOARD)
-
-  is_shutting_down = false;
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {

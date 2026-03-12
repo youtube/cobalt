@@ -145,16 +145,16 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
       break;
     case kSbEventTypeBlur:
       content::Shell::OnBlur();
-#if BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
+#error This file is only intended for Starboard platforms.
+      // Other platforms route events differently, e.g. on AndroidTV
+      // focus is handled natively via Activity and View lifecycle callbacks
+      // (e.g. CobaltActivity.onResume) which propagate directly to Chromium's
+      // WindowAndroid.
+#endif
       if (platform_event_source_) {
         platform_event_source_->HandleFocusEvent(event);
       }
-#else
-      // On Android, focus is handled natively via Activity and View lifecycle
-      // callbacks (e.g. CobaltActivity.onResume) which propagate directly to
-      // Chromium's WindowAndroid.
-      NOTIMPLEMENTED();
-#endif
       break;
     case kSbEventTypeFocus:
       content::Shell::OnFocus();

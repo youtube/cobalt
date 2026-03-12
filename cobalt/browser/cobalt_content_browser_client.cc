@@ -169,8 +169,8 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 #if BUILDFLAG(IS_STARBOARD)
-  ui::PlatformWindowStarboard::SetWindowCreatedCallback(base::NullCallback());
-  ui::PlatformWindowStarboard::SetWindowDestroyedCallback(base::NullCallback());
+  ui::PlatformWindowStarboard::ClearWindowCreatedCallback();
+  ui::PlatformWindowStarboard::ClearWindowDestroyedCallback();
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 

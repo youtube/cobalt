@@ -107,7 +107,7 @@ fi
 
 log "Sending SIGUSR1 (CONCEAL)..."
 kill -SIGUSR1 $COBALT_PID
-sleep 2
+sleep 5
 VISIBILITY=$(check_js "document.visibilityState")
 log "Visibility: $VISIBILITY"
 if [ "$VISIBILITY" != "hidden" ]; then

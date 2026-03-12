@@ -109,9 +109,7 @@ void ShellPlatformDelegate::RevealShell(Shell* shell) {
 }
 
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
-  if (platform_->aura) {
-    platform_->aura->host()->Hide();
-  }
+  platform_->aura->host()->Hide();
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}

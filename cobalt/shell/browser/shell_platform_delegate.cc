@@ -28,27 +28,27 @@ bool ShellPlatformDelegate::IsVisible() const {
 }
 
 __attribute__((weak)) void ShellPlatformDelegate::Initialize(
-    const gfx::Size& default_window_size,
+    const gfx::Size& /*default_window_size*/,
     bool is_visible) {
   is_visible_ = is_visible;
 }
 
 void ShellPlatformDelegate::OnBlur() {
+  CHECK(IsVisible());
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost()->Blur();
   }
 }
 
 void ShellPlatformDelegate::OnFocus() {
+  CHECK(IsVisible());
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->Focus();
   }
 }
 
 void ShellPlatformDelegate::OnConceal() {
-  if (!IsVisible()) {
-    return;
-  }
+  CHECK(IsVisible());
   set_is_visible(false);
   for (auto* shell : Shell::windows()) {
     ConcealShell(shell);
@@ -57,9 +57,7 @@ void ShellPlatformDelegate::OnConceal() {
 }
 
 void ShellPlatformDelegate::OnReveal() {
-  if (IsVisible()) {
-    return;
-  }
+  CHECK(!IsVisible());
   set_is_visible(true);
   for (auto* shell : Shell::windows()) {
     RevealShell(shell);
@@ -68,12 +66,14 @@ void ShellPlatformDelegate::OnReveal() {
 }
 
 void ShellPlatformDelegate::OnFreeze() {
+  CHECK(!IsVisible());
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(true);
   }
 }
 
 void ShellPlatformDelegate::OnUnfreeze() {
+  CHECK(!IsVisible());
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(false);
   }

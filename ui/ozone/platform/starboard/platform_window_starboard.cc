@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "starboard/event.h"
 #include "ui/events/event.h"
@@ -30,9 +31,13 @@ namespace ui {
 
 namespace {
 std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
-    g_created_callback;
+    g_created_callback =
+        std::make_unique<PlatformWindowStarboard::WindowCreatedCallback>(
+            base::DoNothing());
 std::unique_ptr<PlatformWindowStarboard::WindowDestroyedCallback>
-    g_destroyed_callback;
+    g_destroyed_callback =
+        std::make_unique<PlatformWindowStarboard::WindowDestroyedCallback>(
+            base::DoNothing());
 }  // namespace
 
 // static
@@ -42,10 +47,22 @@ void PlatformWindowStarboard::SetWindowCreatedCallback(
 }
 
 // static
+void PlatformWindowStarboard::ClearWindowCreatedCallback() {
+  g_created_callback =
+      std::make_unique<WindowCreatedCallback>(base::DoNothing());
+}
+
+// static
 void PlatformWindowStarboard::SetWindowDestroyedCallback(
     WindowDestroyedCallback cb) {
   g_destroyed_callback =
       std::make_unique<WindowDestroyedCallback>(std::move(cb));
+}
+
+// static
+void PlatformWindowStarboard::ClearWindowDestroyedCallback() {
+  g_destroyed_callback =
+      std::make_unique<WindowDestroyedCallback>(base::DoNothing());
 }
 
 PlatformWindowStarboard::PlatformWindowStarboard(
@@ -67,9 +84,7 @@ PlatformWindowStarboard::PlatformWindowStarboard(
   sb_window_ = SbWindowCreate(&options);
   CHECK(SbWindowIsValid(sb_window_));
 
-  if (g_created_callback) {
-    (*g_created_callback).Run(sb_window_);
-  }
+  (*g_created_callback).Run(sb_window_);
 
   widget_available_ = true;
   delegate->OnAcceleratedWidgetAvailable(
@@ -85,9 +100,7 @@ PlatformWindowStarboard::~PlatformWindowStarboard() {
   }
 
   if (SbWindowIsValid(sb_window_)) {
-    if (g_destroyed_callback) {
-      (*g_destroyed_callback).Run(sb_window_);
-    }
+    (*g_destroyed_callback).Run(sb_window_);
     SbWindowDestroy(sb_window_);
     sb_window_ = kSbWindowInvalid;
   }
@@ -150,7 +163,6 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 }
 
 void PlatformWindowStarboard::Show(bool inactive) {
-  VLOG(1) << "PlatformWindowStarboard::Show";
   if (!SbWindowIsValid(sb_window_)) {
     SbWindowOptions options{};
     SbWindowSetDefaultOptions(&options);
@@ -159,9 +171,7 @@ void PlatformWindowStarboard::Show(bool inactive) {
     sb_window_ = SbWindowCreate(&options);
     CHECK(SbWindowIsValid(sb_window_));
 
-    if (g_created_callback) {
-      (*g_created_callback).Run(sb_window_);
-    }
+    (*g_created_callback).Run(sb_window_);
   }
 
   if (SbWindowIsValid(sb_window_) && !widget_available_) {
@@ -172,7 +182,6 @@ void PlatformWindowStarboard::Show(bool inactive) {
 }
 
 void PlatformWindowStarboard::Hide() {
-  VLOG(1) << "PlatformWindowStarboard::Hide";
   if (!SbWindowIsValid(sb_window_)) {
     return;
   }
@@ -182,9 +191,7 @@ void PlatformWindowStarboard::Hide() {
     delegate_->OnAcceleratedWidgetDestroyed();
   }
 
-  if (g_destroyed_callback) {
-    (*g_destroyed_callback).Run(sb_window_);
-  }
+  (*g_destroyed_callback).Run(sb_window_);
 
   SbWindowDestroy(sb_window_);
   sb_window_ = kSbWindowInvalid;
