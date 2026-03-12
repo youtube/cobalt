@@ -16,11 +16,13 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -115,18 +117,29 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 
 void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
   if (auto* network_service = content::GetNetworkService()) {
-    // Use Google Public DNS.
-    auto doh_config = net::DnsOverHttpsConfig::FromString(
-        "https://dns.google/dns-query{?dns}");
+    // use Google Public DNS by default, this can be
+    // overridden via the --doh-url command line switch to support environments
+    // with specific network policies or different privacy requirements.
+    std::string doh_url = "https://dns.google/dns-query{?dns}";
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kDnsOverHttpsUrl)) {
+      doh_url = command_line->GetSwitchValueASCII(switches::kDnsOverHttpsUrl);
+    }
+
+    auto doh_config = net::DnsOverHttpsConfig::FromString(doh_url);
+
+    // kAutomatic means DoH lookups will be performed first if available.
+    // If the DoH server is unreachable, it will gracefully fall back to
+    // using the standard, unencrypted DNS resolution.
+    // If the provided URL is empty or invalid, we turn DoH off entirely.
+    auto secure_dns_mode = doh_config && !doh_config->servers().empty()
+                               ? net::SecureDnsMode::kAutomatic
+                               : net::SecureDnsMode::kOff;
 
     network_service->ConfigureStubHostResolver(
         /*insecure_dns_client_enabled=*/true,  // Forces Chromium's fast Async
                                                // DNS
-        // kAutomatic means DnsOverHttps lookups will be performed first if
-        // available. If the DoH server is unreachable, it will gracefully fall
-        // back to using the standard, unencrypted DNS resolution.
-        net::SecureDnsMode::kAutomatic,
-        doh_config ? *doh_config : net::DnsOverHttpsConfig(),
+        secure_dns_mode, doh_config ? *doh_config : net::DnsOverHttpsConfig(),
         /*additional_dns_types_enabled=*/true);
   }
 }

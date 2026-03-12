@@ -44,6 +44,9 @@ constexpr char kMemoryMetricsInterval[] = "memory-metrics-interval";
 // If this switch is present, the storage migration will be disabled.
 constexpr char kDisableStorageMigration[] = "disable-storage-migration";
 
+// Allows the user to specify a custom DNS-over-HTTPS URL.
+constexpr char kDnsOverHttpsUrl[] = "doh-url";
+
 }  // namespace switches
 }  // namespace cobalt
 
