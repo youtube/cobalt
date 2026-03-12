@@ -42,6 +42,23 @@
 -//media/test/data/*.ivf
 -//media/test/data/*.y4m
 
+# High file-count directories in content/test/data
+-//content/test/data/accessibility/**
+-//content/test/data/attribution_reporting/**
+-//content/test/data/interest_group/**
+-//content/test/data/private_aggregation/**
+-//content/test/data/fenced_frames/**
+-//content/test/data/shared_storage/**
+
+# Platform-specific expected results (non-Cobalt platforms)
+-**/*expected-win.txt
+-**/*expected-mac.txt
+-**/*expected-android.txt
+-**/*expected-fuchsia.txt
+-**/*expected-linux.txt
+-**/*expected-chromeos.txt
+-**/*expected-ios.txt
+
 # Additional high-impact exclusions
 -//media/test/data/bbb-320x240-2video-2audio.mp4
 -//media/test/data/bear-1280x720-v_frag-cenc*
