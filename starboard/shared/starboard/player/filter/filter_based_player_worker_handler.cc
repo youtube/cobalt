@@ -52,8 +52,9 @@ void LogAndSetExperimentalFeature(const char* name, T& feature, U new_value) {
   if (feature == new_value) {
     return;
   }
-  SB_LOG(INFO) << "Set experimental feature " << name << ": new=\"" << new_value
-               << "\", old=\"" << ToString(feature) << "\"";
+  SB_LOG(INFO) << "Set experimental feature " << name << ": new=\""
+               << ToString(new_value) << "\", old=\"" << ToString(feature)
+               << "\"";
   feature = new_value;
 }
 
@@ -143,7 +144,9 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_, experimental_features_, surface_view_,
+      max_video_input_size_,
+      SeekConfiguration{flush_decoder_during_reset_, reset_audio_decoder_},
+      experimental_features_, surface_view_,
       decode_target_graphics_context_provider_, drm_system_);
 
   {
@@ -602,46 +605,38 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-#define DEFINE_SET_EXPERIMENTAL_FEATURE(method_name, field_name, type)     \
-  void FilterBasedPlayerWorkerHandler::Set##method_name(type field_name) { \
-    LogAndSetExperimentalFeature(                                          \
-        #field_name, experimental_features_.field_name, field_name);       \
-  }
+void FilterBasedPlayerWorkerHandler::SetFlushDecoderDuringReset(
+    bool flush_decoder_during_reset) {
+  LogAndSetExperimentalFeature("flush_decoder_during_reset",
+                               flush_decoder_during_reset_,
+                               flush_decoder_during_reset);
+}
 
-DEFINE_SET_EXPERIMENTAL_FEATURE(FlushDecoderDuringReset,
-                                flush_decoder_during_reset,
-                                bool)
-DEFINE_SET_EXPERIMENTAL_FEATURE(ResetAudioDecoder, reset_audio_decoder, bool)
-DEFINE_SET_EXPERIMENTAL_FEATURE(PauseUsingAudioTrackState,
-                                pause_using_audio_track_state,
-                                bool)
+void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
+    bool reset_audio_decoder) {
+  LogAndSetExperimentalFeature("reset_audio_decoder", reset_audio_decoder_,
+                               reset_audio_decoder);
+}
+
+void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
+    const ExperimentalFeatures& experimental_features) {
+#define SET_EXPERIMENTAL_FEATURE(field_name)                                   \
+  LogAndSetExperimentalFeature(#field_name, experimental_features_.field_name, \
+                               experimental_features.field_name)
+
+  SET_EXPERIMENTAL_FEATURE(media_codec_reset_delay_ms);
+  SET_EXPERIMENTAL_FEATURE(video_decoder_initial_preroll_count);
+  SET_EXPERIMENTAL_FEATURE(video_decoder_poll_interval_ms);
+  SET_EXPERIMENTAL_FEATURE(video_initial_max_frames_in_decoder);
+  SET_EXPERIMENTAL_FEATURE(video_max_pending_input_frames);
+  SET_EXPERIMENTAL_FEATURE(video_renderer_min_decoded_frames);
+  SET_EXPERIMENTAL_FEATURE(video_renderer_min_input_buffers);
+
+#undef SET_EXPERIMENTAL_FEATURE
+}
 
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
   LogAndSetExperimentalFeature("surface_view", surface_view_, surface_view);
 }
-
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoInitialMaxFramesInDecoder,
-                                video_initial_max_frames_in_decoder,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoMaxPendingInputFrames,
-                                video_max_pending_input_frames,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoDecoderInitialPrerollCount,
-                                video_decoder_initial_preroll_count,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoDecoderPollIntervalMs,
-                                video_decoder_poll_interval_ms,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoRendererMinInputBuffers,
-                                video_renderer_min_input_buffers,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoRendererMinDecodedFrames,
-                                video_renderer_min_decoded_frames,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(MediaCodecResetDelayMs,
-                                media_codec_reset_delay_ms,
-                                int)
-
-#undef DEFINE_SET_EXPERIMENTAL_FEATURE
 
 }  // namespace starboard::shared::starboard::player::filter

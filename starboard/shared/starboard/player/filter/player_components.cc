@@ -84,6 +84,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     const media::AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info),
+      seek_configuration_(SeekConfiguration{}),
       experimental_features_(ExperimentalFeatures{}),
       drm_system_(drm_system) {
   SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
@@ -94,6 +95,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    const SeekConfiguration& seek_configuration,
     const ExperimentalFeatures& experimental_features,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
@@ -103,6 +105,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      seek_configuration_(seek_configuration),
       experimental_features_(experimental_features),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
@@ -119,6 +122,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
+    const SeekConfiguration& seek_configuration,
     const ExperimentalFeatures& experimental_features,
     void* surface_view,
     SbDecodeTargetGraphicsContextProvider*
@@ -129,6 +133,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
+      seek_configuration_(seek_configuration),
       experimental_features_(experimental_features),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
@@ -226,7 +231,8 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
-    const auto& experimental_features = creation_parameters.experimental_features();
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
     if (experimental_features.video_renderer_min_input_buffers &&
         experimental_features.video_renderer_min_decoded_frames) {

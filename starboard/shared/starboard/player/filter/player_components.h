@@ -33,6 +33,7 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/experimental_features.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
@@ -40,6 +41,11 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard::shared::starboard::player::filter {
+
+struct SeekConfiguration {
+  bool flush_decoder_during_reset = false;
+  bool reset_audio_decoder = false;
+};
 
 // This class holds necessary media stack components required by
 // by |FilterBasedPlayerWorkerHandler| to function.  It owns the components, and
@@ -79,6 +85,7 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
+                         const SeekConfiguration& seek_configuration,
                          const ExperimentalFeatures& experimental_features,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
@@ -89,6 +96,7 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
+                         const SeekConfiguration& seek_configuration,
                          const ExperimentalFeatures& experimental_features,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
@@ -135,6 +143,9 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
+      const SeekConfiguration& seek_configuration() const {
+        return seek_configuration_;
+      }
       const ExperimentalFeatures& experimental_features() const {
         return experimental_features_;
       }
@@ -160,6 +171,7 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
+      const SeekConfiguration seek_configuration_;
       const ExperimentalFeatures experimental_features_;
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*

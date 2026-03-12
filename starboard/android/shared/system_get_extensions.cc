@@ -20,7 +20,9 @@
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/crash_handler.h"
+#include "starboard/android/shared/experimental_features.h"
 #include "starboard/android/shared/features_extension.h"
+
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/media_buffer_pool_extension.h"
 #include "starboard/android/shared/media_settings_api.h"
@@ -30,10 +32,10 @@
 #include "starboard/android/shared/player_set_max_video_input_size.h"
 #include "starboard/android/shared/player_set_video_surface_view.h"
 #include "starboard/android/shared/system_info_api.h"
-#include "starboard/android/shared/video_decoder_configuration.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/experimental_features.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
@@ -44,7 +46,6 @@
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/player_set_video_surface_view.h"
 #include "starboard/extension/system_info.h"
-#include "starboard/extension/video_decoder_configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
@@ -79,8 +80,10 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kStarboardExtensionPlayerConfigurateSeekName) == 0) {
     return starboard::android::shared::GetPlayerConfigurateSeekApi();
   }
-  if (strcmp(name, kStarboardExtensionVideoDecoderConfigurationName) == 0) {
-    return starboard::android::shared::GetVideoDecoderConfigurationApi();
+  if (strcmp(name, kStarboardExtensionExperimentalFeaturesConfigurationName) ==
+      0) {
+    return starboard::android::shared::
+        GetExperimentalFeaturesConfigurationApi();
   }
   if (strcmp(name, kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0) {
     return starboard::android::shared::GetPlayerSetVideoSurfaceViewApi();

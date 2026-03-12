@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_
-#define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_
+#ifndef STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_INTERNAL_H_
+#define STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_INTERNAL_H_
+
+#include "starboard/shared/starboard/player/filter/experimental_features.h"
 
 namespace starboard::android::shared {
 
-const void* GetVideoDecoderConfigurationApi();
+// Sets the experimental features for the current thread.
+void SetExperimentalFeaturesForCurrentThread(
+    const starboard::shared::starboard::player::filter::ExperimentalFeatures&
+        experimental_features);
+
+// Gets the experimental features for the current thread.
+const starboard::shared::starboard::player::filter::ExperimentalFeatures&
+GetExperimentalFeaturesForCurrentThread();
 
 }  // namespace starboard::android::shared
 
-#endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_
+#endif  // STARBOARD_ANDROID_SHARED_EXPERIMENTAL_FEATURES_INTERNAL_H_

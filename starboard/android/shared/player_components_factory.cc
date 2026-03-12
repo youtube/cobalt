@@ -55,6 +55,7 @@
 namespace starboard::android::shared {
 
 namespace {
+using ::starboard::shared::starboard::player::filter::ExperimentalFeatures;
 using ::starboard::shared::starboard::player::filter::PlayerComponents;
 using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
 
@@ -271,7 +272,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
+        creation_parameters.seek_configuration().flush_decoder_during_reset;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -432,7 +433,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_reset_audio_decoder =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceResetAudioDecoder) ||
-        experimental_features.reset_audio_decoder ||
+        creation_parameters.seek_configuration().reset_audio_decoder ||
         video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`enable_reset_audio_decoder` is set to true, force resetting"
@@ -445,7 +446,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        experimental_features.flush_decoder_during_reset ||
+        creation_parameters.seek_configuration().flush_decoder_during_reset ||
         video_mime_type.GetParamBoolValue("enableflushduringseek", false);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
@@ -603,7 +604,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
+        creation_parameters.seek_configuration().flush_decoder_during_reset;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
@@ -640,14 +641,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    VideoDecoder::ExperimentalFeatures experimental_features =
-        GetVideoDecoderExperimentalFeatures(
-            creation_parameters.experimental_features());
-    if (creation_parameters.experimental_features()
-            .media_codec_reset_delay_ms.has_value()) {
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
+    if (experimental_features.media_codec_reset_delay_ms) {
       reset_delay_usec =
-          static_cast<int64_t>(creation_parameters.experimental_features()
-                                   .media_codec_reset_delay_ms.value()) *
+          static_cast<int64_t>(
+              *experimental_features.media_codec_reset_delay_ms) *
           1000;
       SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
                    << " of " << reset_delay_usec << "us during Reset().";
