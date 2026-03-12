@@ -19,7 +19,6 @@
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/configurate_seek.h"
 #include "starboard/android/shared/experimental_features_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
@@ -215,12 +214,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
   handler->SetMaxVideoInputSize(
       starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
-
-  handler->SetFlushDecoderDuringReset(
-      starboard::android::shared::
-          GetForceFlushDecoderDuringResetForCurrentThread());
-  handler->SetResetAudioDecoder(
-      starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
 
   handler->SetExperimentalFeatures(
       starboard::android::shared::GetExperimentalFeaturesForCurrentThread());

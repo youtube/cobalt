@@ -145,7 +145,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_,
-      SeekConfiguration{flush_decoder_during_reset_, reset_audio_decoder_},
+      SeekConfiguration{experimental_features_.flush_decoder_during_reset,
+                        experimental_features_.reset_audio_decoder},
       experimental_features_, surface_view_,
       decode_target_graphics_context_provider_, drm_system_);
 
@@ -605,27 +606,16 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-void FilterBasedPlayerWorkerHandler::SetFlushDecoderDuringReset(
-    bool flush_decoder_during_reset) {
-  LogAndSetExperimentalFeature("flush_decoder_during_reset",
-                               flush_decoder_during_reset_,
-                               flush_decoder_during_reset);
-}
-
-void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
-    bool reset_audio_decoder) {
-  LogAndSetExperimentalFeature("reset_audio_decoder", reset_audio_decoder_,
-                               reset_audio_decoder);
-}
-
 void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
     const ExperimentalFeatures& experimental_features) {
 #define SET_EXPERIMENTAL_FEATURE(field_name)                                   \
   LogAndSetExperimentalFeature(#field_name, experimental_features_.field_name, \
                                experimental_features.field_name)
 
+  SET_EXPERIMENTAL_FEATURE(flush_decoder_during_reset);
   SET_EXPERIMENTAL_FEATURE(media_codec_reset_delay_ms);
   SET_EXPERIMENTAL_FEATURE(pause_using_audio_track_state);
+  SET_EXPERIMENTAL_FEATURE(reset_audio_decoder);
   SET_EXPERIMENTAL_FEATURE(video_decoder_initial_preroll_count);
   SET_EXPERIMENTAL_FEATURE(video_decoder_poll_interval_ms);
   SET_EXPERIMENTAL_FEATURE(video_initial_max_frames_in_decoder);

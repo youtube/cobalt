@@ -59,8 +59,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetVolume(double volume) override;
   HandlerResult SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
-  void SetFlushDecoderDuringReset(bool flush_decoder_during_reset) override;
-  void SetResetAudioDecoder(bool reset_audio_decoder) override;
   void SetExperimentalFeatures(
       const ExperimentalFeatures& experimental_features) override;
   void SetVideoSurfaceView(void* surface_view) override;
@@ -118,8 +116,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   std::optional<uintptr_t> audio_preroll_trace_token_;
   std::optional<uintptr_t> video_preroll_trace_token_;
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  bool flush_decoder_during_reset_ = false;
-  bool reset_audio_decoder_ = false;
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;

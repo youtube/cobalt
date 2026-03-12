@@ -28,7 +28,6 @@
 #include "starboard/android/shared/media_settings_api.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
-#include "starboard/android/shared/player_configurate_seek.h"
 #include "starboard/android/shared/player_set_max_video_input_size.h"
 #include "starboard/android/shared/player_set_video_surface_view.h"
 #include "starboard/android/shared/system_info_api.h"
@@ -42,7 +41,6 @@
 #include "starboard/extension/media_settings.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
-#include "starboard/extension/player_configurate_seek.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/player_set_video_surface_view.h"
 #include "starboard/extension/system_info.h"
@@ -76,9 +74,6 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0) {
     return starboard::android::shared::GetPlayerSetMaxVideoInputSizeApi();
-  }
-  if (strcmp(name, kStarboardExtensionPlayerConfigurateSeekName) == 0) {
-    return starboard::android::shared::GetPlayerConfigurateSeekApi();
   }
   if (strcmp(name, kStarboardExtensionExperimentalFeaturesConfigurationName) ==
       0) {

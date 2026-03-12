@@ -20,8 +20,11 @@
 namespace starboard::shared::starboard::player::filter {
 
 struct ExperimentalFeatures {
+  // The fields should be in alphabetical order.
+  bool flush_decoder_during_reset = false;
   std::optional<int> media_codec_reset_delay_ms;
-  bool pause_using_audio_track_state;
+  bool pause_using_audio_track_state = false;
+  bool reset_audio_decoder = false;
   std::optional<int> video_decoder_initial_preroll_count;
   std::optional<int> video_decoder_poll_interval_ms;
   std::optional<int> video_initial_max_frames_in_decoder;

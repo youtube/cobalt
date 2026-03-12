@@ -61,10 +61,14 @@ void SetExperimentalFeaturesForCurrentThread(
 
   ExperimentalFeatures experiment_features;
 
+  experiment_features.flush_decoder_during_reset =
+      extension_features->flush_decoder_during_reset;
   experiment_features.media_codec_reset_delay_ms =
       FromIntPointer(extension_features->media_codec_reset_delay_ms);
   experiment_features.pause_using_audio_track_state =
       extension_features->pause_using_audio_track_state;
+  experiment_features.reset_audio_decoder =
+      extension_features->reset_audio_decoder;
   experiment_features.video_decoder_initial_preroll_count =
       FromIntPointer(extension_features->video_decoder_initial_preroll_count);
   experiment_features.video_decoder_poll_interval_ms =

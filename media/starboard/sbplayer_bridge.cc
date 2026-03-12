@@ -39,7 +39,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/experimental_features.h"
-#include "starboard/extension/player_configurate_seek.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -823,22 +822,6 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
-  const StarboardExtensionPlayerConfigurateSeekApi*
-      player_configurate_seek_extension =
-          static_cast<const StarboardExtensionPlayerConfigurateSeekApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionPlayerConfigurateSeekName));
-  if (player_configurate_seek_extension &&
-      strcmp(player_configurate_seek_extension->name,
-             kStarboardExtensionPlayerConfigurateSeekName) == 0 &&
-      player_configurate_seek_extension->version >= 1) {
-    player_configurate_seek_extension
-        ->SetForceFlushDecoderDuringResetForCurrentThread(
-            flush_decoder_during_reset_);
-    player_configurate_seek_extension
-        ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
-  }
-
   const StarboardExtensionExperimentalFeaturesConfigurationApi*
       experimental_features_extension = static_cast<
           const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
@@ -850,10 +833,13 @@ void SbPlayerBridge::CreatePlayer() {
       experimental_features_extension->version >= 1) {
     StarboardExtensionExperimentalFeatures experimental_features = {};
 
+    experimental_features.flush_decoder_during_reset =
+        flush_decoder_during_reset_;
     experimental_features.media_codec_reset_delay_ms =
         ToIntPointer(media_codec_reset_delay_ms_);
     experimental_features.pause_using_audio_track_state =
         pause_using_audio_track_state_;
+    experimental_features.reset_audio_decoder = reset_audio_decoder_;
     experimental_features.video_decoder_initial_preroll_count =
         ToIntPointer(video_decoder_initial_preroll_count_);
     experimental_features.video_decoder_poll_interval_ms =
