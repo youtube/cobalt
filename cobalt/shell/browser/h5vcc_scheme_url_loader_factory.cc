@@ -73,6 +73,14 @@ const char kH5vccContentSecurityPolicy[] =
     "connect-src 'self' blob: data: %s:;";
 }  // namespace
 
+// An enum for UMA histogram to indicate the state of retrieving splash screen
+enum class SplashScreenFetchedState {
+  kBuiltIn = 0,
+  kCache = 1,
+  kError = 2,
+  kMaxValue = kError,
+};
+
 class BlobReader : public blink::mojom::BlobReaderClient {
  public:
   using ContentReadyCallback = base::OnceCallback<void(std::vector<uint8_t>)>;
@@ -250,7 +258,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       SendNotFoundResponse(key);
       return;
     }
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.SplashScreen.FetchedFromCache", false);
     SendResponse();
   }
   ~H5vccSchemeURLLoader() override = default;
@@ -310,21 +317,27 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void OnCacheMatched(const std::string& cache_name,
                       blink::mojom::MatchResultPtr result) {
     if (!result->is_response()) {
-      return DisconnectCacheAndSendFallback(base::StringPrintf(
-          "Failed to match splash video from cache %s, error: %d",
-          cache_name.c_str(), static_cast<int>(result->get_status())));
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Failed to match splash video from cache %s, error: %d",
+              cache_name.c_str(), static_cast<int>(result->get_status())),
+          SplashScreenFetchedState::kBuiltIn);
     }
     LOG(INFO) << "Found splash video in cache: " << cache_name;
     auto& response = result->get_response();
     if (response->blob->size == 0) {
-      return DisconnectCacheAndSendFallback(base::StringPrintf(
-          "Splash video from %s is empty. Fallback to builtin.",
-          cache_name.c_str()));
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Splash video from %s is empty. Fallback to builtin.",
+              cache_name.c_str()),
+          SplashScreenFetchedState::kError);
     }
     if (response->blob->size > splash_content_size_limit_) {
-      return DisconnectCacheAndSendFallback(base::StringPrintf(
-          "Splash video from %s is too large. Fallback to builtin.",
-          cache_name.c_str()));
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Splash video from %s is too large. Fallback to builtin.",
+              cache_name.c_str()),
+          SplashScreenFetchedState::kError);
     }
     mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
         std::move(response->blob->blob);
@@ -337,12 +350,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void SendBlobContent(uint64_t expected_size, std::vector<uint8_t> content) {
     if (content.size() != expected_size) {
       return DisconnectCacheAndSendFallback(
-          "Failed to read splash cache. Fallback to builtin.");
+          "Failed to read splash cache. Fallback to builtin.",
+          SplashScreenFetchedState::kError);
     }
     DisconnectCacheStorage();
     content_ = std::string(reinterpret_cast<const char*>(content.data()),
                            content.size());
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.SplashScreen.FetchedFromCache", true);
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
+                              SplashScreenFetchedState::kCache);
     SendResponse();
   }
 
@@ -357,10 +372,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void DisconnectCacheStorage() { cache_storage_remote_.reset(); }
 
-  void DisconnectCacheAndSendFallback(const std::string& message) {
+  void DisconnectCacheAndSendFallback(const std::string& message,
+                                      SplashScreenFetchedState state) {
     LOG(ERROR) << message;
     DisconnectCacheStorage();
-    UMA_HISTOGRAM_BOOLEAN("Cobalt.SplashScreen.FetchedFromCache", false);
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache", state);
     SendResponse();
   }
 

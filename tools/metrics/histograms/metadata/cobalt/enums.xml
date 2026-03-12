@@ -32,6 +32,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
+<enum name="SplashScreenFetchedState">
+  <int value="0" label="From builtin"/>
+  <int value="1" label="From cache"/>
+  <int value="2" label="On Error, fallback to builtin"/>
+</enum>
+
 <enum name="VariationsConfigState">
   <int value="0" label="Config is valid"/>
   <int value="1" label="Config is expired"/>
