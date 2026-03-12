@@ -66,16 +66,8 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       base::CommandLine::Init(argc, argv);
       testing::InitGoogleTest(&argc, argv);
 
-      // A manager for singleton destruction. We allocate this on the heap to
-      // prevent it from going out of scope while background threads (like the
-      // InProcRendererThread) are still tearing down during the final shutdown
-      // sequence. Memory leaks on exit are acceptable here.
-      new base::AtExitManager();
-
-      // Disable all at-exit callbacks to avoid teardown hangs and dangling
-      // pointer crashes. The browser test framework intentionally leaks state
-      // in single-process mode.
-      base::AtExitManager::DisableAllAtExitManagers();
+      // A manager for singleton destruction.
+      base::AtExitManager at_exit;
 
       // TODO(b/433354983): Support more platforms.
       ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
@@ -85,7 +77,7 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       base::InitStarboardTestMessageLoop();
       int test_result_code = content::LaunchTests(&delegate, 1, argc, argv);
 
-      // We use std::_Exit() from <cstdlib> to immediately terminate the process
+      // Call std::_Exit() from <cstdlib> to immediately terminate the process
       // without executing any C++ destructors or AtExitManager callbacks.
       // Chromium browser tests intentionally leak state in single-process mode,
       // which causes memory access violations during standard teardown by
