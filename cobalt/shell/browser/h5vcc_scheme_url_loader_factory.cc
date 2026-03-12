@@ -75,8 +75,8 @@ const char kH5vccContentSecurityPolicy[] =
 
 // An enum for UMA histogram to indicate the state of retrieving splash screen
 enum class SplashScreenFetchedState {
-  kBuiltIn = 0,
-  kCache = 1,
+  kOkBuiltIn = 0,
+  kOkCache = 1,
   kErrorOnEmptyEntry = 2,
   kErrorOnFileOversize = 3,
   kErrorOnReadCache = 4,
@@ -263,7 +263,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       return;
     }
     UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
-                              SplashScreenFetchedState::kBuiltIn);
+                              SplashScreenFetchedState::kOkBuiltIn);
     SendResponse();
   }
   ~H5vccSchemeURLLoader() override = default;
@@ -327,7 +327,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
           base::StringPrintf(
               "Failed to match splash video from cache %s, error: %d",
               cache_name.c_str(), static_cast<int>(result->get_status())),
-          SplashScreenFetchedState::kBuiltIn);
+          SplashScreenFetchedState::kOkBuiltIn);
     }
     LOG(INFO) << "Found splash video in cache: " << cache_name;
     auto& response = result->get_response();
@@ -363,7 +363,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     content_ = std::string(reinterpret_cast<const char*>(content.data()),
                            content.size());
     UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
-                              SplashScreenFetchedState::kCache);
+                              SplashScreenFetchedState::kOkCache);
     SendResponse();
   }
 
