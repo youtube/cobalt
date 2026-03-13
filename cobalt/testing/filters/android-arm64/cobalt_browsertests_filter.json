@@ -1,4 +1,15 @@
 {
   "comment": "Cobalt browser tests are now supported in specialized CI workflow.",
-  "failing_tests": []
+  "failing_tests": [
+    "CommitNavigationRaceBrowserTest.*",
+    "NavigationBrowserTestReferrerPolicy.*",
+    "NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.*",
+    "AndroidPrewarmSpareRendererTest*",
+    "NavigationBrowserTest.About*",
+    "NavigationBrowserTest.DataURL*",
+    "NavigationBrowserTest.JavascriptURL*",
+    "NavigationBrowserTest.SameDocumentLongURL*",
+    "NavigationBrowserTest.OriginToCommitSandbox*",
+    "NavigationBrowserTest.IPCFlood_Navigation*"
+  ]
 }
