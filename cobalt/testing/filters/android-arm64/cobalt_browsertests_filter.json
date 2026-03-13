@@ -1,15 +1,26 @@
 {
-  "comment": "Cobalt browser tests are now supported in specialized CI workflow.",
+  "comment": "Cobalt browser tests are now supported in specialized CI workflow. Filtering out redundant/slow upstream tests to meet 20min target.",
   "failing_tests": [
     "CommitNavigationRaceBrowserTest.*",
-    "NavigationBrowserTestReferrerPolicy.*",
-    "NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.*",
-    "AndroidPrewarmSpareRendererTest*",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/0",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/2",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/3",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/4",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/5",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/6",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/7",
+    "NavigationBrowserTestReferrerPolicy.ReferrerPolicy/8",
+    "NavigationSuddenTerminationDisablerTypeWithFrameTypeBrowserTest.RecordUma/*",
+    "AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/1",
+    "AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/2",
+    "AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/3",
+    "AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/4",
+    "AndroidPrewarmSpareRendererTest.ReuseSpareRenderer/5",
     "NavigationBrowserTest.About*",
     "NavigationBrowserTest.DataURL*",
     "NavigationBrowserTest.JavascriptURL*",
     "NavigationBrowserTest.SameDocumentLongURL*",
     "NavigationBrowserTest.OriginToCommitSandbox*",
-    "NavigationBrowserTest.IPCFlood_Navigation*"
+    "NavigationBrowserTest.IPCFlood_Navigation"
   ]
 }

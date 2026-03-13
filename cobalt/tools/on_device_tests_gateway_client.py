@@ -255,19 +255,11 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         current_test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
       files = []
+      params = []
       if test_type in ('browser_test', 'yts_wpt_test'):
         test_type = 'e2e_test'
         target_name = test_target.split(':')[-1]
 
-        # Container tests write results to a local dir that MH pulls from.
-        # This MUST match container_result_dir in the BUILD file.
-        container_result_dir = '/results/'
-        xml_file = 'results.xml'
-        params = [
-            f'gtest_xml_file_on_device={container_result_dir}{xml_file}',
-            f'gcs_result_filename={xml_file}',
-            f'gcs_log_filename={target_name}_log.txt',
-        ]
         if args.gcs_result_path:
           params.append(f'gcs_result_path={args.gcs_result_path}')
 
@@ -276,24 +268,9 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           params.append(f'container_location={args.container_location}')
         if args.container_env_variable:
           params.append(f'container_env_variable={args.container_env_variable}')
-
-        # Browser test defines for vardefs in the BUILD file.
-        if args.browser_test_platform:
-          test_cmd_args.append(
-              f'browser_test_platform={args.browser_test_platform}')
         if args.browser_test_filter:
           test_cmd_args.append(
               f'browser_test_filter={args.browser_test_filter}')
-
-        # Add device_type define based on platform if not explicitly provided
-        if 'arm64' in (args.browser_test_platform or ''):
-          test_cmd_args.append('browser_test_device_type=nvidia_shield')
-        elif 'arm' in (args.browser_test_platform or ''):
-          test_cmd_args.append('browser_test_device_type=arm_devices')
-
-        delimiter = args.container_args_delimiter or '_DELIM_'
-        params.append(f'container_args_delimiter={delimiter}')
-
       else:
         params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
         if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:

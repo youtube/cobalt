@@ -44,7 +44,8 @@ class TestOnDeviceTestsGatewayClient(unittest.TestCase):
         container_location=container_location,
         container_env_variable='VAR=VAL',
         browser_test_filter=browser_test_filter,
-        container_args_delimiter='|',
+        browser_test_platform=None,
+        container_args_delimiter=None,
         gcs_result_path='gs://results/android-arm/123/1',
         device_family='android',
         label=['test_label'],
@@ -63,17 +64,19 @@ class TestOnDeviceTestsGatewayClient(unittest.TestCase):
     self.assertEqual(req['test_target'],
                      'testing/container/browser_tests:cobalt_browser_test')
     params_dict = dict(p.split('=', 1) for p in req['params'])
-    self.assertEqual(params_dict['gcs_result_filename'],
-                     'cobalt_browser_test_testoutput.xml')
-    self.assertEqual(params_dict['gcs_log_filename'],
-                     'cobalt_browser_test_log.txt')
+    self.assertNotIn('gcs_result_filename', params_dict)
+    self.assertNotIn('gtest_xml_file_on_device', params_dict)
+    self.assertNotIn('gcs_log_filename', params_dict)
     self.assertEqual(params_dict['container_location'], container_location)
     self.assertEqual(params_dict['container_env_variable'], 'VAR=VAL')
-    self.assertEqual(params_dict['container_args_delimiter'], '|')
+    self.assertNotIn('container_args_delimiter', params_dict)
 
-    # Verify browser_test_filter is in test_args (user's fix)
+    # Verify browser_test_filter is in test_cmd_args
     self.assertIn(f'browser_test_filter={browser_test_filter}',
-                  req['test_args'])
+                  req['test_cmd_args'])
+    # Verify browser_test_platform is NOT in test_cmd_args
+    for cmd_arg in req['test_cmd_args']:
+      self.assertFalse(cmd_arg.startswith('browser_test_platform='))
 
     # Verify device_type and device_pool are in test_args as dimensions
     self.assertIn('dimension_device_type=arm_devices', req['test_args'])
@@ -104,6 +107,7 @@ class TestOnDeviceTestsGatewayClient(unittest.TestCase):
         container_location=container_location,
         container_env_variable=None,
         browser_test_filter=None,
+        browser_test_platform=None,
         container_args_delimiter=None,
         gcs_result_path='gs://results',
         device_family='android',
