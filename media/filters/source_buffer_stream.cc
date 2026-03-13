@@ -1857,7 +1857,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
 
-<<<<<<< HEAD
   if (memory_limit_overridden_) {
     DVLOG(2)
         << __func__
@@ -1872,7 +1871,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
       memory_limit_ = new_memory_limit;
     }
   }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Dynamically increase |memory_limit_| when video resolution goes up.
   // Note: m138+ introduces new ways to set the stream memory limit.
@@ -1883,7 +1882,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
                                        &config));
   memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 493ac6b35e (media: Expose decoder video budget clamp to h5vcc (#7964))
 
   return true;
 }
