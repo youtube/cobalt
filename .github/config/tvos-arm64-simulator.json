@@ -1,5 +1,13 @@
 {
   "enable_sccache": true,
+  "test_browser": true,
+  "test_on_host": true,
+  "browser_test_targets": [
+    {
+      "target": "cobalt/testing/browser_tests:cobalt_browsertests",
+      "test_attempts": "3"
+    }
+  ],
   "build_runners": [
     "macos-latest-large"
   ],
