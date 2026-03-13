@@ -33,6 +33,10 @@ class ContentBrowserTestContentBrowserClient
 
   void OnNetworkServiceCreated(
       network::mojom::NetworkService* network_service) override;
+
+  void RegisterBrowserInterfaceBindersForFrame(
+      RenderFrameHost* render_frame_host,
+      mojo::BinderMapWithContext<RenderFrameHost*>* map) override;
 };
 
 }  // namespace content
