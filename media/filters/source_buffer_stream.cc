@@ -1878,7 +1878,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   // TODO: b/460460519 - Readjust this code after rebasing to m138+.
   memory_limit_ = std::max(
       memory_limit_,
-      GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+      GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer,
                                        &config));
   memory_limit_ = std::min(memory_limit_, memory_limit_clamp_);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
