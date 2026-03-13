@@ -230,7 +230,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
     int max_video_input_size,
-    const StarboardRendererConfig::ExperimentalFeatures& experimental_features
+    const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
