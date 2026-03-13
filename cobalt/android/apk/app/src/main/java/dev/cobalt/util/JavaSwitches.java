@@ -59,12 +59,6 @@ public class JavaSwitches {
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
 
-  /** flag to disable PartitionAllocBackupRefPtr */
-  public static final String DISABLE_BRP = "DisableBRP";
-
-  /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
-  public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
-
   /** flag to enable AndroidOverlay for SbPlayer */
   public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
 
@@ -159,15 +153,6 @@ public class JavaSwitches {
     }
     if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
       extraCommandLineArgs.add("--force-image-splash-screen");
-    }
-
-    // BRP settings
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
-      extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
-    }
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
