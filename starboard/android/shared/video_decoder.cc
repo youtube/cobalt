@@ -38,7 +38,6 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
-#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
@@ -529,10 +528,6 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
-
-  MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
-                    input_buffers.front()->timestamp(), "size",
-                    input_buffers.size());
 
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);

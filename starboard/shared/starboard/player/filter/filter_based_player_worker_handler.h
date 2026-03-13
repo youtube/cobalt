@@ -18,7 +18,6 @@
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -125,12 +124,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool video_prerolled_ = false;
   bool audio_ended_ = false;
   bool video_ended_ = false;
-
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  // For preroll event tracing.
-  std::optional<uintptr_t> audio_preroll_trace_token_;
-  std::optional<uintptr_t> video_preroll_trace_token_;
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
