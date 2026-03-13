@@ -230,16 +230,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
     int max_video_input_size,
-    bool flush_decoder_during_reset,
-    bool reset_audio_decoder,
-    bool pause_using_audio_track_state,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_initial_preroll_count,
-    std::optional<int> video_decoder_poll_interval_ms,
-    std::optional<int> video_renderer_min_input_buffers,
-    std::optional<int> video_renderer_min_decoded_frames,
-    std::optional<int> media_codec_reset_delay_ms
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -266,16 +257,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       max_video_capabilities_(max_video_capabilities),
       max_video_input_size_(max_video_input_size),
-      flush_decoder_during_reset_(flush_decoder_during_reset),
-      reset_audio_decoder_(reset_audio_decoder),
-      pause_using_audio_track_state_(pause_using_audio_track_state),
-      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
-      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
-      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
-      media_codec_reset_delay_ms_(media_codec_reset_delay_ms)
+      experimental_features_(experimental_features)
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -834,24 +816,28 @@ void SbPlayerBridge::CreatePlayer() {
     StarboardExtensionExperimentalFeatures experimental_features = {};
 
     experimental_features.flush_decoder_during_reset =
-        flush_decoder_during_reset_;
+        experimental_features_.enable_flush_during_seek;
     experimental_features.media_codec_reset_delay_ms =
-        ToIntPointer(media_codec_reset_delay_ms_);
+        ToIntPointer(experimental_features_.media_codec_reset_delay_ms);
     experimental_features.pause_using_audio_track_state =
-        pause_using_audio_track_state_;
-    experimental_features.reset_audio_decoder = reset_audio_decoder_;
+        experimental_features_.pause_using_audio_track_state;
+    experimental_features.reset_audio_decoder =
+        experimental_features_.enable_reset_audio_decoder;
     experimental_features.video_decoder_initial_preroll_count =
-        ToIntPointer(video_decoder_initial_preroll_count_);
+        ToIntPointer(experimental_features_.video_decoder_initial_preroll_count);
     experimental_features.video_decoder_poll_interval_ms =
-        ToIntPointer(video_decoder_poll_interval_ms_);
+        ToIntPointer(experimental_features_.video_decoder_poll_interval_ms);
     experimental_features.video_initial_max_frames_in_decoder =
-        ToIntPointer(initial_max_frames_in_decoder_);
+        ToIntPointer(experimental_features_.initial_max_frames_in_decoder);
     experimental_features.video_max_pending_input_frames =
-        ToIntPointer(max_pending_input_frames_);
+        ToIntPointer(experimental_features_.max_pending_input_frames);
     experimental_features.video_renderer_min_decoded_frames =
-        ToIntPointer(video_renderer_min_decoded_frames_);
+        ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
     experimental_features.video_renderer_min_input_buffers =
-        ToIntPointer(video_renderer_min_input_buffers_);
+        ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
+
+    // Note: `max_samples_per_write` and `report_buffering_state_during_flush`
+    // are not mapped here as they are consumed directly by the media layer.
 
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &experimental_features);
