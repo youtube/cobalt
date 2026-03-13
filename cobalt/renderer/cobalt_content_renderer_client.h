@@ -11,6 +11,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/hang_watcher.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -58,11 +59,15 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 
+  void BindHostReceiver(mojo::GenericPendingReceiver receiver);
+
  private:
   void OnGetSbWindow(uint64_t handle);
 
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
+
+  mojo::Remote<cobalt::mojom::H5vccSettings> h5vcc_settings_remote_;
 
   base::ScopedClosureRunner unregister_thread_closure;
 
