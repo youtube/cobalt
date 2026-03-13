@@ -19,6 +19,10 @@
 
 namespace starboard::shared::starboard::player::filter {
 
+// Internal C++ representation of temporary experimental features.
+// Once an experiment is concluded and the feature is launched, the
+// corresponding field should be removed from this struct and moved to its own
+// dedicated function.
 struct ExperimentalFeatures {
   // The fields should be in alphabetical order.
   bool flush_decoder_during_reset = false;

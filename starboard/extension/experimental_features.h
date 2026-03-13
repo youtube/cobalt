@@ -25,6 +25,10 @@ extern "C" {
 #define kStarboardExtensionExperimentalFeaturesConfigurationName \
   "dev.starboard.extension.ExperimentalFeaturesConfiguration"
 
+// This extension is intended ONLY for temporary experiments. Once an experiment
+// is concluded and the feature is launched, the corresponding field should be
+// removed from this struct and moved to a dedicated extension or a permanent
+// Starboard function.
 typedef struct StarboardExtensionExperimentalFeatures {
   // If a field is NULL, it means the value is not set.
   // The fields should be in alphabetical order.
