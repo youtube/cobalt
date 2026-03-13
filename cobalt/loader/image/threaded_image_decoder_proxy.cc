@@ -142,6 +142,11 @@ void ThreadedImageDecoderProxy::Conceal() {
   is_concealed_ = true;
 }
 
+void ThreadedImageDecoderProxy::Reveal() {
+  base::AutoLock auto_lock(conceal_lock_);
+  is_concealed_ = false;
+}
+
 }  // namespace image
 }  // namespace loader
 }  // namespace cobalt

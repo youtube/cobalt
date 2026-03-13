@@ -66,6 +66,7 @@ class ThreadedImageDecoderProxy : public Decoder {
   bool Suspend() override;
   void Resume(render_tree::ResourceProvider* resource_provider) override;
   void Conceal() override;
+  void Reveal() override;
 
  private:
   ThreadedImageDecoderProxy(

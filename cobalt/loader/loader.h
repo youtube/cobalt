@@ -63,6 +63,7 @@ class Loader {
   void Resume(render_tree::ResourceProvider* resource_provider);
 
   void Conceal();
+  void Reveal();
 
   bool DidFailFromTransientError() const;
 
