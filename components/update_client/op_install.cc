@@ -85,7 +85,12 @@ class CallbackChecker : public base::RefCountedThreadSafe<CallbackChecker> {
 void InstallComplete(
     base::OnceCallback<void(const CrxInstaller::Result&)>
         installer_result_callback,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& crx_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::FilePath crx_file,
@@ -100,8 +105,15 @@ void InstallComplete(
         base::BindOnce(std::move(callback), base::unexpected(result.result)));
     return;
   }
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult result_obj = crx_operation_result;
+  result_obj.response = crx_file;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), result_obj));
+#else
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), crx_file));
+#endif
 }
 
 // Runs in the blocking thread pool.
@@ -210,10 +222,18 @@ base::OnceClosure InstallOperation(
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>
         installer_result_callback,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& crx_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& crx_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback) {
   state_tracker.Run(ComponentState::kUpdating);
+#if BUILDFLAG(IS_STARBOARD)
+  const base::FilePath& crx_file = crx_operation_result.response;
+#endif
   crx_cache->Put(
       // TODO(crbug.com/399617574): Remove FP.
       crx_file, id, file_hash, /*fp=*/{},
@@ -223,6 +243,9 @@ base::OnceClosure InstallOperation(
               &Install,
               base::BindOnce(&InstallComplete,
                              std::move(installer_result_callback),
+#if BUILDFLAG(IS_STARBOARD)
+                             crx_operation_result,
+#endif
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
           crx_file, std::move(unzipper), pk_hash, crx_format));
