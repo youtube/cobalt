@@ -47,6 +47,8 @@ std::ostream& operator<<(
             << features.enable_reset_audio_decoder
             << ", pause_using_audio_track_state="
             << features.pause_using_audio_track_state
+            << ", report_buffering_state_during_flush="
+            << features.report_buffering_state_during_flush
             << ", initial_max_frames_in_decoder="
             << opt_to_string(features.initial_max_frames_in_decoder)
             << ", max_pending_input_frames="

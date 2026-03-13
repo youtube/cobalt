@@ -61,6 +61,8 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.ENABLE_BRP_RECLAIMER, "true");
     javaSwitches.put(JavaSwitches.SKIA_FONT_CACHE, "true");
     javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "24");
+    javaSwitches.put(JavaSwitches.ENABLE_AV1_STARTUP_OPTIMIZATION, "true");
+    javaSwitches.put(JavaSwitches.DISABLE_SW_AV1_DECODER, "true");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
@@ -68,8 +70,8 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--enable-low-end-device-mode");
     assertThat(args).doesNotContain("--disable-rgba-4444-textures");
 
+    assertThat(args).contains("--enable-features=PartialLowEndModeOnMidRangeDevices");
     assertThat(args).contains("--cc-layer-tree-optimization=0");
-
     assertThat(args).contains("--js-flags=--jitless");
     assertThat(args).contains("--js-flags=--write-protect-code-memory");
     assertThat(args).contains("--js-flags=--gc-interval=1000");
@@ -82,10 +84,14 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--disable-splash-screen");
     assertThat(args).contains("--force-image-splash-screen");
     assertThat(args).contains("--disable-features=PartitionAllocBackupRefPtr");
-    assertThat(args).contains("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
+    assertThat(args)
+        .contains(
+            "--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
     assertThat(args).contains("--enable-features=SkiaFontCache");
     assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=24");
-    assertThat(args).hasSize(16);
+    assertThat(args).contains("--enable-features=EnableAv1StartupOptimization");
+    assertThat(args).contains("--enable-features=RejectLowPerformanceSoftwareDecoder");
+    assertThat(args).hasSize(19);
   }
 
   @Test

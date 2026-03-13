@@ -332,7 +332,8 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
     if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
+            media::kCobaltReportBufferingStateDuringFlush) ||
+        experimental_features_.report_buffering_state_during_flush) {
       task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,

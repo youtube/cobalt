@@ -19,7 +19,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/media/media_tracing.h"
 
 namespace starboard::shared::opus {
 
@@ -75,10 +74,6 @@ void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(pending_audio_buffers_.empty());
   SB_DCHECK(output_cb_);
-
-  MEDIA_TRACE_EVENT("starboard", "OpusAudioDecoder::Decode", "timestamp",
-                    input_buffers.front()->timestamp(), "size",
-                    input_buffers.size());
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";

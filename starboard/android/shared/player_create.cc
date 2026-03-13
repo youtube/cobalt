@@ -46,10 +46,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
-  // Lazy initialization of media specific event tracing.  See comment in
-  // EnsureMediaTracingIsInitialized() for limitations.
-  EnsureMediaTracingIsInitialized();
-
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
     return kSbPlayerInvalid;

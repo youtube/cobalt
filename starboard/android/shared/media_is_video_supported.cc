@@ -49,12 +49,16 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
            ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
     return false;
   }
-  // While not necessarily true, for now we assume that all Android devices
-  // can play decode-to-texture video just as well as normal video.
 
   bool must_support_tunnel_mode = false;
   if (mime_type) {
     if (!mime_type->is_valid()) {
+      return false;
+    }
+
+    // TODO(b/491832955): Remove once decode-to-texture is supported.
+    if (mime_type->ValidateBoolParameter("decode-to-texture") &&
+        mime_type->GetParamBoolValue("decode-to-texture", false)) {
       return false;
     }
 

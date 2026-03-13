@@ -130,6 +130,11 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
   SettingContext context{script_state, exception_state.GetContext(), value,
                          name};
 
+  if (name == "DecoderBuffer.EnableDecommitableAllocatorStrategy") {
+    return ProcessSettingAsEnableOnly(context, [] {
+      ::media::DecoderBufferAllocator::EnableDecommitableAllocatorStrategy();
+    });
+  }
   if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
     return ProcessSettingAsEnableOnly(context, [] {
       ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
