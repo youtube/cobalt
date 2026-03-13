@@ -344,7 +344,7 @@ class SbPlayerBridge {
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
 
-  const StarboardRendererConfig::ExperimentalFeatures& experimental_features_;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Set the surface to Android Overlay's surface view.
