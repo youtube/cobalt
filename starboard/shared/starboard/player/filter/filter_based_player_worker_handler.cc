@@ -606,22 +606,8 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
 void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
     const ::starboard::shared::starboard::ExperimentalFeatures&
         experimental_features) {
-#define SET_EXPERIMENTAL_FEATURE(field_name)                                   \
-  LogAndSetExperimentalFeature(#field_name, experimental_features_.field_name, \
-                               experimental_features.field_name)
-
-  SET_EXPERIMENTAL_FEATURE(flush_decoder_during_reset);
-  SET_EXPERIMENTAL_FEATURE(media_codec_reset_delay_ms);
-  SET_EXPERIMENTAL_FEATURE(pause_using_audio_track_state);
-  SET_EXPERIMENTAL_FEATURE(reset_audio_decoder);
-  SET_EXPERIMENTAL_FEATURE(video_decoder_initial_preroll_count);
-  SET_EXPERIMENTAL_FEATURE(video_decoder_poll_interval_ms);
-  SET_EXPERIMENTAL_FEATURE(video_initial_max_frames_in_decoder);
-  SET_EXPERIMENTAL_FEATURE(video_max_pending_input_frames);
-  SET_EXPERIMENTAL_FEATURE(video_renderer_min_decoded_frames);
-  SET_EXPERIMENTAL_FEATURE(video_renderer_min_input_buffers);
-
-#undef SET_EXPERIMENTAL_FEATURE
+  SB_LOG(INFO) << "Set experimental features=" << experimental_features;
+  experimental_features_ = experimental_features;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {

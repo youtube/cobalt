@@ -16,10 +16,12 @@
 
 #include <memory>
 #include <optional>
+#include <ostream>
 
 #include "base/no_destructor.h"
 #include "base/threading/thread_local.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/extension/experimental_features.h"
 
 namespace starboard::shared::starboard {
@@ -102,6 +104,31 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
 
 const void* GetExperimentalFeaturesConfigurationApi() {
   return &kExperimentalFeaturesConfigurationApi;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ExperimentalFeatures& features) {
+  os << "{"
+     << "flush_decoder_during_reset="
+     << ToString(features.flush_decoder_during_reset)
+     << ",media_codec_reset_delay_ms="
+     << ToString(features.media_codec_reset_delay_ms)
+     << ",pause_using_audio_track_state="
+     << ToString(features.pause_using_audio_track_state)
+     << ",reset_audio_decoder=" << ToString(features.reset_audio_decoder)
+     << ",video_decoder_initial_preroll_count="
+     << ToString(features.video_decoder_initial_preroll_count)
+     << ",video_decoder_poll_interval_ms="
+     << ToString(features.video_decoder_poll_interval_ms)
+     << ",video_initial_max_frames_in_decoder="
+     << ToString(features.video_initial_max_frames_in_decoder)
+     << ",video_max_pending_input_frames="
+     << ToString(features.video_max_pending_input_frames)
+     << ",video_renderer_min_decoded_frames="
+     << ToString(features.video_renderer_min_decoded_frames)
+     << ",video_renderer_min_input_buffers="
+     << ToString(features.video_renderer_min_input_buffers) << "}";
+  return os;
 }
 
 }  // namespace starboard::shared::starboard

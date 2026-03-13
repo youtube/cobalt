@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
 #include <optional>
+#include <ostream>
 
 #include "starboard/extension/experimental_features.h"
 
@@ -38,6 +39,9 @@ struct ExperimentalFeatures {
   std::optional<int> video_renderer_min_decoded_frames;
   std::optional<int> video_renderer_min_input_buffers;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const ExperimentalFeatures& features);
 
 // Sets the experimental features for the current thread.
 void SetExperimentalFeaturesForCurrentThread(
