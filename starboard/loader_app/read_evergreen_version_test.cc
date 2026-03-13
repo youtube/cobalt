@@ -43,9 +43,9 @@ class ReadEvergreenVersionTest : public testing::Test {
     dir_.resize(kSbFileMaxPath);
     ASSERT_TRUE(
         SbSystemGetPath(kSbSystemPathTempDirectory, dir_.data(), dir_.size()));
-    manifest_path_.resize(kSbFileMaxName);
-    snprintf(manifest_path_.data(), kSbFileMaxPath, "%s%s%s", dir_.data(),
-             kSbFileSepString, kManifestFileName);
+    manifest_path_.resize(kSbFileMaxPath);
+    snprintf(manifest_path_.data(), manifest_path_.size(), "%s%s%s",
+             dir_.data(), kSbFileSepString, kManifestFileName);
   }
 
   virtual void TearDown() { ASSERT_EQ(unlink(manifest_path_.data()), 0); }

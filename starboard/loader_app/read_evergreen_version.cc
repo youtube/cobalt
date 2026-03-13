@@ -54,13 +54,14 @@ bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
 
   Json::Reader reader;
   Json::Value obj;
-  if (!reader.parse(std::string(file_data.data(), file_size), obj) ||
-      !obj[kVersionKey]) {
+  if (!reader.parse(file_data.data(), file_data.data() + read_size, obj) ||
+      !obj.isMember(kVersionKey)) {
     SB_LOG(WARNING) << "Failed to parse version from the manifest file at the "
                        "installation path.";
     return false;
   }
 
+  // TODO: b/485307186 - Add a check (and unit test) for truncation.
   snprintf(version, version_length, "%s", obj[kVersionKey].asString().c_str());
   return true;
 }
