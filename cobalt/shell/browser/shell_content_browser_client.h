@@ -59,7 +59,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   // Gets the current instance.
   static ShellContentBrowserClient* Get();
 
-  ShellContentBrowserClient();
+  explicit ShellContentBrowserClient(const std::string& deep_link = "",
+                                     bool is_visible = true);
   ~ShellContentBrowserClient() override;
 
   // The value supplied here is set when creating the NetworkContext.
@@ -289,6 +290,9 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   base::RepeatingCallback<void(blink::web_pref::WebPreferences*)>
       override_web_preferences_callback_;
   std::unique_ptr<H5vccSchemeURLLoaderFactory> h5vcc_scheme_url_loader_factory_;
+
+  std::string deep_link_;
+  bool is_visible_;
 
   // NOTE: Tests may install a second ShellContentBrowserClient that becomes
   // the ContentBrowserClient used by content. This has subtle implications

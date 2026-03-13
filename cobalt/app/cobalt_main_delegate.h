@@ -30,7 +30,9 @@ namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate(const char* initial_deep_link = nullptr);
+  explicit CobaltMainDelegate(const char* initial_deep_link = nullptr,
+                              bool is_content_browsertests = false,
+                              bool is_visible = true);
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
@@ -60,6 +62,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   ~CobaltMainDelegate() override;
 
  private:
+  bool is_visible_;
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
