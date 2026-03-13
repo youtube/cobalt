@@ -55,6 +55,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   HandlerResult WriteEndOfStream(SbMediaType sample_type) override;
   HandlerResult SetPause(bool pause) override;
   HandlerResult SetPlaybackRate(double playback_rate) override;
+  HandlerResult ChangeVideoCodec(SbMediaVideoCodec video_codec) override;
   void SetVolume(double volume) override;
   HandlerResult SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
@@ -117,7 +118,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void* surface_view_ = nullptr;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-  const media::VideoStreamInfo video_stream_info_;
+  media::VideoStreamInfo video_stream_info_;
 };
 
 }  // namespace starboard::shared::starboard::player::filter

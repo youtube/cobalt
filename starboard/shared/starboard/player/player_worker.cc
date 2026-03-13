@@ -300,6 +300,17 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   } else {
     SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     SB_DCHECK(pending_video_buffers_.empty());
+
+    if (input_buffers.front()->video_stream_info().codec != video_codec_) {
+      // Perform codec switch
+
+      HandlerResult result = handler_->ChangeVideoCodec(
+          input_buffers.front()->video_stream_info().codec);
+      if (!result.success) {
+        UpdatePlayerError(kSbPlayerErrorDecode, result,
+                          "Failed to switch Video Codec for current sample.");
+      }
+    }
   }
   int samples_written;
   HandlerResult result =

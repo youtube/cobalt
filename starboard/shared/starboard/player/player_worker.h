@@ -97,6 +97,7 @@ class PlayerWorker {
     virtual HandlerResult WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual HandlerResult SetPause(bool pause) = 0;
     virtual HandlerResult SetPlaybackRate(double playback_rate) = 0;
+    virtual HandlerResult ChangeVideoCodec(SbMediaVideoCodec video_codec) = 0;
     virtual void SetVolume(double volume) = 0;
 
     virtual HandlerResult SetBounds(const Bounds& bounds) = 0;

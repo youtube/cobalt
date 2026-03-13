@@ -387,6 +387,105 @@ void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
   }
 }
 
+HandlerResult FilterBasedPlayerWorkerHandler::ChangeVideoCodec(
+    SbMediaVideoCodec video_codec) {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  RemoveJobByToken(update_job_token_);
+
+  bool is_playing;
+  bool is_eos_played;
+  bool is_underflow;
+  double playback_rate;
+
+  auto current_media_time = media_time_provider_->GetCurrentMediaTime(
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+  bool is_paused = paused_;
+  double current_playback_rate = playback_rate_;
+  double current_volume = volume_;
+  PlayerWorker::Bounds current_bounds = bounds_;
+
+  audio_prerolled_ = false;
+  video_prerolled_ = false;
+  audio_ended_ = false;
+  video_ended_ = false;
+
+  std::unique_ptr<PlayerComponents> new_player_components;
+  {
+    std::lock_guard lock(player_components_existence_mutex_);
+    new_player_components = std::move(player_components_);
+    media_time_provider_ = nullptr;
+    audio_renderer_ = nullptr;
+    video_renderer_ = nullptr;
+  }
+  new_player_components.reset();
+  video_stream_info_.codec = video_codec;
+
+  // Create new player_components object
+
+  std::unique_ptr<PlayerComponents::Factory> factory =
+      PlayerComponents::Factory::Create();
+  SB_DCHECK(factory);
+
+  PlayerComponents::Factory::CreationParameters creation_parameters(
+      audio_stream_info_, video_stream_info_, player_, output_mode_,
+      max_video_input_size_, experimental_features_, surface_view_,
+      decode_target_graphics_context_provider_, drm_system_);
+
+  {
+    std::lock_guard lock(player_components_existence_mutex_);
+    std::string components_error_message;
+    player_components_ = factory->CreateComponents(creation_parameters,
+                                                   &components_error_message);
+    if (!player_components_) {
+      std::string error_message =
+          FormatString("Failed to create player components with error: %s.",
+                       components_error_message.c_str());
+      return HandlerResult{false, error_message};
+    }
+    media_time_provider_ = player_components_->GetMediaTimeProvider();
+    audio_renderer_ = player_components_->GetAudioRenderer();
+    video_renderer_ = player_components_->GetVideoRenderer();
+  }
+  if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
+    SB_DCHECK(audio_renderer_);
+  }
+  if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
+    SB_DCHECK(video_renderer_);
+  }
+  SB_DCHECK(media_time_provider_);
+
+  if (audio_renderer_) {
+    SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
+
+    audio_renderer_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeAudio),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeAudio));
+    audio_renderer_->SetVolume(volume_);
+  }
+  SB_LOG(INFO) << "Set playback rate to " << playback_rate_;
+  media_time_provider_->SetPlaybackRate(playback_rate_);
+  if (video_renderer_) {
+    SB_LOG(INFO) << "Initialize video renderer.";
+
+    video_renderer_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeVideo),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeVideo));
+  }
+
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
+
+  media_time_provider_->Seek(current_media_time);
+
+  return HandlerResult{true};
+}
+
 HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
   SB_DCHECK(BelongsToCurrentThread());
 
