@@ -53,8 +53,13 @@ pipeline () {
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
   gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
-  if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
+  if [[ "${TARGET_PLATFORM}" =~ android ]]; then
     echo "target_os=['android']" >> .gclient
+  fi
+  if [[ "${TARGET_PLATFORM}" =~ evergreen-arm64 ]]; then
+    echo "target_cpu=['x64', 'arm64']" >> .gclient
+  elif [[ "${TARGET_PLATFORM}" =~ evergreen-arm|raspi-2 ]]; then
+    echo "target_cpu=['x64', 'arm']" >> .gclient
   fi
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules

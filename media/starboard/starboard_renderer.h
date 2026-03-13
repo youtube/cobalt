@@ -197,6 +197,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
+  // TODO: b/455661813 - Set use_external_allocator_ based on GlobalFeatures,
+  // once http://go/cobalt-pr/7836 lands.
+  const bool use_external_allocator_ = true;
+
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
   // TODO(b/375274109): Investigate whether we should call

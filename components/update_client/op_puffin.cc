@@ -51,10 +51,17 @@ namespace {
 
 // Runs on the original sequence. Adds events and calls the original callback.
 void PatchDone(
+#if BUILDFLAG(IS_STARBOARD)
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+        callback,
+    base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::expected<OperationResult, CategorizedError> result) {
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::expected<base::FilePath, CategorizedError> result) {
+#endif
   event_adder.Run(
       MakeSimpleOperationEvent(result, protocol_request::kEventPuff));
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -63,7 +70,12 @@ void PatchDone(
 
 // Runs in the blocking pool. Deletes any files that are no longer needed.
 void VerifyAndCleanUp(
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& patch_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback,
     const base::FilePath& patch_file,
     const base::FilePath& new_file,
@@ -87,7 +99,13 @@ void VerifyAndCleanUp(
     return;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  OperationResult new_result = patch_operation_result;
+  new_result.response = new_file;
+  std::move(callback).Run(new_result);
+#else
   std::move(callback).Run(new_file);
+#endif
 }
 
 // Runs in the blocking pool. Opens file handles and applies the patch.
@@ -97,7 +115,12 @@ void Patch(
     const base::FilePath& patch_file,
     const base::FilePath& temp_dir,
     const std::string& output_hash,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& patch_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback) {
   base::FilePath new_file = temp_dir.Append(FILE_PATH_LITERAL("puffpatch_out"));
   patcher->PatchPuffPatch(
@@ -106,7 +129,11 @@ void Patch(
       base::File(new_file, base::File::FLAG_CREATE_ALWAYS |
                                base::File::FLAG_WRITE |
                                base::File::FLAG_WIN_EXCLUSIVE_WRITE),
+#if BUILDFLAG(IS_STARBOARD)
+      base::BindOnce(&VerifyAndCleanUp, patch_operation_result, std::move(callback), patch_file,
+#else
       base::BindOnce(&VerifyAndCleanUp, std::move(callback), patch_file,
+#endif
                      new_file, output_hash));
 }
 
@@ -117,7 +144,12 @@ void CacheLookupDone(
     const base::FilePath& patch_file,
     const base::FilePath& temp_dir,
     const std::string& output_hash,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& patch_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback,
     base::expected<base::FilePath, UnpackerError> cache_result) {
   if (!cache_result.has_value()) {
@@ -134,7 +166,11 @@ void CacheLookupDone(
       ->PostTask(
           FROM_HERE,
           base::BindOnce(&Patch, patcher, cache_result.value(), patch_file,
+#if BUILDFLAG(IS_STARBOARD)
+                         temp_dir, output_hash, patch_operation_result,
+#else
                          temp_dir, output_hash,
+#endif
                          base::BindPostTaskToCurrentDefault(base::BindOnce(
                              &PatchDone, std::move(callback), event_adder))));
 }
@@ -147,13 +183,25 @@ base::OnceClosure PuffOperation(
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     const std::string& old_hash,
     const std::string& output_hash,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& patch_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  const base::FilePath& patch_file = patch_operation_result.response;
+#endif
   crx_cache->GetByHash(
       old_hash,
       base::BindOnce(&CacheLookupDone, event_adder, patcher, patch_file,
+#if BUILDFLAG(IS_STARBOARD)
+                     patch_file.DirName(), output_hash, patch_operation_result, std::move(callback)));
+#else
                      patch_file.DirName(), output_hash, std::move(callback)));
+#endif
   return base::DoNothing();
 }
 

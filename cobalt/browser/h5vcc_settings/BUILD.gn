@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-starboard_target_platform = "linux-x64x11"
-target_os = "linux"
-target_cpu = "x64"
+source_set("h5vcc_settings") {
+  sources = [
+    "h5vcc_settings_impl.cc",
+    "h5vcc_settings_impl.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/browser:global_features",
+    "//cobalt/browser/h5vcc_settings/public/mojom",
+    "//cobalt/shell:cobalt_shell_lib",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+}

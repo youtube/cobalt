@@ -68,8 +68,6 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     }
     if (video_codec == kSbMediaVideoCodecVp9) {
 #if defined(INTERNAL_BUILD)
-      const bool kEnableHdrWithSoftwareVp9 = false;
-
       if (is_hdr) {
         if (transfer_id == kSbMediaTransferIdSmpteSt2084 ||
             transfer_id == kSbMediaTransferIdAribStdB67) {
@@ -105,7 +103,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       }
 
       if (experimental_allowed) {
-        if (is_hdr && !kEnableHdrWithSoftwareVp9) {
+        if (is_hdr) {
           return false;
         }
         if (PlaybackCapabilities::IsAppleTV4K()) {
