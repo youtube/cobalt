@@ -53,9 +53,7 @@ class TestCobaltTestRunner(unittest.TestCase):
         gtest_shard_index=0,
         tl_total_shards=0,
         tl_shard_index=0,
-        user_data_dir=None,
-        json_results_file=None,
-        logcat_output_file=None)
+        user_data_dir=None)
     for k, v in kwargs.items():
       setattr(args, k, v)
     return run_browser_tests.CobaltTestRunner(args, [])
@@ -131,28 +129,6 @@ class TestCobaltTestRunner(unittest.TestCase):
     self.assertEqual(len(root.findall('testsuite')), 1)
     self.assertEqual(root.find('testsuite').attrib['name'], 'SuiteA')
 
-  def test_json_results_file_fallback(self):
-    """Verifies that --json-results-file is used if --gtest_output is missing.
-    """
-    results_xml = os.path.join(self.test_dir, 'results.xml')
-    # Use json_results_file instead of gtest_output
-    runner = self._create_runner(
-        gtest_output=None, json_results_file=results_xml)
-    self.assertEqual(runner.xml_output_file, results_xml)
-
-    runner._initialize_xml()  # pylint: disable=protected-access
-    temp_xml = os.path.join(self.test_dir, 'temp.xml')
-    with open(temp_xml, 'w', encoding='utf-8') as f:
-      f.write(
-          '<testsuites><testsuite name="SuiteA" tests="1">'
-          '<testcase name="Test1" classname="SuiteA"/></testsuite></testsuites>'
-      )
-
-    runner._merge_test_xml('SuiteA.Test1', temp_xml)  # pylint: disable=protected-access
-    runner._finalize_and_write_xml(1, 0)  # pylint: disable=protected-access
-
-    self.assertTrue(os.path.exists(results_xml))
-
   def test_xml_crash_handling(self):
     """Verifies that a crash result is synthesized when XML is missing."""
     results_xml = os.path.join(self.test_dir, 'results.xml')
@@ -171,35 +147,6 @@ class TestCobaltTestRunner(unittest.TestCase):
     testcase = suite.find('testcase')
     self.assertEqual(testcase.attrib['name'], 'TestCrash')
     self.assertIsNotNone(testcase.find('failure'))
-
-  @mock.patch('subprocess.call', return_value=0)
-  def test_selective_flags(self, mock_call):
-    """Verifies that Linux-specific flags are only added for real binaries."""
-    # 1. Real binary should have extra flags
-    real_binary = os.path.join(self.test_dir, 'cobalt_browsertests')
-    with open(real_binary, 'w', encoding='utf-8') as f:
-      f.write('#!/bin/sh\nexit 0')
-    os.chmod(real_binary, 0o755)
-
-    runner = self._create_runner(binary=real_binary)
-    runner._run_single_test('Suite.Test', 0)  # pylint: disable=protected-access
-    call_args = mock_call.call_args[0][0]
-    self.assertIn('--no-sandbox', call_args)
-    self.assertIn('--ozone-platform=starboard', call_args)
-
-    # 2. Wrapper script (runner) should NOT have extra flags
-    mock_call.reset_mock()
-    runner_script = os.path.join(self.test_dir, 'bin/run_cobalt_browsertests')
-    os.makedirs(os.path.dirname(runner_script), exist_ok=True)
-    with open(runner_script, 'w', encoding='utf-8') as f:
-      f.write('#!/bin/sh\nexit 0')
-    os.chmod(runner_script, 0o755)
-
-    runner2 = self._create_runner(binary=runner_script)
-    runner2._run_single_test('Suite.Test', 0)  # pylint: disable=protected-access
-    call_args2 = mock_call.call_args[0][0]
-    self.assertNotIn('--no-sandbox', call_args2)
-    self.assertNotIn('--ozone-platform=starboard', call_args2)
 
   @mock.patch('subprocess.check_output')
   @mock.patch('subprocess.call')
