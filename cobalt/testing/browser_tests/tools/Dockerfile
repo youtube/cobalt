@@ -9,7 +9,7 @@ WORKDIR /opt/cobalt_browsertests
 
 # Add and extract the artifacts tarball.
 # Expects the artifacts tarball to be in the build context.
-ADD cobalt/testing/browser_tests/tools/cobalt_browsertests_deps.tar* .
+ADD cobalt_browsertests_deps.tar* .
 
 # Prune unstripped libraries and symbolication tools to keep the image light.
 # We keep the stripped versions which are already at the root of the build dir.
