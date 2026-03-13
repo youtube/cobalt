@@ -62,6 +62,8 @@ def main():
   parser.add_argument(
       "--init-command", default=SOCAT_CMD, help="Command to run before tests.")
   parser.add_argument(
+      "--socat-timeout", default=5, help="Timeout for socat in seconds.")
+  parser.add_argument(
       "target", nargs="?", help="Target platform to run tests for.")
   parser.add_argument(
       "-h", "--help", action="store_true", help="Show this help message.")
@@ -75,8 +77,14 @@ def main():
     sys.exit(0)
 
   if args.init_command:
-    logging.info("Executing init-command: %s", args.init_command)
     command_parts = shlex.split(args.init_command)
+    # If the command is socat, insert the timeout option before addresses.
+    if command_parts and command_parts[0] == "socat":
+      command_parts.insert(1, "-t")
+      command_parts.insert(2, str(args.socat_timeout))
+
+    init_command = shlex.join(command_parts)
+    logging.info("Executing init-command: %s", init_command)
     # pylint: disable=consider-using-with
     proc = subprocess.Popen(command_parts)
     atexit.register(proc.terminate)
@@ -106,7 +114,6 @@ def main():
 
   target_config = TARGET_MAP[target_name]
   logging.debug("Target config: %s", target_config)
-  is_android = target_config.get("is_android", False)
 
   # 3. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
@@ -141,16 +148,12 @@ def main():
   logging.info("Using vpython3 at: %s", vpython_path)
 
   # 6. Execute
-  if not is_android:
-    logging.error(
-        "Target '%s' is not an Android platform. This runner only "
-        "supports Android for now.", target_name)
-    sys.exit(1)
+  logging.info("Executing test runner for '%s': %s", target_name, test_runner)
 
-  logging.info("Executing Android test runner for '%s': %s", target_name,
-               test_runner)
-  cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
-        ] + runner_args
+  if test_runner.endswith(".py"):
+    cmd = [vpython_path, test_runner] + runner_args
+  else:
+    cmd = [test_runner] + runner_args
 
   try:
     return subprocess.call(cmd)
