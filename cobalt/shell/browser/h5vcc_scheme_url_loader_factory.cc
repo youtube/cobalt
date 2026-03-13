@@ -385,18 +385,18 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     SendResponse(state);
   }
 
-  void SendResponse(
-      std::optional<SplashScreenFetchedState> state = std::nullopt,
-      int http_status = net::HTTP_OK) {
+  void SendResponse(SplashScreenFetchedState state,
+                    int http_status = net::HTTP_OK) {
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache", state);
+    SendResponse(http_status);
+  }
+
+  void SendResponse(int http_status = net::HTTP_OK) {
     if (!client_) {
       LOG(ERROR) << "URLLoaderClient is not connected.";
       return;
     }
 
-    if (state.has_value()) {
-      UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache",
-                                state.value());
-    }
     auto response_head = network::mojom::URLResponseHead::New();
     response_head->mime_type = mime_type_;
     response_head->content_length = content_.size();
