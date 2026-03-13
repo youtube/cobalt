@@ -14,14 +14,13 @@
 
 #include "starboard/android/shared/experimental_features_extension.h"
 
-#include <optional>
-
 #include "starboard/android/shared/experimental_features_internal.h"
 #include "starboard/extension/experimental_features.h"
 
 namespace starboard::android::shared {
 
 namespace {
+
 const StarboardExtensionExperimentalFeaturesConfigurationApi
     kExperimentalFeaturesConfigurationApi = {
         kStarboardExtensionExperimentalFeaturesConfigurationName,
