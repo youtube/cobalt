@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 #define MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -49,16 +51,18 @@ using base::TimeDelta;
 class MEDIA_EXPORT StarboardRenderer : public Renderer,
                                        private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-                    std::unique_ptr<MediaLog> media_log,
-                    const base::UnguessableToken& overlay_plane_id,
-                    TimeDelta audio_write_duration_local,
-                    TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities,
-                    const gfx::Size& viewport_size
+  StarboardRenderer(
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+      std::unique_ptr<MediaLog> media_log,
+      const base::UnguessableToken& overlay_plane_id,
+      TimeDelta audio_write_duration_local,
+      TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
+      const gfx::Size& viewport_size,
+      const std::map<std::string, H5vccSettingValue> h5vcc_settings
 #if BUILDFLAG(IS_ANDROID)
-                    ,
-                    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+      ,
+      const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
@@ -197,9 +201,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  // TODO: b/455661813 - Set use_external_allocator_ based on GlobalFeatures,
-  // once http://go/cobalt-pr/7836 lands.
-  const bool use_external_allocator_ = true;
+  const bool use_external_allocator_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
