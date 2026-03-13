@@ -70,13 +70,6 @@ const char* GetDecoderName(SbMediaType media_type) {
   return media_type == kSbMediaTypeAudio ? "audio_decoder" : "video_decoder";
 }
 
-template <typename T>
-std::string to_string(const T& v) {
-  std::ostringstream oss;
-  oss << v;
-  return oss.str();
-}
-
 }  // namespace
 
 class MediaCodecDecoder::DecoderThread : public Thread {
@@ -442,7 +435,12 @@ void MediaCodecDecoder::DecoderThreadFunc() {
           // because the complex conditions are already checked by the
           // surrounding loop, which will re-evaluate the state when this wait
           // returns.
-          condition_variable_.wait_for(lock, std::chrono::milliseconds(1));
+          // Tunnel mode doesn't need Tick() function. It only waits for new
+          // inputs and outputs, so it's safe to wait for longer time.
+          const auto poll_interval = tunnel_mode_enabled_
+                                         ? std::chrono::milliseconds(10)
+                                         : std::chrono::milliseconds(1);
+          condition_variable_.wait_for(lock, poll_interval);
         }
       }
     }
@@ -745,7 +743,7 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
   std::optional<FrameSize> frame_size = media_codec_bridge_->GetOutputSize();
   SB_LOG(INFO) << __func__ << " > resolution="
-               << (frame_size ? to_string(frame_size->display_size) : "(n/a)");
+               << (frame_size ? ToString(frame_size->display_size) : "(n/a)");
 
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;

@@ -16,6 +16,15 @@ inputs:
   test_targets_json_file:
     description: "The path to test targets json file."
     required: true
+  archive_browsertests:
+    description: "Indicates if browser tests should be archived."
+    default: "false"
+  platform:
+    description: "The platform for which artifacts are being uploaded."
+    required: true
+  config:
+    description: "The build configuration (e.g., devel, qa, gold)."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -30,7 +39,8 @@ runs:
         set -eux
         cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
+        mapfile -t targets < <(jq -r '.executables | .[]' "${TEST_TARGETS_JSON_FILE}")
+        for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
@@ -38,6 +48,9 @@ runs:
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        ARCHIVE_BROWSERTESTS: ${{ inputs.archive_browsertests }}
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
@@ -45,20 +58,38 @@ runs:
 
         # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
         FLAGS=""
-        if [[ "${{ matrix.platform }}" == *android* ]]; then
+        if [[ "${PLATFORM}" == *android* ]]; then
           FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
-        elif [[ "${{ matrix.platform }}" == *raspi* || "${{ matrix.platform }}" == *rdk* ]]; then
+        elif [[ "${PLATFORM}" == *raspi* || "${PLATFORM}" == *rdk* ]]; then
           FLAGS="--compression gz --archive-per-target --flatten-deps"
         else
           FLAGS="--compression zstd --compression-level=9"
         fi
 
-        time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
-          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
-          --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
-          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
-          ${FLAGS}
+        TARGETS=$(jq -cr '.test_targets | join(",")' "${TEST_TARGETS_JSON_FILE}")
+
+        # Archive browser tests if requested.
+        if [[ "${ARCHIVE_BROWSERTESTS}" == "true" ]]; then
+          # Determine the browser test target for this platform.
+          BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
+          if [[ "${PLATFORM}" == *linux* ]]; then
+            BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests_runner"
+          fi
+          if [[ -n "${TARGETS}" ]]; then
+            TARGETS="${TARGETS},${BROWSERTEST_TARGET}"
+          else
+            TARGETS="${BROWSERTEST_TARGET}"
+          fi
+        fi
+
+        if [[ -n "${TARGETS}" ]]; then
+          time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
+            --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
+            --out-dir out/${PLATFORM}_${CONFIG}/ \
+            --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+            --targets "${TARGETS}" \
+            ${FLAGS}
+        fi
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
@@ -74,22 +105,25 @@ runs:
       if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
+        PLATFORM: ${{ inputs.platform }}
+        CONFIG: ${{ inputs.config }}
+        UPLOAD_E2E_TEST_ARTIFACTS: ${{ inputs.upload_e2e_test_artifacts }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
 
         # Add Cobalt release artifacts for smoke tests.
-        if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
+        if [[ "${UPLOAD_E2E_TEST_ARTIFACTS}" == "true" ]]; then
           mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
              ${GITHUB_WORKSPACE}/artifacts/
         fi
 
         # Upload cobalt.apk for smoke tests.
-        if [[ "${{ matrix.platform }}" == *android* ]]; then
-          cp "${GITHUB_WORKSPACE}/cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
+        if [[ "${PLATFORM}" == *android* ]]; then
+          cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/Cobalt.apk" \
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
         gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
-          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
+          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/"
       shell: bash

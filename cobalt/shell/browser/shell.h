@@ -47,7 +47,7 @@ class SiteInstance;
 class WebContents;
 class RenderFrameHost;
 
-// This represents one window of the Content Shell, i.e. all the UI including
+// This represents one window of Cobalt, i.e. all the UI including
 // buttons and url bar, as well as the web content area.
 class Shell : public WebContentsDelegate, public WebContentsObserver {
  public:
@@ -83,7 +83,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
   // will be released.
-  static void Initialize(std::unique_ptr<ShellPlatformDelegate> platform);
+  static void Initialize(std::unique_ptr<ShellPlatformDelegate> platform,
+                         bool is_visible);
 
   // Closes all windows, pumps teardown tasks and signal the main message loop
   // to quit.
@@ -91,13 +92,15 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static ShellPlatformDelegate* GetPlatform();
 
+  static void OnReveal();
+
   static Shell* CreateNewWindow(
       BrowserContext* browser_context,
       const GURL& url,
       const scoped_refptr<SiteInstance>& site_instance,
       const gfx::Size& initial_size,
       const bool create_splash_screen_web_contents = false,
-      const std::string& topic = "");
+      const std::string& deep_link = "");
 
   // Returns the Shell object corresponding to the given WebContents.
   static Shell* FromWebContents(WebContents* web_contents);
@@ -199,7 +202,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   }
 
  protected:
-  // Finishes initialization of a new shell window.
   static void FinishShellInitialization(Shell* shell);
 
  private:
@@ -207,6 +209,13 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   friend class TestShell;
   friend class SplashScreenTest;
+  friend class LifecycleTest;
+
+  Shell(std::unique_ptr<WebContents> web_contents,
+        std::unique_ptr<WebContents> splash_screen_web_contents,
+        bool should_set_delegate,
+        const std::string& topic = "",
+        bool skip_for_testing = false);
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
@@ -214,12 +223,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     STATE_SPLASH_SCREEN_STARTED,      // Start Splash Screen WebContents.
     STATE_SPLASH_SCREEN_ENDED         // End Splash Screen WebContents.
   };
-
-  Shell(std::unique_ptr<WebContents> web_contents,
-        std::unique_ptr<WebContents> splash_screen_web_contents,
-        bool should_set_delegate,
-        const std::string& topic = "",
-        bool skip_for_testing = false);
 
   // Helper to create a new Shell given a newly created WebContents.
   static Shell* CreateShell(
@@ -263,6 +266,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   State splash_state_;
   const std::string splash_topic_;
   bool skip_for_testing_;
+  bool is_video_splash_screen_;
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;
   base::TimeTicks splash_screen_start_time_;

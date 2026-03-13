@@ -2916,7 +2916,6 @@ source_set("browser") {
       "renderer_host/render_widget_host_view_ios.mm",
       "renderer_host/web_menu_runner_ios.h",
       "renderer_host/web_menu_runner_ios.mm",
-      "speech/tts_ios.mm",
       "web_contents/web_contents_view_ios.h",
       "web_contents/web_contents_view_ios.mm",
     ]
@@ -2937,6 +2936,7 @@ source_set("browser") {
         "date_time_chooser/ios/date_time_chooser_view_controller.mm",
         "renderer_host/render_widget_host_view_ios_uiview.h",
         "renderer_host/render_widget_host_view_ios_uiview.mm",
+        "speech/tts_ios.mm",
       ]
       frameworks += [ "BrowserEngineKit.framework" ]
     } else {
@@ -2947,6 +2947,13 @@ source_set("browser") {
         "renderer_host/render_widget_host_view_tvos_uiview.h",
         "renderer_host/render_widget_host_view_tvos_uiview.mm",
       ]
+
+      if (is_cobalt) {
+        sources += [
+          "speech/tts_tvos.h",
+          "speech/tts_tvos.mm",
+        ]
+      }
     }
 
     frameworks += [ "IOSurface.framework" ]
