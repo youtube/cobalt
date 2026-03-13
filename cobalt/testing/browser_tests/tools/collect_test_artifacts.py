@@ -4,8 +4,10 @@
 # Script to collect test artifacts for cobalt_browsertests into a gzip file.
 """
 This script orchestrates the collection of test artifacts for
-cobalt_browsertests. It packages necessary binaries, resources, and
-dependencies into a tarball.
+cobalt_browsertests. It identifies the runtime dependencies for the
+specified build targets, bundles them along with necessary tools
+(like depot_tools and Android SDK components), and packages everything
+into a portable compressed tarball.
 """
 
 import argparse
@@ -15,40 +17,49 @@ import shutil
 import subprocess
 import sys
 import tempfile
-
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(message)s',
+    datefmt='%H:%M:%S')
 
 
 def find_runtime_deps(build_dir):
-  """Finds the runtime_deps file in the build directory."""
-  patterns = [
-      'cobalt_browsertests__test_runner_script.runtime_deps',
-      '*browsertests*.runtime_deps'
-  ]
-  for pattern in patterns:
-    matches = list(Path(build_dir).rglob(pattern))
-    if matches:
-      return matches[0]
+  """Finds the runtime_deps file for cobalt_browsertests in the build dir."""
+  # Try exact match first
+  exact_deps_file = os.path.join(
+      build_dir, 'gen.runtime/cobalt/testing/browser_tests/'
+      'cobalt_browsertests__test_runner_script.runtime_deps')
+  if os.path.isfile(exact_deps_file):
+    return Path(exact_deps_file)
+
+  # Fallback to rglob
+  results = list(
+      Path(build_dir).rglob(
+          'cobalt_browsertests__test_runner_script.runtime_deps'))
+  if results:
+    return results[0]
   return None
 
 
 def get_test_runner(build_dir, is_android):
-  """Determines the relative path to the test runner."""
+  """Returns the relative path to the test runner within the build dir."""
   if is_android:
     return os.path.join('bin', 'run_cobalt_browsertests')
 
-  # Check for common runner names
-  for runner in [
-      os.path.join('bin', 'run_cobalt_browsertests'),
-      'cobalt_browsertests_runner',
-  ]:
-    if os.path.isfile(os.path.join(build_dir, runner)):
-      return runner
-
   # For Linux/non-android, we will use the binary directly via
   # run_browser_tests.py. However, some platforms might have a runner script.
+  runner_names = [
+      os.path.join('bin', 'run_cobalt_browsertests'),
+      'cobalt_browsertests_runner',
+      'cobalt_browsertests',
+  ]
+  for name in runner_names:
+    if os.path.isfile(os.path.join(build_dir, name)):
+      return name
+
   return 'cobalt_browsertests'
 
 
@@ -94,10 +105,12 @@ def copy_if_needed(src, dst, copied_sources):
   abs_src = os.path.abspath(src)
   if abs_src in copied_sources:
     return
-  # Check if any parent directory was already copied.
+
+  # Optimization: If a parent directory of this file/dir was already copied
+  # as a directory, we can skip it.
   parent = os.path.dirname(abs_src)
   while parent and parent != os.path.dirname(parent):
-    if parent in copied_sources:
+    if parent in copied_sources and os.path.isdir(parent):
       return
     parent = os.path.dirname(parent)
 
@@ -107,16 +120,7 @@ def copy_if_needed(src, dst, copied_sources):
 
 
 def main():
-  """Main entrypoint for collecting test artifacts.
-
-  This function:
-  1. Parses command-line arguments for build directories and output name.
-  2. Identifies runtime dependencies for each target.
-  3. Copies binaries, resources, and dependencies to a temporary stage.
-  4. Bundles depot_tools and necessary build scripts.
-  5. Generates a portable 'run_tests.py' script.
-  6. Packages everything into a compressed tarball.
-  """
+  """Main entrypoint for collecting test artifacts."""
   parser = argparse.ArgumentParser(description='Collect test artifacts.')
   parser.add_argument(
       'build_dirs',
@@ -189,19 +193,44 @@ def main():
       }
 
       logging.info('Copying files from %s...', runtime_deps_path)
+      modified_deps_lines = []
       with open(runtime_deps_path, 'r', encoding='utf-8') as f:
         for line in f:
           line = line.strip()
           if not line or line.startswith('#'):
             continue
+
+          # Optimization: Prefer stripped libraries for the runner.
+          # We copy BOTH unstripped (to tarball) and stripped (to root).
+          # We patch the archived runtime_deps to point to stripped root.
+          original_rel_path = line
           full_path = os.path.normpath(os.path.join(build_dir, line))
+
+          if is_android and 'lib.unstripped' in line and line.endswith('.so'):
+            stripped_name = os.path.basename(line)
+            stripped_path = os.path.join(build_dir, stripped_name)
+            if os.path.isfile(stripped_path):
+              logging.info('Including stripped library: %s', stripped_name)
+              # Copy the stripped version to the build root in stage.
+              copy_if_needed(stripped_path,
+                             os.path.join(src_stage, build_dir, stripped_name),
+                             copied_sources)
+              # Use the stripped path in our patched deps file.
+              original_rel_path = stripped_name
+
+          # Copy the original file (might be unstripped) to its intended path.
           copy_if_needed(full_path, os.path.join(src_stage, full_path),
                          copied_sources)
+          modified_deps_lines.append(original_rel_path + '\n')
 
-      # Ensure the deps file and test runner are included
-      copy_if_needed(
-          str(runtime_deps_path),
-          os.path.join(src_stage, str(runtime_deps_path)), copied_sources)
+      # Write the patched runtime_deps to the archive.
+      archived_deps_path = os.path.join(src_stage, str(runtime_deps_path))
+      os.makedirs(os.path.dirname(archived_deps_path), exist_ok=True)
+      with open(archived_deps_path, 'w', encoding='utf-8') as f:
+        f.writelines(modified_deps_lines)
+      copied_sources.add(os.path.abspath(archived_deps_path))
+
+      # Ensure the test runner is included
       test_runner_full = os.path.join(build_dir, test_runner_rel)
       copy_if_needed(test_runner_full,
                      os.path.join(src_stage, test_runner_full), copied_sources)
@@ -221,7 +250,11 @@ def main():
         'third_party/android_build_tools', 'third_party/catapult/common',
         'third_party/catapult/dependency_manager', 'third_party/catapult/devil',
         'third_party/catapult/third_party', 'third_party/logdog',
-        'third_party/android_sdk/public/platform-tools'
+        'third_party/android_sdk/public/platform-tools',
+        'third_party/android_sdk/public/build-tools',
+        'third_party/android_platform/development/scripts', 'tools/python',
+        'third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer',
+        'third_party/llvm-build/Release+Asserts/bin/llvm-objdump'
     ]
     for d in essential_dirs:
       copy_if_needed(d, os.path.join(src_stage, d), copied_sources)
@@ -237,8 +270,6 @@ def main():
     if vpython_path:
       depot_tools_src = os.path.dirname(vpython_path)
       logging.info('Bundling depot_tools from %s', depot_tools_src)
-      # depot_tools is outside src_stage, so we use copy_fast directly
-      # but still track it just in case.
       copy_if_needed(depot_tools_src, os.path.join(stage_dir, 'depot_tools'),
                      copied_sources)
 
