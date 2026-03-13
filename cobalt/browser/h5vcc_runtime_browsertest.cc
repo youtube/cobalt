@@ -51,4 +51,30 @@ IN_PROC_BROWSER_TEST_F(H5vccRuntimeBrowserTest, GetInitialDeepLink) {
                             "window.h5vcc.runtime.initialDeepLink"));
 }
 
+IN_PROC_BROWSER_TEST_F(H5vccRuntimeBrowserTest,
+                       InitialDeepLinkClearedAfterAccess) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  // 1. Verify that the first page gets the link.
+  // It was retrieved and cleared in the browser process during H5vccRuntime
+  // construction.
+  EXPECT_EQ("https://example.com/test_link",
+            content::EvalJs(shell()->web_contents(),
+                            "window.h5vcc.runtime.initialDeepLink"));
+
+  // 2. Verify that the manager's link is now empty in the browser process.
+  EXPECT_TRUE(browser::DeepLinkManager::GetInstance()->get_deep_link().empty());
+
+  // 3. Navigate to a new page.
+  GURL url2 = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url2));
+
+  // 4. Verify that the new page (and its new H5vccRuntime instance) sees an
+  // empty initial deep link.
+  EXPECT_EQ("", content::EvalJs(shell()->web_contents(),
+                                "window.h5vcc.runtime.initialDeepLink"));
+}
+
 }  // namespace cobalt
