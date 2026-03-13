@@ -64,13 +64,22 @@ def get_test_runner(build_dir, is_android):
 
 
 def copy_fast(src, dst):
-  """Fast copy using shutil, preserving attributes and symlinks."""
+  """Fast copy using system cp if possible, falling back to shutil."""
   dst_parent = os.path.dirname(dst)
   os.makedirs(dst_parent, exist_ok=True)
-  if os.path.isdir(src):
-    shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
-  else:
-    shutil.copy2(src, dst, follow_symlinks=False)
+  try:
+    if os.path.isdir(src):
+      # Use system cp -af for directories to handle many files efficiently.
+      # -a preserves attributes, -f forces overwrite by unlinking if needed.
+      subprocess.run(['cp', '-af', src, dst_parent + '/'], check=True)
+    else:
+      # Use cp -af for files too.
+      subprocess.run(['cp', '-af', src, dst], check=True)
+  except (subprocess.CalledProcessError, subprocess.SubprocessError, OSError):
+    if os.path.isdir(src):
+      shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
+    else:
+      shutil.copy2(src, dst, follow_symlinks=False)
 
 
 def generate_runner_py(dst_path, target_map):
@@ -271,15 +280,7 @@ def main():
                    copied_sources)
 
     # Generate runner
-    runner_path = os.path.join(stage_dir, 'run_tests.py')
-    generate_runner_py(runner_path, target_map)
-
-    if os.path.isfile(runner_path):
-      logging.info('Verified run_tests.py exists in stage_dir.')
-    else:
-      logging.error('run_tests.py NOT FOUND in stage_dir!')
-
-    logging.info('Files in stage_dir root: %s', os.listdir(stage_dir))
+    generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
 
     logging.info('Creating tarball: %s', args.output)
     if args.compression == 'gz':
@@ -292,7 +293,7 @@ def main():
       raise ValueError(f'Unsupported compression: {args.compression}')
 
     subprocess.run([
-        'tar', '-I', compression_flag, '-C', stage_dir, '-cvf', args.output, '.'
+        'tar', '-I', compression_flag, '-C', stage_dir, '-cf', args.output, '.'
     ],
                    check=True)
 

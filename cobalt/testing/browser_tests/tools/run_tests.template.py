@@ -64,16 +64,6 @@ def main():
   parser.add_argument(
       "--socat-timeout", default=5, help="Timeout for socat in seconds.")
   parser.add_argument(
-      "--command_line_args",
-      help="Additional command line arguments for the test binary.")
-
-  # These arguments are often passed by the container environment.
-  # We sink them here so they don't cause errors or conflicts with the runner.
-  parser.add_argument("--test-filter", help="Test filter (sink).")
-  parser.add_argument("--test-arguments", help="Additional test args (sink).")
-  parser.add_argument("--environment", help="Execution environment (sink).")
-
-  parser.add_argument(
       "target", nargs="?", help="Target platform to run tests for.")
   parser.add_argument(
       "-h", "--help", action="store_true", help="Show this help message.")

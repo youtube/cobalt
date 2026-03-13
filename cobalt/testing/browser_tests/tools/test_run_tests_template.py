@@ -90,7 +90,7 @@ class TestRunTestsTemplate(unittest.TestCase):
     args = mock_popen.call_args[0][0]
     self.assertEqual(args, ['socat', '-t', '10', 'addr1', 'addr2'])
 
-
+  @mock.patch('subprocess.Popen')
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
   @mock.patch('os.path.isfile', return_value=True)
   @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
@@ -102,7 +102,23 @@ class TestRunTestsTemplate(unittest.TestCase):
   @mock.patch('sys.executable', '/usr/bin/python3')
   def test_sink_flags_forwarding(self, mock_call, *args):
     del args  # Unused.
-    run_tests_template.main()
+    target_map = {
+        'linux_target': {
+            'deps': 'dummy.runtime_deps',
+            'runner': 'dummy_runner.py',
+            'build_dir': '.'
+        }
+    }
+    self.prepare_script(target_map)
+
+    # Import the generated script
+    sys.path.insert(0, self.test_dir)
+    if 'run_tests' in sys.modules:
+      del sys.modules['run_tests']
+    # pylint: disable=import-outside-toplevel
+    import run_tests
+
+    run_tests.main()
 
     call_args = mock_call.call_args[0][0]
     self.assertIn('--json-results-file', call_args)
