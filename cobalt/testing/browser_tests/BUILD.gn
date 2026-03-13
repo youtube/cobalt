@@ -20,6 +20,7 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
+import("//cobalt/testing/browser_tests/cobalt_test_bundle_data.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -182,6 +183,24 @@ copy("cobalt_browsertests_runner_script") {
   sources = [ "run_browser_tests.py" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
   deps = [ ":cobalt_browsertests" ]
+}
+
+if (is_ios) {
+  bundle_data("cobalt_shell_pak_bundle_data") {
+    testonly = true
+    public_deps = [ "//cobalt/shell:pak" ]
+    sources = [ "$root_out_dir/cobalt_shell.pak" ]
+    outputs = [ "{{bundle_resources_dir}}/cobalt_shell.pak" ]
+  }
+  bundle_data_from_filelist("cobalt_test_bundle_data") {
+    testonly = true
+    filelist_name = "cobalt_test_bundle_data_ios.filelist"
+  }
+} else {
+  group("cobalt_test_bundle_data") {
+    testonly = true
+    data = cobalt_test_bundle_data_files
+  }
 }
 
 group("cobalt_browsertests_runner") {
@@ -370,12 +389,8 @@ test("cobalt_browsertests") {
     "//ui/webui:test_support",
   ]
 
-  data = [
-    "//content/test/data/",
-    "//media/test/data/",
-  ]
-
   data_deps = [
+    ":cobalt_test_bundle_data",
     "//cobalt/shell:pak",
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
@@ -409,7 +424,7 @@ test("cobalt_browsertests") {
 
   if (is_linux) {
     deps += [ "//third_party/libyuv" ]
-    data += [
+    data = [
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
     ]
@@ -441,19 +456,6 @@ test("cobalt_browsertests") {
     if (use_ozone) {
       deps += [ "//ui/ozone" ]
     }
-  }
-}
-
-if (is_ios) {
-  bundle_data("cobalt_shell_pak_bundle_data") {
-    testonly = true
-    public_deps = [ "//cobalt/shell:pak" ]
-    sources = [ "$root_out_dir/cobalt_shell.pak" ]
-    outputs = [ "{{bundle_resources_dir}}/cobalt_shell.pak" ]
-  }
-  bundle_data_from_filelist("cobalt_test_bundle_data") {
-    testonly = true
-    filelist_name = "cobalt_test_bundle_data_ios.filelist"
   }
 }
 
