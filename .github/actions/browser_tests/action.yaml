@@ -70,7 +70,6 @@ runs:
         TEST_ATTEMPTS: ${{ inputs.test_attempts }}
         TEST_TYPE: browser_test
         DEVICE_FAMILY: ${{ inputs.test_device_family }}
-        TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
@@ -99,15 +98,11 @@ runs:
             --token "${GITHUB_TOKEN}" \
             trigger \
             --test_type "${TEST_TYPE}" \
-            --device_family "${DEVICE_FAMILY}" \
             --targets "${TEST_TARGETS_JSON}" \
             --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}" \
             --container_location "${CONTAINER_LOCATION}" \
-            --container_env_variable "ANDROID_SERIAL=%deviceid%,TARGET_PLATFORM=${PLATFORM}_${CONFIG}" \
             --browser_test_filter "${GTEST_FILTER}" \
-            --browser_test_platform "${PLATFORM}_${CONFIG}" \
-            --container_args_delimiter "|" \
-            --label chrobalt_on_device_browser_test \
+          --label chrobalt_on_device_browser_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${PLATFORM} \
           --label builder_url-${GITHUB_RUN_URL} \
@@ -123,7 +118,6 @@ runs:
           --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
           --label branch:${GITHUB_REF_NAME} \
-          --dimensions "${TEST_DIMENSIONS}" \
           ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {

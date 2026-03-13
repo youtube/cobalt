@@ -62,9 +62,8 @@ def main():
   parser.add_argument(
       "--init-command", default=SOCAT_CMD, help="Command to run before tests.")
   parser.add_argument(
-<<<<<<< HEAD
       "--socat-timeout", default=5, help="Timeout for socat in seconds.")
-=======
+  parser.add_argument(
       "--command_line_args",
       help="Additional command line arguments for the test binary.")
 
@@ -74,7 +73,6 @@ def main():
   parser.add_argument("--test-arguments", help="Additional test args (sink).")
   parser.add_argument("--environment", help="Execution environment (sink).")
 
->>>>>>> 9a16f3b3b0a (ci: Implement foundational browser tests and runner improvements for Linux and Android)
   parser.add_argument(
       "target", nargs="?", help="Target platform to run tests for.")
   parser.add_argument(
