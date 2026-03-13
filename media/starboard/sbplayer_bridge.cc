@@ -813,34 +813,34 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(experimental_features_extension->name,
              kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures experimental_features = {};
+    StarboardExtensionExperimentalFeatures extension_features = {};
 
-    experimental_features.flush_decoder_during_reset =
+    extension_features.flush_decoder_during_reset =
         experimental_features_.enable_flush_during_seek;
-    experimental_features.media_codec_reset_delay_ms =
+    extension_features.media_codec_reset_delay_ms =
         ToIntPointer(experimental_features_.media_codec_reset_delay_ms);
-    experimental_features.pause_using_audio_track_state =
+    extension_features.pause_using_audio_track_state =
         experimental_features_.pause_using_audio_track_state;
-    experimental_features.reset_audio_decoder =
+    extension_features.reset_audio_decoder =
         experimental_features_.enable_reset_audio_decoder;
-    experimental_features.video_decoder_initial_preroll_count =
-        ToIntPointer(experimental_features_.video_decoder_initial_preroll_count);
-    experimental_features.video_decoder_poll_interval_ms =
+    extension_features.video_decoder_initial_preroll_count = ToIntPointer(
+        experimental_features_.video_decoder_initial_preroll_count);
+    extension_features.video_decoder_poll_interval_ms =
         ToIntPointer(experimental_features_.video_decoder_poll_interval_ms);
-    experimental_features.video_initial_max_frames_in_decoder =
+    extension_features.video_initial_max_frames_in_decoder =
         ToIntPointer(experimental_features_.initial_max_frames_in_decoder);
-    experimental_features.video_max_pending_input_frames =
+    extension_features.video_max_pending_input_frames =
         ToIntPointer(experimental_features_.max_pending_input_frames);
-    experimental_features.video_renderer_min_decoded_frames =
+    extension_features.video_renderer_min_decoded_frames =
         ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
-    experimental_features.video_renderer_min_input_buffers =
+    extension_features.video_renderer_min_input_buffers =
         ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
 
     // Note: `max_samples_per_write` and `report_buffering_state_during_flush`
     // are not mapped here as they are consumed directly by the media layer.
 
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
-        &experimental_features);
+        &extension_features);
   }
 
 #if BUILDFLAG(IS_ANDROID)
