@@ -15,13 +15,10 @@
 #ifndef MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 #define MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 
-<<<<<<< HEAD
-#include "base/functional/callback.h"
-=======
 #include <map>
 #include <string>
 
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/time/time.h"
 #include "media/base/media_export.h"
@@ -41,13 +38,10 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
-<<<<<<< HEAD
   gfx::Size viewport_size;
-  GetSbWindowHandleCallback get_sb_window_handle_callback;
-=======
   std::map<std::string, H5vccSettingValue> h5vcc_settings;
+  GetSbWindowHandleCallback get_sb_window_handle_callback;
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 };
 
 }  // namespace media

@@ -71,11 +71,7 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_storage/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
-<<<<<<< HEAD
-=======
-    "//cobalt/browser/migrate_storage_record",
     "//cobalt/browser/mojom",
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
@@ -83,6 +79,7 @@ source_set("browser") {
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_lib",
+    "//cobalt/shell/browser/migrate_storage_record",
     "//components/embedder_support:user_agent",
     "//components/metrics",
     "//components/metrics_services_manager",

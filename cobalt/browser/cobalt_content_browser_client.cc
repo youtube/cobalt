@@ -40,12 +40,9 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
-<<<<<<< HEAD
-#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-=======
 #include "cobalt/browser/h5vcc_settings_impl.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
@@ -377,9 +374,6 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
 
-<<<<<<< HEAD
-void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
-=======
 void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
   DCHECK(!video_geometry_setter_service_);
   video_geometry_setter_service_ =
@@ -418,7 +412,6 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
     content::BrowserContext* browser_context,
     content::RenderFrameHost* frame,
     int render_process_id,

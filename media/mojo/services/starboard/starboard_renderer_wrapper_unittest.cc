@@ -53,33 +53,27 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
-<<<<<<< HEAD
-      const gfx::Size& viewport_size
+      const gfx::Size& viewport_size,
+      const std::map<std::string, H5vccSettingValue> h5vcc_settings
 #if BUILDFLAG(IS_ANDROID)
       ,
       const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
       )
-=======
-      const std::map<std::string, H5vccSettingValue> h5vcc_settings)
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
       : StarboardRenderer(task_runner,
                           std::move(media_log),
                           overlay_plane_id,
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
-<<<<<<< HEAD
-                          viewport_size
+                          viewport_size,
+                          h5vcc_settings
 #if BUILDFLAG(IS_ANDROID)
                           ,
                           android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
         ) {
   }
-=======
-                          h5vcc_settings) {}
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
 
   MockStarboardRenderer(const MockStarboardRenderer&) = delete;
   MockStarboardRenderer& operator=(const MockStarboardRenderer&) = delete;
@@ -158,16 +152,13 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
-<<<<<<< HEAD
-            gfx::Size()
+            gfx::Size(),
+            std::map<std::string, H5vccSettingValue>()
 #if BUILDFLAG(IS_ANDROID)
                 ,
             AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
                 )),
-=======
-            std::map<std::string, H5vccSettingValue>())),
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
         mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
@@ -182,16 +173,10 @@ class StarboardRendererWrapperTest : public testing::Test {
     StarboardRendererTraits traits(
         task_environment_.GetMainThreadTaskRunner(),
         task_environment_.GetMainThreadTaskRunner(),
-<<<<<<< HEAD
         std::move(media_log_remote), &video_geometry_setter_service_,
         base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
-        std::string(), gfx::Size(), std::move(renderer_extension_receiver),
-=======
-        std::move(media_log_remote), base::UnguessableToken::Create(),
-        base::Seconds(1), base::Seconds(1), std::string(),
-        std::map<std::string, H5vccSettingValue>(),
+        std::string(), gfx::Size(), std::map<std::string, H5vccSettingValue>(),
         std::move(renderer_extension_receiver),
->>>>>>> c5883f44e6 (media: Pass H5vcc settings from GlobalFeatures to StarboardRenderer (#7836))
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));
