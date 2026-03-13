@@ -122,8 +122,9 @@ scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
 
 }  // namespace
 
-ShellBrowserMainParts::ShellBrowserMainParts(const std::string& deep_link)
-    : deep_link_(deep_link) {}
+ShellBrowserMainParts::ShellBrowserMainParts(const std::string& deep_link,
+                                             bool is_visible)
+    : deep_link_(deep_link), is_visible_(is_visible) {}
 
 ShellBrowserMainParts::~ShellBrowserMainParts() = default;
 
@@ -187,7 +188,7 @@ void ShellBrowserMainParts::PostCreateThreads() {
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
-  Shell::Initialize(CreateShellPlatformDelegate());
+  Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
   InitializeMessageLoopContext();
