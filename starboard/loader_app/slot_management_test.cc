@@ -503,7 +503,7 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
   ASSERT_EQ(1, CompareEvergreenVersion(v4, v3));
 }
 
-TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
+TEST_P(SlotManagementTest, ReadEvergreenVersionReturnsFalseIfAbsent) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -512,16 +512,13 @@ TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
 
   std::vector<char> current_version(kMaxEgVersionLength);
   Json::Value root;
-  Json::Value manifest_version;
-  manifest_version["manifest_version"] = 2;
-  root.append(manifest_version);
-  Json::StyledStreamWriter writer;
+  root["manifest_version"] = 2;
 
   std::vector<char> installation_path(kSbFileMaxPath);
   if (ImGetInstallationPath(kTestSlotIndex, installation_path.data(),
                             kSbFileMaxPath) == IM_ERROR) {
     SB_LOG(WARNING) << "Failed to get installation path.";
-    return false;
+    return;
   }
   std::vector<char> test_dir_path(kSbFileMaxPath);
   snprintf(test_dir_path.data(), kSbFileMaxPath, "%s%s%s",
@@ -530,29 +527,61 @@ TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
   snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
            test_dir_path.data(), kSbFileSepString, kManifestFileName);
 
+  ASSERT_EQ(mkdir(test_dir_path.data(), 0700), 0);
   starboard::ScopedFile manifest_file(manifest_file_path.data(),
                                       O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
-  std::stringstream manifest_file_s1;
-  writer.write(manifest_file_s1, root);
-  std::string manifest_file_str1 = manifest_file_s1.str();
-  manifest_file.WriteAll(manifest_file_str1.c_str(),
-                         manifest_file_str1.length());
+  ASSERT_TRUE(manifest_file.IsValid());
+  Json::StreamWriterBuilder builder;
+  std::string manifest_file_str = Json::writeString(builder, root);
+  ASSERT_EQ(manifest_file.WriteAll(manifest_file_str.c_str(),
+                                   manifest_file_str.length()),
+            manifest_file_str.length());
 
   ASSERT_FALSE(ReadEvergreenVersion(manifest_file_path, current_version.data(),
                                     kMaxEgVersionLength));
 
-  Json::Value evergreen_version;
-  evergreen_version[kVersionKey] = kTestEvergreenVersion2;
-  root.append(evergreen_version);
-  std::stringstream manifest_file_s2;
-  writer.write(manifest_file_s2, root);
-  std::string manifest_file_str2 = manifest_file_s2.str();
-  manifest_file.WriteAll(manifest_file_str2.c_str(),
-                         manifest_file_str2.length());
+  ImUninitialize();
+  SbFileDeleteRecursive(test_dir_path.data(), false);
+}
+
+TEST_P(SlotManagementTest, ReadEvergreenVersionReadsInVersionFromManifest) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  ImInitialize(3, kTestAppKey);
+  ImReset();
+
+  std::vector<char> current_version(kMaxEgVersionLength);
+  Json::Value root;
+  root["manifest_version"] = 2;
+  root[kVersionKey] = kTestEvergreenVersion2;
+
+  std::vector<char> installation_path(kSbFileMaxPath);
+  if (ImGetInstallationPath(kTestSlotIndex, installation_path.data(),
+                            kSbFileMaxPath) == IM_ERROR) {
+    SB_LOG(WARNING) << "Failed to get installation path.";
+    return;
+  }
+  std::vector<char> test_dir_path(kSbFileMaxPath);
+  snprintf(test_dir_path.data(), kSbFileMaxPath, "%s%s%s",
+           installation_path.data(), kSbFileSepString, "test_dir");
+  std::vector<char> manifest_file_path(kSbFileMaxPath);
+  snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
+           test_dir_path.data(), kSbFileSepString, kManifestFileName);
+
+  ASSERT_EQ(mkdir(test_dir_path.data(), 0700), 0);
+  starboard::ScopedFile manifest_file(manifest_file_path.data(),
+                                      O_RDWR | O_CREAT, S_IRWXU | S_IRWXG);
+  ASSERT_TRUE(manifest_file.IsValid());
+  Json::StreamWriterBuilder builder;
+  std::string manifest_file_str = Json::writeString(builder, root);
+  ASSERT_EQ(manifest_file.WriteAll(manifest_file_str.c_str(),
+                                   manifest_file_str.length()),
+            manifest_file_str.length());
 
   ASSERT_TRUE(ReadEvergreenVersion(manifest_file_path, current_version.data(),
                                    kMaxEgVersionLength));
-  ASSERT_EQ(kTestEvergreenVersion2, current_version.data());
+  ASSERT_STREQ(kTestEvergreenVersion2, current_version.data());
 
   ImUninitialize();
   SbFileDeleteRecursive(test_dir_path.data(), false);
