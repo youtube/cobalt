@@ -456,16 +456,6 @@ test("cobalt_browsertests") {
   }
 }
 
-<<<<<<< HEAD
-if (is_ios) {
-  bundle_data_from_filelist("cobalt_test_bundle_data") {
-    testonly = true
-    filelist_name = "cobalt_test_bundle_data.filelist"
-  }
-}
-
-=======
->>>>>>> 9afcefdb18 (cobalt/test: Filter browser test data to reduce archive size (#9405))
 static_library("cobalt_shell_test_lib") {
   testonly = true
   sources = [
