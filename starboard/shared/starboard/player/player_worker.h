@@ -28,6 +28,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
@@ -103,6 +104,7 @@ class PlayerWorker {
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
+<<<<<<< HEAD
 
     virtual void SetFlushDecoderDuringReset(
         bool flush_decoder_during_reset) = 0;
@@ -121,6 +123,11 @@ class PlayerWorker {
     // TODO: b/491104896 - Remove this method once the experiment is done.
     virtual void SetVideoRendererMinDecodedFrames(
         int video_renderer_min_decoded_frames) = 0;
+=======
+    virtual void SetExperimentalFeatures(
+        const ::starboard::shared::starboard::ExperimentalFeatures&
+            experimental_features) = 0;
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 
    private:
     Handler(const Handler&) = delete;

@@ -59,6 +59,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetVolume(double volume) override;
   Result<void> SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
+<<<<<<< HEAD
   void SetVideoSurfaceView(void* surface_view) override;
   void SetFlushDecoderDuringReset(bool flush_decoder_during_reset) override;
   void SetResetAudioDecoder(bool reset_audio_decoder) override;
@@ -74,6 +75,12 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       int video_renderer_min_input_buffers) override;
   void SetVideoRendererMinDecodedFrames(
       int video_renderer_min_decoded_frames) override;
+=======
+  void SetExperimentalFeatures(
+      const ::starboard::shared::starboard::ExperimentalFeatures&
+          experimental_features) override;
+  void SetVideoSurfaceView(void* surface_view) override;
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
   void Stop() override;
 
   void Update();
@@ -125,7 +132,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
-  PlayerComponents::ExperimentalFeatures experimental_features_;
+  ::starboard::shared::starboard::ExperimentalFeatures experimental_features_;
   void* surface_view_ = nullptr;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;

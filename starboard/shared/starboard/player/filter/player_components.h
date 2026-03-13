@@ -30,6 +30,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
@@ -50,6 +51,7 @@ class JobQueue;
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
+<<<<<<< HEAD
   struct ExperimentalFeatures {
     bool flush_decoder_during_reset = false;
     bool reset_audio_decoder = false;
@@ -60,12 +62,21 @@ class PlayerComponents {
     std::optional<int> video_renderer_min_input_buffers;
     std::optional<int> video_renderer_min_decoded_frames;
   };
+=======
+  typedef ::starboard::shared::starboard::player::filter::AudioRenderer
+      AudioRenderer;
+  typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
+      MediaTimeProvider;
+  typedef ::starboard::shared::starboard::player::filter::VideoRenderer
+      VideoRenderer;
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 
   // This class creates PlayerComponents.
   class Factory {
    public:
     class CreationParameters {
      public:
+<<<<<<< HEAD
       CreationParameters(const AudioStreamInfo& audio_stream_info,
                          JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
@@ -91,6 +102,34 @@ class PlayerComponents {
                          JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const CreationParameters& that) = default;
+=======
+      explicit CreationParameters(
+          const media::AudioStreamInfo& audio_stream_info,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(
+          const media::VideoStreamInfo& video_stream_info,
+          SbPlayer player,
+          SbPlayerOutputMode output_mode,
+          int max_video_input_size,
+          const ::starboard::shared::starboard::ExperimentalFeatures&
+              experimental_features,
+          void* surface_view,
+          SbDecodeTargetGraphicsContextProvider*
+              decode_target_graphics_context_provider,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(
+          const media::AudioStreamInfo& audio_stream_info,
+          const media::VideoStreamInfo& video_stream_info,
+          SbPlayer player,
+          SbPlayerOutputMode output_mode,
+          int max_video_input_size,
+          const ::starboard::shared::starboard::ExperimentalFeatures&
+              experimental_features,
+          void* surface_view,
+          SbDecodeTargetGraphicsContextProvider*
+              decode_target_graphics_context_provider,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
       void operator=(const CreationParameters& that) = delete;
 
       void reset_audio_codec() {
@@ -132,7 +171,8 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
-      const ExperimentalFeatures& experimental_features() const {
+      const ::starboard::shared::starboard::ExperimentalFeatures&
+      experimental_features() const {
         return experimental_features_;
       }
       void* surface_view() const { return surface_view_; }
@@ -159,7 +199,8 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
-      const ExperimentalFeatures experimental_features_;
+      const ::starboard::shared::starboard::ExperimentalFeatures
+          experimental_features_;
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;

@@ -46,9 +46,17 @@ namespace starboard {
 
 namespace {
 
+<<<<<<< HEAD
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
+=======
+using ::starboard::shared::starboard::ExperimentalFeatures;
+using ::starboard::shared::starboard::media::MimeType;
+using ::starboard::shared::starboard::player::filter::VideoFrame;
+using VideoRenderAlgorithmBase =
+    ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm;
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -399,11 +407,19 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       initial_max_frames_in_decoder_(
+<<<<<<< HEAD
           flow_control_options.initial_max_frames_in_decoder),
+=======
+          experimental_features.video_initial_max_frames_in_decoder),
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
       video_decoder_poll_interval_ms_(
           flow_control_options.video_decoder_poll_interval_ms),
       max_pending_inputs_size_(
+<<<<<<< HEAD
           flow_control_options.max_pending_input_frames.value_or(
+=======
+          experimental_features.video_max_pending_input_frames.value_or(
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
               kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),

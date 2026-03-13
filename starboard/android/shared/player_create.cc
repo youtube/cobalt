@@ -19,8 +19,6 @@
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/configurate_seek.h"
-#include "starboard/android/shared/video_decoder_configuration_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -29,7 +27,11 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+<<<<<<< HEAD
 #include "starboard/player.h"
+=======
+#include "starboard/shared/starboard/experimental_features.h"
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -205,6 +207,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
           creation_param, provider);
   handler->SetMaxVideoInputSize(
+<<<<<<< HEAD
       starboard::GetMaxVideoInputSizeForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
   handler->SetFlushDecoderDuringReset(
@@ -239,6 +242,14 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   }
 
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
+=======
+      starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
+  handler->SetExperimentalFeatures(
+      starboard::shared::starboard::GetExperimentalFeaturesForCurrentThread());
+  handler->SetVideoSurfaceView(
+      starboard::android::shared::GetSurfaceViewForCurrentThread());
+  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
   if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {

@@ -40,6 +40,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
@@ -56,6 +57,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private VideoSurfaceHolder {
  public:
   class Sink;
+<<<<<<< HEAD
   struct FlowControlOptions {
     std::optional<int> initial_max_frames_in_decoder;
     std::optional<int> max_pending_input_frames;
@@ -102,6 +104,29 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          std::string* error_message);
 
   ~MediaCodecVideoDecoder() override;
+=======
+
+  VideoDecoder(const VideoStreamInfo& video_stream_info,
+               SbDrmSystem drm_system,
+               SbPlayerOutputMode output_mode,
+               SbDecodeTargetGraphicsContextProvider*
+                   decode_target_graphics_context_provider,
+               const std::string& max_video_capabilities,
+               int tunnel_mode_audio_session_id,
+               bool force_secure_pipeline_under_tunnel_mode,
+               bool force_reset_surface,
+               bool force_reset_surface_under_tunnel_mode,
+               bool force_big_endian_hdr_metadata,
+               int max_input_size,
+               void* surface_view,
+               bool enable_flush_during_seek,
+               int64_t reset_delay_usec,
+               int64_t flush_delay_usec,
+               const ::starboard::shared::starboard::ExperimentalFeatures&
+                   experimental_features,
+               std::string* error_message);
+  ~VideoDecoder() override;
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 
   scoped_refptr<VideoRendererSink> GetSink();
   std::unique_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();

@@ -40,16 +40,6 @@ using std::placeholders::_2;
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
-template <typename T, typename U>
-void LogAndSetExperimentalFeature(const char* name, T& feature, U new_value) {
-  if (feature == new_value) {
-    return;
-  }
-  SB_LOG(INFO) << "Set experimental feature " << name << ": new=\"" << new_value
-               << "\", old=\"" << ToString(feature) << "\"";
-  feature = new_value;
-}
-
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
 void DumpInputHash(const InputBuffer* input_buffer) {}
@@ -553,6 +543,7 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
+<<<<<<< HEAD
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
   LogAndSetExperimentalFeature("surface_view", surface_view_, surface_view);
 }
@@ -590,3 +581,18 @@ DEFINE_SET_EXPERIMENTAL_FEATURE(VideoRendererMinDecodedFrames,
 #undef DEFINE_SET_EXPERIMENTAL_FEATURE
 
 }  // namespace starboard
+=======
+void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
+    const ::starboard::shared::starboard::ExperimentalFeatures&
+        experimental_features) {
+  SB_LOG(INFO) << __func__;
+  experimental_features_ = experimental_features;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
+  SB_LOG(INFO) << "Set surface_view from " << surface_view_ << " to "
+               << surface_view;
+  surface_view_ = surface_view;
+}
+}  // namespace starboard::shared::starboard::player::filter
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))

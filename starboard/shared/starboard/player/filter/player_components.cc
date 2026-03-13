@@ -227,7 +227,10 @@ PlayerComponents::Factory::CreateComponents(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
     const auto& experimental_features =
         creation_parameters.experimental_features();
     std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
