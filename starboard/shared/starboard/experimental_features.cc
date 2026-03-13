@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/experimental_features_internal.h"
+#include "starboard/shared/starboard/experimental_features.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/no_destructor.h"
 #include "base/threading/thread_local.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental_features.h"
 
-namespace starboard::android::shared {
+namespace starboard::shared::starboard {
 
 namespace {
-
-using ::starboard::shared::starboard::player::filter::ExperimentalFeatures;
 
 base::ThreadLocalOwnedPointer<ExperimentalFeatures>&
 GetExperimentalFeaturesTLS() {
@@ -51,6 +50,13 @@ std::optional<int> FromIntPointer(const int* val) {
   }
   return *val;
 }
+
+const StarboardExtensionExperimentalFeaturesConfigurationApi
+    kExperimentalFeaturesConfigurationApi = {
+        kStarboardExtensionExperimentalFeaturesConfigurationName,
+        1,
+        &SetExperimentalFeaturesForCurrentThread,
+};
 
 }  // namespace
 
@@ -94,4 +100,8 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
   return *current;
 }
 
-}  // namespace starboard::android::shared
+const void* GetExperimentalFeaturesConfigurationApi() {
+  return &kExperimentalFeaturesConfigurationApi;
+}
+
+}  // namespace starboard::shared::starboard

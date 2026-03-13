@@ -39,7 +39,6 @@ static_library("filter_based_player_sources") {
     "//starboard/shared/starboard/player/filter/cpu_video_frame.h",
     "//starboard/shared/starboard/player/filter/decoded_audio_queue.cc",
     "//starboard/shared/starboard/player/filter/decoded_audio_queue.h",
-    "//starboard/shared/starboard/player/filter/experimental_features_types.h",
     "//starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc",
     "//starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h",
     "//starboard/shared/starboard/player/filter/interleaved_sinc_resampler.cc",

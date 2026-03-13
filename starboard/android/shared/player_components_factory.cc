@@ -55,7 +55,7 @@
 namespace starboard::android::shared {
 
 namespace {
-using ::starboard::shared::starboard::player::filter::ExperimentalFeatures;
+using ::starboard::shared::starboard::ExperimentalFeatures;
 using ::starboard::shared::starboard::player::filter::PlayerComponents;
 using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
 

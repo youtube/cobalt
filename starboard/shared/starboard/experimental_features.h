@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_EXPERIMENTAL_FEATURES_TYPES_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_EXPERIMENTAL_FEATURES_TYPES_H_
+#ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
+#define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
 #include <optional>
 
-namespace starboard::shared::starboard::player::filter {
+#include "starboard/extension/experimental_features.h"
+
+namespace starboard::shared::starboard {
 
 // Internal C++ representation of temporary experimental features.
 // Once an experiment is concluded and the feature is launched, the
@@ -37,6 +39,16 @@ struct ExperimentalFeatures {
   std::optional<int> video_renderer_min_input_buffers;
 };
 
-}  // namespace starboard::shared::starboard::player::filter
+// Sets the experimental features for the current thread.
+void SetExperimentalFeaturesForCurrentThread(
+    const StarboardExtensionExperimentalFeatures* experimental_features);
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_EXPERIMENTAL_FEATURES_TYPES_H_
+// Gets the experimental features for the current thread.
+const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
+
+// Get the extension API for configuring experimental features.
+const void* GetExperimentalFeaturesConfigurationApi();
+
+}  // namespace starboard::shared::starboard
+
+#endif  // STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_

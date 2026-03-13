@@ -34,8 +34,8 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/starboard/player/filter/experimental_features_types.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
@@ -75,8 +75,8 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
-               const ::starboard::shared::starboard::player::filter::
-                   ExperimentalFeatures& experimental_features,
+               const ::starboard::shared::starboard::ExperimentalFeatures&
+                   experimental_features,
                std::string* error_message);
   ~VideoDecoder() override;
 

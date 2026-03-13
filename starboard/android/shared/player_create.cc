@@ -19,7 +19,6 @@
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/experimental_features_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -28,6 +27,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
@@ -215,7 +215,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   handler->SetMaxVideoInputSize(
       starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
   handler->SetExperimentalFeatures(
-      starboard::android::shared::GetExperimentalFeaturesForCurrentThread());
+      starboard::shared::starboard::GetExperimentalFeaturesForCurrentThread());
   handler->SetVideoSurfaceView(
       starboard::android::shared::GetSurfaceViewForCurrentThread());
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(

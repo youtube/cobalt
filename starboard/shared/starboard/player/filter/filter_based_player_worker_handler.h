@@ -60,7 +60,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   HandlerResult SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
   void SetExperimentalFeatures(
-      const ExperimentalFeatures& experimental_features) override;
+      const ::starboard::shared::starboard::ExperimentalFeatures&
+          experimental_features) override;
   void SetVideoSurfaceView(void* surface_view) override;
   void Stop() override;
 
@@ -119,7 +120,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
-  ExperimentalFeatures experimental_features_;
+  ::starboard::shared::starboard::ExperimentalFeatures experimental_features_;
   void* surface_view_ = nullptr;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
