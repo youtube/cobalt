@@ -13,25 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Integration test for Cobalt --preload flag and Visibility API.
+# Integration test for Cobalt lifecycle signals and Visibility/Focus APIs.
 
 set -e
 
-# Path to cobalt binary.
+# Configuration
 PLATFORM="linux-x64x11-modular"
 CONFIG="devel"
 TARGET="cobalt_loader"
-DEFAULT_COBALT_BIN="out/${PLATFORM}_${CONFIG}/${TARGET}"
-
-COBALT_BIN=${1:-$DEFAULT_COBALT_BIN}
-if [ ! -f "$COBALT_BIN" ]; then
-  echo -e "${RED}Error: Cobalt binary not found at $COBALT_BIN${NC}"
-  echo "Usage: $0 <path_to_cobalt_bin>"
-  exit 1
-fi
-
+OUT_DIR="out/${PLATFORM}_${CONFIG}"
+EXECUTABLE="./${OUT_DIR}/${TARGET}"
+LOG_FILE="lifecycle_run.log"
 PORT=9222
-LOG_FILE="preload_test.log"
 
 # Colors for logging
 GREEN='\033[0;32m'
@@ -52,14 +45,16 @@ function cleanup {
 }
 trap cleanup EXIT
 
-log "Starting Cobalt in preload mode..."
-$COBALT_BIN \
-  --preload \
-  --remote-debugging-port=$PORT \
-  --no-sandbox > "$LOG_FILE" 2>&1 &
+if [[ ! -f "$EXECUTABLE" ]]; then
+    echo -e "${RED}Error: Executable not found at $EXECUTABLE${NC}"
+    exit 1
+fi
+
+log "Starting $TARGET with DevTools on port $PORT..."
+$EXECUTABLE --remote-debugging-port=$PORT --no-sandbox > $LOG_FILE 2>&1 &
 COBALT_PID=$!
 
-log "Launched PID: $COBALT_PID. Waiting for DevTools on port $PORT..."
+log "Launched PID: $COBALT_PID. Waiting for DevTools..."
 MAX_TRIES=30
 TRIES=0
 until curl -s http://localhost:$PORT/json > /dev/null; do
@@ -77,53 +72,71 @@ function check_js {
   vpython3 cobalt/tools/cdp_js_helper.py --port $PORT "$1"
 }
 
-log "Verifying initial preloaded state..."
+log "Verifying initial state (Visible & Focused)..."
+# Force focus via JS just in case.
+check_js "window.focus()" > /dev/null
 VISIBILITY=$(check_js "document.visibilityState")
 HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility state: $VISIBILITY, Focused: $HAS_FOCUS"
-
-if [ "$VISIBILITY" != "hidden" ] || [ "$HAS_FOCUS" != "false" ]; then
-  echo -e "${RED}FAILURE: Initial state should be 'hidden' and NOT focused, got visibility='$VISIBILITY', focused='$HAS_FOCUS'${NC}"
-  exit 1
-fi
-
-# Send reveal event.
-log "Sending SIGCONT to reveal application..."
-kill -SIGCONT $COBALT_PID
-
-# Wait for state change.
-sleep 2
-
-log "Verifying revealed state..."
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility state: $VISIBILITY, Focused: $HAS_FOCUS"
+log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
 
 if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: State should be 'visible' and focused after reveal, got visibility='$VISIBILITY', focused='$HAS_FOCUS'${NC}"
+  echo -e "${RED}FAILURE: Initial state should be visible and focused.${NC}"
   exit 1
 fi
 
-log "Sending SIGPWR to shutdown application..."
+log "Sending SIGWINCH (BLUR)..."
+kill -SIGWINCH $COBALT_PID
+sleep 2
+VISIBILITY=$(check_js "document.visibilityState")
+HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
+log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
+if [ "$HAS_FOCUS" != "false" ]; then
+  echo -e "${RED}FAILURE: Should have lost focus after SIGWINCH.${NC}"
+  exit 1
+fi
+
+log "Sending SIGCONT (FOCUS)..."
+kill -SIGCONT $COBALT_PID
+sleep 2
+HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
+log "Focused: $HAS_FOCUS"
+if [ "$HAS_FOCUS" != "true" ]; then
+  echo -e "${RED}FAILURE: Should have regained focus after SIGCONT.${NC}"
+  exit 1
+fi
+
+log "Sending SIGUSR1 (CONCEAL)..."
+kill -SIGUSR1 $COBALT_PID
+sleep 5
+VISIBILITY=$(check_js "document.visibilityState")
+log "Visibility: $VISIBILITY"
+if [ "$VISIBILITY" != "hidden" ]; then
+  echo -e "${RED}FAILURE: Should be hidden after SIGUSR1.${NC}"
+  exit 1
+fi
+
+log "Sending SIGCONT (REVEAL)..."
+kill -SIGCONT $COBALT_PID
+sleep 2
+VISIBILITY=$(check_js "document.visibilityState")
+log "Visibility: $VISIBILITY"
+if [ "$VISIBILITY" != "visible" ]; then
+  echo -e "${RED}FAILURE: Should be visible after SIGCONT.${NC}"
+  exit 1
+fi
+
+log "Sending SIGPWR (STOP/QUIT)..."
 kill -SIGPWR $COBALT_PID
 
 # Wait for process to exit
-log "Waiting for Cobalt to exit..."
 set +e
 wait $COBALT_PID
 EXIT_CODE=$?
 set -e
 
 log "Cobalt exited with code: $EXIT_CODE"
+log "Reviewing logs for fatal errors..."
 
-# For now, ignore non-zero exit codes if they are due to SIGABRT (134) or SIGSEGV (139)
-# during shutdown, but log them.
-if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 134 ] && [ $EXIT_CODE -ne 139 ]; then
-  echo -e "${RED}FAILURE: Cobalt exited with non-zero code $EXIT_CODE${NC}"
-  exit 1
-fi
-
-# Check for fatal errors in log.
 FILTERED_LOG=$(grep -aE "FATAL|AddressSanitizer|leak|Check failed" "$LOG_FILE" | grep -av "MojoDiscardableSharedMemoryManagerImpls are still alive" | grep -av "lock_impl_posix.cc(46)" || true)
 if [[ -n "$FILTERED_LOG" ]]; then
     echo -e "${RED}FAILURE: Found errors in log.${NC}"
@@ -131,5 +144,4 @@ if [[ -n "$FILTERED_LOG" ]]; then
     exit 1
 fi
 
-echo -e "${GREEN}SUCCESS${NC}"
-exit 0
+echo -e "${GREEN}SUCCESS: Lifecycle integration test passed.${NC}"

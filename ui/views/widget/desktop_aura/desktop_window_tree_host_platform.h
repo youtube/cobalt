@@ -164,8 +164,14 @@ class VIEWS_EXPORT DesktopWindowTreeHostPlatform
   void OnCloseRequest() override;
   void OnAcceleratedWidgetAvailable(gfx::AcceleratedWidget widget) override;
   void OnWillDestroyAcceleratedWidget() override;
+<<<<<<< HEAD
   bool OnRotateFocus(ui::PlatformWindowDelegate::RotateDirection direction,
                      bool reset) override;
+=======
+#if BUILDFLAG(IS_COBALT)
+  void OnAcceleratedWidgetDestroyed() override;
+#endif
+>>>>>>> 02bd9b2fe2 (cobalt: Implement app lifecycle and window management (#9423))
   void OnActivationChanged(bool active) override;
   std::optional<gfx::Size> GetMinimumSizeForWindow() const override;
   std::optional<gfx::Size> GetMaximumSizeForWindow() const override;

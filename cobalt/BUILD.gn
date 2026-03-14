@@ -196,10 +196,13 @@ if (is_ios && target_platform == "tvos") {
 
 source_set("common") {
   sources = [
+<<<<<<< HEAD
     "app/app_lifecycle_delegate.cc",
     "app/app_lifecycle_delegate.h",
     "app/cobalt_crash_reporter_client.cc",
     "app/cobalt_crash_reporter_client.h",
+=======
+>>>>>>> 02bd9b2fe2 (cobalt: Implement app lifecycle and window management (#9423))
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
     "app/cobalt_switch_defaults.cc",
@@ -207,9 +210,18 @@ source_set("common") {
   ]
 
   if (is_starboard) {
+<<<<<<< HEAD
     sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
+=======
+    sources += [
+      "app/app_lifecycle_delegate.cc",
+      "app/app_lifecycle_delegate.h",
+      "app/cobalt_switch_defaults_starboard.cc",
+      "app/cobalt_switch_defaults_starboard.h",
+    ]
+>>>>>>> 02bd9b2fe2 (cobalt: Implement app lifecycle and window management (#9423))
   }
 
   if (use_evergreen) {

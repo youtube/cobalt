@@ -1004,12 +1004,21 @@ void DesktopWindowTreeHostPlatform::OnWillDestroyAcceleratedWidget() {
   desktop_native_widget_aura_->OnHostWillClose();
 }
 
+<<<<<<< HEAD
 bool DesktopWindowTreeHostPlatform::OnRotateFocus(
     ui::PlatformWindowDelegate::RotateDirection direction,
     bool reset) {
   return DesktopWindowTreeHostPlatform::RotateFocusForWidget(*GetWidget(),
                                                              direction, reset);
 }
+=======
+#if BUILDFLAG(IS_COBALT)
+void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetDestroyed() {
+  open_windows().remove(GetAcceleratedWidget());
+  aura::WindowTreeHostPlatform::OnAcceleratedWidgetDestroyed();
+}
+#endif
+>>>>>>> 02bd9b2fe2 (cobalt: Implement app lifecycle and window management (#9423))
 
 void DesktopWindowTreeHostPlatform::OnActivationChanged(bool active) {
   if (active) {
