@@ -166,6 +166,9 @@ class VIEWS_EXPORT DesktopWindowTreeHostPlatform
   void OnWillDestroyAcceleratedWidget() override;
   bool OnRotateFocus(ui::PlatformWindowDelegate::RotateDirection direction,
                      bool reset) override;
+#if BUILDFLAG(IS_COBALT)
+  void OnAcceleratedWidgetDestroyed() override;
+#endif
   void OnActivationChanged(bool active) override;
   std::optional<gfx::Size> GetMinimumSizeForWindow() const override;
   std::optional<gfx::Size> GetMaximumSizeForWindow() const override;

@@ -196,8 +196,6 @@ if (is_ios && target_platform == "tvos") {
 
 source_set("common") {
   sources = [
-    "app/app_lifecycle_delegate.cc",
-    "app/app_lifecycle_delegate.h",
     "app/cobalt_crash_reporter_client.cc",
     "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
@@ -207,7 +205,11 @@ source_set("common") {
   ]
 
   if (is_starboard) {
-    sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
+    sources += [
+      "app/app_lifecycle_delegate.cc",
+      "app/app_lifecycle_delegate.h",
+      "app/cobalt_switch_defaults_starboard.cc",
+    ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
   }
