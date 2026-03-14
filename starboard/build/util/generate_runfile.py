@@ -26,13 +26,45 @@ except Exception as e:
     sys.exit(1)
 """
 
+_BROWSERTEST_TEMPLATE = """#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+
+run_browser_tests = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        '../../cobalt/testing/browser_tests/run_browser_tests.py'
+    )
+)
+
+elf_loader = os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox')
+library_args = ['--evergreen_content=.', '--evergreen_library={library}.so']
+
+# Pass the elf_loader as the "binary" argument to run_browser_tests.py,
+# followed by the required library args, and then the rest of sys.argv
+command = [sys.executable, run_browser_tests, elf_loader] + library_args + sys.argv[1:]
+try:
+    result = subprocess.run(command, check=False)
+    sys.exit(result.returncode)
+except subprocess.CalledProcessError:
+    # A subprocess failed, so don't log the python traceback.
+    raise SystemExit(1)
+except Exception as e:
+    print("An unexpected error occurred: " + str(e), file=sys.stderr)
+    sys.exit(1)
+"""
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=str, required=True)
 parser.add_argument('--library', type=str, required=True)
 args = parser.parse_args()
 
 with open(args.output, 'w', encoding='utf-8') as f:
-  f.write(_TEMPLATE.format(library=args.library))
+  if args.library == 'libcobalt_browsertests':
+    f.write(_BROWSERTEST_TEMPLATE.format(library=args.library))
+  else:
+    f.write(_TEMPLATE.format(library=args.library))
 current_permissions = stat.S_IMODE(os.stat(args.output).st_mode)
 new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
 os.chmod(args.output, new_permissions)
