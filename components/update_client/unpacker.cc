@@ -90,15 +90,11 @@ void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
 void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
                       crx_file::VerifierFormat crx_format) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(IN_MEMORY_UPDATES)
-  VLOG(1) << "Verifying component";
-#else
   VLOG(1) << "Verifying component: " << path_.value();
   if (path_.empty()) {
     EndUnpacking(UnpackerError::kInvalidParams, 0);
     return;
   }
-#endif
   std::vector<std::vector<uint8_t>> required_keys;
   if (!pk_hash.empty()) {
     required_keys.push_back(pk_hash);
