@@ -42,14 +42,11 @@ namespace content {
 
 class MockShellPlatformDelegate : public ShellPlatformDelegate {
  public:
-  void Initialize(const gfx::Size& default_window_size,
-                  bool is_visible) override {
-    set_is_visible(is_visible);
-  }
   MOCK_METHOD(void,
               CreatePlatformWindow,
               (Shell * shell, const gfx::Size& initial_size),
               (override));
+  MOCK_METHOD(void, Initialize, (const gfx::Size&, bool), (override));
   MOCK_METHOD(void, SetContents, (Shell * shell), (override));
   MOCK_METHOD(void, LoadSplashScreenContents, (Shell * shell), (override));
   MOCK_METHOD(void, UpdateContents, (Shell * shell), (override));
@@ -159,6 +156,8 @@ class CobaltShellTestBase : public ::testing::Test {
     ON_CALL(*platform_, DidCloseLastWindow()).WillByDefault([this]() {
       platform_->ShellPlatformDelegate::DidCloseLastWindow();
     });
+
+    platform->is_visible_ = is_visible;
 
     Shell::Initialize(std::move(platform), is_visible);
   }

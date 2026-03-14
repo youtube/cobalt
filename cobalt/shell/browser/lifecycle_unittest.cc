@@ -83,12 +83,35 @@ TEST_F(LifecycleTest, Reveal) {
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
 
   // Trigger reveal.
-  EXPECT_CALL(*platform_, OnReveal());
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
   EXPECT_CALL(*platform_, RevealShell(shell));
   Shell::OnReveal();
 
   EXPECT_TRUE(platform_->IsVisible());
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+  task_environment()->RunUntilIdle();
+}
+
+TEST_F(LifecycleTest, RedundantReveal) {
+  Shell* shell = CreateTestShell(false /* is_visible */);
+
+  // First reveal.
+  EXPECT_CALL(*platform_, OnReveal()).Times(1).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  Shell::OnReveal();
+
+  // Redundant reveal should do nothing.
+  EXPECT_CALL(*platform_, OnReveal()).Times(0);
+  Shell::OnReveal();
+
+  EXPECT_TRUE(platform_->IsVisible());
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
@@ -102,7 +125,9 @@ TEST_F(LifecycleTest, Conceal) {
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
 
   // Trigger conceal.
-  EXPECT_CALL(*platform_, OnConceal());
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
   EXPECT_CALL(*platform_, ConcealShell(shell));
   Shell::OnConceal();
 
@@ -121,12 +146,17 @@ TEST_F(LifecycleTest, FreezeUnfreeze) {
       static_cast<TestWebContents*>(shell->web_contents());
 
   // Trigger freeze.
-  EXPECT_CALL(*platform_, OnFreeze());
+  EXPECT_CALL(*platform_, OnFreeze()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnFreeze();
+  });
   Shell::OnFreeze();
   EXPECT_TRUE(test_web_contents->IsPageFrozen());
 
   // Trigger unfreeze.
-  EXPECT_CALL(*platform_, OnUnfreeze());
+  // Transition back to Concealed.
+  EXPECT_CALL(*platform_, OnUnfreeze()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnUnfreeze();
+  });
   Shell::OnUnfreeze();
   EXPECT_FALSE(test_web_contents->IsPageFrozen());
 

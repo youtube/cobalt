@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_APP_APP_LIFECYCLE_DELEGATE_H_
-#define COBALT_APP_APP_LIFECYCLE_DELEGATE_H_
+#ifndef COBALT_APP_APP_EVENT_RUNNER_H_
+#define COBALT_APP_APP_EVENT_RUNNER_H_
 
 #include <memory>
 #include <string>
@@ -25,18 +25,21 @@
 #include "starboard/event.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
-#endif
-
 namespace cobalt {
 
-// AppLifecycleRunner defines an interface for managing the system-level
+// AppEventRunner defines an interface for managing the system-level
 // execution of the Cobalt process. This abstraction allows for injecting
 // fake or mock behaviors during unit testing.
-class AppLifecycleRunner {
+//
+// AppEventRunner manages the Cobalt application lifecycle by translating
+// Starboard events into Chromium actions. It orchestrates the initialization,
+// running, and shutdown of the browser process and manages interaction with
+// Cobalt subsystems such as DeepLinkManager and H5vccAccessibilityManager.
+class AppEventRunner {
  public:
-  virtual ~AppLifecycleRunner() = default;
+  static std::unique_ptr<AppEventRunner> Create();
+
+  virtual ~AppEventRunner() = default;
 
   // Initializes global system resources like AtExitManager.
   virtual void InitializeSystem() = 0;
@@ -57,41 +60,33 @@ class AppLifecycleRunner {
 
   // Returns true if the runner is currently executing.
   virtual bool IsRunning() const = 0;
-};
 
-// AppLifecycleDelegate manages the Cobalt application lifecycle by translating
-// Starboard events into Chromium actions. It orchestrates the initialization,
-// running, and shutdown of the browser process and manages interaction with
-// Cobalt subsystems such as DeepLinkManager and H5vccAccessibilityManager.
-class AppLifecycleDelegate {
- public:
-  explicit AppLifecycleDelegate(
-      std::unique_ptr<AppLifecycleRunner> runner = nullptr);
-  ~AppLifecycleDelegate();
+  // Returns true if the app should be visible.
+  virtual bool IsVisible() const = 0;
 
-  void HandleEvent(const SbEvent* event);
+  virtual void SetStateForTesting(bool is_running, bool is_visible) = 0;
 
-  bool IsRunning() const;
+  virtual void OnStart(const SbEvent* event) = 0;
+  virtual void OnStop() = 0;
+  // Lifecycle signals called from the application.
+  virtual void OnBlur() = 0;
+  virtual void OnFocus() = 0;
+  virtual void OnConceal() = 0;
+  virtual void OnReveal() = 0;
+  virtual void OnFreeze() = 0;
+  virtual void OnUnfreeze() = 0;
 
- private:
-  void OnStart(const SbEvent* event);
-  void OnStop(const SbEvent* event);
-
-  int Run(absl::optional<int64_t> startup_timestamp,
-          bool is_visible,
-          int argc,
-          const char** argv,
-          const char* initial_deep_link);
-
-  std::unique_ptr<AppLifecycleRunner> runner_;
-
-#if BUILDFLAG(IS_STARBOARD)
-  // Ozone-specific bridge that converts Starboard events to Chromium events.
-  // Non-Starboard platforms (like Android) handle these events natively.
-  std::unique_ptr<ui::PlatformEventSourceStarboard> platform_event_source_;
-#endif
+  // Handlers for non-lifecycle SbEventType events
+  virtual void OnInput(const SbEvent* event) = 0;
+  virtual void OnLink(const SbEvent* event) = 0;
+  virtual void OnLowMemory(const SbEvent* event) = 0;
+  virtual void OnWindowSizeChanged(const SbEvent* event) = 0;
+  virtual void OnOsNetworkConnectedDisconnected(const SbEvent* event) = 0;
+  virtual void OnDateTimeConfigurationChanged(const SbEvent* event) = 0;
+  virtual void OnAccessibilityTextToSpeechSettingsChanged(
+      const SbEvent* event) = 0;
 };
 
 }  // namespace cobalt
 
-#endif  // COBALT_APP_APP_LIFECYCLE_DELEGATE_H_
+#endif  // COBALT_APP_APP_EVENT_RUNNER_H_

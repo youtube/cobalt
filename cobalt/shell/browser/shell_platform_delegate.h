@@ -177,8 +177,6 @@ class ShellPlatformDelegate {
   void CreatePlatformWindowInternal(Shell* shell,
                                     const gfx::Size& initial_size);
 
-  void set_is_visible(bool is_visible) { is_visible_ = is_visible; }
-
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
   // Allows the test subclasses to override the ViewsDelegate.
   virtual std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate();
