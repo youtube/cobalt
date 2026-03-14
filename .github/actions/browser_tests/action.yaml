@@ -84,7 +84,11 @@ runs:
 
         # Determine the gtest-filter from the filter file if it exists.
         # We only handle the first target for filter application in ODT for now.
-        test_target=$(echo "${TEST_TARGETS_JSON}" | jq -r '.[0].target' | awk -F: '{print $NF}')
+        if [[ "${TEST_TYPE}" == "browser_test" ]]; then
+          test_target="cobalt_browsertests"
+        else
+          test_target=$(echo "${TEST_TARGETS_JSON}" | jq -r '.[0].target' | awk -F: '{print $NF}')
+        fi
         TEST_FILTER_JSON="${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}/${test_target}_filter.json"
         GTEST_FILTER="*"
         if [ -f "${TEST_FILTER_JSON}" ]; then
