@@ -133,8 +133,8 @@ def _get_test_args_and_dimensions(
       dimensions = json.loads(args.dimensions)
     except json.JSONDecodeError as e:
       raise ValueError(f'--dimensions is not in JSON format: {e}') from e
-    device_type = dimensions.get('device_type')
-    device_pool = dimensions.get('device_pool')
+    device_type = dimensions.pop('device_type', None)
+    device_pool = dimensions.pop('device_pool', None)
 
     test_args.extend(
         [f'dimension_{key}={value}' for key, value in dimensions.items()])
