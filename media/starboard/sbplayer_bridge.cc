@@ -159,6 +159,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
     int max_video_input_size,
+<<<<<<< HEAD
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
     std::optional<int> initial_max_frames_in_decoder,
@@ -167,6 +168,9 @@ SbPlayerBridge::SbPlayerBridge(
     std::optional<int> video_decoder_poll_interval_ms,
     std::optional<int> video_renderer_min_input_buffers,
     std::optional<int> video_renderer_min_decoded_frames
+=======
+    const ExperimentalFeatures& experimental_features
+>>>>>>> 27a0401dc6 (media:  Make SbPlayerBridge use ExperirmentalFeatures struct (#9514))
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -194,6 +198,7 @@ SbPlayerBridge::SbPlayerBridge(
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
       // TODO: b/326654546 - Reorder this variable once enabled.
       max_video_input_size_(max_video_input_size),
+<<<<<<< HEAD
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #if COBALT_MEDIA_ENABLE_CVAL
       cval_stats_(&interface->cval_stats_),
@@ -211,6 +216,9 @@ SbPlayerBridge::SbPlayerBridge(
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
       video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames)
+=======
+      experimental_features_(experimental_features)
+>>>>>>> 27a0401dc6 (media:  Make SbPlayerBridge use ExperirmentalFeatures struct (#9514))
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -772,8 +780,9 @@ void SbPlayerBridge::CreatePlayer() {
       strcmp(experimental_features_extension->name,
              kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures experimental_features = {};
+    StarboardExtensionExperimentalFeatures extension_features = {};
 
+<<<<<<< HEAD
     experimental_features.flush_decoder_during_reset =
         flush_decoder_during_reset_;
     experimental_features.reset_audio_decoder = reset_audio_decoder_;
@@ -789,9 +798,34 @@ void SbPlayerBridge::CreatePlayer() {
         ToIntPointer(video_renderer_min_decoded_frames_);
     experimental_features.video_renderer_min_input_buffers =
         ToIntPointer(video_renderer_min_input_buffers_);
+=======
+    extension_features.flush_decoder_during_reset =
+        experimental_features_.enable_flush_during_seek;
+    extension_features.media_codec_reset_delay_ms =
+        ToIntPointer(experimental_features_.media_codec_reset_delay_ms);
+    extension_features.pause_using_audio_track_state =
+        experimental_features_.pause_using_audio_track_state;
+    extension_features.reset_audio_decoder =
+        experimental_features_.enable_reset_audio_decoder;
+    extension_features.video_decoder_initial_preroll_count = ToIntPointer(
+        experimental_features_.video_decoder_initial_preroll_count);
+    extension_features.video_decoder_poll_interval_ms =
+        ToIntPointer(experimental_features_.video_decoder_poll_interval_ms);
+    extension_features.video_initial_max_frames_in_decoder =
+        ToIntPointer(experimental_features_.initial_max_frames_in_decoder);
+    extension_features.video_max_pending_input_frames =
+        ToIntPointer(experimental_features_.max_pending_input_frames);
+    extension_features.video_renderer_min_decoded_frames =
+        ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
+    extension_features.video_renderer_min_input_buffers =
+        ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
+
+    // Note: `max_samples_per_write` and `report_buffering_state_during_flush`
+    // are not mapped here as they are consumed directly by the media layer.
+>>>>>>> 27a0401dc6 (media:  Make SbPlayerBridge use ExperirmentalFeatures struct (#9514))
 
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
-        &experimental_features);
+        &extension_features);
   }
 
   player_ = sbplayer_interface_->Create(
