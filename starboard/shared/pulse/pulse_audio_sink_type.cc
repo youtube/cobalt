@@ -61,6 +61,17 @@ const size_t kFramesPerRequest = 512;
 // The size of the audio buffer Pulse allocates internally.
 const size_t kPulseBufferSizeInFrames = 8192;
 
+class PulseAudioSink;
+// Global mutex for methods accessing the PulseAudio API. Since both
+// PulseAudioSinkType and PulseAudioSink access the PulseAudio API, a global
+// mutex is required to synchronize access and prevent race conditions between
+// them.
+static std::mutex g_pa_mutex_;
+// Active PulseAudioSink instances. Sinks add themselves on creation and remove
+// themselves on destruction. Guarded by |g_pa_mutex_| to synchronize access
+// between the renderer thread and the Pulse audio thread.
+static std::vector<PulseAudioSink*> g_sinks_;
+
 class PulseAudioSinkType;
 
 class PulseAudioSink : public SbAudioSinkImpl {
@@ -139,17 +150,18 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
-  void Destroy(SbAudioSink audio_sink) override;
+  void Destroy(SbAudioSink audio_sink);
 
   bool Initialize();
 
   bool BelongToAudioThread();
-  pa_stream* CreateNewStream(const pa_sample_spec* sample_spec,
-                             const pa_buffer_attr* buffer_attr,
-                             pa_stream_flags_t stream_flags,
-                             pa_stream_request_cb_t stream_request_cb,
-                             void* userdata);
-  void DestroyStream(pa_stream* stream);
+  static pa_stream* CreateNewStream(const pa_sample_spec* sample_spec,
+                                    const pa_buffer_attr* buffer_attr,
+                                    pa_stream_flags_t stream_flags,
+                                    pa_stream_request_cb_t stream_request_cb,
+                                    pa_context* context,
+                                    void* userdata);
+  static void DestroyStream(pa_stream* stream);
 
  private:
   PulseAudioSinkType(const PulseAudioSinkType&) = delete;
@@ -159,12 +171,11 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  std::vector<PulseAudioSink*> sinks_;  // Guarded by |mutex_|.
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
-  std::mutex mutex_;
   std::optional<pthread_t> audio_thread_;
-  bool destroying_ = false;  // Guarded by |mutex_|.
+  std::mutex destroying_mutex_;
+  bool destroying_ = false;  // Guarded by |destroying_mutex_|.
 };
 
 PulseAudioSink::PulseAudioSink(
@@ -195,8 +206,15 @@ PulseAudioSink::PulseAudioSink(
 }
 
 PulseAudioSink::~PulseAudioSink() {
+  {
+    std::lock_guard lock(g_pa_mutex_);
+    auto it = std::find(g_sinks_.begin(), g_sinks_.end(), this);
+    if (it != g_sinks_.end()) {
+      g_sinks_.erase(it);
+    }
+  }
   if (stream_) {
-    type_->DestroyStream(stream_);
+    PulseAudioSinkType::DestroyStream(stream_);
   }
 }
 
@@ -238,8 +256,9 @@ bool PulseAudioSink::Initialize(pa_context* context) {
       PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_AUTO_TIMING_UPDATE |
       PA_STREAM_START_CORKED);
 
-  stream_ = type_->CreateNewStream(&sample_spec_, &buf_attr_, kNoLatency,
-                                   RequestCallback, this);
+  stream_ = PulseAudioSinkType::CreateNewStream(&sample_spec_, &buf_attr_,
+                                                kNoLatency, RequestCallback,
+                                                context, /*user_data=*/this);
   return stream_ != NULL;
 }
 
@@ -375,12 +394,15 @@ PulseAudioSinkType::PulseAudioSinkType() {}
 PulseAudioSinkType::~PulseAudioSinkType() {
   if (audio_thread_) {
     {
-      std::lock_guard lock(mutex_);
+      std::lock_guard lock(destroying_mutex_);
       destroying_ = true;
     }
     pthread_join(*audio_thread_, nullptr);
   }
-  SB_DCHECK(sinks_.empty());
+  {
+    std::lock_guard lock(g_pa_mutex_);
+    SB_CHECK(g_sinks_.empty());
+  }
   if (context_) {
     pa_context_disconnect(context_);
     pa_context_unref(context_);
@@ -401,37 +423,18 @@ SbAudioSink PulseAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  PulseAudioSink* audio_sink = new PulseAudioSink(
+  auto audio_sink = std::make_unique<PulseAudioSink>(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, update_source_status_func, consume_frames_func,
       context);
   if (!audio_sink->Initialize(context_)) {
-    delete audio_sink;
     return kSbAudioSinkInvalid;
   }
-  std::lock_guard lock(mutex_);
-  sinks_.push_back(audio_sink);
-  return audio_sink;
-}
-
-void PulseAudioSinkType::Destroy(SbAudioSink audio_sink) {
-  if (audio_sink == kSbAudioSinkInvalid) {
-    return;
-  }
-  if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
-    SB_LOG(WARNING) << "audio_sink is invalid.";
-    return;
-  }
-  PulseAudioSink* pulse_audio_sink = static_cast<PulseAudioSink*>(audio_sink);
   {
-    {
-      std::lock_guard lock(mutex_);
-      auto it = std::find(sinks_.begin(), sinks_.end(), pulse_audio_sink);
-      SB_DCHECK(it != sinks_.end());
-      sinks_.erase(it);
-    }
-    delete audio_sink;
+    std::lock_guard lock(g_pa_mutex_);
+    g_sinks_.push_back(audio_sink.get());
   }
+  return audio_sink.release();
 }
 
 bool PulseAudioSinkType::Initialize() {
@@ -493,6 +496,7 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
     const pa_buffer_attr* buffer_attr,
     pa_stream_flags_t flags,
     pa_stream_request_cb_t stream_request_cb,
+    pa_context* context,
     void* userdata) {
   pa_channel_map channel_map = {sample_spec->channels};
 
@@ -510,10 +514,10 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
     channel_map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
   }
 
-  std::lock_guard lock(mutex_);
+  std::lock_guard lock(g_pa_mutex_);
 
   pa_stream* stream =
-      pa_stream_new(context_, "cobalt_stream", sample_spec,
+      pa_stream_new(context, "cobalt_stream", sample_spec,
                     sample_spec->channels == 6 ? &channel_map : NULL);
   if (!stream) {
     SB_LOG(ERROR) << "Pulse audio error: cannot create stream.";
@@ -530,7 +534,7 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
 }
 
 void PulseAudioSinkType::DestroyStream(pa_stream* stream) {
-  std::lock_guard lock(mutex_);
+  std::lock_guard lock(g_pa_mutex_);
   pa_stream_set_write_callback(stream, NULL, NULL);
   pa_stream_disconnect(stream);
   pa_stream_unref(stream);
@@ -567,14 +571,21 @@ void PulseAudioSinkType::AudioThreadFunc() {
     {
       bool has_running_sink = false;
       {
-        // TODO: The scope of the lock is too wide.
-        std::lock_guard lock(mutex_);
-        if (destroying_) {
-          break;
+        {
+          std::lock_guard lock(destroying_mutex_);
+          if (destroying_) {
+            break;
+          }
         }
-        for (PulseAudioSink* sink : sinks_) {
+
+        std::lock_guard lock(g_pa_mutex_);
+        for (PulseAudioSink* sink : g_sinks_) {
           has_running_sink |= sink->WriteFrameIfNecessary(context_);
         }
+
+        // Note: The global PulseAudio mutex must be held during
+        // pa_mainloop_iterate to ensure library-wide thread safety. Callbacks
+        // (e.g. PulseAudioSink::HandleRequest) are implemented to be lock-free.
         pa_mainloop_iterate(mainloop_, 0, NULL);
       }
       if (has_running_sink) {

@@ -161,7 +161,7 @@ SbAudioSink SbAudioSinkImpl::Create(
       return audio_sink;
     }
     SB_LOG(ERROR) << "Failed to create SbAudioSink from preferred type.";
-    audio_sink_type->Destroy(audio_sink);
+    SbAudioSinkDestroy(audio_sink);
   } else {
     SB_LOG(WARNING) << "Preferred Sink Type is invalid.";
   }
@@ -176,7 +176,7 @@ SbAudioSink SbAudioSinkImpl::Create(
       return audio_sink;
     }
     SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
-    fallback_type->Destroy(audio_sink);
+    SbAudioSinkDestroy(audio_sink);
   } else {
     SB_LOG(WARNING) << "Fallback Sink Type is invalid.";
   }
