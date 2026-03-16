@@ -140,7 +140,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Storage.Exit.LocalStorageFlushDuration" units="ms"
+<histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
