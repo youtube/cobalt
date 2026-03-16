@@ -54,7 +54,6 @@ rdk_gcc_toolchain("starboard") {
     platform_cflags = _rdk_toolchain_platform_cflags
   }
   toolchain_args = {
-    is_starboard = true
     sysroot = "$rdk_sysroot"
     build_base_with_cpp17 = true
     enable_base_tracing = false
@@ -73,7 +72,6 @@ rdk_gcc_toolchain("native_target") {
     platform_cflags = _rdk_toolchain_platform_cflags
   }
   toolchain_args = {
-    is_starboard = false
     is_native_target_build = true
     sysroot = "$rdk_sysroot"
     build_base_with_cpp17 = true

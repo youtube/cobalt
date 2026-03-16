@@ -13,8 +13,11 @@
 # limitations under the License.
 
 declare_args() {
+  # Use the Starboard layer to interact with the OS.
   is_starboard = is_cobalt && target_os != "android" && target_os != "ios" &&
-                 current_toolchain == default_toolchain
+                 (current_toolchain == default_toolchain ||
+                  (defined(starboard_toolchain) &&
+                   current_toolchain == starboard_toolchain))
 }
 
 declare_args() {
