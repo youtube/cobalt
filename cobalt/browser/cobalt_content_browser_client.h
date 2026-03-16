@@ -51,7 +51,7 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  CobaltContentBrowserClient();
+  CobaltContentBrowserClient(absl::optional<int64_t> startup_time);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -121,6 +121,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
   void DispatchBlur();
   void DispatchFocus();
+
+ private:
+  const absl::optional<int64_t> startup_timestamp_;
 
  private:
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
