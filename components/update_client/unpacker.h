@@ -14,7 +14,6 @@
 // These headers cannot be guarded by BUILDFLAG(IS_STARBOARD) because
 // they define BUILDFLAG(IS_STARBOARD)
 #include "build/build_config.h"
-#include "build/buildflag.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/pipeline.h"

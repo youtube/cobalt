@@ -280,4 +280,3 @@ base::OnceClosure InstallOperation(
 }
 
 }  // namespace update_client
-
