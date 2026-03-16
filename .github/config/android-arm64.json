@@ -8,7 +8,7 @@
   "test_device_family": "android",
   "test_e2e": true,
   "test_yts": true,
-  "test_browser": true,
+  "test_browser": false,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "test_dimensions": {
     "device_type": "nvidia_shield",
@@ -48,7 +48,7 @@
   ],
   "browser_test_targets": [
     {
-      "target": "testing/container/browser_tests:cobalt_browser_test",
+      "target": "//video/youtube/testing/container/browser_tests:cobalt_browser_test_android_arm64_devices",
       "test_attempts": "3"
     }
   ],

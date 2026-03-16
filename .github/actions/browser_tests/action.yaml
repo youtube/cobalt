@@ -74,6 +74,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
         TEST_TARGETS_JSON: ${{ inputs.test_targets }}
+        CONTAINER_LOCATION: ${{ inputs.container_location }}
       run: |
         set -x
 
@@ -186,10 +187,10 @@ runs:
               echo "Test result xml is missing for ${test_target}."
 
               # Try to find the crashed test in the log and create a fake junit xml for it.
-              log_files=("${test_output}"/${{ inputs.platform }}/**/"${test_target}"_log.txt)
-              if [[ "${#log_files[@]}" -gt 0 ]]; then
-                 xml_path="${test_output}/${{ inputs.platform }}/1/${test_target}_testoutput.xml"
-                 python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_files[0]}" "${xml_path}"
+              log_path="${test_output}/${{ inputs.platform }}/${test_target}_log.txt"
+              if [ -f "${log_path}" ]; then
+                 xml_path="${test_output}/${{ inputs.platform }}/${test_target}_testoutput.xml"
+                 python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
               fi
               exit 1
             fi
