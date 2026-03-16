@@ -35,8 +35,6 @@ namespace cobalt {
 
 namespace {
 
-const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
-    "Media.EnableAllocateOnDemand";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
@@ -219,13 +217,6 @@ std::optional<int> ProcessRangedIntH5vccSetting(
 ExperimentalFeatures ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
   ExperimentalFeatures parsed;
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
-    bool enable_allocate_on_demand = *val != 0;
-    auto* allocator = media::DecoderBufferAllocator::Get();
-    CHECK(allocator);
-    allocator->SetAllocateOnDemand(enable_allocate_on_demand);
-  }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
     parsed.enable_flush_during_seek = *val != 0;
