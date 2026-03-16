@@ -11,6 +11,7 @@
                 "gen/licenses_cobalt.txt",
                 "icudtl.dat",
                 "lib.unstripped/libchrobalt.so",
+                "libchrome_crashpad_handler.so",
                 "libchrobalt.so",
                 "obj/base/activity_state_java.javac.jar",
                 "obj/base/android_info_java.javac.jar",
@@ -78,6 +79,8 @@
                 "obj/components/url_formatter/android/url_formatter_java.javac.jar",
                 "obj/components/variations/android/variations_java.javac.jar",
                 "obj/components/variations/variations_java.javac.jar",
+                "obj/components/crash/android/java.javac.jar",
+                "obj/components/crash/android/jni_headers_java.javac.jar",
                 "obj/components/viz/service/service_java.javac.jar",
                 "obj/content/public/android/content_app_jni_java.javac.jar",
                 "obj/content/public/android/content_full_java.javac.jar",
@@ -187,6 +190,10 @@
                 {
                     "from_file": "libchrobalt.so",
                     "to_file": "lib/libchrobalt.so"
+                },
+                {
+                    "from_file": "libchrome_crashpad_handler.so",
+                    "to_file": "lib/libchrome_crashpad_handler.so"
                 },
                 {
                     "from_file": "obj/base/activity_state_java.javac.jar",
@@ -451,6 +458,14 @@
                 {
                     "from_file": "obj/components/variations/variations_java.javac.jar",
                     "to_file": "jar/components_variations_variations_java.jar"
+                },
+                {
+                    "from_file": "obj/components/crash/android/java.javac.jar",
+                    "to_file": "jar/components_crash_android_java.jar"
+                },
+                {
+                    "from_file": "obj/components/crash/android/jni_headers_java.javac.jar",
+                    "to_file": "jar/components_crash_android_jni_headers_java.jar"
                 },
                 {
                     "from_file": "obj/components/viz/service/service_java.javac.jar",

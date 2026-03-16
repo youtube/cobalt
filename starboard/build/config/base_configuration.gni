@@ -45,10 +45,6 @@ declare_args() {
   # Whether to use the libunwind library on Evergreen compatible platform.
   sb_evergreen_compatible_use_libunwind = false
 
-  # Whether to generate the whole package containing both Loader app and Cobalt
-  # core on the Evergreen compatible platform.
-  sb_evergreen_compatible_package = false
-
   # The target type for test targets. Allows changing the target type
   # on platforms where the native code may require an additional packaging step
   # (ex. Android).
@@ -147,5 +143,5 @@ declare_args() {
   # implementation will be built and used.
   # TODO: b/406511608 - remove once crashpad builds and behaves as expected on
   # all Early Access Program platforms.
-  use_crashpad = true
+  use_crashpad = use_evergreen
 }

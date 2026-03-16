@@ -216,6 +216,9 @@ void Component::SetUpdateCheckResult(std::optional<ProtocolParser::App> result,
         crx_component_->crx_format_requirement, crx_component_->app_id,
         crx_component_->pk_hash, crx_component_->install_data_index,
         crx_component_->installer,
+#if defined(IN_MEMORY_UPDATES)
+        &crx_str_,
+#endif
         base::BindRepeating(
             [](base::raw_ref<Component> component, ComponentState state) {
               component->state_hint_ = state;

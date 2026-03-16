@@ -32,6 +32,9 @@ extern const base::Feature kTestFinchFeature;
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 
+// Enables native hang reporting via Crashpad.
+extern const base::Feature kHangReporting;
+
 }  // namespace features
 }  // namespace cobalt
 

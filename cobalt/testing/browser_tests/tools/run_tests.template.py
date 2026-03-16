@@ -8,17 +8,21 @@ It configures the environment and invokes the appropriate platform runner.
 """
 
 import argparse
+import atexit
 import logging
 import os
+import shlex
 import shutil
 import subprocess
 import sys
 
 # TARGET_MAP will be injected by the collection script.
 TARGET_MAP = {}
+SOCAT_CMD = ("socat tcp-listen:5037,bind=127.0.0.1,reuseaddr,fork "
+             "tcp-connect:host.docker.internal:5037")
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -55,7 +59,10 @@ def main():
   parser = argparse.ArgumentParser(
       description="Portable test runner for Cobalt browser tests.",
       add_help=False)
-  parser.add_argument("--init-command", help="Command to run before tests.")
+  parser.add_argument(
+      "--init-command", default=SOCAT_CMD, help="Command to run before tests.")
+  parser.add_argument(
+      "--socat-timeout", default=5, help="Timeout for socat in seconds.")
   parser.add_argument(
       "target", nargs="?", help="Target platform to run tests for.")
   parser.add_argument(
@@ -70,8 +77,17 @@ def main():
     sys.exit(0)
 
   if args.init_command:
-    logging.info("Executing init-command: %s", args.init_command)
-    subprocess.run(args.init_command, shell=True, check=True)
+    command_parts = shlex.split(args.init_command)
+    # If the command is socat, insert the timeout option before addresses.
+    if command_parts and command_parts[0] == "socat":
+      command_parts.insert(1, "-t")
+      command_parts.insert(2, str(args.socat_timeout))
+
+    init_command = shlex.join(command_parts)
+    logging.info("Executing init-command: %s", init_command)
+    # pylint: disable=consider-using-with
+    proc = subprocess.Popen(command_parts)
+    atexit.register(proc.terminate)
 
   target_name = os.environ.get("TARGET_PLATFORM") or args.target
 
@@ -97,11 +113,12 @@ def main():
       sys.exit(1)
 
   target_config = TARGET_MAP[target_name]
-  is_android = target_config.get("is_android", False)
+  logging.debug("Target config: %s", target_config)
 
   # 3. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
   test_runner = os.path.join(src_dir, target_config["runner"])
+  logging.info("Resolved test runner to: %s", test_runner)
 
   # Resolve the specific build root for this target.
   target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])
@@ -131,22 +148,12 @@ def main():
   logging.info("Using vpython3 at: %s", vpython_path)
 
   # 6. Execute
-  if is_android:
-    logging.info("Executing Android test runner for '%s': %s", target_name,
-                 test_runner)
-    cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
-          ] + runner_args
+  logging.info("Executing test runner for '%s': %s", target_name, test_runner)
+
+  if test_runner.endswith(".py"):
+    cmd = [vpython_path, test_runner] + runner_args
   else:
-    logging.info(
-        "Executing Linux test runner for '%s' using xvfb.py and "
-        "run_browser_tests.py", target_name)
-    xvfb_py = os.path.join(src_dir, "testing/xvfb.py")
-    run_browser_tests_py = os.path.join(
-        src_dir, "cobalt/testing/browser_tests/run_browser_tests.py")
-    # Wrap the whole command in xvfb.py to provide a DISPLAY
-    cmd = [
-        vpython_path, xvfb_py, sys.executable, run_browser_tests_py, test_runner
-    ] + runner_args
+    cmd = [test_runner] + runner_args
 
   try:
     return subprocess.call(cmd)

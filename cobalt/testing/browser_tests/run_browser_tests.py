@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Helper script to run Cobalt browser tests.
 
 Cobalt is designed to run in single process mode on TV devices. Its
@@ -11,6 +24,7 @@ and iterate them.
 import argparse
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -24,10 +38,10 @@ class CobaltTestRunner:
   def __init__(self, args: argparse.Namespace, unknown_args: List[str]):
     """Initializes the test runner.
 
-        Args:
-            args: Parsed known arguments.
-            unknown_args: List of unknown arguments to pass to the binary.
-        """
+    Args:
+        args: Parsed known arguments.
+        unknown_args: List of unknown arguments to pass to the binary.
+    """
     self.args = args
     self.unknown_args = unknown_args
     self.binary = self._find_binary(args.binary)
@@ -39,10 +53,9 @@ class CobaltTestRunner:
     self._xml_root = None
     self._xml_tree = None
 
-    # Diable pylint because if the folder is passed by users, we should
-    # keep it.
-    # pylint: disable=consider-using-with
+    # If the folder is passed by users, we should keep it.
     if not self.user_data_dir:
+      # pylint: disable=consider-using-with
       self._temp_dir_obj = tempfile.TemporaryDirectory(
           prefix="cobalt_user_data_")
       self.user_data_dir = self._temp_dir_obj.name
@@ -75,30 +88,72 @@ class CobaltTestRunner:
     self._xml_tree = None
 
   def _find_binary(self, binary_path: str) -> str:
-    """Locates the executable test binary.
+    """Locates the executable test binary."""
+    logging.debug("Finding binary for path: %s", binary_path)
 
-        Args:
-            binary_path: The initial path to the binary.
+    def is_executable(path: str) -> bool:
+      return os.path.isfile(path) and os.access(path, os.X_OK)
 
-        Returns:
-            The absolute path to the found binary.
+    def try_make_executable(path: str):
+      if os.path.isfile(path) and not os.access(path, os.X_OK):
+        try:
+          # Use 0o755 (rwxr-xr-x) for binaries.
+          os.chmod(path, 0o755)
+          logging.info("Made %s executable.", path)
+        except OSError as e:
+          logging.warning("Failed to make %s executable: %s", path, e)
 
-        Raises:
-            SystemExit: If the binary cannot be found.
-        """
-    if os.path.isfile(binary_path):
-      return os.path.abspath(binary_path)
-
+    # Potential paths to check
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    potential_binary = os.path.join(script_dir, binary_path)
-    if os.path.isfile(potential_binary):
-      return potential_binary
+    abs_binary_path = os.path.abspath(binary_path)
 
+    # Use CWD as first priority for finding the binary
     potential_binary_cwd = os.path.join(os.getcwd(), binary_path)
     if os.path.isfile(potential_binary_cwd):
-      return potential_binary_cwd
+      try_make_executable(potential_binary_cwd)
+      if is_executable(potential_binary_cwd):
+        return potential_binary_cwd
 
-    logging.error("Binary not found at %s", binary_path)
+    search_paths = [
+        binary_path,
+        abs_binary_path,
+        os.path.join(script_dir, binary_path),
+        # Add src/ prefix as it's common in portable archives
+        os.path.join(os.getcwd(), "src", binary_path),
+    ]
+
+    # 1. Try to find an already executable file
+    for p in search_paths:
+      if is_executable(p):
+        return os.path.abspath(p)
+
+    # 2. Try to make files executable if they exist
+    for p in search_paths:
+      if os.path.isfile(p):
+        try_make_executable(p)
+        if is_executable(p):
+          return os.path.abspath(p)
+
+    # 3. Last resort: return the file if it exists, even if not executable
+    for p in search_paths:
+      if os.path.isfile(p):
+        logging.error("Binary at %s exists but is not executable.", p)
+        return os.path.abspath(p)
+
+    logging.error("Binary not found at %s.", binary_path)
+    logging.debug("Tried paths: %s", search_paths)
+    logging.debug("Current working directory: %s", os.getcwd())
+
+    # Help diagnose by listing directory of the first path
+    try:
+      first_dir = os.path.dirname(abs_binary_path)
+      if os.path.isdir(first_dir):
+        logging.debug("Contents of %s: %s", first_dir, os.listdir(first_dir))
+      else:
+        logging.debug("Directory %s does not exist.", first_dir)
+    except OSError as e:
+      logging.debug("Failed to list directory: %s", e)
+
     sys.exit(1)
 
   def _setup_sharding(self):
@@ -133,16 +188,12 @@ class CobaltTestRunner:
     return None
 
   def list_tests(self) -> str:
-    """Lists tests from the binary using --gtest_list_tests.
-
-        Returns:
-            The standard output from the test listing command.
-
-        Raises:
-            SystemExit: If the list command fails.
-        """
+    """Lists tests from the binary using --gtest_list_tests."""
     logging.info("Listing tests from %s...", self.binary)
-    list_cmd = [self.binary, "--gtest_list_tests"]
+    list_cmd = [
+        self.binary, "--gtest_list_tests", "--ozone-platform=starboard",
+        "--no-sandbox"
+    ]
     if self.args.gtest_filter:
       list_cmd.append(f"--gtest_filter={self.args.gtest_filter}")
     list_cmd.append(f"--user-data-dir={self.user_data_dir}")
@@ -164,40 +215,47 @@ class CobaltTestRunner:
     if len(parts) != 2:
       return (test_name, 0)
     suite, case = parts
-
     pre_count = 0
     while case.startswith("PRE_"):
       case = case[4:]
       pre_count += 1
     return (f"{suite}.{case}", -pre_count)
 
-  def parse_and_sort_tests(self, gtest_list_output: str) -> List[str]:
-    """Parses the output of --gtest_list_tests and sorts test names.
+  def is_valid_test_name(self, name: str) -> bool:
+    """Checks if a string looks like a valid gtest case name.
 
-        This method emulates the behavior of the provided awk script for
-        extracting test names from the gtest output.
-        """
+    Valid names can contain alphanumeric characters and common separators
+    used in parameterized and typed tests.
+    """
+    return bool(re.match(r"^[A-Za-z0-9_/.,=()<>]+$", name))
+
+  def parse_and_sort_tests(self, gtest_list_output: str) -> List[str]:
+    """Parses the output of --gtest_list_tests and sorts test names."""
     tests = []
     current_suite = None
     for line in gtest_list_output.splitlines():
+      # We need to distinguish between suite lines (no leading space)
+      # and test lines (leading spaces).
+      raw_line = line
       line = line.strip()
       if not line or line.startswith("["):
         continue
 
-      # Remove comments
+      # Remove comments (e.g., # TypeParam = ..., # GetParam() = ...)
       line = line.split("#")[0].strip()
+      if not line:
+        continue
 
-      # GTest output format:
-      # SuiteName.
-      #   TestName1
-      #   TestName2
-      if not line.startswith(" ") and line.endswith("."):
-        current_suite = line
-      elif line and current_suite:
+      # Suite lines have no leading space and end with a dot.
+      if not raw_line.startswith(" ") and line.endswith("."):
+        # Validate the suite name identifier (without the trailing dot).
+        if self.is_valid_test_name(line.rstrip(".")):
+          current_suite = line
+      # Test lines have leading spaces and a valid identifier.
+      elif current_suite and self.is_valid_test_name(line):
         test_name = f"{current_suite}{line}"
         if "DISABLED_" not in test_name:
           tests.append(test_name)
-      # Ignore other lines
 
     tests.sort(key=self._get_sort_key)
     return tests
@@ -246,11 +304,15 @@ class CobaltTestRunner:
 
     temp_xml_path = None
     if self.xml_output_file:
-      temp_xml_path = f"temp_shard_{self.shard_index}_{test_idx}.xml"
+      # Use a temporary file for each test's XML output
+      fd, temp_xml_path = tempfile.mkstemp(
+          prefix=f"temp_shard_{self.shard_index}_{test_idx}_", suffix=".xml")
+      os.close(fd)
       cmd.append(f"--gtest_output=xml:{temp_xml_path}")
 
     cmd.extend(self.unknown_args)
 
+    # Prevent recursive sharding in the binary itself
     env = os.environ.copy()
     env["GTEST_TOTAL_SHARDS"] = "1"
     env["GTEST_SHARD_INDEX"] = "0"
@@ -300,11 +362,12 @@ class CobaltTestRunner:
       merged = False
       if temp_xml_path and os.path.exists(temp_xml_path):
         try:
-          shard_tree = ET.parse(temp_xml_path)
-          shard_root = shard_tree.getroot()
-          for testsuite in shard_root:
-            self._xml_root.append(testsuite)
-          merged = True
+          if os.path.getsize(temp_xml_path) > 0:
+            shard_tree = ET.parse(temp_xml_path)
+            shard_root = shard_tree.getroot()
+            for testsuite in shard_root:
+              self._xml_root.append(testsuite)
+            merged = True
         except ET.ParseError as pe:
           logging.warning("Failed to parse temp XML %s: %s", temp_xml_path, pe)
         finally:
@@ -327,6 +390,7 @@ class CobaltTestRunner:
       self._xml_root.set("failures", str(failed_count))
       self._xml_tree.write(
           self.xml_output_file, encoding="UTF-8", xml_declaration=True)
+      logging.info("Wrote merged XML results to %s", self.xml_output_file)
     # pylint: disable=broad-exception-caught
     except Exception as e:
       logging.error("Error writing final XML: %s", e)
@@ -334,9 +398,9 @@ class CobaltTestRunner:
   def run(self) -> int:
     """Runs the test execution process.
 
-        Returns:
-            The number of failed tests.
-        """
+    Returns:
+        The number of failed tests.
+    """
     self._initialize_xml()
 
     gtest_list_output = self.list_tests()
@@ -350,11 +414,12 @@ class CobaltTestRunner:
     failed_count = 0
 
     for i, test in enumerate(tests_to_run):
-      logging.info("[RUN] %s", test)
+      logging.info("[%d/%d] RUNNING: %s", i + 1, len(tests_to_run), test)
       retcode, temp_xml_path = self._run_single_test(test, i)
 
       if retcode == 0:
         passed_count += 1
+        logging.info("[PASSED] %s", test)
       else:
         logging.error("[FAILED] %s (Exit Code: %d)", test, retcode)
         failed_count += 1
@@ -375,7 +440,7 @@ class CobaltTestRunner:
 def parse_args() -> Tuple[argparse.Namespace, List[str]]:
   """Parses command line arguments."""
   parser = argparse.ArgumentParser(
-      description="Cobalt Browser Test Runner Helper")
+      description="Cobalt Browser Test Runner Helper", add_help=False)
   parser.add_argument(
       "binary",
       nargs="?",
@@ -402,14 +467,23 @@ def parse_args() -> Tuple[argparse.Namespace, List[str]]:
       help="Path to the user data directory for the test binary. "
       "Overrides TEST_USER_DATA_DIR env var. "
       "If not set, a temporary directory is used.")
+  parser.add_argument(
+      "-h", "--help", action="store_true", help="Show this help message.")
 
   return parser.parse_known_args()
 
 
 def main():
   """Main entry point for the script."""
-  logging.basicConfig(level=logging.INFO, format="%(message)s")
+  logging.basicConfig(level=logging.DEBUG, format="%(message)s")
   args, unknown_args = parse_args()
+  if args.help:
+    # Re-parse with help enabled to show standard help message
+    argparse.ArgumentParser(
+        description="Cobalt Browser Test Runner Helper").print_help()
+    print("\nAll other arguments are passed to the underlying test binary.")
+    sys.exit(0)
+
   with CobaltTestRunner(args, unknown_args) as runner:
     failed_count = runner.run()
     sys.exit(1 if failed_count > 0 else 0)
