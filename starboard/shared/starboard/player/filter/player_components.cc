@@ -226,7 +226,8 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
-    const auto& experimental_features = creation_parameters.experimental_features();
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
     if (experimental_features.video_renderer_min_input_buffers &&
         experimental_features.video_renderer_min_decoded_frames) {

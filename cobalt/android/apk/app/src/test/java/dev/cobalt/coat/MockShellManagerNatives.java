@@ -22,7 +22,7 @@ public class MockShellManagerNatives implements ShellManager.Natives {
   public void onShellCreated(ShellManager caller, long nativeShell) {}
 
   @Override
-  public void launchShell(String url) {}
+  public void launchShell(String url, String deepLinkUrl) {}
 
   @Override
   public void init(Object shellManagerInstance) {}

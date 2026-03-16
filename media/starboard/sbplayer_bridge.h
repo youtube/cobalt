@@ -42,6 +42,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
@@ -86,6 +87,7 @@ class SbPlayerBridge {
                  DecodeTargetProvider* const decode_target_provider,
                  std::string pipeline_identifier);
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  using ExperimentalFeatures = StarboardRendererConfig::ExperimentalFeatures;
   // Create a SbPlayerBridge with normal player
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -106,16 +108,7 @@ class SbPlayerBridge {
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size,
-                 bool flush_decoder_during_reset,
-                 bool reset_audio_decoder,
-                 bool pause_using_audio_track_state,
-                 std::optional<int> initial_max_frames_in_decoder,
-                 std::optional<int> max_pending_input_frames,
-                 std::optional<int> video_decoder_initial_preroll_count,
-                 std::optional<int> video_decoder_poll_interval_ms,
-                 std::optional<int> video_renderer_min_input_buffers,
-                 std::optional<int> video_renderer_min_decoded_frames,
-                 std::optional<int> media_codec_reset_delay_ms
+                 const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
                  ,
                  jobject surface_view
@@ -351,16 +344,7 @@ class SbPlayerBridge {
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
 
-  const bool flush_decoder_during_reset_;
-  const bool reset_audio_decoder_;
-  const bool pause_using_audio_track_state_;
-  const std::optional<int> initial_max_frames_in_decoder_;
-  const std::optional<int> max_pending_input_frames_;
-  const std::optional<int> video_decoder_initial_preroll_count_;
-  const std::optional<int> video_decoder_poll_interval_ms_;
-  const std::optional<int> video_renderer_min_input_buffers_;
-  const std::optional<int> video_renderer_min_decoded_frames_;
-  const std::optional<int> media_codec_reset_delay_ms_;
+  const ExperimentalFeatures experimental_features_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Set the surface to Android Overlay's surface view.

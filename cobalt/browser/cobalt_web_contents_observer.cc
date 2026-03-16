@@ -92,7 +92,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 
 void CobaltWebContentsObserver::RaisePlatformError() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto* starboard_bridge = starboard::android::shared::StarboardBridge::GetInstance();
+  auto* starboard_bridge =
+      starboard::android::shared::StarboardBridge::GetInstance();
 
   // Don't raise a new platform error if one is already showing
   if (starboard_bridge->IsPlatformErrorShowing(env)) {

@@ -18,6 +18,7 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/experimental/media_buffer_pool.h"
+#include "starboard/extension/experimental_features.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/font.h"
 #include "starboard/extension/free_space.h"
@@ -31,7 +32,6 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
-#include "starboard/extension/player_configurate_seek.h"
 #include "starboard/extension/player_configuration.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/player_set_video_surface_view.h"
@@ -459,9 +459,10 @@ TEST(ExtensionTest, PlayerSetMaxVideoInputSize) {
       << "Extension struct should be a singleton";
 }
 
-TEST(ExtensionTest, PlayerConfigurateSeek) {
-  typedef StarboardExtensionPlayerConfigurateSeekApi ExtensionApi;
-  const char* kExtensionName = kStarboardExtensionPlayerConfigurateSeekName;
+TEST(ExtensionTest, ExperimentalFeatures) {
+  typedef StarboardExtensionExperimentalFeaturesConfigurationApi ExtensionApi;
+  const char* kExtensionName =
+      kStarboardExtensionExperimentalFeaturesConfigurationName;
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -470,10 +471,7 @@ TEST(ExtensionTest, PlayerConfigurateSeek) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
-  EXPECT_NE(extension_api->SetForceFlushDecoderDuringResetForCurrentThread,
-            nullptr);
-  EXPECT_NE(extension_api->SetForceResetAudioDecoderForCurrentThread, nullptr);
+  EXPECT_NE(extension_api->SetExperimentalFeaturesForCurrentThread, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

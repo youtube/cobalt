@@ -28,6 +28,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
@@ -155,9 +156,9 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
-                PlayerComponents::ExperimentalFeatures{},
-                fake_graphics_context_provider_.decoder_target_provider(),
-                nullptr);
+                ExperimentalFeatures{},
+                /*surface_view=*/nullptr,
+                fake_graphics_context_provider_.decoder_target_provider());
             ASSERT_EQ(creation_parameters.max_video_input_size(),
                       max_video_input_size);
 

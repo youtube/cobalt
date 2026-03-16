@@ -58,24 +58,10 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetVolume(double volume) override;
   HandlerResult SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
-  void SetFlushDecoderDuringReset(bool flush_decoder_during_reset) override;
-  void SetResetAudioDecoder(bool reset_audio_decoder) override;
-  void SetPauseUsingAudioTrackState(
-      bool pause_using_audio_track_state) override;
+  void SetExperimentalFeatures(
+      const ::starboard::shared::starboard::ExperimentalFeatures&
+          experimental_features) override;
   void SetVideoSurfaceView(void* surface_view) override;
-  void SetVideoInitialMaxFramesInDecoder(
-      int video_initial_max_frames_in_decoder) override;
-  void SetVideoMaxPendingInputFrames(
-      int video_max_pending_input_frames) override;
-  void SetVideoDecoderInitialPrerollCount(
-      int video_decoder_initial_preroll_count) override;
-  void SetVideoDecoderPollIntervalMs(
-      int video_decoder_poll_interval_ms) override;
-  void SetVideoRendererMinInputBuffers(
-      int video_renderer_min_input_buffers) override;
-  void SetVideoRendererMinDecodedFrames(
-      int video_renderer_min_decoded_frames) override;
-  void SetMediaCodecResetDelayMs(int media_codec_reset_delay_ms) override;
   void Stop() override;
 
   void Update();
@@ -127,7 +113,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
-  PlayerComponents::ExperimentalFeatures experimental_features_;
+  ::starboard::shared::starboard::ExperimentalFeatures experimental_features_;
   void* surface_view_ = nullptr;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
