@@ -31,7 +31,7 @@ class AudioManagerAndroid;
 // methods should be called on the Audio Manager thread.
 class OpenSLESInputStream : public AudioInputStream {
  public:
-  static const int kMaxNumOfBuffersInQueue = 2;
+  static const int kMaxNumOfBuffersInQueue = 3;
 
   OpenSLESInputStream(AudioManagerAndroid* manager,
                       const AudioParameters& params);
@@ -95,6 +95,9 @@ class OpenSLESInputStream : public AudioInputStream {
   SLAndroidSimpleBufferQueueItf simple_buffer_queue_;
 
   SLDataFormat_PCM format_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SLAndroidDataFormat_PCM_EX format_ex_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Audio buffers that are allocated in the constructor based on
   // info from audio parameters.

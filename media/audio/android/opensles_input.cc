@@ -36,6 +36,17 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
 
   const SampleFormat kSampleFormat = kSampleFormatS16;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Using SLAndroidDataFormat_PCM_EX";
+  format_ex_ = {SL_ANDROID_DATAFORMAT_PCM_EX,
+                static_cast<SLuint32>(params.channels()),
+                static_cast<SLuint32>(params.sample_rate() * 1000),
+                SL_PCMSAMPLEFORMAT_FIXED_16,
+                SL_PCMSAMPLEFORMAT_FIXED_16,
+                ChannelCountToSLESChannelMask(params.channels()),
+                SL_BYTEORDER_LITTLEENDIAN,
+                SL_ANDROID_PCM_REPRESENTATION_SIGNED_INT};
+#else
   format_.formatType = SL_DATAFORMAT_PCM;
   format_.numChannels = static_cast<SLuint32>(params.channels());
   // Provides sampling rate in milliHertz to OpenSLES.
@@ -44,6 +55,7 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
       SampleFormatToBitsPerChannel(kSampleFormat);
   format_.endianness = SL_BYTEORDER_LITTLEENDIAN;
   format_.channelMask = ChannelCountToSLESChannelMask(params.channels());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   buffer_size_bytes_ = params.GetBytesPerBuffer(kSampleFormat);
   hardware_delay_ = base::Seconds(params.frames_per_buffer() /
@@ -71,12 +83,14 @@ AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
   if (!CreateRecorder())
     return AudioInputStream::OpenOutcome::kFailed;
 
+  LOG(INFO) << "YO THOR OpenSLESInputStream::Open - CreateRecorder successful";
+
   SetupAudioBuffer();
   return AudioInputStream::OpenOutcome::kSuccess;
 }
 
 void OpenSLESInputStream::Start(AudioInputCallback* callback) {
-  DVLOG(2) << __PRETTY_FUNCTION__;
+  LOG(INFO) << "YO THOR " << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(callback);
   DCHECK(recorder_);
@@ -89,6 +103,7 @@ void OpenSLESInputStream::Start(AudioInputCallback* callback) {
   callback_ = callback;
   active_buffer_index_ = 0;
 
+  LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Enqueuing initial buffers";
   // Enqueues kMaxNumOfBuffersInQueue zero buffers to get the ball rolling.
   // TODO(henrika): add support for Start/Stop/Start sequences when we are
   // able to clear the buffer queue. There is currently a bug in the OpenSLES
@@ -105,6 +120,7 @@ void OpenSLESInputStream::Start(AudioInputCallback* callback) {
     }
   }
 
+  LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Setting record state to RECORDING";
   // Start the recording by setting the state to SL_RECORDSTATE_RECORDING.
   // When the object is in the SL_RECORDSTATE_RECORDING state, adding buffers
   // will implicitly start the filling process.
@@ -116,6 +132,7 @@ void OpenSLESInputStream::Start(AudioInputCallback* callback) {
   }
 
   started_ = true;
+  LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Started";
 }
 
 void OpenSLESInputStream::Stop() {
@@ -200,11 +217,18 @@ bool OpenSLESInputStream::CreateRecorder() {
 
   // Initializes the engine object with specific option. After working with the
   // object, we need to free the object and its resources.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Creating SL Engine with no options";
+  LOG_ON_FAILURE_AND_RETURN(
+      slCreateEngine(engine_object_.Receive(), 0, nullptr, 0, nullptr, nullptr),
+      false);
+#else
   SLEngineOption option[] = {
       {SL_ENGINEOPTION_THREADSAFE, static_cast<SLuint32>(SL_BOOLEAN_TRUE)}};
   LOG_ON_FAILURE_AND_RETURN(
       slCreateEngine(engine_object_.Receive(), 1, option, 0, nullptr, nullptr),
       false);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Realize the SL engine object in synchronous mode.
   LOG_ON_FAILURE_AND_RETURN(
@@ -226,7 +250,11 @@ bool OpenSLESInputStream::CreateRecorder() {
   SLDataLocator_AndroidSimpleBufferQueue buffer_queue = {
       SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
       static_cast<SLuint32>(kMaxNumOfBuffersInQueue)};
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SLDataSink audio_sink = {&buffer_queue, &format_ex_};
+#else
   SLDataSink audio_sink = {&buffer_queue, &format_};
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Create an audio recorder.
   const SLInterfaceID interface_id[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
@@ -249,20 +277,15 @@ bool OpenSLESInputStream::CreateRecorder() {
 
   // Uses the main microphone tuned for audio communications if effects are
   // enabled and disables all audio processing if effects are disabled.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // COBALT MOD: Always use VOICE_RECOGNITION preset to match C25 behavior.
+  LOG(INFO) << "YO THOR COBALT MOD: Setting stream type to SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION";
+  SLint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
+#else
   SLint32 stream_type = no_effects_
                             ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
                             : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // This next setting is crucial for the BLE mic on Google TV. BLE doesn't
-  // support audio, so there is a system service - go/atv-remote-service
-  // which listens for BLE events - e.g. a button press AND if that service
-  // also sees a request for voice recognition, it will dynamically insert
-  // an Audio Policy which will inject audio from BLE into the "default" mic
-  // device. TODO(b/401420522) Find more specific method to know when to use
-  // this type.
-  stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
-#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   LOG_ON_FAILURE_AND_RETURN(
       (*recorder_config)->SetConfiguration(recorder_config,

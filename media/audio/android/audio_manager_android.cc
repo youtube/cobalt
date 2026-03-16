@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/time/time.h"
 #include "media/audio/android/aaudio_output.h"
 #include "media/audio/android/aaudio_stubs.h"
 #include "media/audio/android/audio_track_output_stream.h"
@@ -126,21 +127,34 @@ bool AudioManagerAndroid::HasAudioInputDevices() {
 void AudioManagerAndroid::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-  // Always add default device parameters as first element.
   DCHECK(device_names->empty());
-  AddDefaultDevice(device_names);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // COBALT MOD: Bypassing device enumeration for Starboard media.
+  LOG(INFO) << "YO THOR COBALT MOD: Bypassing Java audio input device enumeration.";
+  AddDefaultDevice(device_names);
+#else
+  base::AutoLock lock(device_list_lock_);
+  if (input_devices_cache_.has_value() &&
+      base::TimeTicks::Now() - last_input_devices_update_ < kDeviceListCacheTime) {
+    *device_names = input_devices_cache_.value();
+    DVLOG(2) << "GetAudioInputDeviceNames from cache";
+    return;
+  }
+
+  DVLOG(2) << "GetAudioInputDeviceNames from Java";
   // Get list of available audio devices.
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobjectArray> j_device_array =
       Java_AudioManagerAndroid_getAudioInputDeviceNames(env,
                                                         GetJavaAudioManager());
   if (j_device_array.is_null()) {
-    // Most probable reason for a NULL result here is that the process lacks
-    // MODIFY_AUDIO_SETTINGS or RECORD_AUDIO permissions.
     return;
   }
+
+  input_devices_cache_ = AudioDeviceNames();
+  AddDefaultDevice(&input_devices_cache_.value());
+
   AudioDeviceName device;
   for (auto j_device : j_device_array.ReadElements<jobject>()) {
     ScopedJavaLocalRef<jstring> j_device_name =
@@ -149,25 +163,58 @@ void AudioManagerAndroid::GetAudioInputDeviceNames(
     ScopedJavaLocalRef<jstring> j_device_id =
         Java_AudioDeviceName_id(env, j_device);
     ConvertJavaStringToUTF8(env, j_device_id.obj(), &device.unique_id);
-    device_names->push_back(device);
+    input_devices_cache_->push_back(device);
   }
-
-  for (auto d : *device_names) {
-    DVLOG(1) << "device_name: " << d.device_name;
-    DVLOG(1) << "unique_id: " << d.unique_id;
-  }
+  *device_names = input_devices_cache_.value();
+  last_input_devices_update_ = base::TimeTicks::Now();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::GetAudioOutputDeviceNames(
     AudioDeviceNames* device_names) {
-  // TODO(henrika): enumerate using GetAudioInputDeviceNames().
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  DCHECK(device_names->empty());
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Stubbing GetAudioOutputDeviceNames";
   AddDefaultDevice(device_names);
+#else
+  base::AutoLock lock(device_list_lock_);
+  if (output_devices_cache_.has_value() &&
+      base::TimeTicks::Now() - last_output_devices_update_ < kDeviceListCacheTime) {
+    *device_names = output_devices_cache_.value();
+    DVLOG(2) << "GetAudioOutputDeviceNames from cache";
+    return;
+  }
+
+  DVLOG(2) << "GetAudioOutputDeviceNames from Java";
+  // NOTE: This currently just adds the default device. Chromium on Android
+  // doesn't really have output device enumeration. If it did, we would call
+  // a Java method here.
+  output_devices_cache_ = AudioDeviceNames();
+  AddDefaultDevice(&output_devices_cache_.value());
+  *device_names = output_devices_cache_.value();
+  last_output_devices_update_ = base::TimeTicks::Now();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // COBALT MOD: Hardcode parameters to match C25 and avoid Java calls.
+  constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
+  const int sample_rate = 16000;  // Match c25_microphone_impl.cc
+  const int buffer_size = 128;  // Match c25_microphone_impl.cc kSamplesPerBuffer
+
+  AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                         ChannelLayoutConfig::FromLayout<channel_layout>(),
+                         sample_rate, buffer_size);
+  params.set_effects(AudioParameters::NO_EFFECTS);
+  DVLOG(1) << "YO THOR COBALT MOD: " << params.AsHumanReadableString();
+  return params;
+#else
   // Use mono as preferred number of input channels on Android to save
   // resources. Using mono also avoids a driver issue seen on Samsung
   // Galaxy S3 and S4 devices. See http://crbug.com/256851 for details.
@@ -192,6 +239,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   params.set_effects(effects);
   DVLOG(1) << params.AsHumanReadableString();
   return params;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 const char* AudioManagerAndroid::GetName() {
@@ -309,6 +357,11 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Forcing OpenSLESInputStream for low latency input.";
+  return new OpenSLESInputStream(this, params);
+#else
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 
   // Use the device ID to select the correct input device.
@@ -323,6 +376,7 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   // Create a new audio input stream and enable or disable all audio effects
   // given |params.effects()|.
   return new OpenSLESInputStream(this, params);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // static
@@ -362,6 +416,12 @@ base::TimeDelta AudioManagerAndroid::GetOutputLatency() {
 AudioParameters AudioManagerAndroid::GetPreferredOutputStreamParameters(
     const std::string& output_device_id,
     const AudioParameters& input_params) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Stubbing GetPreferredOutputStreamParameters";
+  // COBALT MOD: Return default parameters to avoid Java calls.
+  return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                         ChannelLayoutConfig::Stereo(), 16000, 128);
+#else
   DVLOG(1) << __FUNCTION__;
   // TODO(tommi): Support |output_device_id|.
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
@@ -402,6 +462,7 @@ AudioParameters AudioManagerAndroid::GetPreferredOutputStreamParameters(
 
   return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                          channel_layout_config, sample_rate, buffer_size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool AudioManagerAndroid::HasNoAudioInputStreams() {
@@ -426,9 +487,14 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
 }
 
 void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Stubbing SetCommunicationAudioModeOn, on=" << on;
+  // COBALT MOD: Do nothing to avoid Java calls to AudioManager.setMode.
+#else
   DVLOG(1) << __FUNCTION__ << ": " << on;
   Java_AudioManagerAndroid_setCommunicationAudioModeOn(
       base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
@@ -447,18 +513,36 @@ bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
 }
 
 int AudioManagerAndroid::GetNativeOutputSampleRate() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Stubbing GetNativeOutputSampleRate";
+  // COBALT MOD: Return default sample rate to avoid Java calls.
+  return 16000;
+#else
   return Java_AudioManagerAndroid_getNativeOutputSampleRate(
       base::android::AttachCurrentThread(), GetJavaAudioManager());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool AudioManagerAndroid::IsAudioLowLatencySupported() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Stubbing IsAudioLowLatencySupported";
+  // COBALT MOD: Assume low latency is supported to avoid Java calls.
+  return true;
+#else
   return Java_AudioManagerAndroid_isAudioLowLatencySupported(
       base::android::AttachCurrentThread(), GetJavaAudioManager());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 int AudioManagerAndroid::GetAudioLowLatencyOutputFrameSize() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "YO THOR COBALT MOD: Stubbing GetAudioLowLatencyOutputFrameSize";
+  // COBALT MOD: Return default frame size to avoid Java calls.
+  return 128;
+#else
   return Java_AudioManagerAndroid_getAudioLowLatencyOutputFrameSize(
       base::android::AttachCurrentThread(), GetJavaAudioManager());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,

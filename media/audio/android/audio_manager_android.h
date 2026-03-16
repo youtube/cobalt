@@ -10,7 +10,9 @@
 #include "base/android/jni_android.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/time/time.h"
 #include "media/audio/audio_manager_base.h"
+#include <optional>
 
 namespace media {
 
@@ -124,6 +126,17 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
   // Java AudioManager instance.
   base::android::ScopedJavaGlobalRef<jobject> j_audio_manager_;
+
+  // --- Start device list cache ---
+  base::Lock device_list_lock_;
+  std::optional<AudioDeviceNames> input_devices_cache_
+      GUARDED_BY(device_list_lock_);
+  std::optional<AudioDeviceNames> output_devices_cache_
+      GUARDED_BY(device_list_lock_);
+  base::TimeTicks last_input_devices_update_ GUARDED_BY(device_list_lock_);
+  base::TimeTicks last_output_devices_update_ GUARDED_BY(device_list_lock_);
+  static constexpr base::TimeDelta kDeviceListCacheTime = base::Milliseconds(2000);
+  // --- End device list cache ---
 
   typedef std::set<MuteableAudioOutputStream*> OutputStreams;
   OutputStreams streams_;
