@@ -145,6 +145,21 @@ bool AppendSettingToSwitch(
 
 }  // namespace
 
+void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
+  CHECK(content::RenderThread::IsMainThread());
+  if (h5vcc_settings_remote_) {
+    return;
+  }
+  h5vcc_settings_remote_ =
+      std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
+                      base::OnTaskRunnerDeleter>(
+          new mojo::Remote<cobalt::mojom::H5vccSettings>(),
+          base::OnTaskRunnerDeleter(
+              base::SequencedTaskRunner::GetCurrentDefault()));
+  content::RenderThread::Get()->BindHostReceiver(
+      h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
+}
+
 void CobaltContentRendererClient::BindHostReceiver(
     mojo::GenericPendingReceiver receiver) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
@@ -191,16 +206,7 @@ void CobaltContentRendererClient::RenderFrameCreated(
             weak_factory_.GetWeakPtr(), std::move(window_provider))));
   }
 
-  if (!h5vcc_settings_remote_) {
-    h5vcc_settings_remote_ =
-        std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
-                        base::OnTaskRunnerDeleter>(
-            new mojo::Remote<cobalt::mojom::H5vccSettings>(),
-            base::OnTaskRunnerDeleter(
-                base::SequencedTaskRunner::GetCurrentDefault()));
-    content::RenderThread::Get()->BindHostReceiver(
-        h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
-  }
+  EnsureH5vccSettingsRemoteInitialized();
 }
 
 void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
@@ -314,16 +320,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
 
-  if (!h5vcc_settings_remote_) {
-    h5vcc_settings_remote_ =
-        std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
-                        base::OnTaskRunnerDeleter>(
-            new mojo::Remote<cobalt::mojom::H5vccSettings>(),
-            base::OnTaskRunnerDeleter(
-                base::SequencedTaskRunner::GetCurrentDefault()));
-    content::RenderThread::Get()->BindHostReceiver(
-        h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
-  }
+  EnsureH5vccSettingsRemoteInitialized();
 
   cobalt::mojom::SettingsPtr settings;
   if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {

@@ -62,6 +62,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   void BindHostReceiver(mojo::GenericPendingReceiver receiver);
 
  private:
+  void EnsureH5vccSettingsRemoteInitialized();
   void OnGetSbWindow(uint64_t handle);
 
   // Registers a custom content::AudioDeviceFactory
