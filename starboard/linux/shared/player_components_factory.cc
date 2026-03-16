@@ -79,7 +79,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 #if ENABLE_IAMF_DECODE
         } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
           auto iamf_audio_decoder =
-              std::make_unique<IamfAudioDecoder>(audio_stream_info);
+              std::make_unique<IamfAudioDecoder>(job_queue, audio_stream_info);
           if (iamf_audio_decoder->is_valid()) {
             SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
             return iamf_audio_decoder;

@@ -18,9 +18,12 @@
 #include <cstring>
 #include <string>
 
+#include "IAMF_defines.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "third_party/libiamf/source/code/include/IAMF_defines.h"
+#include "starboard/shared/libiamf/iamf_buffer_reader.h"
+// TODO: Add libiamf to //third_party.
+// #include "third_party/libiamf/source/code/include/IAMF_defines.h"
 
 namespace starboard {
 
@@ -58,156 +61,9 @@ enum BinauralMixSelection {
   kBinauralMixSelectionLoudnessLayout
 };
 
-class BufferReader {
- public:
-  BufferReader(const uint8_t* buf, size_t size) : buf_(buf), size_(size) {
-#if SB_IS_BIG_ENDIAN
-#error BufferReader assumes little-endianness.
-#endif  // SB_IS_BIG_ENDIAN
-  }
-
-  bool Read1(uint8_t* ptr) {
-    if (!HasBytes(sizeof(uint8_t)) || !ptr) {
-      return false;
-    }
-    *ptr = buf_[pos_++];
-    return true;
-  }
-
-  bool Read4(uint32_t* ptr) {
-    if (!HasBytes(sizeof(uint32_t)) || !ptr) {
-      return false;
-    }
-    std::memcpy(ptr, &buf_[pos_], sizeof(uint32_t));
-    *ptr = ByteSwap(*ptr);
-    pos_ += sizeof(uint32_t);
-    return true;
-  }
-
-  bool ReadLeb128(uint32_t* ptr) {
-    if (!HasBytes(1) || !ptr) {
-      return false;
-    }
-    int bytes_read = ReadLeb128Internal(
-        buf_ + pos_, ptr,
-        std::min(static_cast<uint64_t>(RemainingSize()), sizeof(uint32_t)));
-    if (bytes_read < 0) {
-      return false;
-    }
-    pos_ += bytes_read;
-    return true;
-  }
-
-  bool ReadString(std::string* str) {
-    if (!HasBytes(1) || !str) {
-      return false;
-    }
-
-    // The size of the string is capped to 128 bytes.
-    // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#convention-data-types
-    const int kMaxIamfStringSize = 128;
-    int bytes_read = ReadStringInternal(
-        buf_ + pos_, str, std::min(RemainingSize(), kMaxIamfStringSize));
-    if (bytes_read < 0) {
-      return false;
-    }
-    pos_ += bytes_read;
-    return true;
-  }
-
-  bool SkipBytes(size_t size) {
-    if (!HasBytes(size)) {
-      return false;
-    }
-    pos_ += size;
-    return true;
-  }
-
-  bool SkipLeb128() {
-    uint32_t val;
-    return ReadLeb128(&val);
-  }
-
-  bool SkipString() {
-    std::string str;
-    return ReadString(&str);
-  }
-
-  size_t size() const { return size_; }
-  size_t pos() const { return pos_; }
-  const uint8_t* buf() const { return buf_; }
-
- private:
-  bool HasBytes(size_t size) const { return size + pos_ <= size_; }
-  int RemainingSize() const { return size_ - pos_; }
-  inline uint32_t ByteSwap(uint32_t x) const {
-#if defined(COMPILER_MSVC)
-    return _byteswap_ulong(x);
-#else
-    return __builtin_bswap32(x);
-#endif
-  }
-
-  // Decodes an Leb128 value and stores it in |value|. Returns the number of
-  // bytes read, capped to |max_bytes_to_read|. Returns the number of bytes
-  // read, or -1 on error.
-  static int ReadLeb128Internal(const uint8_t* buf,
-                                uint32_t* value,
-                                const int max_bytes_to_read) {
-    SB_DCHECK(buf);
-    SB_DCHECK(value);
-
-    *value = 0;
-    bool error = true;
-    size_t i = 0;
-    for (; i < max_bytes_to_read; ++i) {
-      uint8_t byte = buf[i];
-      *value |= ((byte & 0x7f) << (i * 7));
-      if (!(byte & 0x80)) {
-        error = false;
-        break;
-      }
-    }
-
-    if (error) {
-      return -1;
-    }
-    return i + 1;
-  }
-
-  // Reads a c-string into |str|. Returns the number of bytes read, capped to
-  // 128 bytes, or -1 on error.
-  static int ReadStringInternal(const uint8_t* buf,
-                                std::string* str,
-                                int max_bytes_to_read) {
-    SB_DCHECK(buf);
-    SB_DCHECK(str);
-
-    str->clear();
-    str->resize(max_bytes_to_read);
-
-    int bytes_read = ::starboard::strlcpy(
-        str->data(), reinterpret_cast<const char*>(buf), max_bytes_to_read);
-    if (bytes_read == max_bytes_to_read) {
-      // Ensure that the string is null terminated.
-      if (buf[bytes_read] != '\0') {
-        return -1;
-      }
-    }
-    str->resize(bytes_read);
-
-    // Account for null terminator.
-    return ++bytes_read;
-  }
-
-  const uint8_t* buf_;
-  const size_t size_;
-  int pos_ = 0;
-};
-
 // Helper function to skip parsing ParamDefinitions found in the config OBUs
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#paramdefinition
-bool SkipParamDefinition(BufferReader* reader) {
+bool SkipParamDefinition(IamfBufferReader* reader) {
   // parameter_id
   RCHECK(reader->SkipLeb128());
   // parameter_rate
@@ -232,9 +88,34 @@ bool SkipParamDefinition(BufferReader* reader) {
   return true;
 }
 
+// Parses ParamDefinition sections from various OBUs.
+// https://aomediacodec.github.io/iamf/v1.0.0-errata.html#paramdefinition
+bool ParseParamDefinitions(IamfBufferReader* reader) {
+  uint32_t num_parameters;
+  RCHECK(reader->ReadLeb128(&num_parameters));
+
+  for (int i = 0; i < num_parameters; ++i) {
+    uint32_t param_definition_type;
+    RCHECK(reader->ReadLeb128(&param_definition_type));
+
+    if (param_definition_type == IAMF_PARAMETER_TYPE_DEMIXING) {
+      RCHECK(SkipParamDefinition(reader));
+      // DemixingParamDefintion.
+      RCHECK(reader->SkipBytes(1));
+    } else if (param_definition_type == IAMF_PARAMETER_TYPE_RECON_GAIN) {
+      RCHECK(SkipParamDefinition(reader));
+    } else if (param_definition_type > IAMF_PARAMETER_TYPE_RECON_GAIN) {
+      uint32_t param_definition_size;
+      RCHECK(reader->ReadLeb128(&param_definition_size));
+      RCHECK(reader->SkipBytes(param_definition_size));
+    }
+  }
+  return true;
+}
+
 // Parses an IAMF OBU header.
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-header-syntax
-bool ParseOBUHeader(BufferReader* reader,
+bool ParseOBUHeader(IamfBufferReader* reader,
                     uint8_t* obu_type,
                     uint32_t* obu_size) {
   uint8_t header_flags;
@@ -273,7 +154,7 @@ bool ParseOBUHeader(BufferReader* reader,
 // Parses an IAMF Config OBU for the substream sample rate. This only handles
 // Opus and ipcm substreams, FLAC and AAC substreams are unsupported.
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-codecconfig
-bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
+bool ParseCodecConfigOBU(IamfBufferReader* reader, IamfBufferInfo* info) {
   RCHECK(reader->SkipLeb128());
 
   uint32_t codec_id = 0;
@@ -312,7 +193,7 @@ bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
 // for binaural and surround configurations, and sets
 // |binaural_audio_element_id| and |surround_audio_element_id| if so.
 bool CheckForAdvancedAudioElements(
-    BufferReader* reader,
+    IamfBufferReader* reader,
     uint32_t audio_element_id,
     std::optional<uint32_t>* binaural_audio_element_id,
     std::optional<uint32_t>* surround_audio_element_id) {
@@ -361,7 +242,7 @@ bool CheckForAdvancedAudioElements(
 // The same is done for |surround_audio_element_id| when
 // |prefer_surround_audio| is true.
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-audioelement
-bool ParseAudioElementOBU(BufferReader* reader,
+bool ParseAudioElementOBU(IamfBufferReader* reader,
                           std::optional<uint32_t>* binaural_audio_element_id,
                           std::optional<uint32_t>* surround_audio_element_id,
                           const bool prefer_binaural_audio,
@@ -384,25 +265,7 @@ bool ParseAudioElementOBU(BufferReader* reader,
     RCHECK(reader->SkipLeb128());
   }
 
-  uint32_t num_parameters;
-  RCHECK(reader->ReadLeb128(&num_parameters));
-
-  for (int i = 0; i < num_parameters; ++i) {
-    uint32_t param_definition_type;
-    RCHECK(reader->ReadLeb128(&param_definition_type));
-
-    if (param_definition_type == IAMF_PARAMETER_TYPE_DEMIXING) {
-      RCHECK(SkipParamDefinition(reader));
-      // DemixingParamDefintion.
-      RCHECK(reader->SkipBytes(1));
-    } else if (param_definition_type == IAMF_PARAMETER_TYPE_RECON_GAIN) {
-      RCHECK(SkipParamDefinition(reader));
-    } else if (param_definition_type > IAMF_PARAMETER_TYPE_RECON_GAIN) {
-      uint32_t param_definition_size;
-      RCHECK(reader->ReadLeb128(&param_definition_size));
-      RCHECK(reader->SkipBytes(param_definition_size));
-    }
-  }
+  RCHECK(ParseParamDefinitions(reader));
 
   if (static_cast<uint32_t>(audio_element_type) ==
           AUDIO_ELEMENT_CHANNEL_BASED &&
@@ -410,6 +273,34 @@ bool ParseAudioElementOBU(BufferReader* reader,
     RCHECK(CheckForAdvancedAudioElements(reader, audio_element_id,
                                          binaural_audio_element_id,
                                          surround_audio_element_id));
+  }
+  return true;
+}
+
+// Parses a LoudnessInfo block from a Mix Presentation OBU.
+// https://aomediacodec.github.io/iamf/v1.0.0-errata.html#loudness-info-syntax
+bool ParseLoudnessInfo(IamfBufferReader* reader) {
+  uint8_t info_type;
+  RCHECK(reader->Read1(&info_type));
+  // integrated_loudness and digital_loudness.
+  RCHECK(reader->SkipBytes(4));
+  if (info_type & 1) {
+    // true_peak.
+    RCHECK(reader->SkipBytes(2));
+  }
+  if (info_type & 2) {
+    uint8_t num_anchored_loudness;
+    RCHECK(reader->Read1(&num_anchored_loudness));
+    for (uint8_t k = 0; k < num_anchored_loudness; ++k) {
+      // anchor_element and anchored_loudness.
+      RCHECK(reader->SkipBytes(3));
+    }
+  }
+  if ((info_type & 0b11111100) > 0) {
+    uint32_t info_type_size;
+    RCHECK(reader->ReadLeb128(&info_type_size));
+    // info_type_bytes.
+    RCHECK(reader->SkipBytes(info_type_size));
   }
   return true;
 }
@@ -427,7 +318,7 @@ bool ParseAudioElementOBU(BufferReader* reader,
 // by default.
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-mixpresentation
 bool ParseMixPresentationOBU(
-    BufferReader* reader,
+    IamfBufferReader* reader,
     IamfBufferInfo* info,
     const std::optional<uint32_t>* binaural_audio_element_id,
     const std::optional<uint32_t>* surround_audio_element_id,
@@ -519,29 +410,7 @@ bool ParseMixPresentationOBU(
         binaural_mix_selection = kBinauralMixSelectionLoudnessLayout;
       }
 
-      // The following fields are for the LoudnessInfo.
-      uint8_t info_type;
-      RCHECK(reader->Read1(&info_type));
-      // integrated_loudness and digital_loudness.
-      RCHECK(reader->SkipBytes(4));
-      if (info_type & 1) {
-        // true_peak.
-        RCHECK(reader->SkipBytes(2));
-      }
-      if (info_type & 2) {
-        uint8_t num_anchored_loudness;
-        RCHECK(reader->Read1(&num_anchored_loudness));
-        for (uint8_t k = 0; k < num_anchored_loudness; ++k) {
-          // anchor_element and anchored_loudness.
-          RCHECK(reader->SkipBytes(3));
-        }
-      }
-      if ((info_type & 0b11111100) > 0) {
-        uint32_t info_type_size;
-        RCHECK(reader->ReadLeb128(&info_type_size));
-        // info_type_bytes.
-        RCHECK(reader->SkipBytes(info_type_size));
-      }
+      RCHECK(ParseLoudnessInfo(reader));
     }
   }
 
@@ -556,7 +425,7 @@ bool ParseMixPresentationOBU(
   return true;
 }
 
-bool ParseDescriptorOBU(BufferReader* reader,
+bool ParseDescriptorOBU(IamfBufferReader* reader,
                         IamfBufferInfo* info,
                         const bool prefer_binaural_audio,
                         const bool prefer_surround_audio) {
@@ -605,7 +474,8 @@ bool ParseDescriptorOBU(BufferReader* reader,
 }  // namespace
 
 bool IamfBufferInfo::is_valid() const {
-  return mix_presentation_id.has_value() && sample_rate > 0 && num_samples > 0;
+  return mix_presentation_id.has_value() && sample_rate > 0 &&
+         num_samples > 0 && input_buffer;
 }
 
 bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
@@ -616,7 +486,8 @@ bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
   SB_DCHECK(input_buffer->data());
   SB_DCHECK(!(prefer_binaural_audio && prefer_surround_audio));
 
-  BufferReader reader(input_buffer->data(), input_buffer->size());
+  IamfBufferReader reader(input_buffer->data(), input_buffer->size());
+  info->input_buffer = input_buffer;
 
   while (!info->is_valid() && reader.pos() < reader.size()) {
     RCHECK(ParseDescriptorOBU(&reader, info, prefer_binaural_audio,
@@ -624,9 +495,10 @@ bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
   }
   RCHECK(info->is_valid());
 
-  info->config_obus.assign(reader.buf(), reader.buf() + info->config_obus_size);
-  info->data.assign(reader.buf() + info->config_obus_size,
-                    reader.buf() + reader.size());
+  info->config_obus = reader.buf();
+  // config_obus_size is set inside ParseDescriptorOBU.
+  info->data = reader.buf() + info->config_obus_size;
+  info->data_size = reader.size() - info->config_obus_size;
 
   return true;
 }

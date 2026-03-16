@@ -15,26 +15,27 @@
 #ifndef STARBOARD_SHARED_LIBIAMF_IAMF_AUDIO_DECODER_H_
 #define STARBOARD_SHARED_LIBIAMF_IAMF_AUDIO_DECODER_H_
 
-#include <deque>
 #include <queue>
 #include <string>
 
+#include "IAMF_decoder.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/libiamf/iamf_decoder_utils.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-// #include "third_party/libiamf/source/code/include/IAMF_decoder.h"
+// TODO: Add libiamf to //third_party.
+//  #include "third_party/libiamf/source/code/include/IAMF_decoder.h"
 
 namespace starboard {
 
-class IamfAudioDecoder
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      private starboard::player::JobQueue::JobOwner {
+struct IamfBufferInfo;
+
+class IamfAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info);
+  IamfAudioDecoder(JobQueue* job_queue,
+                   const AudioStreamInfo& audio_stream_info);
   ~IamfAudioDecoder() override;
 
   bool is_valid() const;
@@ -63,7 +64,7 @@ class IamfAudioDecoder
   OutputCB output_cb_;
   ErrorCB error_cb_;
 
-  // IAMF_DecoderHandle decoder_ = nullptr;
+  IAMF_DecoderHandle decoder_ = nullptr;
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   bool decoder_is_configured_ = false;

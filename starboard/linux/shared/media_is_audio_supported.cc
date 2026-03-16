@@ -24,16 +24,18 @@
 
 #if ENABLE_IAMF_DECODE
 #include "starboard/shared/starboard/media/iamf_util.h"
-#endif
+#endif  // ENABLE_IAMF_DECODE
 
 namespace starboard {
 
+#if ENABLE_IAMF_DECODE
 bool HasSupportedIamfProfile(const IamfMimeUtil* mime_util) {
   return mime_util->primary_profile() == kIamfProfileSimple ||
          mime_util->primary_profile() == kIamfProfileBase ||
          mime_util->additional_profile() == kIamfProfileSimple ||
          mime_util->additional_profile() == kIamfProfileBase;
 }
+#endif  // ENABLE_IAMF_DECODE
 
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                            const MimeType* mime_type,

@@ -16,7 +16,6 @@
 #define STARBOARD_SHARED_LIBIAMF_IAMF_DECODER_UTILS_H_
 
 #include <optional>
-#include <vector>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
@@ -24,14 +23,22 @@
 
 namespace starboard {
 
+// Holds information parsed from an IAMF input buffer. This struct uses
+// non-owning pointers to view data within the original InputBuffer to avoid
+// unnecessary copies.
 struct IamfBufferInfo {
-  uint32_t num_samples;
-  int sample_rate;
+  uint32_t num_samples = 0;
+  int sample_rate = 0;
   std::optional<uint32_t> mix_presentation_id;
-  std::vector<uint8_t> config_obus;
-  size_t config_obus_size;
-  std::vector<uint8_t> data;
-  const scoped_refptr<InputBuffer> input_buffer;
+
+  const uint8_t* config_obus = nullptr;
+  size_t config_obus_size = 0;
+  const uint8_t* data = nullptr;
+  size_t data_size = 0;
+
+  // Keep a reference to the input buffer to ensure the data pointers remain
+  // valid.
+  scoped_refptr<InputBuffer> input_buffer;
 
   bool is_valid() const;
 };

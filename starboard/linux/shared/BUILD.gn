@@ -321,6 +321,8 @@ static_library("starboard_platform_sources") {
     sources += [
       "//starboard/shared/libiamf/iamf_audio_decoder.cc",
       "//starboard/shared/libiamf/iamf_audio_decoder.h",
+      "//starboard/shared/libiamf/iamf_buffer_reader.cc",
+      "//starboard/shared/libiamf/iamf_buffer_reader.h",
       "//starboard/shared/libiamf/iamf_decoder_utils.cc",
       "//starboard/shared/libiamf/iamf_decoder_utils.h",
     ]
@@ -335,6 +337,10 @@ if (current_toolchain == starboard_toolchain) {
 
     sources = media_tests_sources + player_tests_sources +
               [ "//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc" ]
+
+    if (enable_iamf_decode) {
+      sources += [ "//starboard/shared/libiamf/iamf_buffer_reader_test.cc" ]
+    }
 
     configs += [ "//starboard/build/config:starboard_implementation" ]
 
