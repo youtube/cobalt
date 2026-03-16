@@ -54,7 +54,6 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
     javaSwitches.put(JavaSwitches.V8_HEAP_GROWING_PERCENT, "50");
     javaSwitches.put(JavaSwitches.V8_NOWASM_CODE_GC, "true");
-    javaSwitches.put(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION, "0");
     javaSwitches.put(JavaSwitches.DISABLE_SPLASH_SCREEN, "true");
     javaSwitches.put(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN, "true");
     javaSwitches.put(JavaSwitches.DISABLE_BRP, "true");
@@ -71,7 +70,6 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--disable-rgba-4444-textures");
 
     assertThat(args).contains("--enable-features=PartialLowEndModeOnMidRangeDevices");
-    assertThat(args).contains("--cc-layer-tree-optimization=0");
     assertThat(args).contains("--js-flags=--jitless");
     assertThat(args).contains("--js-flags=--write-protect-code-memory");
     assertThat(args).contains("--js-flags=--gc-interval=1000");
@@ -91,7 +89,7 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=24");
     assertThat(args).contains("--enable-features=EnableAv1StartupOptimization");
     assertThat(args).contains("--enable-features=RejectLowPerformanceSoftwareDecoder");
-    assertThat(args).hasSize(19);
+    assertThat(args).hasSize(18);
   }
 
   @Test
