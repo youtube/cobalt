@@ -17,23 +17,30 @@ standard library."""
 # limitations under the License.
 
 import collections
+import logging
 import os
 import sys
 import xml.etree.ElementTree
 
 
-def find_failing_tests(junit_xml_files: list[str]) -> dict[str, list[str]]:
+def find_failing_tests(
+    junit_xml_files: list[str]) -> dict[str, list[tuple[str, str]]]:
   """Parses a list of JUnit XML files to find failing test cases.
 
   Args:
     junit_xml_files (list): A list of paths to JUnit XML files.
 
   Returns:
-    A map of test target -> list of failing tests.
+    A map of test target -> list of (failing test name, failure message) tuples.
   """
   failing_tests = collections.defaultdict(list)
   for filename in junit_xml_files:
-    tree = xml.etree.ElementTree.parse(filename)
+    try:
+      tree = xml.etree.ElementTree.parse(filename)
+    except (xml.etree.ElementTree.ParseError, FileNotFoundError) as e:
+      logging.error('Failed to parse %s: %s', filename, e)
+      continue
+
     root = tree.getroot()
     for testsuite in root.findall('testsuite'):
       suite_name = testsuite.get('name', os.path.basename(filename))
@@ -49,26 +56,39 @@ def find_failing_tests(junit_xml_files: list[str]) -> dict[str, list[str]]:
   return failing_tests
 
 
-def main(xml_files: str):
+def main(xml_files: list[str]) -> int:
+  """Main entry point.
+
+  Args:
+    xml_files (list): A list of paths to JUnit XML files.
+
+  Returns:
+    1 if failing tests are found, 0 otherwise.
+  """
   failing_tests = find_failing_tests(xml_files)
 
   if failing_tests:
-    print('Failing Tests:')
+    logging.info('Failing Tests:')
     for target, test_status in sorted(failing_tests.items()):
-      print(f'{target}')
+      logging.info('%s', target)
       for test, message in sorted(test_status):
-        print(f'[  FAILED  ] {test}')
+        logging.info('[  FAILED  ] %s', test)
         if message:
-          print(message)
-      else:
-        print()
-  else:
-    print('No failing tests found in the test results.')
+          logging.info('%s', message)
+      logging.info('')  # Blank line between targets
+    return 1
+
+  if xml_files:
+    logging.info('No failing tests found in the test results.')
+  return 0
 
 
 if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO, format='%(message)s')
   if len(sys.argv) == 1:
-    print('Usage: python junit_mini_parser.py '
-          '<junit_xml_file1> <junit_xml_file2> ...')
-    print('Please provide a list of JUnit XML files as command line arguments.')
-  main(sys.argv[1:])
+    logging.error('Usage: python junit_mini_parser.py '
+                  '<junit_xml_file1> <junit_xml_file2> ...')
+    logging.error('Please provide a list of JUnit XML files as command line '
+                  'arguments.')
+    sys.exit(2)
+  sys.exit(main(sys.argv[1:]))

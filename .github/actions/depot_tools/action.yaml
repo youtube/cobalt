@@ -71,7 +71,6 @@ runs:
         gclient config \
           --name=src \
           "${CACHE_ARG[@]}" \
-          --custom-var=download_remoteexec_cfg=True \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           "${REPOSITORY}"
       shell: bash
@@ -84,6 +83,18 @@ runs:
           echo "target_os=['android']" >> .gclient
         elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
           echo "target_os=['ios']" >> .gclient
+        fi
+        gclient validate
+
+    - name: Set target CPU
+      shell: bash
+      run: |
+        cd cobalt
+
+        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+          echo "target_cpu=['x64', 'arm64']" >> .gclient
+        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+          echo "target_cpu=['x64', 'arm']" >> .gclient
         fi
         gclient validate
 

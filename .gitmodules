@@ -46,6 +46,10 @@
 	path = cobalt/internal
 	url = https://lbshell-internal.googlesource.com/cobalt/internal
 	gclient-condition = checkout_cobalt_internal
+[submodule "third_party/internal"]
+	path = third_party/internal
+	url = https://lbshell-internal.googlesource.com/third_party/internal
+	gclient-condition = checkout_cobalt_internal
 [submodule "docs/website"]
 	path = docs/website
 	url = https://chromium.googlesource.com/website

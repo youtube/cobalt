@@ -30,7 +30,9 @@ namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate();
+  explicit CobaltMainDelegate(const char* initial_deep_link = nullptr,
+                              bool is_content_browsertests = false,
+                              bool is_visible = true);
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
@@ -50,18 +52,25 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
       const std::string& process_type,
       content::MainFunctionParams main_function_params) override;
 
+#if BUILDFLAG(IS_ANDROIDTV)
+  void PreSandboxStartup() override;
+#endif
+
   // Shutdown method that trigger the BrowserMainRunner shutdown.
   void Shutdown();
 
   ~CobaltMainDelegate() override;
 
  private:
+  bool is_visible_;
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
   std::unique_ptr<CobaltContentUtilityClient> utility_client_;
   COBALT_THREAD_CHECKER(thread_checker_);
+
+  std::string deep_link_;
 
   void InitializeHangWatcher();
 };

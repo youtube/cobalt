@@ -73,18 +73,16 @@ const char kVersionKey[] = "version";
 
 }  // namespace
 
-// Compares the Evergreen versions v1 and v2. Returns 1 if v1 is newer than v2;
-// returns -1 if v1 is older than v2; returns 0 if v1 is the same as v2, or if
-// either of them is invalid.
-int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2) {
-  if ((*v1)[0] == '\0' || (*v2)[0] == '\0') {
+int CompareEvergreenVersion(const std::vector<char>& v1,
+                            const std::vector<char>& v2) {
+  if ((v1)[0] == '\0' || (v2)[0] == '\0') {
     return 0;
   }
 
   // Split the version strings into segments of numbers
   std::vector<int> n1, n2;
-  std::stringstream s1(std::string(v1->begin(), v1->end()));
-  std::stringstream s2(std::string(v2->begin(), v2->end()));
+  std::stringstream s1(std::string(v1.begin(), v1.end()));
+  std::stringstream s2(std::string(v2.begin(), v2.end()));
   std::string seg;
   while (std::getline(s1, seg, kEgVersionDeliminator)) {
     n1.push_back(std::stoi(seg));
@@ -112,20 +110,18 @@ int CompareEvergreenVersion(std::vector<char>* v1, std::vector<char>* v2) {
   return 0;
 }
 
-// Reads the Evergreen version from the manifest file at the
-// |manifest_file_path|, and stores in |version|.
-bool ReadEvergreenVersion(std::vector<char>* manifest_file_path,
+bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
                           char* version,
                           int version_length) {
   // Check the manifest file exists
   struct stat info;
-  if (stat(manifest_file_path->data(), &info) != 0) {
+  if (stat(manifest_file_path.data(), &info) != 0) {
     SB_LOG(WARNING)
         << "Failed to open the manifest file at the installation path.";
     return false;
   }
 
-  starboard::ScopedFile manifest_file(manifest_file_path->data(), O_RDONLY,
+  starboard::ScopedFile manifest_file(manifest_file_path.data(), O_RDONLY,
                                       S_IRWXU | S_IRGRP);
   int64_t file_size = manifest_file.GetSize();
   std::vector<char> file_data(file_size);
@@ -161,7 +157,7 @@ bool GetEvergreenVersionByIndex(int installation_index,
   std::vector<char> manifest_file_path(kSbFileMaxPath);
   snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
            installation_path.data(), kSbFileSepString, kManifestFileName);
-  if (!ReadEvergreenVersion(&manifest_file_path, version, version_length)) {
+  if (!ReadEvergreenVersion(manifest_file_path, version, version_length)) {
     SB_LOG(WARNING)
         << "Failed to read the Evergreen version of installation index "
         << installation_index;
@@ -284,7 +280,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
           << "Failed to get the Evergreen version of installation index " << 0;
     }
 
-    if (CompareEvergreenVersion(&system_image_version, &current_version) > 0) {
+    if (CompareEvergreenVersion(system_image_version, current_version) > 0) {
       if (ImRollForward(0) != IM_ERROR) {
         current_installation = 0;
       } else {

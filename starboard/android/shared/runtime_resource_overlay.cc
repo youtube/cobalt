@@ -49,7 +49,7 @@ RuntimeResourceOverlay::RuntimeResourceOverlay() {
                << min_audio_sink_buffer_size_in_frames_
                << ", max_video_buffer_budget=" << max_video_buffer_budget_
                << ", supports_spherical_videos="
-               << to_string(supports_spherical_videos_);
+               << ToString(supports_spherical_videos_);
 }
 
 }  // namespace starboard
