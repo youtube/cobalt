@@ -31,17 +31,19 @@ import os
 import subprocess
 import sys
 
+# The run_browser_tests.py script is copied to the output directory as
+# 'cobalt_browsertests_runner' at the build time.
 run_browser_tests = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),
-        '../../cobalt/testing/browser_tests/run_browser_tests.py'
+        'cobalt_browsertests_runner'
     )
 )
 
 elf_loader = os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox')
 library_args = ['--evergreen_content=.', '--evergreen_library={library}.so']
 
-# Pass the elf_loader as the "binary" argument to run_browser_tests.py,
+# Pass the elf_loader as the "binary" argument to the runner script,
 # followed by the required library args, and then the rest of sys.argv
 command = [sys.executable, run_browser_tests, elf_loader] + library_args + sys.argv[1:]
 try:
