@@ -28,7 +28,7 @@ namespace starboard::shared::starboard {
 struct ExperimentalFeatures {
   // The fields should be in alphabetical order.
   bool flush_decoder_during_reset = false;
-  // TODOO: b/491123801 - Connec this flag to h5vcc.
+  // TODO: b/491123801 - Connect this flag to h5vcc.
   bool disable_trim_on_seek = false;
   std::optional<int> media_codec_reset_delay_ms;
   bool pause_using_audio_track_state = false;
