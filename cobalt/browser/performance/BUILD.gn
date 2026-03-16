@@ -19,6 +19,7 @@ source_set("performance") {
   ]
 
   deps = [
+    "//third_party/abseil-cpp:absl",
     "//base",
     "//cobalt/browser/performance/public/mojom",
     "//content/public/browser",

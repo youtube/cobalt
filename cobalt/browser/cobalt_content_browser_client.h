@@ -51,7 +51,7 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  explicit CobaltContentBrowserClient(const std::string& deep_link);
+  explicit CobaltContentBrowserClient(const std::string& deep_link, absl::optional<int64_t> startup_time);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -123,6 +123,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void DispatchFocus();
 
  private:
+  const absl::optional<int64_t> startup_timestamp_;
   const std::string deep_link_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;

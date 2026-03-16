@@ -155,8 +155,8 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
-    const std::string& deep_link)
-    : deep_link_(deep_link) {
+    const std::string& deep_link, absl::optional<int64_t> startup_time)
+    : deep_link_(deep_link) , startup_timestamp_(startup_time) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -334,7 +334,7 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  PopulateCobaltFrameBinders(render_frame_host, map);
+  PopulateCobaltFrameBinders(startup_timestamp_, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }

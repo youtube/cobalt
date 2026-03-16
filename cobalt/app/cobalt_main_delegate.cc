@@ -41,11 +41,11 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
-    : content::ShellMainDelegate(is_content_browsertests), deep_link_("") {}
+CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests, absl::optional<int64_t> startup_timestamp)
+    : content::ShellMainDelegate(is_content_browsertests), startup_timestamp_(startup_timestamp), deep_link_("") {}
 
-CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link)
-    : content::ShellMainDelegate(/*is_content_browsertests=*/false),
+CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link, absl::optional<int64_t> startup_timestamp)
+    : content::ShellMainDelegate(/*is_content_browsertests=*/false), startup_timestamp_(startup_timestamp),
       deep_link_(initial_deep_link ? initial_deep_link : "") {}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
@@ -64,7 +64,7 @@ absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
-  browser_client_ = std::make_unique<CobaltContentBrowserClient>(deep_link_);
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>(deep_link_, startup_timestamp_);
   return browser_client_.get();
 }
 

@@ -13,9 +13,12 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
+#include "base/notreached.h"
+#include "build/build_config.h"
 
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
@@ -67,16 +70,32 @@ uint64_t PerformanceExtensions::measureReservedVirtualMemory(ScriptState* script
   return virtual_memory_size;
 }
 
-ScriptPromise PerformanceExtensions::getAppStartupTime(
+ScriptPromise PerformanceExtensions::getAppStartupTimeStamp(
     ScriptState* script_state,
-    const Performance&,
+    const Performance& performance_obj,
     ExceptionState& exception_state) {
+  ExecutionContext* context = performance_obj.GetExecutionContext();
+  if (!context) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Context is missing.");
+    return ScriptPromise();
+  }
+
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-  int64_t startup_time = 0;
-  BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
   ScriptPromise promise = resolver->Promise();
-  resolver->Resolve(startup_time);
+
+
+  int64_t startup_timestamp = 0;
+  BindRemotePerformance(script_state)
+      ->GetAppStartupTimeStamp(&startup_timestamp);
+
+  resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
+      performance_obj.GetTimeOriginInternal(),
+      base::TimeTicks::FromInternalValue(startup_timestamp),
+      true /* allow_negative_value */,
+      context->CrossOriginIsolatedCapability()));
+
   return promise;
 }
 

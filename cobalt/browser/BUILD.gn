@@ -122,7 +122,8 @@ source_set("global_features") {
     "global_features.cc",
     "global_features.h",
   ]
-  public_deps = [ ":features" ]
+  public_deps = [
+    "//cobalt/browser/performance", ":features" ]
   deps = [
     ":metrics",
     "//base",
