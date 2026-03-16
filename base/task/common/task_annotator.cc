@@ -15,6 +15,7 @@
 #include "base/hash/md5.h"
 #include "base/logging.h"
 #include "base/ranges/algorithm.h"
+#include "base/strings/stringprintf.h"
 #include "base/sys_byteorder.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
@@ -309,18 +310,37 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
       pending_task_(pending_task),
       task_annotator_(task_annotator) {
   TRACE_EVENT_CATEGORY_GROUP_ENABLED("scheduler.long_tasks", &is_tracing_);
-  if (is_tracing_) {
-    task_start_time_ = tick_clock_->NowTicks();
-  }
+  task_start_time_ = tick_clock_->NowTicks();
 }
 
 TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
   DCHECK_EQ(this, GetCurrentLongTaskTracker());
 
+  task_end_time_ = tick_clock_->NowTicks();
+
+  auto duration = task_end_time_ - task_start_time_;
+  if (duration >= base::Milliseconds(500)) {
+    LOG(WARNING) << "MainThread Hang Detected! Duration: "
+                 << duration.InMilliseconds() << "ms. "
+                 << "Posted from: " << pending_task_->posted_from.ToString()
+                 << (task_description_.empty()
+                         ? ""
+                         : base::StringPrintf(" [Source: %s]",
+                                              task_description_.c_str()))
+                 << (pending_task_->ipc_interface_name
+                         ? base::StringPrintf(" [IPC: %s]",
+                                              pending_task_->ipc_interface_name)
+                         : "")
+                 << (pending_task_->ipc_hash
+                         ? base::StringPrintf(" [IPC Hash: 0x%x]",
+                                              pending_task_->ipc_hash)
+                         : "")
+                 << " Seq: " << pending_task_->sequence_num;
+  }
+
   if (!is_tracing_)
     return;
 
-  task_end_time_ = tick_clock_->NowTicks();
   MaybeTraceInterestingTaskDetails();
 
   if ((task_end_time_ - task_start_time_) >= kMaxTaskDurationTimeDelta) {
