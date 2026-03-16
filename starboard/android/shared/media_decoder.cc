@@ -136,8 +136,6 @@ MediaDecoder::MediaDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<int> initial_max_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -147,20 +145,10 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       video_decoder_poll_interval_us_(
-          video_decoder_poll_interval_ms
-              ? static_cast<int64_t>(*video_decoder_poll_interval_ms) * 1'000
-              : (tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
-                                      : kDefaultVideoDecoderPollIntervalUs)),
+          tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
+                               : kDefaultVideoDecoderPollIntervalUs),
       condition_variable_(mutex_),
-      decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
-        if (!initial_max_frames || tunnel_mode_enabled_) {
-          return nullptr;
-        }
-        return std::make_unique<DecoderStateTracker>(*initial_max_frames);
-      }()) {
-  if (initial_max_frames && tunnel_mode_enabled_) {
-    SB_LOG(INFO) << "DecoderStateTracker is disabled for tunnel mode.";
-  }
+      decoder_state_tracker_(nullptr) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -180,7 +168,6 @@ MediaDecoder::MediaDecoder(
   }
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
                << ToString(tunnel_mode_enabled_)
-               << ", initial_max_frames=" << ToString(initial_max_frames)
                << ", video_decoder_poll_interval(msec)="
                << video_decoder_poll_interval_us_ / 1'000;
 }

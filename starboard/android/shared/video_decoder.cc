@@ -387,13 +387,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      initial_max_frames_in_decoder_(
-          experimental_features.video_initial_max_frames_in_decoder),
-      video_decoder_poll_interval_ms_(
-          experimental_features.video_decoder_poll_interval_ms),
-      max_pending_inputs_size_(
-          experimental_features.video_max_pending_input_frames.value_or(
-              kDefaultMaxPendingInputsSize)),
+      max_pending_inputs_size_(kDefaultMaxPendingInputsSize),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -783,8 +777,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
-      video_decoder_poll_interval_ms_, error_message));
+      max_video_input_size_, flush_delay_usec_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

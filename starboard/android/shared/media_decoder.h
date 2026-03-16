@@ -104,8 +104,6 @@ class MediaDecoder final
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
                int64_t flush_delay_usec,
-               std::optional<int> initial_max_frames,
-               std::optional<int> video_decoder_poll_interval_ms,
                std::string* error_message);
   ~MediaDecoder();
 
