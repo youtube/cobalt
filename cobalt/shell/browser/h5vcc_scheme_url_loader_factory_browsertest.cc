@@ -310,4 +310,6 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                                         "BUILTIN_SPLASH");
 }
 
+// TODO(b/492206459): Add a check for native splash screen UMA
+
 }  // namespace content
