@@ -342,6 +342,9 @@ void MediaDecoder::DecoderThreadFunc() {
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
+    int64_t last_log_time = CurrentMonotonicTime();
+    int64_t iteration_count = 0;
+
     auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
       if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
         return false;
@@ -351,6 +354,19 @@ void MediaDecoder::DecoderThreadFunc() {
     };
 
     while (!destroying_.load()) {
+      int64_t now = CurrentMonotonicTime();
+      iteration_count++;
+      if (now - last_log_time >= 5'000'000) {
+        double elapsed_seconds = (now - last_log_time) / 1'000'000.0;
+        double iter_per_sec = iteration_count / elapsed_seconds;
+        double iter_per_33ms = iter_per_sec * 0.033;
+        SB_LOG(INFO) << "Decoder iterations: polling_interval(msec)="
+                     << (video_decoder_poll_interval_us_ / 1'000)
+                     << ", interations per 33ms=" << iter_per_33ms;
+        last_log_time = now;
+        iteration_count = 0;
+      }
+
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
       bool has_input =
