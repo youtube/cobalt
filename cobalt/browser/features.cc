@@ -22,5 +22,10 @@ BASE_FEATURE(kExperimentConfigExpiration,
              "ExperimentConfigExpiration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the asynchronous DNS client and DNS-over-HTTPS (DoH).
+BASE_FEATURE(kAsyncDnsAndDoH,
+             "AsyncDnsAndDoH",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt

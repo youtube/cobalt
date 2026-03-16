@@ -23,6 +23,9 @@ namespace features {
 // Enables the variations config expiration check.
 extern const base::Feature kExperimentConfigExpiration;
 
+// Enables the asynchronous DNS client and DNS-over-HTTPS (DoH).
+extern const base::Feature kAsyncDnsAndDoH;
+
 }  // namespace features
 }  // namespace cobalt
 

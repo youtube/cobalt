@@ -20,6 +20,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/trace_event/memory_dump_manager.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
@@ -110,14 +111,21 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
 
-  ConfigureAsyncDnsAndDoH();
+  if (base::FeatureList::IsEnabled(features::kAsyncDnsAndDoH)) {
+    ConfigureAsyncDnsAndDoH();
+  }
 
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
+  // Note: The built-in Async DNS client and therefore DoH is not supported
+  // on iOS. On iOS, the compilation of the built-in DNS resolver in
+  // Chromium's network stack is disabled due to apple store regulations.
   if (auto* network_service = content::GetNetworkService()) {
-    // use Google Public DNS by default, this can be
+    // DoH stands for "DNS over HTTPS". It increases privacy and security by
+    // preventing eavesdropping and manipulation of DNS data.
+    // By default, we configure it to use Google Public DNS, but this can be
     // overridden via the --doh-url command line switch to support environments
     // with specific network policies or different privacy requirements.
     std::string doh_url = "https://dns.google/dns-query{?dns}";

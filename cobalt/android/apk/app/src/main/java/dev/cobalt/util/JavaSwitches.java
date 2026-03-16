@@ -86,6 +86,9 @@ public class JavaSwitches {
   /** flag to reduce background activity */
   public static final String NO_STOP_IN_BACKGROUND = "NoStopInBackground";
 
+  /** flag to enable Async DNS mode and DNS over Https */
+  public static final String ENABLE_ASYNC_DNS_AND_DOH = "EnableAsyncDnsAndDoH";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -193,6 +196,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--disable-renderer-backgrounding");
       extraCommandLineArgs.add("--disable-features=StopInBackground");
       extraCommandLineArgs.add("--disable-features=IntensiveWakeUpThrottling");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ASYNC_DNS_AND_DOH)) {
+      extraCommandLineArgs.add("--enable-features=AsyncDnsAndDoH");
     }
 
     return extraCommandLineArgs;
