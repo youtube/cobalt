@@ -6,6 +6,9 @@
 
 #include <string>
 
+#include "base/command_line.h"
+#include "base/containers/flat_map.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -17,6 +20,7 @@
 #include "content/public/renderer/render_thread.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "starboard/media.h"
@@ -32,6 +36,13 @@
 namespace cobalt {
 
 namespace {
+
+// Map that stores all current bindings of H5vcc settings to media switches.
+// If a setting has a corresponding switch, we will enable the switch with the
+// corresponding value.
+const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
+    {"Media.VideoBufferSizeClampMb", switches::kMSEVideoBufferSizeLimitClampMb},
+};
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
@@ -89,6 +100,50 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
+<<<<<<< HEAD
+=======
+void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
+  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
+}
+
+// TODO: b/460292554 - This code is a tentative solution, and will be replaced
+// once base::Feature is fully supported.
+//
+// Append the h5vcc setting to the corresponding media switch, if such mapping
+// exists. H5vcc settings are either pass their value to a media switch for code
+// in /media to use, or are given to Starboard Renderer for direct usage.
+bool AppendSettingToSwitch(
+    const std::string& setting_name,
+    const cobalt::mojom::SettingValuePtr& setting_value) {
+  auto it = kH5vccSettingToSwitchMap.find(setting_name);
+  if (it == kH5vccSettingToSwitchMap.end()) {
+    return false;
+  }
+  std::string switch_name = it->second;
+  std::string setting_str;
+  switch (setting_value->which()) {
+    case cobalt::mojom::SettingValue::Tag::kStringValue: {
+      setting_str = setting_value->get_string_value();
+      break;
+    }
+    case cobalt::mojom::SettingValue::Tag::kIntValue: {
+      setting_str = base::NumberToString(setting_value->get_int_value());
+      break;
+    }
+    default: {
+      LOG(WARNING) << "Attempted to apply switch " << switch_name
+                   << " but the setting value was not an integer or string.";
+      return false;
+    }
+  }
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
+                                                            setting_str);
+  LOG(INFO) << "Applied command line switch: " << switch_name << " = "
+            << setting_str;
+  return true;
+}
+
+>>>>>>> 37d6121bba (Cherry pick PR #7964: media: Expose decoder video budget clamp to h5vcc (#9517))
 }  // namespace
 
 CobaltContentRendererClient::CobaltContentRendererClient() {
@@ -239,6 +294,37 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
+<<<<<<< HEAD
+=======
+
+  if (!h5vcc_settings_remote_.is_bound()) {
+    content::RenderThread::Get()->BindHostReceiver(
+        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
+  }
+
+  cobalt::mojom::SettingsPtr settings;
+  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+    for (auto& [key, value] : settings->settings) {
+      if (!AppendSettingToSwitch(key, value)) {
+        if (value->is_string_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, std::move(value->get_string_value()));
+        } else if (value->is_int_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, value->get_int_value());
+        } else {
+          NOTREACHED();
+        }
+      }
+    }
+  }
+
+  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
+  renderer_factory_traits->bind_host_receiver_callback =
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
+                              weak_factory_.GetWeakPtr()));
+>>>>>>> 37d6121bba (Cherry pick PR #7964: media: Expose decoder video budget clamp to h5vcc (#9517))
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
