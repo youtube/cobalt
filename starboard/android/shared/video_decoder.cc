@@ -216,27 +216,6 @@ const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-// Convenience HDR mastering metadata.
-const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-
-// Determine if two |SbMediaMasteringMetadata|s are equal.
-bool Equal(const SbMediaMasteringMetadata& lhs,
-           const SbMediaMasteringMetadata& rhs) {
-  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
-}
-
-// TODO: For whatever reason, Cobalt will always pass us this us for
-// color metadata, regardless of whether HDR is on or not.  Find out if this
-// is intentional or not.  It would make more sense if it were NULL.
-// Determine if |color_metadata| is "empty", or "null".
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
-         color_metadata.transfer == kSbMediaTransferIdBt709 &&
-         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
-         color_metadata.range == kSbMediaRangeIdLimited &&
-         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
-}
-
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
                                      int ticket,
@@ -420,9 +399,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     SB_DCHECK(!drm_system_);
     // To create secure pipeline for tunnel mode, we need use
     // L1("com.widevine.alpha").
-    drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
-        "com.widevine.alpha", nullptr, StubDrmSessionUpdateRequestFunc,
-        StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
+    drm_system_to_enforce_tunnel_mode_.reset(
+        static_cast<DrmSystem*>(DrmSystem::Create(
+            "com.widevine.alpha", nullptr, StubDrmSessionUpdateRequestFunc,
+            StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc)));
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
 
@@ -537,7 +517,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     // teardown the codec so it can be reinitalized with the new metadata.
     const auto& color_metadata =
         input_buffers.front()->video_stream_info().color_metadata;
-    if (!IsIdentity(color_metadata)) {
+    if (!IsSDR(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();

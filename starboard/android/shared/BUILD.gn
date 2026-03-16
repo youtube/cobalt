@@ -173,12 +173,21 @@ static_library("starboard_platform") {
     "decode_target.h",
     "display_util.cc",
     "display_util.h",
+    "drm_common.h",
     "drm_create_system.cc",
     "drm_session_id_mapper.cc",
     "drm_session_id_mapper.h",
     "drm_system.cc",
     "drm_system.h",
     "egl_swap_buffers.cc",
+    "exoplayer/drm_system_exoplayer.cc",
+    "exoplayer/drm_system_exoplayer.h",
+    "exoplayer/exoplayer_bridge.cc",
+    "exoplayer/exoplayer_bridge.h",
+    "exoplayer/exoplayer_player_worker_handler.cc",
+    "exoplayer/exoplayer_player_worker_handler.h",
+    "exoplayer/exoplayer_util.cc",
+    "exoplayer/exoplayer_util.h",
     "features_extension.cc",
     "features_extension.h",
     "file_internal.cc",
@@ -405,6 +414,7 @@ test("starboard_platform_tests") {
 
 java_cpp_enum("java_enums") {
   sources = [
+    "exoplayer/exoplayer_bridge.h",
     "media_codec_bridge.h",
     "media_drm_bridge.h",
   ]
