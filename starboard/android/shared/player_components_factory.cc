@@ -75,9 +75,6 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
 
-// TODO: b/491123801 - Connect this to the experiment.
-constexpr bool kDisableTrimOnSeek = false;
-
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
   const auto& experimental_features =
@@ -495,9 +492,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
-          tunnel_mode_audio_session_id);
-      }
-      else {
+            tunnel_mode_audio_session_id);
+      } else {
         *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
             tunnel_mode_audio_session_id, pause_using_audio_track_state);
       }
