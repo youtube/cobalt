@@ -150,12 +150,11 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
   if (h5vcc_settings_remote_) {
     return;
   }
-  h5vcc_settings_remote_ =
-      std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
-                      base::OnTaskRunnerDeleter>(
-          new mojo::Remote<cobalt::mojom::H5vccSettings>(),
-          base::OnTaskRunnerDeleter(
-              base::SequencedTaskRunner::GetCurrentDefault()));
+
+  h5vcc_settings_remote_ = {
+      new mojo::Remote<cobalt::mojom::H5vccSettings>(),
+      base::OnTaskRunnerDeleter(
+          base::SequencedTaskRunner::GetCurrentDefault())};
   content::RenderThread::Get()->BindHostReceiver(
       h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
 }
