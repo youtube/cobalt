@@ -156,7 +156,9 @@ StarboardRenderer::StarboardRenderer(
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
-            << base::GetQuotedJSONString(max_video_capabilities_);
+            << base::GetQuotedJSONString(max_video_capabilities_)
+            << ", max_samples_per_write=" << max_samples_per_write_
+            << ", view_port_size=" << viewport_size_.ToString();
 }
 
 StarboardRenderer::~StarboardRenderer() {
