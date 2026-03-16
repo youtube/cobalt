@@ -489,7 +489,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";
-    Destroy(audio_sink);
+    SbAudioSinkDestroy(audio_sink);
     return kSbAudioSinkInvalid;
   }
   return audio_sink;
