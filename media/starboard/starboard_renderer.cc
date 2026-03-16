@@ -143,8 +143,9 @@ StarboardRenderer::StarboardRenderer(
       max_video_capabilities_(max_video_capabilities),
       // TODO: b/375674101 - Connect this to the starboard::feature.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
-      viewport_size_(viewport_size),
+      viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
+      ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
 {
