@@ -93,6 +93,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<<<<<<< HEAD
 <histogram name="Cobalt.StorageMigration.CookieInjectionResult"
     enum="StorageInjectionResult" expires_after="never">
   <owner>haozheng@google.com</owner>
@@ -151,6 +152,15 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records the outcome of attempting to read and parse the legacy Starboard
     storage record during migration.
+=======
+<histogram name="Cobalt.SplashScreen.FetchedFromCache"
+    enum="SplashScreenFetchedState" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records whether a splash screen resource was successfully retrieved from
+    cache and indicates the reason when on error. This is recorded for every
+    splash screen request handled by h5vcc scheme loader.
+>>>>>>> 6fce9e1560 (Add UMA histogram for native splash screen (#9472))
   </summary>
 </histogram>
 
