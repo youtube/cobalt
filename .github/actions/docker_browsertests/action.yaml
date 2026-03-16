@@ -53,8 +53,19 @@ runs:
     - name: Login to GAR
       shell: bash
       run: |
+        # Login to GAR
         TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-        curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token | docker login -u oauth2accesstoken --password-stdin "${REGISTRY_URL}"
+        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
+
+        # Login to GAR to be able to push images created by fork based PR workflows.
+        if [[ "${{ inputs.is_pr }}" == "true" ]]; then
+          printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
+        fi
+
+        # Login to Marketplace GAR to be able to pull base images.
+        printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
+        #TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+        #curl -s -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token | docker login -u oauth2accesstoken --password-stdin "${REGISTRY_URL}"
 
     - name: Prepare Build Context
       shell: bash
