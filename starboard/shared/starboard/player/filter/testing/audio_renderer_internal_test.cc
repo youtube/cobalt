@@ -54,13 +54,23 @@ class AudioRendererTest : public ::testing::Test {
 
   AudioRendererTest() {
     ResetToFormat(kSbMediaAudioSampleTypeFloat32,
-                  kSbMediaAudioFrameStorageTypeInterleaved);
+                  kSbMediaAudioFrameStorageTypeInterleaved,
+                  GetDefaultCreationParameters());
+  }
+
+  static AudioRendererPcm::CreationParameters GetDefaultCreationParameters() {
+    AudioRendererPcm::CreationParameters creation_params;
+    creation_params.max_cached_frames = 256 * 1024;
+    creation_params.min_frames_per_append = 16 * 1024;
+    return creation_params;
   }
 
   // This function should be called in the fixture before any other functions
   // to set the desired format of the decoder.
-  void ResetToFormat(SbMediaAudioSampleType sample_type,
-                     SbMediaAudioFrameStorageType storage_type) {
+  void ResetToFormat(
+      SbMediaAudioSampleType sample_type,
+      SbMediaAudioFrameStorageType storage_type,
+      const AudioRendererPcm::CreationParameters& creation_params) {
     audio_renderer_.reset(NULL);
     sample_type_ = sample_type;
     storage_type_ = storage_type;
@@ -108,9 +118,6 @@ class AudioRendererTest : public ::testing::Test {
     EXPECT_CALL(*audio_decoder_, Initialize(_, _))
         .WillOnce(SaveArg<0>(&output_cb_));
 
-    AudioRendererPcm::CreationParameters creation_params;
-    creation_params.max_cached_frames = 256 * 1024;
-    creation_params.min_frames_per_append = 16 * 1024;
     audio_renderer_ = std::make_unique<AudioRendererPcm>(
         std::unique_ptr<AudioDecoder>(audio_decoder_),
         std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
@@ -388,7 +395,8 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   // Resets |audio_renderer_sink_|, so all the gtest codes need to be below
   // this line.
   ResetToFormat(kSbMediaAudioSampleTypeInt16Deprecated,
-                kSbMediaAudioFrameStorageTypeInterleaved);
+                kSbMediaAudioFrameStorageTypeInterleaved,
+                GetDefaultCreationParameters());
 
   {
     ::testing::InSequence seq;
@@ -886,7 +894,69 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
 
-// TODO: Add more Seek tests.
+TEST_F(AudioRendererTest, DisableTrimOnSeek) {
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
+    return;
+  }
+
+  const int64_t kSeekTime = 500'000;
+  const int64_t kFirstAudioTimestamp = 600'000;
+  const int kFramesPerBuffer = 1024;
+
+  auto creation_params = GetDefaultCreationParameters();
+  creation_params.disable_trim_on_seek = true;
+  ResetToFormat(kSbMediaAudioSampleTypeFloat32,
+                kSbMediaAudioFrameStorageTypeInterleaved, creation_params);
+
+  {
+    ::testing::InSequence seq;
+    EXPECT_CALL(*audio_renderer_sink_,
+                Start(kFirstAudioTimestamp, kDefaultNumberOfChannels,
+                      kDefaultSamplesPerSecond, kDefaultAudioSampleType,
+                      kDefaultAudioFrameStorageType, _, _, _));
+  }
+
+  // Set to prerolled so we can call Seek().
+  prerolled_ = true;
+  Seek(kSeekTime);
+
+  WriteSample(CreateInputBuffer(kFirstAudioTimestamp));
+  CallConsumedCB();
+
+  // Send decoder output with timestamp > seek time.
+  // With disable_trim_on_seek = true, seeking_to_time_ should be updated to
+  // kFirstAudioTimestamp and frames should NOT be trimmed.
+  SendDecoderOutput(CreateDecodedAudio(kFirstAudioTimestamp, kFramesPerBuffer));
+
+  bool is_playing;
+  bool is_eos_played;
+  bool is_underflow;
+  double playback_rate = -1.0;
+
+  // GetCurrentMediaTime should return kFirstAudioTimestamp as it's the new
+  // seek target.
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
+                                                 &is_underflow, &playback_rate),
+            kFirstAudioTimestamp);
+
+  // Write EOS to finish preroll.
+  WriteEndOfStream();
+  SendDecoderOutput(new DecodedAudio);
+
+  EXPECT_TRUE(prerolled_);
+
+  audio_renderer_->Play();
+
+  int frames_in_buffer;
+  int offset_in_frames;
+  bool is_eos_reached;
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
+
+  // Frames should NOT have been trimmed, so we expect kFramesPerBuffer.
+  EXPECT_EQ(frames_in_buffer, kFramesPerBuffer);
+}
 
 }  // namespace
 
