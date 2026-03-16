@@ -67,7 +67,9 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
 
-  mojo::Remote<cobalt::mojom::H5vccSettings> h5vcc_settings_remote_;
+  std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
+                  base::OnTaskRunnerDeleter>
+      h5vcc_settings_remote_;
 
   base::ScopedClosureRunner unregister_thread_closure;
 
