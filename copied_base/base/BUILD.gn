@@ -3656,7 +3656,6 @@ test("base_unittests") {
 
   if (is_starboard) {
     sources -= [
-      "debug/proc_maps_linux_unittest.cc",
       "debug/stack_trace_unittest.cc",
       "files/file_path_watcher_unittest.cc",
       "files/file_util_unittest.cc",
@@ -3677,6 +3676,10 @@ test("base_unittests") {
       "test/task_environment_unittest.cc",
       "task/thread_pool/thread_pool_impl_unittest.cc",
     ]
+
+    if (is_linux) {
+      sources -= [ "debug/proc_maps_linux_unittest.cc" ]
+    }
   }
 
   # TODO: b/402471389 - Cobalt: try to enable these tests.
@@ -3812,13 +3815,9 @@ test("base_unittests") {
 
     # Android does not use test_launcher to run gtests.
     sources -= [
-      "process/process_unittest.cc",
-      "process/process_util_unittest.cc",
       "test/gtest_links_unittest.cc",
       "test/gtest_tags_unittest.cc",
       "test/gtest_xml_unittest_result_printer_unittest.cc",
-      "test/launcher/test_launcher_unittest.cc",
-      "test/launcher/test_results_tracker_unittest.cc",
     ]
     deps += [
       ":base_java_unittest_support",
