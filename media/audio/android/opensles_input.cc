@@ -8,6 +8,8 @@
 #include "base/trace_event/trace_event.h"
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
+#include "base/task/thread_pool.h"
+#include "base/task/single_thread_task_runner.h"
 
 #define LOG_ON_FAILURE_AND_RETURN(op, ...)      \
   do {                                          \
@@ -36,17 +38,6 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
 
   const SampleFormat kSampleFormat = kSampleFormatS16;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  LOG(INFO) << "YO THOR COBALT MOD: Using SLAndroidDataFormat_PCM_EX";
-  format_ex_ = {SL_ANDROID_DATAFORMAT_PCM_EX,
-                static_cast<SLuint32>(params.channels()),
-                static_cast<SLuint32>(params.sample_rate() * 1000),
-                SL_PCMSAMPLEFORMAT_FIXED_16,
-                SL_PCMSAMPLEFORMAT_FIXED_16,
-                ChannelCountToSLESChannelMask(params.channels()),
-                SL_BYTEORDER_LITTLEENDIAN,
-                SL_ANDROID_PCM_REPRESENTATION_SIGNED_INT};
-#else
   format_.formatType = SL_DATAFORMAT_PCM;
   format_.numChannels = static_cast<SLuint32>(params.channels());
   // Provides sampling rate in milliHertz to OpenSLES.
@@ -55,7 +46,6 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
       SampleFormatToBitsPerChannel(kSampleFormat);
   format_.endianness = SL_BYTEORDER_LITTLEENDIAN;
   format_.channelMask = ChannelCountToSLESChannelMask(params.channels());
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   buffer_size_bytes_ = params.GetBytesPerBuffer(kSampleFormat);
   hardware_delay_ = base::Seconds(params.frames_per_buffer() /
@@ -74,71 +64,171 @@ OpenSLESInputStream::~OpenSLESInputStream() {
   DCHECK(!audio_data_[0]);
 }
 
+void OpenSLESInputStream::RealizeRecorderOnBackgroundThread(
+    scoped_refptr<base::SingleThreadTaskRunner> audio_thread_runner) {
+  SLresult err = engine_object_->Realize(engine_object_.Get(), SL_BOOLEAN_FALSE);
+
+  SLEngineItf engine = nullptr;
+  if (err == SL_RESULT_SUCCESS) {
+    err = engine_object_->GetInterface(engine_object_.Get(), SL_IID_ENGINE, &engine);
+  }
+
+  SLDataLocator_IODevice mic_locator = {SL_DATALOCATOR_IODEVICE, SL_IODEVICE_AUDIOINPUT, SL_DEFAULTDEVICEID_AUDIOINPUT, nullptr};
+  SLDataSource audio_source = {&mic_locator, nullptr};
+  SLDataLocator_AndroidSimpleBufferQueue buffer_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, static_cast<SLuint32>(kMaxNumOfBuffersInQueue)};
+
+  // Back to standard:
+  SLDataSink audio_sink = {&buffer_queue, &format_};
+
+  const SLInterfaceID interface_id[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE, SL_IID_ANDROIDCONFIGURATION};
+  const SLboolean interface_required[] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
+
+  if (err == SL_RESULT_SUCCESS) {
+    err = (*engine)->CreateAudioRecorder(engine, recorder_object_.Receive(), &audio_source, &audio_sink,
+                                         2, interface_id, interface_required);
+  }
+
+  SLAndroidConfigurationItf recorder_config;
+  if (err == SL_RESULT_SUCCESS &&
+      recorder_object_->GetInterface(recorder_object_.Get(), SL_IID_ANDROIDCONFIGURATION, &recorder_config) == SL_RESULT_SUCCESS) {
+    SLint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
+    (*recorder_config)->SetConfiguration(recorder_config, SL_ANDROID_KEY_RECORDING_PRESET, &stream_type, sizeof(SLint32));
+  }
+
+  if (err == SL_RESULT_SUCCESS) {
+    err = recorder_object_->Realize(recorder_object_.Get(), SL_BOOLEAN_FALSE);
+  }
+
+  if (err == SL_RESULT_SUCCESS) {
+    recorder_object_->GetInterface(recorder_object_.Get(), SL_IID_RECORD, &recorder_);
+    recorder_object_->GetInterface(recorder_object_.Get(), SL_IID_ANDROIDSIMPLEBUFFERQUEUE, &simple_buffer_queue_);
+    (*simple_buffer_queue_)->RegisterCallback(simple_buffer_queue_, SimpleBufferQueueCallback, this);
+  }
+
+  bool success = (err == SL_RESULT_SUCCESS);
+
+  audio_thread_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(&OpenSLESInputStream::OnRealizeComplete,
+                     weak_ptr_factory_.GetWeakPtr(), success));
+}
+
 AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (engine_object_.Get())
+
+  if (state_ != State::kCreated) return AudioInputStream::OpenOutcome::kFailed;
+  // if (engine_object_.Get())
+  //   return AudioInputStream::OpenOutcome::kFailed;
+
+  if (!CreateRecorderObject())
     return AudioInputStream::OpenOutcome::kFailed;
 
-  if (!CreateRecorder())
-    return AudioInputStream::OpenOutcome::kFailed;
+  state_ = State::kRealizing;
+  LOG(INFO) << "YO THOR: Offloading Realize to background thread";
 
-  LOG(INFO) << "YO THOR OpenSLESInputStream::Open - CreateRecorder successful";
+  // Capture the current thread's task runner (The Audio Thread)
+  auto audio_thread_runner = base::SingleThreadTaskRunner::GetCurrentDefault();
 
-  SetupAudioBuffer();
+  //SetupAudioBuffer();
+  // Post the Realize call to the ThreadPool instead of doing it here
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
+      base::BindOnce(&OpenSLESInputStream::RealizeRecorderOnBackgroundThread,
+                     base::Unretained(this),
+                     audio_thread_runner));
   return AudioInputStream::OpenOutcome::kSuccess;
 }
 
-void OpenSLESInputStream::Start(AudioInputCallback* callback) {
-  LOG(INFO) << "YO THOR " << __PRETTY_FUNCTION__;
+void OpenSLESInputStream::OnRealizeComplete(bool success) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(callback);
-  DCHECK(recorder_);
-  DCHECK(simple_buffer_queue_);
-  if (started_)
-    return;
 
-  base::AutoLock lock(lock_);
-  DCHECK(!callback_ || callback_ == callback);
+  if (!success) {
+    state_ = State::kError;
+    LOG(ERROR) << "ASYNCHRONOUS REALIZE FAILED: Audio server is likely dead.";
+    return;
+  }
+
+  State old_state = state_;
+  state_ = State::kReady;
+
+  // If Start() was already called while we were realizing,
+  // we need to trigger the actual recording now.
+  if (old_state == State::kRecording) {
+    Record();
+  }
+}
+
+void OpenSLESInputStream::Start(AudioInputCallback* callback) {
+
+  DCHECK(thread_checker_.CalledOnValidThread());
   callback_ = callback;
-  active_buffer_index_ = 0;
 
-  LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Enqueuing initial buffers";
-  // Enqueues kMaxNumOfBuffersInQueue zero buffers to get the ball rolling.
-  // TODO(henrika): add support for Start/Stop/Start sequences when we are
-  // able to clear the buffer queue. There is currently a bug in the OpenSLES
-  // implementation which forces us to always call Stop() and Close() before
-  // calling Start() again.
-  SLresult err = SL_RESULT_UNKNOWN_ERROR;
-  for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
-    err = (*simple_buffer_queue_)->Enqueue(
-        simple_buffer_queue_, audio_data_[i], buffer_size_bytes_);
-    if (SL_RESULT_SUCCESS != err) {
-      HandleError(err);
-      started_ = false;
-      return;
-    }
+  if (state_ == State::kReady) {
+    state_ = State::kRecording;
+    Record(); // Fast path: Realize already finished
+  } else if (state_ == State::kRealizing) {
+    state_ = State::kRecording;
+    LOG(INFO) << "YO THOR: Start() called while realizing. Queuing recording.";
+    // We don't call Record() yet; OnRealizeComplete will trigger it.
   }
 
-  LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Setting record state to RECORDING";
-  // Start the recording by setting the state to SL_RECORDSTATE_RECORDING.
-  // When the object is in the SL_RECORDSTATE_RECORDING state, adding buffers
-  // will implicitly start the filling process.
-  err = (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
-  if (SL_RESULT_SUCCESS != err) {
-    HandleError(err);
-    started_ = false;
-    return;
-  }
+  // LOG(INFO) << "YO THOR " << __PRETTY_FUNCTION__;
+  // DCHECK(thread_checker_.CalledOnValidThread());
+  // DCHECK(callback);
+  // DCHECK(recorder_);
+  // DCHECK(simple_buffer_queue_);
+  // if (started_)
+  //   return;
 
-  started_ = true;
-  LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Started";
+  // base::AutoLock lock(lock_);
+  // DCHECK(!callback_ || callback_ == callback);
+  // callback_ = callback;
+  // active_buffer_index_ = 0;
+
+  // LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Enqueuing initial buffers";
+  // // Enqueues kMaxNumOfBuffersInQueue zero buffers to get the ball rolling.
+  // // TODO(henrika): add support for Start/Stop/Start sequences when we are
+  // // able to clear the buffer queue. There is currently a bug in the OpenSLES
+  // // implementation which forces us to always call Stop() and Close() before
+  // // calling Start() again.
+  // SLresult err = SL_RESULT_UNKNOWN_ERROR;
+  // for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
+  //   err = (*simple_buffer_queue_)->Enqueue(
+  //       simple_buffer_queue_, audio_data_[i], buffer_size_bytes_);
+  //   if (SL_RESULT_SUCCESS != err) {
+  //     HandleError(err);
+  //     started_ = false;
+  //     return;
+  //   }
+  // }
+
+  // LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Setting record state to RECORDING";
+  // // Start the recording by setting the state to SL_RECORDSTATE_RECORDING.
+  // // When the object is in the SL_RECORDSTATE_RECORDING state, adding buffers
+  // // will implicitly start the filling process.
+  // err = (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
+  // if (SL_RESULT_SUCCESS != err) {
+  //   HandleError(err);
+  //   started_ = false;
+  //   return;
+  // }
+
+  // started_ = true;
+  // LOG(INFO) << "YO THOR OpenSLESInputStream::Start - Started";
 }
 
 void OpenSLESInputStream::Stop() {
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (!started_)
+
+  // ADD THIS: If the background task hasn't finished,
+  // just update the state so Record() never runs.
+  if (state_ == State::kRealizing || state_ == State::kRecording) {
+      state_ = State::kCreated; // Or a dedicated kCancelled state
+  }
+
+  if (!started_ || !recorder_) // Ensure recorder exists before calling it
     return;
 
   base::AutoLock lock(lock_);
@@ -208,7 +298,7 @@ void OpenSLESInputStream::SetOutputDeviceForAec(
   // Not supported. Do nothing.
 }
 
-bool OpenSLESInputStream::CreateRecorder() {
+bool OpenSLESInputStream::CreateRecorderObject() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!engine_object_.Get());
   DCHECK(!recorder_object_.Get());
@@ -217,106 +307,10 @@ bool OpenSLESInputStream::CreateRecorder() {
 
   // Initializes the engine object with specific option. After working with the
   // object, we need to free the object and its resources.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  LOG(INFO) << "YO THOR COBALT MOD: Creating SL Engine with no options";
-  LOG_ON_FAILURE_AND_RETURN(
-      slCreateEngine(engine_object_.Receive(), 0, nullptr, 0, nullptr, nullptr),
-      false);
-#else
   SLEngineOption option[] = {
       {SL_ENGINEOPTION_THREADSAFE, static_cast<SLuint32>(SL_BOOLEAN_TRUE)}};
   LOG_ON_FAILURE_AND_RETURN(
       slCreateEngine(engine_object_.Receive(), 1, option, 0, nullptr, nullptr),
-      false);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-  // Realize the SL engine object in synchronous mode.
-  LOG_ON_FAILURE_AND_RETURN(
-      engine_object_->Realize(engine_object_.Get(), SL_BOOLEAN_FALSE), false);
-
-  // Get the SL engine interface which is implicit.
-  SLEngineItf engine;
-  LOG_ON_FAILURE_AND_RETURN(engine_object_->GetInterface(
-                                engine_object_.Get(), SL_IID_ENGINE, &engine),
-                            false);
-
-  // Audio source configuration.
-  SLDataLocator_IODevice mic_locator = {SL_DATALOCATOR_IODEVICE,
-                                        SL_IODEVICE_AUDIOINPUT,
-                                        SL_DEFAULTDEVICEID_AUDIOINPUT, nullptr};
-  SLDataSource audio_source = {&mic_locator, nullptr};
-
-  // Audio sink configuration.
-  SLDataLocator_AndroidSimpleBufferQueue buffer_queue = {
-      SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
-      static_cast<SLuint32>(kMaxNumOfBuffersInQueue)};
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  SLDataSink audio_sink = {&buffer_queue, &format_ex_};
-#else
-  SLDataSink audio_sink = {&buffer_queue, &format_};
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-  // Create an audio recorder.
-  const SLInterfaceID interface_id[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
-                                        SL_IID_ANDROIDCONFIGURATION};
-  const SLboolean interface_required[] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
-
-  // Create AudioRecorder and specify SL_IID_ANDROIDCONFIGURATION.
-  LOG_ON_FAILURE_AND_RETURN(
-      (*engine)->CreateAudioRecorder(
-          engine, recorder_object_.Receive(), &audio_source, &audio_sink,
-          std::size(interface_id), interface_id, interface_required),
-      false);
-
-  SLAndroidConfigurationItf recorder_config;
-  LOG_ON_FAILURE_AND_RETURN(
-      recorder_object_->GetInterface(recorder_object_.Get(),
-                                     SL_IID_ANDROIDCONFIGURATION,
-                                     &recorder_config),
-      false);
-
-  // Uses the main microphone tuned for audio communications if effects are
-  // enabled and disables all audio processing if effects are disabled.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // COBALT MOD: Always use VOICE_RECOGNITION preset to match C25 behavior.
-  LOG(INFO) << "YO THOR COBALT MOD: Setting stream type to SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION";
-  SLint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
-#else
-  SLint32 stream_type = no_effects_
-                            ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
-                            : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-  LOG_ON_FAILURE_AND_RETURN(
-      (*recorder_config)->SetConfiguration(recorder_config,
-                                           SL_ANDROID_KEY_RECORDING_PRESET,
-                                           &stream_type,
-                                           sizeof(SLint32)),
-      false);
-
-  // Realize the recorder object in synchronous mode.
-  LOG_ON_FAILURE_AND_RETURN(
-      recorder_object_->Realize(recorder_object_.Get(), SL_BOOLEAN_FALSE),
-      false);
-
-  // Get an implicit recorder interface.
-  LOG_ON_FAILURE_AND_RETURN(
-      recorder_object_->GetInterface(
-          recorder_object_.Get(), SL_IID_RECORD, &recorder_),
-      false);
-
-  // Get the simple buffer queue interface.
-  LOG_ON_FAILURE_AND_RETURN(
-      recorder_object_->GetInterface(recorder_object_.Get(),
-                                     SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
-                                     &simple_buffer_queue_),
-      false);
-
-  // Register the input callback for the simple buffer queue.
-  // This callback will be called when receiving new data from the device.
-  LOG_ON_FAILURE_AND_RETURN(
-      (*simple_buffer_queue_)->RegisterCallback(
-          simple_buffer_queue_, SimpleBufferQueueCallback, this),
       false);
 
   return true;
@@ -374,6 +368,42 @@ void OpenSLESInputStream::ReleaseAudioBuffer() {
       audio_data_[i] = nullptr;
     }
   }
+}
+
+void OpenSLESInputStream::Record() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  base::AutoLock lock(lock_);
+  // Guard: Ensure we are in the correct state and have hardware handles
+  if (state_ != State::kRecording || !recorder_object_.Get() || !simple_buffer_queue_) {
+    LOG(WARNING) << "YO THOR: Record() called but not ready. State: " << static_cast<int>(state_);
+    return;
+  }
+
+  // 1. Safe Buffer Allocation
+  if (!audio_data_[0]) {
+    SetupAudioBuffer();
+  }
+
+  // 2. Initial Buffer Enqueue (Prime the pump)
+  SLresult err = SL_RESULT_UNKNOWN_ERROR;
+  for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
+    err = (*simple_buffer_queue_)->Enqueue(
+        simple_buffer_queue_, audio_data_[i], buffer_size_bytes_);
+    if (err != SL_RESULT_SUCCESS) {
+      HandleError(err);
+      return;
+    }
+  }
+
+  // 3. Start Recording
+  err = (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
+  if (err != SL_RESULT_SUCCESS) {
+    HandleError(err);
+    return;
+  }
+
+  started_ = true;
+  LOG(INFO) << "YO THOR: OpenSLES Recording started successfully on Audio Thread.";
 }
 
 void OpenSLESInputStream::HandleError(SLresult error) {

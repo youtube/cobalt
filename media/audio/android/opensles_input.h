@@ -20,10 +20,15 @@
 #include "media/audio/audio_io.h"
 #include "media/base/audio_parameters.h"
 
+#include "base/memory/weak_ptr.h"
+#include "base/task/single_thread_task_runner.h"
+
 namespace media {
 
 class AudioBus;
 class AudioManagerAndroid;
+
+enum class State { kCreated, kRealizing, kReady, kRecording, kError };
 
 // Implements PCM audio input support for Android using the OpenSLES API.
 // This class is created and lives on the Audio Manager thread but recorded
@@ -54,8 +59,14 @@ class OpenSLESInputStream : public AudioInputStream {
   bool IsMuted() override;
   void SetOutputDeviceForAec(const std::string& output_device_id) override;
 
+  void RealizeRecorderOnBackgroundThread(
+      scoped_refptr<base::SingleThreadTaskRunner> audio_thread_runner);
+  void OnRealizeComplete(bool success);
+
  private:
-  bool CreateRecorder();
+  // bool CreateRecorder();
+  bool CreateRecorderObject();
+  void Record();
 
   // Called from OpenSLES specific audio worker thread.
   static void SimpleBufferQueueCallback(
@@ -85,6 +96,9 @@ class OpenSLESInputStream : public AudioInputStream {
 
   raw_ptr<AudioInputCallback> callback_;
 
+  // MOD: Track the initialization state
+  State state_ = State::kCreated;
+
   // Shared engine interfaces for the app.
   media::ScopedSLObjectItf recorder_object_;
   media::ScopedSLObjectItf engine_object_;
@@ -95,9 +109,6 @@ class OpenSLESInputStream : public AudioInputStream {
   SLAndroidSimpleBufferQueueItf simple_buffer_queue_;
 
   SLDataFormat_PCM format_;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  SLAndroidDataFormat_PCM_EX format_ex_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Audio buffers that are allocated in the constructor based on
   // info from audio parameters.
@@ -113,7 +124,8 @@ class OpenSLESInputStream : public AudioInputStream {
   std::unique_ptr<media::AudioBus> audio_bus_;
 
   // Set to true at construction if user wants to disable all audio effects.
-  const bool no_effects_ = false;
+  const bool no_effects_ = true;
+  base::WeakPtrFactory<OpenSLESInputStream> weak_ptr_factory_{this};
 };
 
 }  // namespace media

@@ -59,8 +59,12 @@ void AddDefaultDevice(AudioDeviceNames* device_names) {
 
 // Returns whether the currently connected device is an audio sink.
 bool IsAudioSinkConnected() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return true;
+#else
   return Java_AudioManagerAndroid_isAudioSinkConnected(
       base::android::AttachCurrentThread());
+#endif
 }
 
 }  // namespace
@@ -407,10 +411,14 @@ bool AudioManagerAndroid::HasOutputVolumeOverride(double* out_volume) const {
 }
 
 base::TimeDelta AudioManagerAndroid::GetOutputLatency() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return base::Milliseconds(50); // Cobalt default
+#else
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   JNIEnv* env = AttachCurrentThread();
   return base::Milliseconds(
       Java_AudioManagerAndroid_getOutputLatency(env, GetJavaAudioManager()));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioParameters AudioManagerAndroid::GetPreferredOutputStreamParameters(
@@ -476,7 +484,8 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
     DVLOG(2) << "Creating Java part of the audio manager";
     j_audio_manager_.Reset(Java_AudioManagerAndroid_createAudioManagerAndroid(
         base::android::AttachCurrentThread(),
-        reinterpret_cast<intptr_t>(this)));
+        reinterpret_cast<intptr_t>(this),
+        BUILDFLAG(USE_STARBOARD_MEDIA)));
 
     // Prepare the list of audio devices and register receivers for device
     // notifications.
@@ -559,8 +568,13 @@ int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
 // Returns a bit mask of AudioParameters::Format enum values sink device
 // supports.
 int AudioManagerAndroid::GetSinkAudioEncodingFormats() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Hardcode to PCM or return the specific bitmask YouTube needs.
+  return 1;
+#else
   JNIEnv* env = AttachCurrentThread();
   return Java_AudioManagerAndroid_getAudioEncodingFormatsSupported(env);
+#endif
 }
 
 // Returns encoding bitstream formats supported by Sink device. Returns

@@ -67,6 +67,7 @@ class AudioManagerAndroid {
 
     private final AudioManager mAudioManager;
     private final long mNativeAudioManagerAndroid;
+    private final boolean mUseStarboardMedia;
 
     // Enabled during initialization if MODIFY_AUDIO_SETTINGS permission is
     // granted. Required to shift system-wide audio settings.
@@ -87,17 +88,26 @@ class AudioManagerAndroid {
 
     private AudioDeviceSelector mAudioDeviceSelector;
 
-    /** Construction */
-    @CalledByNative
-    private static AudioManagerAndroid createAudioManagerAndroid(long nativeAudioManagerAndroid) {
-        return new AudioManagerAndroid(nativeAudioManagerAndroid);
+    private static Handler sBackgroundHandler;
+    static {
+        HandlerThread thread = new HandlerThread("CobaltAudioWarmup");
+        thread.start();
+        sBackgroundHandler = new Handler(thread.getLooper());
     }
 
-    private AudioManagerAndroid(long nativeAudioManagerAndroid) {
+    /** Construction */
+    @CalledByNative
+    private static AudioManagerAndroid createAudioManagerAndroid(long nativeAudioManagerAndroid, boolean useStarboardMedia) {
+        return new AudioManagerAndroid(nativeAudioManagerAndroid, useStarboardMedia);
+    }
+
+    private AudioManagerAndroid(long nativeAudioManagerAndroid, boolean useStarboardMedia) {
         mNativeAudioManagerAndroid = nativeAudioManagerAndroid;
+        mUseStarboardMedia = useStarboardMedia;
         mAudioManager = (AudioManager) ContextUtils.getApplicationContext().getSystemService(
                 Context.AUDIO_SERVICE);
         mContentResolver = ContextUtils.getApplicationContext().getContentResolver();
+
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             mAudioDeviceSelector = new AudioDeviceSelectorPreS(mAudioManager);
@@ -128,6 +138,15 @@ class AudioManagerAndroid {
 
         mAudioDeviceSelector.init();
 
+        sBackgroundHandler.post(() -> {
+          synchronized(AudioManagerAndroid.class) {
+              if (sCachedDeviceInfo == null) {
+                  // This 60ms call now happens here, not on your Audio Thread
+                  sCachedDeviceInfo = mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+              }
+          }
+        });
+
         mIsInitialized = true;
     }
 
@@ -155,46 +174,48 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private void setCommunicationAudioModeOn(boolean on) {
-        mThreadChecker.assertOnValidThread();
-        if (DEBUG) logd("setCommunicationAudioModeOn" + on + ")");
-        if (!mIsInitialized) return;
+        Log.i(TAG, "Cobalt - ignoring comms mode change");
+        return;
+        // mThreadChecker.assertOnValidThread();
+        // if (DEBUG) logd("setCommunicationAudioModeOn" + on + ")");
+        // if (!mIsInitialized) return;
 
-        // The MODIFY_AUDIO_SETTINGS permission is required to allow an
-        // application to modify global audio settings.
-        if (!mHasModifyAudioSettingsPermission) {
-            Log.w(TAG,
-                    "MODIFY_AUDIO_SETTINGS is missing => client will run "
-                            + "with reduced functionality");
-            return;
-        }
+        // // The MODIFY_AUDIO_SETTINGS permission is required to allow an
+        // // application to modify global audio settings.
+        // if (!mHasModifyAudioSettingsPermission) {
+        //     Log.w(TAG,
+        //             "MODIFY_AUDIO_SETTINGS is missing => client will run "
+        //                     + "with reduced functionality");
+        //     return;
+        // }
 
-        // TODO(crbug.com/1317548): Should we exit early if we are already in/out of
-        // communication mode?
-        if (on) {
-            // Store microphone mute state and speakerphone state so it can
-            // be restored when closing.
-            mSavedIsSpeakerphoneOn = mAudioDeviceSelector.isSpeakerphoneOn();
-            mSavedIsMicrophoneMute = mAudioManager.isMicrophoneMute();
+        // // TODO(crbug.com/1317548): Should we exit early if we are already in/out of
+        // // communication mode?
+        // if (on) {
+        //     // Store microphone mute state and speakerphone state so it can
+        //     // be restored when closing.
+        //     mSavedIsSpeakerphoneOn = mAudioDeviceSelector.isSpeakerphoneOn();
+        //     mSavedIsMicrophoneMute = mAudioManager.isMicrophoneMute();
 
-            mAudioDeviceSelector.setCommunicationAudioModeOn(true);
+        //     mAudioDeviceSelector.setCommunicationAudioModeOn(true);
 
-            // Start observing volume changes to detect when the
-            // voice/communication stream volume is at its lowest level.
-            // It is only possible to pull down the volume slider to about 20%
-            // of the absolute minimum (slider at far left) in communication
-            // mode but we want to be able to mute it completely.
-            startObservingVolumeChanges();
-        } else {
-            stopObservingVolumeChanges();
+        //     // Start observing volume changes to detect when the
+        //     // voice/communication stream volume is at its lowest level.
+        //     // It is only possible to pull down the volume slider to about 20%
+        //     // of the absolute minimum (slider at far left) in communication
+        //     // mode but we want to be able to mute it completely.
+        //     startObservingVolumeChanges();
+        // } else {
+        //     stopObservingVolumeChanges();
 
-            mAudioDeviceSelector.setCommunicationAudioModeOn(false);
+        //     mAudioDeviceSelector.setCommunicationAudioModeOn(false);
 
-            // Restore previously stored audio states.
-            setMicrophoneMute(mSavedIsMicrophoneMute);
-            mAudioDeviceSelector.setSpeakerphoneOn(mSavedIsSpeakerphoneOn);
-        }
+        //     // Restore previously stored audio states.
+        //     setMicrophoneMute(mSavedIsMicrophoneMute);
+        //     mAudioDeviceSelector.setSpeakerphoneOn(mSavedIsSpeakerphoneOn);
+        // }
 
-        setCommunicationAudioModeOnInternal(on);
+        // setCommunicationAudioModeOnInternal(on);
     }
 
     /**
@@ -202,26 +223,27 @@ class AudioManagerAndroid {
      * Restores audio mode to MODE_NORMAL if input parameter is false.
      */
     private void setCommunicationAudioModeOnInternal(boolean on) {
-        if (DEBUG) logd("setCommunicationAudioModeOn(" + on + ")");
+        return;
+        // If (DEBUG) logd("setCommunicationAudioModeOn(" + on + ")");
 
-        if (on) {
-            try {
-                mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-            } catch (SecurityException e) {
-                logDeviceInfo();
-                throw e;
-            }
+        // If (on) {
+        //     try {
+        //         mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+        //     } catch (SecurityException e) {
+        //         logDeviceInfo();
+        //         throw e;
+        //     }
 
-        } else {
-            // Restore the mode that was used before we switched to
-            // communication mode.
-            try {
-                mAudioManager.setMode(AudioManager.MODE_NORMAL);
-            } catch (SecurityException e) {
-                logDeviceInfo();
-                throw e;
-            }
-        }
+        // } else {
+        //     // Restore the mode that was used before we switched to
+        //     // communication mode.
+        //     try {
+        //         mAudioManager.setMode(AudioManager.MODE_NORMAL);
+        //     } catch (SecurityException e) {
+        //         logDeviceInfo();
+        //         throw e;
+        //     }
+        // }
     }
 
     /**
@@ -428,29 +450,30 @@ class AudioManagerAndroid {
     /** Start thread which observes volume changes on the voice stream. */
     private void startObservingVolumeChanges() {
         if (DEBUG) logd("startObservingVolumeChanges");
-        if (mSettingsObserverThread != null) return;
-        mSettingsObserverThread = new HandlerThread("SettingsObserver");
-        mSettingsObserverThread.start();
+        return;
+        // if (mSettingsObserverThread != null) return;
+        // mSettingsObserverThread = new HandlerThread("SettingsObserver");
+        // mSettingsObserverThread.start();
 
-        mSettingsObserver = new ContentObserver(new Handler(mSettingsObserverThread.getLooper())) {
-            @Override
-            public void onChange(boolean selfChange) {
-                if (DEBUG) logd("SettingsObserver.onChange: " + selfChange);
-                super.onChange(selfChange);
+        // mSettingsObserver = new ContentObserver(new Handler(mSettingsObserverThread.getLooper())) {
+        //     @Override
+        //     public void onChange(boolean selfChange) {
+        //         if (DEBUG) logd("SettingsObserver.onChange: " + selfChange);
+        //         super.onChange(selfChange);
 
-                // Get stream volume for the voice stream and deliver callback if
-                // the volume index is zero. It is not possible to move the volume
-                // slider all the way down in communication mode but the callback
-                // implementation can ensure that the volume is completely muted.
-                int volume = mAudioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
-                if (DEBUG) logd("AudioManagerAndroidJni.get().setMute: " + (volume == 0));
-                AudioManagerAndroidJni.get().setMute(
-                        mNativeAudioManagerAndroid, AudioManagerAndroid.this, (volume == 0));
-            }
-        };
+        //         // Get stream volume for the voice stream and deliver callback if
+        //         // the volume index is zero. It is not possible to move the volume
+        //         // slider all the way down in communication mode but the callback
+        //         // implementation can ensure that the volume is completely muted.
+        //         int volume = mAudioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
+        //         if (DEBUG) logd("AudioManagerAndroidJni.get().setMute: " + (volume == 0));
+        //         AudioManagerAndroidJni.get().setMute(
+        //                 mNativeAudioManagerAndroid, AudioManagerAndroid.this, (volume == 0));
+        //     }
+        // };
 
-        mContentResolver.registerContentObserver(
-                Settings.System.CONTENT_URI, true, mSettingsObserver);
+        // mContentResolver.registerContentObserver(
+        //         Settings.System.CONTENT_URI, true, mSettingsObserver);
     }
 
     /** Quit observer thread and stop listening for volume changes. */
@@ -471,11 +494,15 @@ class AudioManagerAndroid {
     }
 
     /** Return the AudioDeviceInfo array as reported by the Android OS. */
+    private static AudioDeviceInfo[] sCachedDeviceInfo;
     private static AudioDeviceInfo[] getAudioDeviceInfo() {
-        AudioManager audioManager =
-                (AudioManager) ContextUtils.getApplicationContext().getSystemService(
-                        Context.AUDIO_SERVICE);
-        return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        if (sCachedDeviceInfo == null) {
+          AudioManager audioManager =
+                  (AudioManager) ContextUtils.getApplicationContext().getSystemService(
+                          Context.AUDIO_SERVICE);
+          sCachedDeviceInfo = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        }
+        return sCachedDeviceInfo;
     }
 
     /** Returns whether an audio sink device is connected. */
