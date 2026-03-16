@@ -900,8 +900,8 @@ TEST_F(AudioRendererTest, DisableTrimOnSeek) {
     return;
   }
 
-  const int64_t kSeekTime = 500'000;
-  const int64_t kFirstAudioTimestamp = 600'000;
+  const int64_t kSeekTime = 1'000'000;
+  const int64_t kFirstAudioTimestamp = 0;
   const int kFramesPerBuffer = 1024;
 
   auto creation_params = GetDefaultCreationParameters();
@@ -924,21 +924,10 @@ TEST_F(AudioRendererTest, DisableTrimOnSeek) {
   WriteSample(CreateInputBuffer(kFirstAudioTimestamp));
   CallConsumedCB();
 
-  // Send decoder output with timestamp > seek time.
+  // Send decoder output with timestamp < seek time.
   // With disable_trim_on_seek = true, seeking_to_time_ should be updated to
   // kFirstAudioTimestamp and frames should NOT be trimmed.
   SendDecoderOutput(CreateDecodedAudio(kFirstAudioTimestamp, kFramesPerBuffer));
-
-  bool is_playing;
-  bool is_eos_played;
-  bool is_underflow;
-  double playback_rate = -1.0;
-
-  // GetCurrentMediaTime should return kFirstAudioTimestamp as it's the new
-  // seek target.
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
-            kFirstAudioTimestamp);
 
   // Write EOS to finish preroll.
   WriteEndOfStream();
@@ -946,16 +935,31 @@ TEST_F(AudioRendererTest, DisableTrimOnSeek) {
 
   EXPECT_TRUE(prerolled_);
 
+  bool is_playing;
+  bool is_eos_played;
+  bool is_underflow;
+  double playback_rate = -1.0;
+
+  // GetCurrentMediaTime should return kFirstAudioTimestamp (0) as it's the new
+  // seek target.
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
+                                                 &is_underflow, &playback_rate),
+            kFirstAudioTimestamp);
+
   audio_renderer_->Play();
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
+  // Consume some frames.
+  const int kFramesToConsume = 512;
+  renderer_callback_->ConsumeFrames(kFramesToConsume, CurrentMonotonicTime());
 
-  // Frames should NOT have been trimmed, so we expect kFramesPerBuffer.
-  EXPECT_EQ(frames_in_buffer, kFramesPerBuffer);
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+
+  // If frames were NOT trimmed, media_time should be > kFirstAudioTimestamp.
+  // If frames WERE trimmed, media_time would stay at kFirstAudioTimestamp (0)
+  // or be at kSeekTime (1,000,000).
+  EXPECT_GT(media_time, kFirstAudioTimestamp);
+  EXPECT_LT(media_time, kSeekTime);
 }
 
 }  // namespace

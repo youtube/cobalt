@@ -633,6 +633,7 @@ void AudioRendererPcm::ProcessAudioData() {
                        << FormatWithDigitSeparators(decoded_audio->timestamp() /
                                                     1'000);
           seeking_to_time_ = decoded_audio->timestamp();
+          last_media_time_ = seeking_to_time_;
         } else {
           decoded_audio->AdjustForSeekTime(decoded_audio_sample_rate,
                                            seeking_to_time_);
