@@ -26,7 +26,8 @@
     "third_party/perfetto:trace_processor_minimal_smoke_tests",
     "third_party/zlib:zlib_unittests",
     "url:url_perftests",
-    "url:url_unittests"
+    "url:url_unittests",
+    "cobalt/android:cobalt_coat_junit_tests"
   ],
   "executables": [
     "out/android-arm_devel/base_perftests_apk/base_perftests-debug.apk",
@@ -54,6 +55,7 @@
     "out/android-arm_devel/trace_processor_minimal_smoke_tests_apk/trace_processor_minimal_smoke_tests-debug.apk",
     "out/android-arm_devel/zlib_unittests_apk/zlib_unittests-debug.apk",
     "out/android-arm_devel/url_perftests_apk/url_perftests-debug.apk",
-    "out/android-arm_devel/url_unittests_apk/url_unittests-debug.apk"
+    "out/android-arm_devel/url_unittests_apk/url_unittests-debug.apk",
+    "out/android-arm_devel/bin/run_cobalt_coat_junit_tests"
   ]
 }

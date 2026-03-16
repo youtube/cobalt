@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libnss3 \
     libxcomposite-dev \
+    openjdk-17-jre-headless \
     xvfb \
     xz-utils \
     zstd \
