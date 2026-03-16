@@ -153,9 +153,43 @@ GrDrawOpAtlas::ErrorCode GrAtlasManager::addGlyphToAtlas(const SkGlyph& skGlyph,
     }
     SkASSERT(grGlyph != nullptr);
 
+<<<<<<< HEAD:third_party/skia/src/gpu/text/GrAtlasManager.cpp
     GrMaskFormat glyphFormat = GrGlyph::FormatFromSkGlyph(skGlyph.maskFormat());
     GrMaskFormat expectedMaskFormat = this->resolveMaskFormat(glyphFormat);
     int bytesPerPixel = GrMaskFormatBytesPerPixel(expectedMaskFormat);
+=======
+    MaskFormat expectedMaskFormat = this->resolveMaskFormat(glyph->fMaskFormat);
+    int bytesPerPixel = MaskFormatBytesPerPixel(expectedMaskFormat);
+
+    int padding;
+    switch (srcPadding) {
+        case 0:
+            // The direct mask/image case.
+            padding = 0;
+            if (fSupportBilerpAtlas) {
+                // Force direct masks (glyph with no padding) to have padding.
+                padding = 1;
+                srcPadding = 1;
+            }
+            break;
+        case 1:
+            // The transformed mask/image case.
+            padding = 1;
+            break;
+#if !defined(SK_DISABLE_SDF_TEXT)
+        case SK_DistanceFieldInset:
+            // The SDFT case.
+            // If the srcPadding == SK_DistanceFieldInset (SDFT case) then the padding is built
+            // into the image on the glyph; no extra padding needed.
+            // TODO: can the SDFT glyph image in the cache be reduced by the padding?
+            padding = 0;
+            break;
+#endif
+        default:
+            // The padding is not one of the know forms.
+            return GrDrawOpAtlas::ErrorCode::kError;
+    }
+>>>>>>> 2ce82b47d8 (BACKPORT: Make sure we are getting the correct atlas for glyph mask f… (#9520)):third_party/skia/src/gpu/ganesh/text/GrAtlasManager.cpp
 
     // Add 1 pixel padding around grGlyph if needed.
     int padding = bilerpPadding ? 1 : 0;
@@ -334,3 +368,76 @@ bool GrAtlasManager::initAtlas(GrMaskFormat format) {
     }
     return true;
 }
+<<<<<<< HEAD:third_party/skia/src/gpu/text/GrAtlasManager.cpp
+=======
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace sktext::gpu {
+
+std::tuple<bool, int> GlyphVector::regenerateAtlas(int begin, int end,
+                                                   MaskFormat maskFormat,
+                                                   int srcPadding,
+                                                   GrMeshDrawTarget* target) {
+    GrAtlasManager* atlasManager = target->atlasManager();
+    GrDeferredUploadTarget* uploadTarget = target->deferredUploadTarget();
+
+    uint64_t currentAtlasGen = atlasManager->atlasGeneration(maskFormat);
+
+    this->packedGlyphIDToGlyph(target->strikeCache(), maskFormat);
+
+    if (fAtlasGeneration != currentAtlasGen) {
+        // Calculate the texture coordinates for the vertexes during first use (fAtlasGeneration
+        // is set to kInvalidAtlasGeneration) or the atlas has changed in subsequent calls..
+        fBulkUseUpdater.reset();
+
+        SkBulkGlyphMetricsAndImages metricsAndImages{fTextStrike->strikeSpec()};
+
+        // Update the atlas information in the GrStrike.
+        auto tokenTracker = uploadTarget->tokenTracker();
+        auto glyphs = fGlyphs.subspan(begin, end - begin);
+        int glyphsPlacedInAtlas = 0;
+        bool success = true;
+        for (const Variant& variant : glyphs) {
+            Glyph* gpuGlyph = variant.glyph;
+            SkASSERT(gpuGlyph != nullptr);
+            SkASSERT(gpuGlyph->fMaskFormat == maskFormat);
+
+            if (!atlasManager->hasGlyph(maskFormat, gpuGlyph)) {
+                const SkGlyph& skGlyph = *metricsAndImages.glyph(gpuGlyph->fPackedID);
+                auto code = atlasManager->addGlyphToAtlas(
+                        skGlyph, gpuGlyph, srcPadding, target->resourceProvider(), uploadTarget);
+                if (code != GrDrawOpAtlas::ErrorCode::kSucceeded) {
+                    success = code != GrDrawOpAtlas::ErrorCode::kError;
+                    break;
+                }
+            }
+            atlasManager->addGlyphToBulkAndSetUseToken(
+                    &fBulkUseUpdater, maskFormat, gpuGlyph,
+                    tokenTracker->nextDrawToken());
+            glyphsPlacedInAtlas++;
+        }
+
+        // Update atlas generation if there are no more glyphs to put in the atlas.
+        if (success && begin + glyphsPlacedInAtlas == SkCount(fGlyphs)) {
+            // Need to get the freshest value of the atlas' generation because
+            // updateTextureCoordinates may have changed it.
+            fAtlasGeneration = atlasManager->atlasGeneration(maskFormat);
+        }
+
+        return {success, glyphsPlacedInAtlas};
+    } else {
+        // The atlas hasn't changed, so our texture coordinates are still valid.
+        if (end == SkCount(fGlyphs)) {
+            // The atlas hasn't changed and the texture coordinates are all still valid. Update
+            // all the plots used to the new use token.
+            atlasManager->setUseTokenBulk(fBulkUseUpdater,
+                                          uploadTarget->tokenTracker()->nextDrawToken(),
+                                          maskFormat);
+        }
+        return {true, end - begin};
+    }
+}
+
+}  // namespace sktext::gpu
+>>>>>>> 2ce82b47d8 (BACKPORT: Make sure we are getting the correct atlas for glyph mask f… (#9520)):third_party/skia/src/gpu/ganesh/text/GrAtlasManager.cpp

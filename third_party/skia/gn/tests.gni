@@ -12,6 +12,7 @@ tests_sources = [
   "$_tests/AndroidCodecTest.cpp",
   "$_tests/AnimatedImageTest.cpp",
   "$_tests/AnnotationTest.cpp",
+  "$_tests/AtlasOobTest.cpp",
   "$_tests/ApplyGammaTest.cpp",
   "$_tests/ArenaAllocTest.cpp",
   "$_tests/AsADashTest.cpp",

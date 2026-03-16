@@ -33,10 +33,20 @@ public:
         SkUNREACHABLE;
     }
 
+<<<<<<< HEAD:third_party/skia/src/gpu/GrGlyph.h
     GrGlyph(SkPackedGlyphID packedGlyphID) : fPackedID(packedGlyphID) {}
 
     const SkPackedGlyphID       fPackedID;
     GrDrawOpAtlas::AtlasLocator fAtlasLocator;
+=======
+    Glyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format)
+            : fPackedID(packedGlyphID)
+            , fMaskFormat(format) {}
+
+    const SkPackedGlyphID       fPackedID;
+    const skgpu::MaskFormat     fMaskFormat;
+    skgpu::AtlasLocator         fAtlasLocator;
+>>>>>>> 2ce82b47d8 (BACKPORT: Make sure we are getting the correct atlas for glyph mask f… (#9520)):third_party/skia/src/text/gpu/Glyph.h
 };
 
 #endif
