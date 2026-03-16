@@ -3198,11 +3198,7 @@ target(_test_target_type, "net_unittests") {
     sources += [ "base/sockaddr_util_posix_unittest.cc" ]
   }
 
-<<<<<<< HEAD
-  if (is_android || is_chromeos) {
-=======
-  if (is_android || is_chromeos_ash || is_starboard) {
->>>>>>> e0890de6fa (starboard: Implement network API (#9349))
+  if (is_android || is_chromeos || is_starboard) {
     sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 
