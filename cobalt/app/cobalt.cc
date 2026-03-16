@@ -38,6 +38,8 @@
 #include "cobalt/shell/common/shell_paths.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/network_service_instance.h"
+#include "net/base/network_change_notifier_passive.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
@@ -219,7 +221,26 @@ void SbEventHandle(const SbEvent* event) {
       g_platform_event_source->HandleWindowSizeChangedEvent(event);
       break;
     case kSbEventTypeOsNetworkDisconnected:
-    case kSbEventTypeOsNetworkConnected:
+    case kSbEventTypeOsNetworkConnected: {
+#if BUILDFLAG(IS_STARBOARD)
+      auto* notifier = content::GetNetworkChangeNotifier();
+      if (notifier) {
+        auto* passive_notifier =
+            static_cast<net::NetworkChangeNotifierPassive*>(notifier);
+        net::NetworkChangeNotifier::ConnectionType type =
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::CONNECTION_UNKNOWN
+                : net::NetworkChangeNotifier::CONNECTION_NONE;
+        net::NetworkChangeNotifier::ConnectionSubtype subtype =
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::SUBTYPE_UNKNOWN
+                : net::NetworkChangeNotifier::SUBTYPE_NONE;
+        passive_notifier->OnConnectionChanged(type);
+        passive_notifier->OnConnectionSubtypeChanged(type, subtype);
+      }
+      break;
+#endif
+    }
     case kSbEventDateTimeConfigurationChanged:
       device::NotifyTimeZoneChangeStarboard();
       break;
