@@ -178,12 +178,8 @@ DecoderBuffer::~DecoderBuffer() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
 void DecoderBuffer::Initialize() {
-  if (s_allocator) {
-=======
   if (s_use_allocator) {
->>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
     // This is used by Mojo.
     Initialize(DemuxerStream::UNKNOWN);
     return;

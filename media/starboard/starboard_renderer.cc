@@ -126,18 +126,13 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-<<<<<<< HEAD
     const std::string& max_video_capabilities,
-    const gfx::Size& viewport_size,
-    const std::map<std::string, H5vccSettingValue> h5vcc_settings
+    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
     )
-=======
-    const std::string& max_video_capabilities)
->>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -145,18 +140,14 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-<<<<<<< HEAD
       max_video_capabilities_(max_video_capabilities),
       // TODO: b/375674101 - Connect this to the starboard::feature.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
       viewport_size_(viewport_size),
 #if BUILDFLAG(IS_ANDROID)
-      android_overlay_factory_cb_(std::move(android_overlay_factory_cb)),
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
-      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
-=======
-      max_video_capabilities_(max_video_capabilities) {
->>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
+{
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
@@ -164,15 +155,7 @@ StarboardRenderer::StarboardRenderer(
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
-<<<<<<< HEAD
-            << base::GetQuotedJSONString(max_video_capabilities_)
-            << ", max_samples_per_write=" << max_samples_per_write_
-            << ", view_port_size=" << viewport_size_.ToString()
-            << ", use_external_allocator="
-            << (use_external_allocator_ ? "true" : "false");
-=======
             << base::GetQuotedJSONString(max_video_capabilities_);
->>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
 }
 
 StarboardRenderer::~StarboardRenderer() {

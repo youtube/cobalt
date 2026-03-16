@@ -173,17 +173,6 @@ class StarboardRendererTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-<<<<<<< HEAD
-=======
-  const std::unique_ptr<StarboardRenderer> renderer_ =
-      std::make_unique<StarboardRenderer>(
-          task_environment_.GetMainThreadTaskRunner(),
-          std::make_unique<NullMediaLog>(),
-          /*overlay_plane_id=*/base::UnguessableToken::Create(),
-          /*audio_write_duration_local=*/base::Seconds(1),
-          /*audio_write_duration_remote=*/base::Seconds(1),
-          /*max_video_capabilities=*/"");
->>>>>>> 2382b89c0d (media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#7933))
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;
@@ -203,8 +192,7 @@ class StarboardRendererTest : public testing::Test {
           /*audio_write_duration_local=*/base::Seconds(1),
           /*audio_write_duration_remote=*/base::Seconds(1),
           /*max_video_capabilities=*/"",
-          /*viewport_size=*/gfx::Size(),
-          /*h5vcc_settings=*/std::map<std::string, H5vccSettingValue>()
+          /*viewport_size=*/gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
               ,
           /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
