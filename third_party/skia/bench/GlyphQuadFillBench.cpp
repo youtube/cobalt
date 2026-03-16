@@ -55,7 +55,7 @@ class DirectMaskGlyphVertexFillBenchmark : public Benchmark {
 
         const GrAtlasSubRun* subRun = fBlob->testingOnlyFirstSubRun();
         SkASSERT(subRun);
-        subRun->testingOnly_packedGlyphIDToGrGlyph(&fCache);
+        subRun->testingOnly_packedGlyphIDToGrGlyph(&fCache, subRun->maskFormat());
         fVertices.reset(new char[subRun->vertexStride(drawMatrix) * subRun->glyphCount() * 4]);
     }
 

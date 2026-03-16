@@ -8,6 +8,7 @@
 #ifndef GrStrikeCache_DEFINED
 #define GrStrikeCache_DEFINED
 
+#include "include/private/GrTypesPriv.h"
 #include "include/private/SkTHash.h"
 #include "src/core/SkArenaAlloc.h"
 #include "src/core/SkStrikeSpec.h"
@@ -15,6 +16,15 @@
 class GrGlyph;
 class GrStrikeCache;
 
+struct GrGlyphKey {
+    GrGlyphKey(SkPackedGlyphID id, GrMaskFormat format) : fID(id), fFormat(format) {}
+    SkPackedGlyphID fID;
+    GrMaskFormat fFormat;
+
+    bool operator==(const GrGlyphKey& that) const {
+        return fID == that.fID && fFormat == that.fFormat;
+    }
+};
 
 // The GrTextStrike manages an SkArenaAlloc for GrGlyphs. The SkStrike is what actually creates
 // the mask. The GrTextStrike may outlive the generating SkStrike. However, it retains a copy
@@ -24,7 +34,7 @@ class GrTextStrike : public SkNVRefCnt<GrTextStrike> {
 public:
     GrTextStrike(const SkStrikeSpec& strikeSpec);
 
-    GrGlyph* getGlyph(SkPackedGlyphID);
+    GrGlyph* getGlyph(SkPackedGlyphID, GrMaskFormat);
     const SkStrikeSpec& strikeSpec() const { return fStrikeSpec; }
 
 private:
@@ -32,11 +42,11 @@ private:
     const SkStrikeSpec fStrikeSpec;
 
     struct HashTraits {
-        static const SkPackedGlyphID& GetKey(const GrGlyph* glyph);
-        static uint32_t Hash(SkPackedGlyphID key);
+        static const GrGlyphKey GetKey(const GrGlyph* glyph);
+        static uint32_t Hash(GrGlyphKey key);
     };
-    // Map SkPackedGlyphID -> GrGlyph*.
-    SkTHashTable<GrGlyph*, SkPackedGlyphID, HashTraits> fCache;
+    // Map GrGlyphKey -> GrGlyph*.
+    SkTHashTable<GrGlyph*, GrGlyphKey, HashTraits> fCache;
 
     // Store for the glyph information.
     SkArenaAlloc fAlloc{512};

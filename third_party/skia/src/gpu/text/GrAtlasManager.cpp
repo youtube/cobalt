@@ -153,8 +153,7 @@ GrDrawOpAtlas::ErrorCode GrAtlasManager::addGlyphToAtlas(const SkGlyph& skGlyph,
     }
     SkASSERT(grGlyph != nullptr);
 
-    GrMaskFormat glyphFormat = GrGlyph::FormatFromSkGlyph(skGlyph.maskFormat());
-    GrMaskFormat expectedMaskFormat = this->resolveMaskFormat(glyphFormat);
+    GrMaskFormat expectedMaskFormat = this->resolveMaskFormat(grGlyph->fMaskFormat);
     int bytesPerPixel = GrMaskFormatBytesPerPixel(expectedMaskFormat);
 
     // Add 1 pixel padding around grGlyph if needed.

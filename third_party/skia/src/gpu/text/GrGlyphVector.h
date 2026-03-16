@@ -45,7 +45,7 @@ public:
     // the sub runs.
     int unflattenSize() const { return GlyphVectorSize(fGlyphs.size()); }
 
-    void packedGlyphIDToGrGlyph(GrStrikeCache* cache);
+    void packedGlyphIDToGrGlyph(GrStrikeCache* cache, GrMaskFormat);
 
     std::tuple<bool, int> regenerateAtlas(
             int begin, int end,

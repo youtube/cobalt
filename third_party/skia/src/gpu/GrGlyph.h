@@ -33,9 +33,12 @@ public:
         SkUNREACHABLE;
     }
 
-    GrGlyph(SkPackedGlyphID packedGlyphID) : fPackedID(packedGlyphID) {}
+    GrGlyph(SkPackedGlyphID packedGlyphID, GrMaskFormat format)
+            : fPackedID(packedGlyphID)
+            , fMaskFormat(format) {}
 
     const SkPackedGlyphID       fPackedID;
+    const GrMaskFormat          fMaskFormat;
     GrDrawOpAtlas::AtlasLocator fAtlasLocator;
 };
 

@@ -41,20 +41,21 @@ uint32_t GrStrikeCache::HashTraits::Hash(const SkDescriptor& descriptor) {
 
 GrTextStrike::GrTextStrike(const SkStrikeSpec& strikeSpec) : fStrikeSpec{strikeSpec} {}
 
-GrGlyph* GrTextStrike::getGlyph(SkPackedGlyphID packedGlyphID) {
-    GrGlyph* grGlyph = fCache.findOrNull(packedGlyphID);
+GrGlyph* GrTextStrike::getGlyph(SkPackedGlyphID packedGlyphID, GrMaskFormat format) {
+    GrGlyphKey key(packedGlyphID, format);
+    GrGlyph* grGlyph = fCache.findOrNull(key);
     if (grGlyph == nullptr) {
-        grGlyph = fAlloc.make<GrGlyph>(packedGlyphID);
+        grGlyph = fAlloc.make<GrGlyph>(packedGlyphID, format);
         fCache.set(grGlyph);
     }
     return grGlyph;
 }
 
-const SkPackedGlyphID& GrTextStrike::HashTraits::GetKey(const GrGlyph* glyph) {
-    return glyph->fPackedID;
+const GrGlyphKey GrTextStrike::HashTraits::GetKey(const GrGlyph* glyph) {
+    return GrGlyphKey(glyph->fPackedID, glyph->fMaskFormat);
 }
 
-uint32_t GrTextStrike::HashTraits::Hash(SkPackedGlyphID key) {
-    return key.hash();
+uint32_t GrTextStrike::HashTraits::Hash(GrGlyphKey key) {
+    return key.fID.hash();
 }
 

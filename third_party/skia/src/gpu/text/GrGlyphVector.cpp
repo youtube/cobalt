@@ -77,12 +77,12 @@ SkSpan<const GrGlyph*> GrGlyphVector::glyphs() const {
 
 // packedGlyphIDToGrGlyph must be run in single-threaded mode.
 // If fStrike != nullptr then the conversion to GrGlyph* has not happened.
-void GrGlyphVector::packedGlyphIDToGrGlyph(GrStrikeCache* cache) {
+void GrGlyphVector::packedGlyphIDToGrGlyph(GrStrikeCache* cache, GrMaskFormat format) {
     if (fStrike != nullptr) {
         fGrStrike = cache->findOrCreateStrike(fStrike->strikeSpec());
 
         for (auto& variant : fGlyphs) {
-            variant.grGlyph = fGrStrike->getGlyph(variant.packedGlyphID);
+            variant.grGlyph = fGrStrike->getGlyph(variant.packedGlyphID, format);
         }
 
         // Drop the ref on the strike that was taken in the SkGlyphRunPainter process* methods.
@@ -100,7 +100,7 @@ std::tuple<bool, int> GrGlyphVector::regenerateAtlas(int begin, int end,
 
     uint64_t currentAtlasGen = atlasManager->atlasGeneration(maskFormat);
 
-    this->packedGlyphIDToGrGlyph(target->strikeCache());
+    this->packedGlyphIDToGrGlyph(target->strikeCache(), maskFormat);
 
     if (fAtlasGeneration != currentAtlasGen) {
         // Calculate the texture coordinates for the vertexes during first use (fAtlasGeneration
@@ -117,6 +117,7 @@ std::tuple<bool, int> GrGlyphVector::regenerateAtlas(int begin, int end,
         for (const Variant& variant : glyphs) {
             GrGlyph* grGlyph = variant.grGlyph;
             SkASSERT(grGlyph != nullptr);
+            SkASSERT(grGlyph->fMaskFormat == maskFormat);
 
             if (!atlasManager->hasGlyph(maskFormat, grGlyph)) {
                 const SkGlyph& skGlyph = *metricsAndImages.glyph(grGlyph->fPackedID);

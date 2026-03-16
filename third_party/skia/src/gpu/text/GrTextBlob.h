@@ -63,6 +63,7 @@ public:
 
     virtual size_t vertexStride(const SkMatrix& drawMatrix) const = 0;
     virtual int glyphCount() const = 0;
+    virtual GrMaskFormat maskFormat() const = 0;
 
     virtual std::tuple<const GrClip*, GrOp::Owner>
     makeAtlasTextOp(
@@ -80,7 +81,7 @@ public:
             SkPoint drawOrigin,
             SkIRect clip) const = 0;
 
-    virtual void testingOnly_packedGlyphIDToGrGlyph(GrStrikeCache* cache) const = 0;
+    virtual void testingOnly_packedGlyphIDToGrGlyph(GrStrikeCache* cache, GrMaskFormat) const = 0;
 
     // This call is not thread safe. It should only be called from GrDrawOp::onPrepare which
     // is single threaded.
