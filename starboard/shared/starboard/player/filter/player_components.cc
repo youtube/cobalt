@@ -39,9 +39,6 @@ namespace {
 const int kAudioSinkFramesAlignment = 256;
 const int kDefaultAudioSinkMinFramesPerAppend = 1024;
 
-// TODO: b/491123801 - Connect this to the experiment.
-constexpr bool kDisableTrimOnSeek = false;
-
 typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
 
@@ -203,6 +200,8 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   std::unique_ptr<AudioRendererPcm> audio_renderer;
   std::unique_ptr<VideoRendererImpl> video_renderer;
 
+  const auto& experimental_features =
+      creation_parameters.experimental_features();
   if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
@@ -215,16 +214,21 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
         std::move(audio_decoder), std::move(audio_renderer_sink),
         creation_parameters.audio_stream_info(),
         AudioRendererPcm::CreationParameters{
-            max_cached_frames, min_frames_per_append, kDisableTrimOnSeek});
+            max_cached_frames, min_frames_per_append,
+            experimental_features.disable_trim_on_seek});
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
     SB_DCHECK(video_decoder);
     SB_DCHECK(video_render_algorithm);
 
+    bool disable_trim_on_seek = false;
     MediaTimeProvider* media_time_provider = nullptr;
     if (audio_renderer) {
       media_time_provider = audio_renderer.get();
+      // We can support disable_trim_on_seek, only when content has both audio
+      // and video.
+      disable_trim_on_seek = experimental_features.disable_trim_on_seek;
     } else {
       media_time_provider_impl = std::make_unique<MediaTimeProviderImpl>(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
@@ -243,7 +247,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
         std::move(video_decoder), media_time_provider,
         std::move(video_render_algorithm), video_renderer_sink,
         VideoRendererImpl::CreationParameters{preroll_params,
-                                              kDisableTrimOnSeek});
+                                              disable_trim_on_seek});
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
