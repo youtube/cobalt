@@ -97,8 +97,8 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
     }
     // If frames_in_flight_ grows to an unexpected size, we kill the
     // |DecoderStateTracker| since something has gone wrong.
-    if (static_cast<int>(frames_in_flight_.size()) >
-        std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
+    if (frames_in_flight_.size() >
+        std::max<size_t>(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
       return "Unexpected # of frames in flight: state=" +
              ToString(GetCurrentState_Locked());
     }
@@ -116,7 +116,7 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
   }
 
   frames_in_flight_.insert(it, {presentation_us, {FrameStatus::kDecoding}});
-  if (static_cast<int>(frames_in_flight_.size()) >= max_frames_) {
+  if (frames_in_flight_.size() >= max_frames_) {
     reached_max_ = true;
   }
 }
@@ -236,7 +236,7 @@ bool DecoderStateTracker::IsFull_Locked() const {
   if (state.decoded_frames == 0) {
     return state.total_frames() >= kMaxAllowedFramesWhenNoDecodedFrameYet;
   }
-  return state.total_frames() >= max_frames_;
+  return static_cast<size_t>(state.total_frames()) >= max_frames_;
 }
 
 void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,

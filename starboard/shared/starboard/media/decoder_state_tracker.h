@@ -73,7 +73,7 @@ class DecoderStateTracker {
 
   mutable std::mutex mutex_;
   std::vector<std::pair<int64_t, FrameInfo>> frames_in_flight_;
-  int max_frames_;                   // Guarded by |mutex_|.
+  size_t max_frames_;                // Guarded by |mutex_|.
   int pending_released_frames_ = 0;  // Guarded by |mutex_|.
   bool eos_added_ = false;           // Guarded by |mutex_|.
   bool reached_max_ = false;         // Guarded by |mutex_|.

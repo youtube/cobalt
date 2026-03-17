@@ -893,8 +893,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (static_cast<int>(media_decoder_->GetNumberOfPendingInputs()) <
-      max_pending_inputs_size_) {
+  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -931,9 +930,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
             max_timestamp >= video_frame_tracker_->seek_to_time();
       }
 
-      bool cache_full =
-          static_cast<int>(media_decoder_->GetNumberOfPendingInputs()) >=
-          max_pending_inputs_size_;
+      bool cache_full = media_decoder_->GetNumberOfPendingInputs() >=
+                        max_pending_inputs_size_;
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
@@ -1291,8 +1289,7 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (static_cast<int>(media_decoder_->GetNumberOfPendingInputs()) <
-      max_pending_inputs_size_) {
+  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
