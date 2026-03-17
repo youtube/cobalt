@@ -61,12 +61,9 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
-<<<<<<< HEAD
                          void* surface_view,
-=======
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -76,12 +73,9 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
-<<<<<<< HEAD
                          void* surface_view,
-=======
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -128,14 +122,11 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
-<<<<<<< HEAD
       void* surface_view() const { return surface_view_; }
-=======
       bool flush_decoder_during_reset() const {
         return flush_decoder_during_reset_;
       }
       bool reset_audio_decoder() const { return reset_audio_decoder_; }
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
@@ -159,12 +150,9 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
-<<<<<<< HEAD
       void* surface_view_;
-=======
       bool flush_decoder_during_reset_ = false;
       bool reset_audio_decoder_ = false;
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
       JobQueue* const job_queue_;

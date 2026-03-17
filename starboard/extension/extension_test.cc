@@ -439,15 +439,9 @@ TEST(ExtensionTest, PlayerSetMaxVideoInputSize) {
       << "Extension struct should be a singleton";
 }
 
-<<<<<<< HEAD
 TEST(ExtensionTest, PlayerSetVideoSurfaceView) {
   typedef StarboardExtensionPlayerSetVideoSurfaceViewApi ExtensionApi;
   const char* kExtensionName = kStarboardExtensionPlayerSetVideoSurfaceViewName;
-=======
-TEST(ExtensionTest, PlayerConfigurateSeek) {
-  typedef StarboardExtensionPlayerConfigurateSeekApi ExtensionApi;
-  const char* kExtensionName = kStarboardExtensionPlayerConfigurateSeekName;
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -457,13 +451,29 @@ TEST(ExtensionTest, PlayerConfigurateSeek) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
-<<<<<<< HEAD
   EXPECT_NE(extension_api->SetVideoSurfaceViewForCurrentThread, nullptr);
-=======
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, PlayerConfigurateSeek) {
+  typedef StarboardExtensionPlayerConfigurateSeekApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionPlayerConfigurateSeekName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->SetForceFlushDecoderDuringResetForCurrentThread,
             nullptr);
   EXPECT_NE(extension_api->SetForceResetAudioDecoderForCurrentThread, nullptr);
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

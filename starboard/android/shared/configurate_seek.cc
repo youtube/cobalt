@@ -20,7 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -33,10 +33,10 @@ pthread_key_t s_thread_local_key_for_reset_audio_decoder = 0;
 void InitThreadLocalKeyForSeek() {
   int res = pthread_key_create(
       &s_thread_local_key_for_flush_decoder_during_reset, nullptr);
-  SB_DCHECK_EQ(res, 0);
+  SB_CHECK_EQ(res, 0);
   res =
       pthread_key_create(&s_thread_local_key_for_reset_audio_decoder, nullptr);
-  SB_DCHECK_EQ(res, 0);
+  SB_CHECK_EQ(res, 0);
 }
 
 void EnsureThreadLocalKeyInitedForSeek() {
@@ -70,4 +70,4 @@ void SetForceResetAudioDecoderForCurrentThread(bool reset_audio_decoder) {
       reinterpret_cast<void*>(static_cast<uintptr_t>(reset_audio_decoder)));
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

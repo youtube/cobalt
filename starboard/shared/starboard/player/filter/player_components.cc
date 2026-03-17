@@ -96,12 +96,9 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
-<<<<<<< HEAD
     void* surface_view,
-=======
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -110,12 +107,9 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
-<<<<<<< HEAD
       surface_view_(surface_view),
-=======
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
@@ -132,12 +126,9 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
-<<<<<<< HEAD
     void* surface_view,
-=======
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -147,12 +138,9 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
-<<<<<<< HEAD
       surface_view_(surface_view),
-=======
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
@@ -162,29 +150,9 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   SB_CHECK(job_queue_);
 }
 
-<<<<<<< HEAD
 NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
-=======
-PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const CreationParameters& that) {
-  this->audio_stream_info_ = that.audio_stream_info_;
-  this->video_stream_info_ = that.video_stream_info_;
-  this->player_ = that.player_;
-  this->output_mode_ = that.output_mode_;
-  this->max_video_input_size_ = that.max_video_input_size_;
-  this->flush_decoder_during_reset_ = that.flush_decoder_during_reset_;
-  this->reset_audio_decoder_ = that.reset_audio_decoder_;
-  this->decode_target_graphics_context_provider_ =
-      that.decode_target_graphics_context_provider_;
-  this->drm_system_ = that.drm_system_;
-}
-
-std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
-    const CreationParameters& creation_parameters,
-    std::string* error_message) {
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_CHECK(creation_parameters.job_queue());

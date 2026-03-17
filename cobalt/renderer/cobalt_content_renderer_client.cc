@@ -43,15 +43,10 @@ namespace {
 const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
-<<<<<<< HEAD
-=======
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
-const char kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback[] =
-    "Media.NotifyMemoryPressureBeforePlayback";
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 
@@ -393,14 +388,10 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   EnsureH5vccSettingsRemoteInitialized();
 
   cobalt::mojom::SettingsPtr settings;
-<<<<<<< HEAD
-  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
-=======
   ParsedH5vccSettings parsed;
-  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
+  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
-    ProcessH5vccSettings(h5vcc_settings);
+    parsed = ProcessH5vccSettings(h5vcc_settings);
   }
   // TODO: b/474454335 - Remove once experiments are done.
   renderer_factory_traits->enable_flush_during_seek =

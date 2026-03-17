@@ -127,17 +127,14 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-<<<<<<< HEAD
-    const gfx::Size& viewport_size
+    const gfx::Size& viewport_size,
+    bool enable_flush_during_seek,
+    bool enable_reset_audio_decoder
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
     )
-=======
-    bool enable_flush_during_seek,
-    bool enable_reset_audio_decoder)
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -146,23 +143,16 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-<<<<<<< HEAD
       // TODO: b/375674101 - Connect this to the starboard::feature.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
-      viewport_size_(viewport_size)
+      viewport_size_(viewport_size),
+      enable_flush_during_seek_(enable_flush_during_seek),
+      enable_reset_audio_decoder_(enable_reset_audio_decoder)
 #if BUILDFLAG(IS_ANDROID)
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
 {
-=======
-      enable_flush_during_seek_(enable_flush_during_seek),
-      enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      notify_memory_pressure_before_playback_(
-          base::FeatureList::IsEnabled(
-              media::kCobaltNotifyMemoryPressureBeforePlayback) ||
-          ReadCommandLineSwitchForMemoryPressureSignal()) {
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
@@ -641,7 +631,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       // TODO(b/326825450): Revisit 360 videos.
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1
+      -1, enable_flush_during_seek_, enable_reset_audio_decoder_
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.
@@ -663,44 +653,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   } else {
     error_message = player_bridge_->GetPlayerCreationErrorMessage();
     player_bridge_.reset();
-<<<<<<< HEAD
     LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
-=======
-
-    LOG(INFO) << "Creating SbPlayerBridge.";
-
-    player_bridge_.reset(new SbPlayerBridge(
-        GetSbPlayerInterface(), task_runner_,
-        // TODO(b/375070492): Implement decode-to-texture support
-        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config, audio_mime_type, video_config, video_mime_type,
-        // TODO(b/326497953): Support suspend/resume.
-        // TODO(b/326508279): Support background mode.
-        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
-        // TODO(b/326497953): Support suspend/resume.
-        false,
-        // TODO(b/326825450): Revisit 360 videos.
-        kSbPlayerOutputModeInvalid, max_video_capabilities_,
-        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1, enable_flush_during_seek_, enable_reset_audio_decoder_));
-    if (player_bridge_->IsValid()) {
-      // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
-      // returns no audio configurations, update the write durations again
-      // before the SbPlayer reaches `kSbPlayerStatePresenting`.
-      audio_write_duration_for_preroll_ = audio_write_duration_ =
-          HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-              ? audio_write_duration_remote_
-              : audio_write_duration_local_;
-      LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-                << audio_write_duration_for_preroll_
-                << " and with max_video_capabilities_ at "
-                << max_video_capabilities_;
-    } else {
-      error_message = player_bridge_->GetPlayerCreationErrorMessage();
-      player_bridge_.reset();
-      LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
-    }
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {

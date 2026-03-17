@@ -37,13 +37,10 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
-<<<<<<< HEAD
   gfx::Size viewport_size;
-  GetSbWindowHandleCallback get_sb_window_handle_callback;
-=======
   bool enable_flush_during_seek = false;
   bool enable_reset_audio_decoder = false;
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
+  GetSbWindowHandleCallback get_sb_window_handle_callback;
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 

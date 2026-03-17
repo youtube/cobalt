@@ -75,7 +75,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetPlayerSetVideoSurfaceViewApi();
   }
   if (strcmp(name, kStarboardExtensionPlayerConfigurateSeekName) == 0) {
-    return starboard::android::shared::GetPlayerConfigurateSeekApi();
+    return starboard::GetPlayerConfigurateSeekApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     // TODO(b/377052218): Re-enable

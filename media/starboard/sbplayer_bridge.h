@@ -113,17 +113,13 @@ class SbPlayerBridge {
                  DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
-<<<<<<< HEAD
-                 int max_video_input_size
+                 int max_video_input_size,
+                 bool flush_decoder_during_reset,
+                 bool reset_audio_decoder
 #if BUILDFLAG(IS_ANDROID)
                  ,
                  jobject surface_view
 #endif  // BUILDFLAG(IS_ANDROID)
-=======
-                 int max_video_input_size,
-                 bool flush_decoder_during_reset,
-                 bool reset_audio_decoder
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -342,6 +338,9 @@ class SbPlayerBridge {
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
+  const bool flush_decoder_during_reset_;
+  const bool reset_audio_decoder_;
+
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
@@ -351,9 +350,6 @@ class SbPlayerBridge {
   // Set the surface to Android Overlay's surface view.
   jobject surface_view_;
 #endif  // BUILDFLAG(IS_ANDROID)
-
-  const bool flush_decoder_during_reset_;
-  const bool reset_audio_decoder_;
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;

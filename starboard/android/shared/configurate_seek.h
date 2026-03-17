@@ -15,7 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONFIGURATE_SEEK_H_
 #define STARBOARD_ANDROID_SHARED_CONFIGURATE_SEEK_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Get flush_decoder_during_reset via
 // SetForceFlushDecoderDuringResetForCurrentThread().
@@ -36,6 +36,6 @@ bool GetForceResetAudioDecoderForCurrentThread();
 // SetForceFlushDecoderDuringResetForCurrentThread.
 void SetForceResetAudioDecoderForCurrentThread(bool reset_audio_decoder);
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_CONFIGURATE_SEEK_H_

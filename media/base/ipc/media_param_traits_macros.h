@@ -200,12 +200,9 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
   IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_local)
   IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_remote)
   IPC_STRUCT_TRAITS_MEMBER(max_video_capabilities)
-<<<<<<< HEAD
   IPC_STRUCT_TRAITS_MEMBER(viewport_size)
-=======
   IPC_STRUCT_TRAITS_MEMBER(enable_flush_during_seek)
   IPC_STRUCT_TRAITS_MEMBER(enable_reset_audio_decoder)
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 IPC_STRUCT_TRAITS_END()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

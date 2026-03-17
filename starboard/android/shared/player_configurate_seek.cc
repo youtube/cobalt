@@ -17,7 +17,7 @@
 #include "starboard/android/shared/configurate_seek.h"
 #include "starboard/extension/player_configurate_seek.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -37,4 +37,4 @@ const void* GetPlayerConfigurateSeekApi() {
   return &kPlayerConfigurateSeekApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

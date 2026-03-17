@@ -31,12 +31,9 @@ struct MEDIA_EXPORT StarboardRendererConfig {
                           base::TimeDelta audio_write_duration_local,
                           base::TimeDelta audio_write_duration_remote,
                           const std::string& max_video_capabilities,
-<<<<<<< HEAD
-                          const gfx::Size& viewport_size);
-=======
+                          const gfx::Size& viewport_size,
                           const bool enable_flush_during_seek,
                           const bool enable_reset_audio_decoder);
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -44,12 +41,9 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   std::string max_video_capabilities;
-<<<<<<< HEAD
   gfx::Size viewport_size;
-=======
   bool enable_flush_during_seek;
   bool enable_reset_audio_decoder;
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 };
 
 }  // namespace media

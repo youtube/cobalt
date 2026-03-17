@@ -15,10 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_PLAYER_CONFIGURATE_SEEK_H_
 #define STARBOARD_ANDROID_SHARED_PLAYER_CONFIGURATE_SEEK_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 const void* GetPlayerConfigurateSeekApi();
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_PLAYER_CONFIGURATE_SEEK_H_

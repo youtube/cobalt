@@ -125,13 +125,9 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-<<<<<<< HEAD
-      max_video_input_size_, surface_view_,
-      decode_target_graphics_context_provider_, job_queue, drm_system_);
-=======
-      max_video_input_size_, flush_decoder_during_reset_, reset_audio_decoder_,
-      decode_target_graphics_context_provider_, drm_system_);
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
+      max_video_input_size_, surface_view_, flush_decoder_during_reset_,
+      reset_audio_decoder_, decode_target_graphics_context_provider_, job_queue,
+      drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -547,15 +543,12 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-<<<<<<< HEAD
 void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
   SB_LOG(INFO) << "Set surface_view from " << surface_view_ << " to "
                << surface_view;
   surface_view_ = surface_view;
 }
 
-}  // namespace starboard
-=======
 void FilterBasedPlayerWorkerHandler::SetFlushDecoderDuringReset(
     bool flush_decoder_during_reset) {
   SB_LOG(INFO) << "Set flush_decoder_during_reset from "
@@ -571,5 +564,4 @@ void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
   reset_audio_decoder_ = reset_audio_decoder;
 }
 
-}  // namespace starboard::shared::starboard::player::filter
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
+}  // namespace starboard

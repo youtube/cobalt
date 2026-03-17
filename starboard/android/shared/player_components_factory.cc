@@ -190,13 +190,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_flush_during_seek =
-<<<<<<< HEAD
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
-=======
-        starboard::features::FeatureList::IsEnabled(
-            starboard::features::kForceFlushDecoderDuringReset) ||
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.flush_decoder_during_reset();
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -318,25 +313,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
-<<<<<<< HEAD
-        FeatureList::IsEnabled(features::kForceResetAudioDecoder);
-=======
-        starboard::features::FeatureList::IsEnabled(
-            starboard::features::kForceResetAudioDecoder) ||
+        FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
         creation_parameters.reset_audio_decoder();
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`kForceResetAudioDecoder` is set to true, force resetting"
         << " audio decoder during Reset().";
 
     bool enable_flush_during_seek =
-<<<<<<< HEAD
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
-=======
-        starboard::features::FeatureList::IsEnabled(
-            starboard::features::kForceFlushDecoderDuringReset) ||
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.flush_decoder_during_reset();
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
@@ -482,17 +467,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-<<<<<<< HEAD
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
-=======
-        starboard::features::FeatureList::IsEnabled(
-            starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.flush_decoder_during_reset();
-    int64_t reset_delay_usec = 0;
-    int64_t flush_delay_usec = 0;
->>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
