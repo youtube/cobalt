@@ -145,13 +145,28 @@ bool AppendSettingToSwitch(
 
 }  // namespace
 
+void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
+  CHECK(content::RenderThread::IsMainThread());
+  if (h5vcc_settings_remote_) {
+    return;
+  }
+
+  h5vcc_settings_remote_ = {
+      new mojo::Remote<cobalt::mojom::H5vccSettings>(),
+      base::OnTaskRunnerDeleter(
+          base::SequencedTaskRunner::GetCurrentDefault())};
+  content::RenderThread::Get()->BindHostReceiver(
+      h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
+}
+
 void CobaltContentRendererClient::BindHostReceiver(
     mojo::GenericPendingReceiver receiver) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
   BindHostReceiverWithValuation(std::move(receiver));
 }
 
-CobaltContentRendererClient::CobaltContentRendererClient() {
+CobaltContentRendererClient::CobaltContentRendererClient()
+    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
@@ -190,10 +205,7 @@ void CobaltContentRendererClient::RenderFrameCreated(
             weak_factory_.GetWeakPtr(), std::move(window_provider))));
   }
 
-  if (!h5vcc_settings_remote_.is_bound()) {
-    content::RenderThread::Get()->BindHostReceiver(
-        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
-  }
+  EnsureH5vccSettingsRemoteInitialized();
 }
 
 void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
@@ -210,6 +222,7 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   CHECK(content::RenderThread::IsMainThread());
+
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
@@ -290,6 +303,7 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   CHECK(content::RenderThread::IsMainThread());
+
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   renderer_factory_traits->audio_write_duration_local =
       base::Microseconds(kSbPlayerWriteDurationLocal);
@@ -305,13 +319,10 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
 
-  if (!h5vcc_settings_remote_.is_bound()) {
-    content::RenderThread::Get()->BindHostReceiver(
-        h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
-  }
+  EnsureH5vccSettingsRemoteInitialized();
 
   cobalt::mojom::SettingsPtr settings;
-  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
+  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
     for (auto& [key, value] : settings->settings) {
       if (!AppendSettingToSwitch(key, value)) {
         if (value->is_string_value()) {
