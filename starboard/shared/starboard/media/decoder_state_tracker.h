@@ -79,7 +79,7 @@ class DecoderStateTracker {
   bool reached_max_ = false;         // Guarded by |mutex_|.
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  std::unique_ptr<shared::starboard::player::JobThread> logging_thread_;
+  std::unique_ptr<JobThread> logging_thread_;
 #endif
 };
 

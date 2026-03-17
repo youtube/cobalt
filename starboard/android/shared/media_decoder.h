@@ -75,7 +75,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     ~Host() {}
   };
 
-<<<<<<< HEAD
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
       JobQueue* job_queue,
       Host* host,
@@ -99,7 +98,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
-      int64_t flush_delay_usec);
+      int64_t flush_delay_usec,
+      std::optional<int> initial_max_frames);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -127,36 +127,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
+      std::optional<int> initial_max_frames,
       std::string* error_message);
   ~MediaCodecDecoder();
-=======
-  MediaDecoder(Host* host,
-               const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system);
-  MediaDecoder(Host* host,
-               SbMediaVideoCodec video_codec,
-               // `width_hint` and `height_hint` are used to create the Android
-               // video format, which don't have to be directly related to the
-               // resolution of the video.
-               int width_hint,
-               int height_hint,
-               std::optional<int> max_width,
-               std::optional<int> max_height,
-               int fps,
-               jobject j_output_surface,
-               SbDrmSystem drm_system,
-               const SbMediaColorMetadata* color_metadata,
-               bool require_software_codec,
-               const FrameRenderedCB& frame_rendered_cb,
-               const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-               int tunnel_mode_audio_session_id,
-               bool force_big_endian_hdr_metadata,
-               int max_video_input_size,
-               int64_t flush_delay_usec,
-               std::optional<int> initial_max_frames,
-               std::string* error_message);
-  ~MediaDecoder();
->>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
 
   void Initialize(const ErrorCB& error_cb);
   void WriteInputBuffers(const InputBuffers& input_buffers);

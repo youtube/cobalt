@@ -53,8 +53,7 @@ DecoderStateTracker::DecoderStateTracker(int initial_max_frames)
   frames_in_flight_.reserve(kMaxFramesToTrack);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  logging_thread_ =
-      std::make_unique<shared::starboard::player::JobThread>("DecStateTrack");
+  logging_thread_ = JobThread::Create("DecStateTrack");
   StartPeriodicalLogging(kLogIntervalUs);
 #endif
 }
@@ -63,7 +62,7 @@ DecoderStateTracker::~DecoderStateTracker() {
   SB_LOG(INFO) << "Destroying DecoderStateTracker.";
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  std::unique_ptr<shared::starboard::player::JobThread> thread_to_destroy;
+  std::unique_ptr<JobThread> thread_to_destroy;
   {
     std::lock_guard lock(mutex_);
     thread_to_destroy = std::move(logging_thread_);
@@ -91,14 +90,14 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
 
   // This is fail-safe logic.
   std::string kill_reason = [&]() -> std::string {
-    if (frames_in_flight_.size() >= kMaxFramesToTrack) {
+    if (static_cast<int>(frames_in_flight_.size()) >= kMaxFramesToTrack) {
       return "frame size exceeeds limit: size=" +
              std::to_string(frames_in_flight_.size()) +
              ", limit=" + std::to_string(kMaxFramesToTrack);
     }
     // If frames_in_flight_ grows to an unexpected size, we kill the
     // |DecoderStateTracker| since something has gone wrong.
-    if (frames_in_flight_.size() >
+    if (static_cast<int>(frames_in_flight_.size()) >
         std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
       return "Unexpected # of frames in flight: state=" +
              ToString(GetCurrentState_Locked());
@@ -117,7 +116,7 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
   }
 
   frames_in_flight_.insert(it, {presentation_us, {FrameStatus::kDecoding}});
-  if (frames_in_flight_.size() >= max_frames_) {
+  if (static_cast<int>(frames_in_flight_.size()) >= max_frames_) {
     reached_max_ = true;
   }
 }
@@ -260,7 +259,8 @@ void DecoderStateTracker::PruneReleasedFrames_Locked() {
       it = frames_in_flight_.erase(it);
       --pending_released_frames_;
 
-      if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
+      if (reached_max_ &&
+          static_cast<int>(frames_in_flight_.size()) <= kFramesLowWatermark) {
         // If the number of frames in flight drops to the low-water mark
         // after we have reached the max frames, it means the current max
         // frames is too small to keep the decoder busy. We bump up the

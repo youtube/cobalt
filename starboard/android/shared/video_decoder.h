@@ -56,6 +56,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private VideoSurfaceHolder {
  public:
   class Sink;
+  struct FlowControlOptions {
+    std::optional<int> max_pending_input_frames;
+    std::optional<int> initial_max_frames_in_decoder;
+  };
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,
       const VideoStreamInfo& video_stream_info,
@@ -72,13 +76,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       void* surface_view,
       bool enable_flush_during_seek,
       int64_t reset_delay_usec,
-      int64_t flush_delay_usec);
+      int64_t flush_delay_usec,
+      const FlowControlOptions& flow_control_options);
 
-<<<<<<< HEAD
   MediaCodecVideoDecoder(PassKey<MediaCodecVideoDecoder>,
                          JobQueue* job_queue,
                          const VideoStreamInfo& video_stream_info,
-
                          SbDrmSystem drm_system,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
@@ -93,35 +96,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          bool enable_flush_during_seek,
                          int64_t reset_delay_usec,
                          int64_t flush_delay_usec,
+                         const FlowControlOptions& flow_control_options,
                          std::string* error_message);
 
   ~MediaCodecVideoDecoder() override;
-=======
-  struct FlowControlOptions {
-    std::optional<int> max_pending_input_frames;
-    std::optional<int> initial_max_frames_in_decoder;
-  };
-
-  VideoDecoder(const VideoStreamInfo& video_stream_info,
-               SbDrmSystem drm_system,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider,
-               const std::string& max_video_capabilities,
-               int tunnel_mode_audio_session_id,
-               bool force_secure_pipeline_under_tunnel_mode,
-               bool force_reset_surface,
-               bool force_reset_surface_under_tunnel_mode,
-               bool force_big_endian_hdr_metadata,
-               int max_input_size,
-               void* surface_view,
-               bool enable_flush_during_seek,
-               int64_t reset_delay_usec,
-               int64_t flush_delay_usec,
-               const FlowControlOptions& flow_control_options,
-               std::string* error_message);
-  ~VideoDecoder() override;
->>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
 
   scoped_refptr<VideoRendererSink> GetSink();
   std::unique_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();
@@ -185,6 +163,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
   const std::optional<int> initial_max_frames_in_decoder_;
+  const int max_pending_inputs_size_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
@@ -199,8 +178,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
-
-  const int max_pending_inputs_size_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
   void* surface_view_;

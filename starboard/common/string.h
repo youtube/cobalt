@@ -22,14 +22,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-<<<<<<< HEAD
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <optional>
-=======
-#include <cstring>
->>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
 #include <sstream>
 #include <string>
 #include <vector>
@@ -65,7 +61,6 @@ std::string ToString(const T& val) {
   return ss.str();
 }
 
-<<<<<<< HEAD
 inline std::string ToString(const std::string& val) {
   return val;
 }
@@ -82,8 +77,6 @@ std::string ToString(const std::optional<T>& val) {
   return ToString(*val);
 }
 
-=======
->>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
 std::string HexEncode(const void* data,
                       int size,
                       const char* delimiter = nullptr);
