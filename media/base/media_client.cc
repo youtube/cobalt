@@ -4,6 +4,12 @@
 
 #include "media/base/media_client.h"
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/decoder_buffer.h"
+#endif
+>>>>>>> c393b8de5a (Cherry pick PR #7933: media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#9529))
 
 namespace media {
 
@@ -17,7 +23,11 @@ MediaClient* GetMediaClient() {
   return g_media_client;
 }
 
-MediaClient::MediaClient() = default;
+MediaClient::MediaClient() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+#endif
+}
 
 MediaClient::~MediaClient() = default;
 

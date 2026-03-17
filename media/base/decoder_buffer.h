@@ -76,7 +76,11 @@ class MEDIA_EXPORT DecoderBuffer
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   class Allocator {
    public:
+<<<<<<< HEAD
     static Allocator* GetInstance();
+=======
+    static void Set(Allocator* allocator);
+>>>>>>> c393b8de5a (Cherry pick PR #7933: media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#9529))
 
     // The function should never return nullptr.  It may terminate the app on
     // allocation failure.
@@ -87,12 +91,15 @@ class MEDIA_EXPORT DecoderBuffer
     virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
+    virtual void SetEnabled(bool enabled) = 0;
 
    protected:
     ~Allocator() {}
 
     static void Set(Allocator* allocator);
   };
+
+  static void EnableAllocator(bool enabled);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.

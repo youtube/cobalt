@@ -114,7 +114,10 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> c393b8de5a (Cherry pick PR #7933: media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#9529))
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(

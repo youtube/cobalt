@@ -15,6 +15,7 @@
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
@@ -33,6 +34,21 @@ namespace cobalt {
 
 namespace {
 
+<<<<<<< HEAD
+=======
+const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
+const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
+    "Media.VideoBufferSizeClampMb";
+
+// Map that stores all current bindings of H5vcc settings to media switches.
+// If a setting has a corresponding switch, we will enable the switch with the
+// corresponding value.
+const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
+    {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
+     switches::kMSEVideoBufferSizeLimitClampMb},
+};
+
+>>>>>>> c393b8de5a (Cherry pick PR #7933: media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#9529))
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
 // gets lost with hardcoded MIME string. This can sometimes cause issues. For
@@ -89,6 +105,82 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
+<<<<<<< HEAD
+=======
+void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
+  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
+}
+
+// TODO: b/460292554 - This code is a tentative solution, and will be replaced
+// once base::Feature is fully supported.
+//
+// Append the h5vcc setting to the corresponding media switch, if such mapping
+// exists. H5vcc settings are either pass their value to a media switch for code
+// in /media to use, or are given to Starboard Renderer for direct usage.
+bool AppendSettingToSwitch(const std::string& setting_name,
+                           const ::media::H5vccSettingValue& setting_value) {
+  auto it = kH5vccSettingToSwitchMap.find(setting_name);
+  if (it == kH5vccSettingToSwitchMap.end()) {
+    return false;
+  }
+  std::string switch_name = it->second;
+  std::string setting_str;
+  if (auto* val_str = std::get_if<std::string>(&setting_value)) {
+    setting_str = *val_str;
+  } else if (auto* val_int = std::get_if<int64_t>(&setting_value)) {
+    setting_str = base::NumberToString(*val_int);
+  } else {
+    LOG(WARNING) << "Attempted to apply switch " << switch_name
+                 << " but the setting value was not an integer or string.";
+    return false;
+  }
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
+                                                            setting_str);
+  LOG(INFO) << "Applied command line switch: " << switch_name << " = "
+            << setting_str;
+  return true;
+}
+
+std::map<std::string, ::media::H5vccSettingValue> ParseH5vccSettings(
+    cobalt::mojom::SettingsPtr settings) {
+  std::map<std::string, ::media::H5vccSettingValue> h5vcc_settings;
+  for (auto& [key, value] : settings->settings) {
+    if (value->is_string_value()) {
+      h5vcc_settings.emplace(key, std::move(value->get_string_value()));
+    } else if (value->is_int_value()) {
+      h5vcc_settings.emplace(key, value->get_int_value());
+    } else {
+      NOTREACHED();
+    }
+  }
+  return h5vcc_settings;
+}
+
+template <typename T>
+const T* GetSettingValue(
+    const std::map<std::string, ::media::H5vccSettingValue>& settings,
+    const std::string& key) {
+  auto it = settings.find(key);
+  if (it == settings.end()) {
+    return nullptr;
+  }
+  return std::get_if<T>(&it->second);
+}
+
+void ProcessH5vccSettings(
+    const std::map<std::string, ::media::H5vccSettingValue>& settings) {
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaDisableAllocator)) {
+    bool disable_allocator = *val != 0;
+    ::media::DecoderBuffer::EnableAllocator(!disable_allocator);
+  }
+
+  for (const auto& [setting_name, setting_value] : settings) {
+    AppendSettingToSwitch(setting_name, setting_value);
+  }
+}
+
+>>>>>>> c393b8de5a (Cherry pick PR #7933: media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#9529))
 }  // namespace
 
 CobaltContentRendererClient::CobaltContentRendererClient() {
@@ -239,6 +331,23 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
+<<<<<<< HEAD
+=======
+
+  EnsureH5vccSettingsRemoteInitialized();
+
+  cobalt::mojom::SettingsPtr settings;
+  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
+    auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
+    ProcessH5vccSettings(h5vcc_settings);
+  }
+
+  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
+  renderer_factory_traits->bind_host_receiver_callback =
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
+                              weak_factory_.GetWeakPtr()));
+>>>>>>> c393b8de5a (Cherry pick PR #7933: media: Switch between DecoderBufferAllocator and partition_alloc at renderer process (#9529))
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
