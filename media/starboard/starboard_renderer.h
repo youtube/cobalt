@@ -51,18 +51,16 @@ using base::TimeDelta;
 class MEDIA_EXPORT StarboardRenderer : public Renderer,
                                        private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      std::unique_ptr<MediaLog> media_log,
-      const base::UnguessableToken& overlay_plane_id,
-      TimeDelta audio_write_duration_local,
-      TimeDelta audio_write_duration_remote,
-      const std::string& max_video_capabilities,
-      const gfx::Size& viewport_size,
-      const std::map<std::string, H5vccSettingValue> h5vcc_settings
+  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+                    std::unique_ptr<MediaLog> media_log,
+                    const base::UnguessableToken& overlay_plane_id,
+                    TimeDelta audio_write_duration_local,
+                    TimeDelta audio_write_duration_remote,
+                    const std::string& max_video_capabilities,
+                    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
-      ,
-      const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+                    ,
+                    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
@@ -200,8 +198,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   jobject surface_view_ = nullptr;
   std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
-
-  const bool use_external_allocator_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
