@@ -15,7 +15,6 @@
 #ifndef MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 #define MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 
-#include <map>
 #include <string>
 #include <vector>
 
