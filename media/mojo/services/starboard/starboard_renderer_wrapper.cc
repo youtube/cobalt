@@ -43,7 +43,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
           traits.viewport_size,
-          traits.h5vcc_settings
+          traits.enable_flush_during_seek,
+          traits.enable_reset_audio_decoder
 #if BUILDFLAG(IS_ANDROID)
           ,
           std::move(traits.android_overlay_factory_cb)
