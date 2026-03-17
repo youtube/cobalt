@@ -89,8 +89,9 @@ class MetricsPollingState
   virtual ~MetricsPollingState() = default;
 };
 
-struct CobaltMetricsServiceClient::MemoryPollingState
+class CobaltMetricsServiceClient::MemoryPollingState
     : public MetricsPollingState {
+ public:
   using MetricsPollingState::MetricsPollingState;
 
   void RequestMetrics() override {
@@ -103,8 +104,8 @@ struct CobaltMetricsServiceClient::MemoryPollingState
   }
 };
 
-struct CobaltMetricsServiceClient::CpuPollingState
-    : public MetricsPollingState {
+class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
+ public:
   using MetricsPollingState::MetricsPollingState;
 
   std::unique_ptr<base::ProcessMetrics> process_metrics_;

@@ -123,8 +123,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::RepeatingTimer idle_refresh_timer_;
 
  private:
-  struct MemoryPollingState;
-  struct CpuPollingState;
+  class MemoryPollingState;
+  class CpuPollingState;
 
   // Starts the periodic memory metrics logger.
   void StartMemoryMetricsLogger();

@@ -35,7 +35,7 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics(
   constexpr double kInvalidCPUUsageValue = 0.0;
   const double cpu_usage =
       process_metrics->GetPlatformIndependentCPUUsage().value_or(
-          kInvalidCPUUsageValue);    
+          kInvalidCPUUsageValue);
   // Divide by the number of processors to log average per core CPU usage.
   base::UmaHistogramPercentage(
       "CPU.Total.UsageInPercentage",
