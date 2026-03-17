@@ -20,7 +20,7 @@
 #include <string>
 
 #include "base/metrics/histogram_samples.h"
-#include "cobalt/common/cobalt_thread_checker.h"
+#include "base/threading/thread_checker.h"
 
 namespace metrics {
 class MetricsServiceClient;
@@ -46,7 +46,7 @@ class HistogramFetcher {
   std::map<uint64_t, std::unique_ptr<base::HistogramSamples>>
       last_histogram_samples_;
 
-  COBALT_THREAD_CHECKER(thread_checker_);
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace h5vcc_metrics
