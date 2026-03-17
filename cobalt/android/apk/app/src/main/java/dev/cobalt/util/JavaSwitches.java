@@ -19,4 +19,188 @@ package dev.cobalt.util;
  */
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
+<<<<<<< HEAD
+=======
+  public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
+  public static final String DISABLE_STORAGE_MIGRATION = "DisableStorageMigration";
+  public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
+  public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
+      "EnableLowEndDeviceModeNoSimulatedMemory";
+
+  /** V8 flag to enable jitless mode. Value type: Boolean (presence means true) */
+  public static final String V8_JITLESS = "V8Jitless";
+
+  /**
+   * V8 flag to enable write protection for code memory. Value type: Boolean (presence means true)
+   */
+  public static final String V8_WRITE_PROTECT_CODE_MEMORY = "V8WriteProtectCodeMemory";
+
+  /** V8 flag to disable optimize for size. Value type: Boolean (presence means true) */
+  public static final String V8_DISABLE_OPTIMIZE_FOR_SIZE = "V8DisableOptimizeForSize";
+
+  /** V8 flag to set the GC interval. Value type: Integer */
+  public static final String V8_GC_INTERVAL = "V8GcInterval";
+
+  /** V8 flag to set the initial old space size. Value type: Integer (MiB) */
+  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
+
+  /** V8 flag to set the maximum old space size. Value type: Integer (MiB) */
+  public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
+
+  /** V8 flag to set the maximum semi space size. Value type: Integer (MiB) */
+  public static final String V8_MAX_SEMI_SPACE_SIZE = "V8MaxSemiSpaceSize";
+
+  /** V8 flag to set the heap growing percent. Value type: Integer */
+  public static final String V8_HEAP_GROWING_PERCENT = "V8HeapGrowingPercent";
+
+  /** V8 flag to disable garbage collection for wasm code */
+  public static final String V8_NOWASM_CODE_GC = "V8NoWasmCodeGC";
+
+  public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
+  public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
+
+  /** flag to enable AndroidOverlay for SbPlayer */
+  public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
+
+  /** flag to use SurfaceView for AndroidOverlay */
+  public static final String USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY =
+      "UsingSurfaceViewForAndroidOverlay";
+
+  /** flag to enable SkiaFontCache */
+  public static final String SKIA_FONT_CACHE = "SkiaFontCache";
+
+  /** flag to lower the priority of the network service thread */
+  public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY =
+      "LowerNetworkServiceThreadPriority";
+
+  /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
+  public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
+
+  /** flag to re-enable freeze and resume events */
+  public static final String ENABLE_FREEZE = "EnableFreeze";
+
+  /** flag to reduce background activity */
+  public static final String NO_STOP_IN_BACKGROUND = "NoStopInBackground";
+
+  /** flag to enable av1 decoder startup optimization */
+  public static final String ENABLE_AV1_STARTUP_OPTIMIZATION = "EnableAv1StartupOptimization";
+
+  /** flag to disable low performance software av1 decoder */
+  public static final String DISABLE_SW_AV1_DECODER = "DisableLowPerformanceAv1Decoder";
+
+  /** flag to enable Async DNS mode and DNS over Https */
+  public static final String ENABLE_ASYNC_DNS_AND_DOH = "EnableAsyncDnsAndDoH";
+
+  public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
+    List<String> extraCommandLineArgs = new ArrayList<>();
+    if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
+      extraCommandLineArgs.add("--disable-quic");
+    }
+    if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
+      extraCommandLineArgs.add("--enable-low-end-device-mode");
+      extraCommandLineArgs.add("--disable-rgba-4444-textures");
+      if (javaSwitches.containsKey(JavaSwitches.ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY)) {
+        extraCommandLineArgs.add("--enable-low-end-device-mode-no-simulated-memory");
+      }
+    } else {
+      extraCommandLineArgs.add("--enable-features=PartialLowEndModeOnMidRangeDevices");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_JITLESS)) {
+      extraCommandLineArgs.add("--js-flags=--jitless");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_WRITE_PROTECT_CODE_MEMORY)) {
+      extraCommandLineArgs.add("--js-flags=--write-protect-code-memory");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_GC_INTERVAL)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--gc-interval="
+              + javaSwitches.get(JavaSwitches.V8_GC_INTERVAL).replaceAll("[^0-9]", ""));
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--initial-old-space-size="
+              + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_MAX_OLD_SPACE_SIZE)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--max-old-space-size="
+              + javaSwitches.get(JavaSwitches.V8_MAX_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--js-flags=--max-old-space-size=512");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--max-semi-space-size="
+              + javaSwitches.get(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    }
+    if (javaSwitches.containsKey(JavaSwitches.V8_HEAP_GROWING_PERCENT)) {
+      extraCommandLineArgs.add(
+          "--js-flags=--heap-growing-percent="
+              + javaSwitches.get(JavaSwitches.V8_HEAP_GROWING_PERCENT).replaceAll("[^0-9]", ""));
+    }
+
+    if (!javaSwitches.containsKey(JavaSwitches.V8_DISABLE_OPTIMIZE_FOR_SIZE)) {
+      extraCommandLineArgs.add("--js-flags=--optimize-for-size");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_NOWASM_CODE_GC)) {
+      extraCommandLineArgs.add("--js-flags=--nowasm-code-gc");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_SPLASH_SCREEN)) {
+      extraCommandLineArgs.add("--disable-splash-screen");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_STORAGE_MIGRATION)) {
+      extraCommandLineArgs.add("--disable-storage-migration");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN)) {
+      extraCommandLineArgs.add("--force-image-splash-screen");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
+      extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
+      extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
+      if (javaSwitches.containsKey(JavaSwitches.USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY)) {
+        extraCommandLineArgs.add("--enable-features=UseSurfaceViewForAndroidOverlay");
+      }
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
+      extraCommandLineArgs.add("--enable-features=SkiaFontCache");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
+      extraCommandLineArgs.add("--enable-features=LowerNetworkServiceThreadPriority");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)) {
+      extraCommandLineArgs.add(
+          "--skia-ganesh-resource-cache-limit-mb="
+              + javaSwitches
+                  .get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)
+                  .replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.NO_STOP_IN_BACKGROUND)) {
+      extraCommandLineArgs.add("--disable-renderer-backgrounding");
+      extraCommandLineArgs.add("--disable-features=StopInBackground");
+      extraCommandLineArgs.add("--disable-features=IntensiveWakeUpThrottling");
+    }
+
+    // AV1 optimization
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_AV1_STARTUP_OPTIMIZATION)) {
+      extraCommandLineArgs.add("--enable-features=EnableAv1StartupOptimization");
+    }
+    if (javaSwitches.containsKey(JavaSwitches.DISABLE_SW_AV1_DECODER)) {
+      extraCommandLineArgs.add("--enable-features=RejectLowPerformanceSoftwareDecoder");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ASYNC_DNS_AND_DOH)) {
+      extraCommandLineArgs.add("--enable-features=AsyncDnsAndDoH");
+    }
+
+    return extraCommandLineArgs;
+  }
+>>>>>>> f9ada236ad (android: Disable brp by default (#9500))
 }
