@@ -33,9 +33,6 @@
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/jsoncpp/source/include/json/reader.h"
-#include "third_party/jsoncpp/source/include/json/value.h"
-#include "third_party/jsoncpp/source/include/json/writer.h"
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 
@@ -52,15 +49,6 @@ const char kTestEvergreenVersion4[] = "2.2.3";
 const int kTestSlotIndex = 0;
 // The max length of Evergreen version string.
 const int kMaxEgVersionLength = 20;
-
-// Filename for the manifest file which contains the Evergreen version.
-const char kManifestFileName[] = "manifest.json";
-
-// Deliminator of the Evergreen version string segments.
-const char kEgVersionDeliminator = '.';
-
-// Evergreen version key in the manifest file.
-const char kVersionKey[] = "version";
 
 void SbEventFake(const SbEvent*) {}
 
@@ -503,6 +491,7 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
   ASSERT_EQ(1, CompareEvergreenVersion(v4, v3));
 }
 
+<<<<<<< HEAD
 TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
   if (!storage_path_implemented_) {
     return;
@@ -558,6 +547,8 @@ TEST_P(SlotManagementTest, DISABLED_ReadEvergreenVersion) {
   SbFileDeleteRecursive(test_dir_path.data(), false);
 }
 
+=======
+>>>>>>> 8c534a52d4 (evergreen: Set version annotation in crash reports (#9515))
 INSTANTIATE_TEST_CASE_P(SlotManagementTests,
                         SlotManagementTest,
                         ::testing::Bool());
