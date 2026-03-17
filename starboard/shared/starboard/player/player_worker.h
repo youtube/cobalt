@@ -104,6 +104,10 @@ class PlayerWorker {
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
 
+    virtual void SetFlushDecoderDuringReset(
+        bool flush_decoder_during_reset) = 0;
+    virtual void SetResetAudioDecoder(bool reset_audio_decoder) = 0;
+
    private:
     Handler(const Handler&) = delete;
     Handler& operator=(const Handler&) = delete;

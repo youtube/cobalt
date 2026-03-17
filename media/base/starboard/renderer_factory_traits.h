@@ -38,6 +38,8 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
   gfx::Size viewport_size;
+  bool enable_flush_during_seek = false;
+  bool enable_reset_audio_decoder = false;
   GetSbWindowHandleCallback get_sb_window_handle_callback;
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
