@@ -91,6 +91,13 @@ Always run the pretty print utility on this file after editing:
     Records whether the version strings in the Finch config are valid and can be
     parsed correctly. A false value indicates a malformed version string was
     received.
+<histogram name="Cobalt.SplashScreen.FetchedFromCache"
+    enum="SplashScreenFetchedState" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records whether a splash screen resource was successfully retrieved from
+    cache and indicates the reason when on error. This is recorded for every
+    splash screen request handled by h5vcc scheme loader.
   </summary>
 </histogram>
 

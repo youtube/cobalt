@@ -179,11 +179,10 @@ void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnRequestHistograms(
-    ScriptPromiseResolver* resolver,
-    const WTF::String& histograms_proto_base64) {
+void H5vccMetrics::OnRequestHistograms(ScriptPromiseResolver* resolver,
+                                       const WTF::String& histograms_base64) {
   CleanupPromise(resolver);
-  resolver->Resolve(histograms_proto_base64);
+  resolver->Resolve(histograms_base64);
 }
 
 void H5vccMetrics::EnsureRemoteIsBound() {

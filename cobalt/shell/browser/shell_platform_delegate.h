@@ -42,6 +42,7 @@ class FileSelectListener;
 class JavaScriptDialogManager;
 class Shell;
 class ShellPlatformDataAura;
+class CobaltShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
@@ -53,7 +54,23 @@ class ShellPlatformDelegate {
   virtual ~ShellPlatformDelegate();
 
   // Helper for one time initialization of application.
-  virtual void Initialize(const gfx::Size& default_window_size);
+  virtual void Initialize(const gfx::Size& default_window_size,
+                          bool is_visible);
+
+  // Returns true if the application is in a visible state.
+  bool IsVisible() const;
+
+  // Lifecycle signals called from the application.
+  virtual void OnBlur();
+  virtual void OnFocus();
+  virtual void OnConceal();
+  virtual void OnReveal();
+  virtual void OnFreeze();
+  virtual void OnUnfreeze();
+  virtual void OnStop();
+
+  virtual void RevealShell(Shell* shell);
+  virtual void ConcealShell(Shell* shell);
 
   // Called after creating a Shell instance, with its initial size.
   virtual void CreatePlatformWindow(Shell* shell,
@@ -157,6 +174,11 @@ class ShellPlatformDelegate {
 #endif
 
  protected:
+  void CreatePlatformWindowInternal(Shell* shell,
+                                    const gfx::Size& initial_size);
+
+  void set_is_visible(bool is_visible) { is_visible_ = is_visible; }
+
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
   // Allows the test subclasses to override the ViewsDelegate.
   virtual std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate();
@@ -170,6 +192,7 @@ class ShellPlatformDelegate {
 #endif
 
  private:
+  friend class CobaltShellTestBase;
 #if BUILDFLAG(IS_APPLE)
   std::unique_ptr<display::ScopedNativeScreen> screen_;
 #endif
@@ -179,6 +202,8 @@ class ShellPlatformDelegate {
   struct ShellData;
   // Holds an instance of ShellData for each Shell.
   base::flat_map<Shell*, ShellData> shell_data_map_;
+
+  bool is_visible_ = true;
 
   // Data held in ShellPlatformDelegate that is shared between all Shells. This
   // is created in Initialize(), and is defined for each platform

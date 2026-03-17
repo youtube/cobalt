@@ -87,7 +87,7 @@ class MODULES_EXPORT H5vccMetrics final
   void OnDisable(ScriptPromiseResolver* resolver);
   void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
   void OnRequestHistograms(ScriptPromiseResolver* resolver,
-                           const WTF::String& histograms_json);
+                           const WTF::String& histograms_base64);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();

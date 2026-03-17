@@ -20,12 +20,14 @@
 #include <vector>
 
 #include "base/base_paths.h"
+#include "base/containers/fixed_flat_map.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_piece.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -50,9 +52,10 @@ const char kUncompressedLibraryPath[] = "lib/libcobalt.so";
 
 }  // namespace
 
-const std::unordered_map<std::string, std::string>
-    kChannelAndSbVersionToOmahaIdMap = {
+const auto kChannelAndSbVersionToOmahaIdMap = base::
+    MakeFixedFlatMap<base::StringPiece, base::StringPiece, kOmahaIdMapSize>({
         {"control17", "{40061C09-D926-4B82-8D42-600C06B6134C}"},
+        {"dogfood17", "{E91075F4-353A-4E7D-A339-6563D2B7858D}"},
         {"experiment17", "{42B5CF5A-96A4-4F64-AD0E-7C62705222FF}"},
         {"prod17", "{20F11416-0D9C-4CB1-A82A-0168594E8256}"},
         {"qa17", "{C725A22D-553A-49DC-BD61-F042B07C6B22}"},
@@ -66,7 +69,7 @@ const std::unordered_map<std::string, std::string>
         {"tnoop17", "{6F4E8AD9-067B-443A-8B63-A7CC4C95B264}"},
         {"tseries117", "{7E7C6582-3DC4-4B48-97F2-FA43614B2B4D}"},
         {"tseries217", "{112BF4F5-8463-490F-B6C8-E9B64D972152}"},
-};
+    });
 
 const char kDefaultManifestVersion[] = "1.0.0";
 

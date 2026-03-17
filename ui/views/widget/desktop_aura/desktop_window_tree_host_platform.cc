@@ -881,6 +881,13 @@ void DesktopWindowTreeHostPlatform::OnWillDestroyAcceleratedWidget() {
   desktop_native_widget_aura_->OnHostWillClose();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void DesktopWindowTreeHostPlatform::OnAcceleratedWidgetDestroyed() {
+  open_windows().remove(GetAcceleratedWidget());
+  aura::WindowTreeHostPlatform::OnAcceleratedWidgetDestroyed();
+}
+#endif
+
 void DesktopWindowTreeHostPlatform::OnActivationChanged(bool active) {
   if (active) {
     auto widget = GetAcceleratedWidget();

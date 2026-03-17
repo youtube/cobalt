@@ -50,8 +50,6 @@ class H5vccExperimentsImpl
   void GetActiveExperimentConfigData(
       GetActiveExperimentConfigDataCallback) override;
   void GetFeature(const std::string& feature_name, GetFeatureCallback) override;
-  void GetFeatureParam(const std::string& feature_param_name,
-                       GetFeatureParamCallback) override;
   void GetLatestExperimentConfigHashData(
       GetLatestExperimentConfigHashDataCallback) override;
   void SetLatestExperimentConfigHashData(
