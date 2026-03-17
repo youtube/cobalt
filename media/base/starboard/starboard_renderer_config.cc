@@ -41,10 +41,14 @@ StarboardRendererConfig::StarboardRendererConfig(
 std::ostream& operator<<(
     std::ostream& os,
     const StarboardRendererConfig::ExperimentalFeatures& features) {
-  return os << "{enable_flush_during_seek="
+  return os << "{enable_av1_startup_optimization="
+            << ToString(features.enable_av1_startup_optimization)
+            << ", enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
+            << ", disable_low_performance_sw_decoder="
+            << ToString(features.disable_low_performance_sw_decoder)
             << ", pause_using_audio_track_state="
             << ToString(features.pause_using_audio_track_state)
             << ", report_buffering_state_during_flush="

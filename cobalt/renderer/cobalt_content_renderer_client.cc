@@ -37,12 +37,16 @@ namespace {
 
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
+    "Media.EnableAv1StartupOptimization";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
+    "Media.DisableLowPerformanceSoftwareDecoder";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
@@ -227,12 +231,21 @@ ExperimentalFeatures ProcessH5vccSettings(
     allocator->SetAllocateOnDemand(enable_allocate_on_demand);
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
+    parsed.enable_av1_startup_optimization = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
     parsed.enable_flush_during_seek = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
+    parsed.disable_low_performance_sw_decoder = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaPauseUsingAudioTrackState)) {
