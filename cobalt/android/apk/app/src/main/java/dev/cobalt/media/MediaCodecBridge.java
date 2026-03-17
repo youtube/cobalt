@@ -30,6 +30,7 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.SparseIntArray;
 import android.view.Surface;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
@@ -132,7 +133,35 @@ class MediaCodecBridge {
     }
   }
 
+  private class OutputMemoryTracker {
+    private final SparseIntArray mBufferSizes = new SparseIntArray();
+    private long mTotalMemoryUsage = 0;
+
+    public synchronized void add(int index, int size) {
+      int oldSize = mBufferSizes.get(index, -1);
+      if (oldSize != -1) {
+        mTotalMemoryUsage -= oldSize;
+      }
+      mBufferSizes.put(index, size);
+      mTotalMemoryUsage += size;
+    }
+
+    public synchronized void remove(int index) {
+      int size = mBufferSizes.get(index, -1);
+      if (size != -1) {
+        mTotalMemoryUsage -= size;
+        mBufferSizes.delete(index);
+      }
+    }
+
+    public synchronized void reset() {
+      mBufferSizes.clear();
+      mTotalMemoryUsage = 0;
+    }
+  }
+
   private FrameRateEstimator mFrameRateEstimator = null;
+  private final OutputMemoryTracker mOutputMemoryTracker;
 
   @SuppressWarnings("unused")
   @UsedByNative
@@ -411,6 +440,7 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
+    mOutputMemoryTracker = new OutputMemoryTracker();
     mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
@@ -455,6 +485,7 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
+              mOutputMemoryTracker.add(index, info.size);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
                 int fps = mFrameRateEstimator.getEstimatedFrameRate();
@@ -809,6 +840,7 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
     } finally {
+      mOutputMemoryTracker.reset();
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
@@ -842,6 +874,8 @@ class MediaCodecBridge {
       mMediaCodec.get().stop();
     } catch (Exception e) {
       Log.e(TAG, "Failed to stop MediaCodec", e);
+    } finally {
+      mOutputMemoryTracker.reset();
     }
   }
 
@@ -962,6 +996,7 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
+      mOutputMemoryTracker.remove(index);
       mMediaCodec.get().releaseOutputBuffer(index, render);
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
@@ -972,6 +1007,7 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
+      mOutputMemoryTracker.remove(index);
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
