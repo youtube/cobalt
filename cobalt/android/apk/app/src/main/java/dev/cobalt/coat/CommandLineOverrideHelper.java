@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
 
-
 // ==========
 // IMPORTANT:
 //
@@ -29,157 +28,150 @@ import org.chromium.base.CommandLine;
 
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
-    private CommandLineOverrideHelper() {} // Prevent instantiation.
+  private CommandLineOverrideHelper() {} // Prevent instantiation.
 
-    /** Param class to simplify #getFlagOverrides method signature */
-    public static class CommandLineOverrideHelperParams {
-        public CommandLineOverrideHelperParams(
-            boolean isOfficialBuild,
-            String[] commandLineArgs) {
-            mIsOfficialBuild = isOfficialBuild;
-            mCommandLineArgs = commandLineArgs;
-        }
-
-        private boolean mIsOfficialBuild;
-        private String[] mCommandLineArgs;
+  /** Param class to simplify #getFlagOverrides method signature */
+  public static class CommandLineOverrideHelperParams {
+    public CommandLineOverrideHelperParams(boolean isOfficialBuild, String[] commandLineArgs) {
+      mIsOfficialBuild = isOfficialBuild;
+      mCommandLineArgs = commandLineArgs;
     }
 
-    // This can be returned as a list, since it does not need to be a single
-    // string object. The others can be combined into a single String because
-    // they need to be enclosed in the feature's enable/disable header.
-    public static List<String> getDefaultCommandLineOverridesList() {
-        List<String> paramOverrides = new ArrayList<>();
+    private boolean mIsOfficialBuild;
+    private String[] mCommandLineArgs;
+  }
 
-        // Run Cobalt as a single process.
-        paramOverrides.add("--single-process");
-        // Enable Blink to work in overlay video mode.
-        paramOverrides.add("--force-video-overlays");
-        // Autoplay video with url.
-        paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-        // Remove below if Cobalt rebase to m120+.
-        paramOverrides.add("--user-level-memory-pressure-signal-params");
-        // Set default raster threads to 2 for smoother performance.
-        paramOverrides.add("--num-raster-threads=2");
-        // Disable rescaling Webpage.
-        paramOverrides.add("--force-device-scale-factor=1");
+  // This can be returned as a list, since it does not need to be a single
+  // string object. The others can be combined into a single String because
+  // they need to be enclosed in the feature's enable/disable header.
+  public static List<String> getDefaultCommandLineOverridesList() {
+    List<String> paramOverrides = new ArrayList<>();
 
-        return paramOverrides;
-    }
+    // Run Cobalt as a single process.
+    paramOverrides.add("--single-process");
+    // Enable Blink to work in overlay video mode.
+    paramOverrides.add("--force-video-overlays");
+    // Autoplay video with url.
+    paramOverrides.add("--autoplay-policy=no-user-gesture-required");
+    // Remove below if Cobalt rebase to m120+.
+    paramOverrides.add("--user-level-memory-pressure-signal-params");
+    // Set default raster threads to 2 for smoother performance.
+    paramOverrides.add("--num-raster-threads=2");
+    // Disable rescaling Webpage.
+    paramOverrides.add("--force-device-scale-factor=1");
 
-    public static StringJoiner getDefaultJsFlagOverridesList() {
-        StringJoiner paramOverrides = new StringJoiner(",");
+    return paramOverrides;
+  }
 
-        return paramOverrides;
-    }
+  public static StringJoiner getDefaultJsFlagOverridesList() {
+    StringJoiner paramOverrides = new StringJoiner(",");
 
-    public static StringJoiner getDefaultEnableFeatureOverridesList() {
-        StringJoiner paramOverrides = new StringJoiner(",");
+    return paramOverrides;
+  }
 
-        // Pass javascript console log to adb log.
-        paramOverrides.add("LogJsConsoleMessages");
-        // Limit decoded image cache to 32 mbytes.
-        paramOverrides.add("LimitImageDecodeCacheSize:mb/24");
-        // Limit the age of decoded images in the cache.
-        paramOverrides.add("LimitImageDecodeCacheAge:seconds/5");
-        // It is important to use a feature override instead of the
-        // rendering switch, to make sure certain devices are excluded.
-        paramOverrides.add("DefaultPassthroughCommandDecoder");
+  public static StringJoiner getDefaultEnableFeatureOverridesList() {
+    StringJoiner paramOverrides = new StringJoiner(",");
 
-        return paramOverrides;
-    }
+    // Pass javascript console log to adb log.
+    paramOverrides.add("LogJsConsoleMessages");
+    // Limit decoded image cache to 32 mbytes.
+    paramOverrides.add("LimitImageDecodeCacheSize:mb/24");
+    // Limit the age of decoded images in the cache.
+    paramOverrides.add("LimitImageDecodeCacheAge:seconds/5");
+    // It is important to use a feature override instead of the
+    // rendering switch, to make sure certain devices are excluded.
+    paramOverrides.add("DefaultPassthroughCommandDecoder");
 
-    public static StringJoiner getDefaultDisableFeatureOverridesList() {
-        StringJoiner paramOverrides = new StringJoiner(",");
+    return paramOverrides;
+  }
 
-        // Use SurfaceTexture for decode-to-texture mode.
-        paramOverrides.add("AImageReader");
+  public static StringJoiner getDefaultDisableFeatureOverridesList() {
+    StringJoiner paramOverrides = new StringJoiner(",");
 
-        return paramOverrides;
-    }
+    // Use SurfaceTexture for decode-to-texture mode.
+    paramOverrides.add("AImageReader");
 
-    public static StringJoiner getDefaultBlinkEnableFeatureOverridesList() {
-        StringJoiner paramOverrides = new StringJoiner(",");
+    // Disable BackupRefPtr and have shim allocator tracked by MemoryReclaimer.
+    paramOverrides.add("PartitionAllocBackupRefPtr");
 
-        // Align with MSE spec for MediaSource.duration.
-        paramOverrides.add("MediaSourceNewAbortAndDuration");
+    return paramOverrides;
+  }
 
-        // Enable precise memory info so we can make accurate client-side
-        // measurements.
-        paramOverrides.add("PreciseMemoryInfo");
+  public static StringJoiner getDefaultBlinkEnableFeatureOverridesList() {
+    StringJoiner paramOverrides = new StringJoiner(",");
 
-        return paramOverrides;
-    }
+    // Align with MSE spec for MediaSource.duration.
+    paramOverrides.add("MediaSourceNewAbortAndDuration");
 
-    public static void getFlagOverrides(
-        CommandLineOverrideHelperParams params) {
-        List<String> cliOverrides =
-            getDefaultCommandLineOverridesList();
-        StringJoiner jsFlagOverrides =
-            getDefaultJsFlagOverridesList();
-        StringJoiner enableFeatureOverrides =
-            getDefaultEnableFeatureOverridesList();
-        StringJoiner disableFeatureOverrides =
-            getDefaultDisableFeatureOverridesList();
-        StringJoiner blinkEnableFeatureOverrides =
-            getDefaultBlinkEnableFeatureOverridesList();
+    // Enable precise memory info so we can make accurate client-side
+    // measurements.
+    paramOverrides.add("PreciseMemoryInfo");
 
-        if (params != null) {
-            if (!params.mIsOfficialBuild) {
-                cliOverrides.add(
-                  "--remote-allow-origins="
-                  + "https://chrome-devtools-frontend.appspot.com");
+    return paramOverrides;
+  }
+
+  public static void getFlagOverrides(CommandLineOverrideHelperParams params) {
+    List<String> cliOverrides = getDefaultCommandLineOverridesList();
+    StringJoiner jsFlagOverrides = getDefaultJsFlagOverridesList();
+    StringJoiner enableFeatureOverrides = getDefaultEnableFeatureOverridesList();
+    StringJoiner disableFeatureOverrides = getDefaultDisableFeatureOverridesList();
+    StringJoiner blinkEnableFeatureOverrides = getDefaultBlinkEnableFeatureOverridesList();
+
+    if (params != null) {
+      if (!params.mIsOfficialBuild) {
+        cliOverrides.add(
+            "--remote-allow-origins=" + "https://chrome-devtools-frontend.appspot.com");
+      }
+
+      if (params.mCommandLineArgs != null) {
+        for (String param : params.mCommandLineArgs) {
+          if (param == null || param.isEmpty()) {
+            continue; // Skip null or empty params
+          }
+          String[] parts = param.split("=", 2);
+          if (parts.length == 2) {
+            String key = parts[0];
+            String value = parts[1];
+            String[] values = value.split(";");
+            for (String v : values) {
+              if (key.equals("--js-flags")) {
+                jsFlagOverrides.add(v);
+              } else if (key.equals("--enable-features")) {
+                enableFeatureOverrides.add(v);
+              } else if (key.equals("--disable-features")) {
+                disableFeatureOverrides.add(v);
+              } else if (key.equals("--enable-blink-features")) {
+                blinkEnableFeatureOverrides.add(v);
+              } else {
+                cliOverrides.add(param);
+                break; // Avoid adding the same param multiple times
+              }
             }
-
-            if (params.mCommandLineArgs != null) {
-                for (String param: params.mCommandLineArgs) {
-                    if (param == null || param.isEmpty()) {
-                        continue; // Skip null or empty params
-                    }
-                    String[] parts = param.split("=", 2);
-                    if (parts.length == 2) {
-                        String key = parts[0];
-                        String value = parts[1];
-                        String[] values = value.split(";");
-                        for (String v : values) {
-                            if (key.equals("--js-flags")) {
-                                jsFlagOverrides.add(v);
-                            } else if (key.equals("--enable-features")) {
-                                enableFeatureOverrides.add(v);
-                            } else if (key.equals("--disable-features")) {
-                                disableFeatureOverrides.add(v);
-                            } else if (key.equals("--enable-blink-features")) {
-                                blinkEnableFeatureOverrides.add(v);
-                            } else {
-                                cliOverrides.add(param);
-                                break; // Avoid adding the same param multiple times
-                            }
-                        }
-                    } else {
-                        cliOverrides.add(param);
-                    }
-                }
-            }
+          } else {
+            cliOverrides.add(param);
+          }
         }
-        CommandLine.getInstance().appendSwitchesAndArguments(
-            cliOverrides.toArray(new String[0]));
-        if (jsFlagOverrides.length() > 0) {
-            CommandLine.getInstance().appendSwitchesAndArguments(
-                new String[]{"--js-flags=" + jsFlagOverrides.toString() });
-        }
-        if (enableFeatureOverrides.length() > 0) {
-            CommandLine.getInstance().appendSwitchesAndArguments(
-                new String[]{"--enable-features="
-                + enableFeatureOverrides.toString() });
-        }
-        if (disableFeatureOverrides.length() > 0) {
-            CommandLine.getInstance().appendSwitchesAndArguments(
-                new String[]{"--disable-features="
-                + disableFeatureOverrides.toString() });
-        }
-        if (blinkEnableFeatureOverrides.length() > 0) {
-            CommandLine.getInstance().appendSwitchesAndArguments(
-                new String[]{"--enable-blink-features="
-                + blinkEnableFeatureOverrides.toString() });
-        }
+      }
     }
+    CommandLine.getInstance().appendSwitchesAndArguments(cliOverrides.toArray(new String[0]));
+    if (jsFlagOverrides.length() > 0) {
+      CommandLine.getInstance()
+          .appendSwitchesAndArguments(new String[] {"--js-flags=" + jsFlagOverrides.toString()});
+    }
+    if (enableFeatureOverrides.length() > 0) {
+      CommandLine.getInstance()
+          .appendSwitchesAndArguments(
+              new String[] {"--enable-features=" + enableFeatureOverrides.toString()});
+    }
+    if (disableFeatureOverrides.length() > 0) {
+      CommandLine.getInstance()
+          .appendSwitchesAndArguments(
+              new String[] {"--disable-features=" + disableFeatureOverrides.toString()});
+    }
+    if (blinkEnableFeatureOverrides.length() > 0) {
+      CommandLine.getInstance()
+          .appendSwitchesAndArguments(
+              new String[] {"--enable-blink-features=" + blinkEnableFeatureOverrides.toString()});
+    }
+  }
 }

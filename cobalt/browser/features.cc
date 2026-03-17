@@ -30,5 +30,10 @@ BASE_FEATURE(kTestFinchFeature,
 const base::FeatureParam<std::string> kTestFinchFeatureParam{
     &kTestFinchFeature, "TestFinchFeatureParam", ""};
 
+// Enables the asynchronous DNS client and DNS-over-HTTPS (DoH).
+BASE_FEATURE(kAsyncDnsAndDoH,
+             "AsyncDnsAndDoH",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt

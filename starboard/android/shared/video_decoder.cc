@@ -38,7 +38,6 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
-#include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
@@ -47,6 +46,7 @@ namespace starboard::android::shared {
 
 namespace {
 
+using ::starboard::shared::starboard::ExperimentalFeatures;
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoRenderAlgorithmBase =
@@ -388,11 +388,11 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       initial_max_frames_in_decoder_(
-          experimental_features.initial_max_frames_in_decoder),
+          experimental_features.video_initial_max_frames_in_decoder),
       video_decoder_poll_interval_ms_(
           experimental_features.video_decoder_poll_interval_ms),
       max_pending_inputs_size_(
-          experimental_features.max_pending_input_frames.value_or(
+          experimental_features.video_max_pending_input_frames.value_or(
               kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
@@ -529,10 +529,6 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
-
-  MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
-                    input_buffers.front()->timestamp(), "size",
-                    input_buffers.size());
 
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);

@@ -55,6 +55,7 @@
 namespace starboard::android::shared {
 
 namespace {
+using ::starboard::shared::starboard::ExperimentalFeatures;
 using ::starboard::shared::starboard::player::filter::PlayerComponents;
 using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
 
@@ -99,20 +100,6 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
 
   return VideoRendererImpl::PrerollParameters{*min_input_buffers,
                                               *min_decoded_frames};
-}
-
-VideoDecoder::ExperimentalFeatures GetVideoDecoderExperimentalFeatures(
-    const PlayerComponents::ExperimentalFeatures& features) {
-  VideoDecoder::ExperimentalFeatures video_decoder_features;
-  video_decoder_features.initial_max_frames_in_decoder =
-      features.video_initial_max_frames_in_decoder;
-  video_decoder_features.max_pending_input_frames =
-      features.video_max_pending_input_frames;
-  video_decoder_features.video_decoder_initial_preroll_count =
-      features.video_decoder_initial_preroll_count;
-  video_decoder_features.video_decoder_poll_interval_ms =
-      features.video_decoder_poll_interval_ms;
-  return video_decoder_features;
 }
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
@@ -268,10 +255,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
+        experimental_features.flush_decoder_during_reset;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -420,7 +409,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       is_tunnel_mode_used_ = true;
     }
 
-    const PlayerComponents::ExperimentalFeatures& experimental_features =
+    const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
         starboard::features::FeatureList::IsEnabled(
@@ -589,11 +578,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size,
       std::string* error_message) {
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
+        experimental_features.flush_decoder_during_reset;
     int64_t reset_delay_usec = 0;
     int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
@@ -630,14 +621,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    VideoDecoder::ExperimentalFeatures experimental_features =
-        GetVideoDecoderExperimentalFeatures(
-            creation_parameters.experimental_features());
-    if (creation_parameters.experimental_features()
-            .media_codec_reset_delay_ms.has_value()) {
+    if (experimental_features.media_codec_reset_delay_ms) {
       reset_delay_usec =
-          static_cast<int64_t>(creation_parameters.experimental_features()
-                                   .media_codec_reset_delay_ms.value()) *
+          static_cast<int64_t>(
+              *experimental_features.media_codec_reset_delay_ms) *
           1000;
       SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
                    << " of " << reset_delay_usec << "us during Reset().";

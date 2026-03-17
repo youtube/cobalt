@@ -31,6 +31,8 @@ extern const base::Feature kTestFinchFeature;
 
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
+// Enables the asynchronous DNS client and DNS-over-HTTPS (DoH).
+extern const base::Feature kAsyncDnsAndDoH;
 
 }  // namespace features
 }  // namespace cobalt

@@ -34,6 +34,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
@@ -58,13 +59,6 @@ class VideoDecoder
 
   class Sink;
 
-  struct ExperimentalFeatures {
-    std::optional<int> max_pending_input_frames;
-    std::optional<int> initial_max_frames_in_decoder;
-    std::optional<int> video_decoder_initial_preroll_count;
-    std::optional<int> video_decoder_poll_interval_ms;
-  };
-
   VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
                SbPlayerOutputMode output_mode,
@@ -81,7 +75,8 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
-               const ExperimentalFeatures& experimental_features,
+               const ::starboard::shared::starboard::ExperimentalFeatures&
+                   experimental_features,
                std::string* error_message);
   ~VideoDecoder() override;
 
