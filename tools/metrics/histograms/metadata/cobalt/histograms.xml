@@ -65,9 +65,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<<<<<<< HEAD
 <histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
-=======
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the state of the Finch configuration at startup. This is used
+    to monitor the frequency of expired or invalid configurations.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
@@ -75,16 +81,6 @@ Always run the pretty print utility on this file after editing:
     Records whether a splash screen resource was successfully retrieved from
     cache and indicates the reason when on error. This is recorded for every
     splash screen request handled by h5vcc scheme loader.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
->>>>>>> 6fce9e1560 (Add UMA histogram for native splash screen (#9472))
-    expires_after="never">
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the state of the Finch configuration at startup. This is used
-    to monitor the frequency of expired or invalid configurations.
   </summary>
 </histogram>
 
