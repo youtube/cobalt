@@ -120,7 +120,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::StartStorageMigration() {
-  DLOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
+  LOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
   content::StoragePartition* partition =
       browser_context()->GetDefaultStoragePartition();
 
@@ -135,7 +135,8 @@ void CobaltBrowserMainParts::StartStorageMigration() {
 }
 
 void CobaltBrowserMainParts::OnMigrationComplete() {
-  DLOG(INFO) << "Migration complete. Proceeding with deferred tasks.";
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  LOG(INFO) << "Migration complete. Proceeding with deferred tasks.";
   migration_finished_ = true;
   for (auto& task : pending_tasks_) {
     std::move(task).Run();
@@ -145,11 +146,12 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
 
 void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
     base::OnceClosure task) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!migration_finished_) {
-    DLOG(INFO) << "Deferring launchShell until migration finishes.";
+    LOG(INFO) << "Deferring launchShell until migration finishes.";
     pending_tasks_.push_back(std::move(task));
   } else {
-    DLOG(INFO) << "Migration already finished, running launchShell "
+    LOG(INFO) << "Migration already finished, running launchShell "
                   "immediately.";
     std::move(task).Run();
   }
@@ -179,7 +181,7 @@ void CobaltBrowserMainParts::SetupMetrics() {
   metrics::MetricsService* metrics =
       GlobalFeatures::GetInstance()->metrics_service();
   metrics->InitializeMetricsRecordingState();
-  DLOG(INFO) << "Cobalt Metrics Service initialized.";
+  LOG(INFO) << "Cobalt Metrics Service initialized.";
 }
 
 void CobaltBrowserMainParts::StartMetricsRecording() {
@@ -190,7 +192,7 @@ void CobaltBrowserMainParts::StartMetricsRecording() {
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->UpdateUploadPermissions(true);
-  DLOG(INFO) << "Metrics Service is now running/recording.";
+  LOG(INFO) << "Metrics Service is now running/recording.";
 }
 
 #if BUILDFLAG(IS_ANDROIDTV)

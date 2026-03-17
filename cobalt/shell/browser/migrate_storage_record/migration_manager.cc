@@ -205,7 +205,8 @@ void DeleteOldCacheDirectoryAsync() {
 }
 
 // Creates a task that triggers the deletion of old cache directories and writes
-// the migration sentinel file, then immediately advances the migration pipeline.
+// the migration sentinel file, then immediately advances the migration
+// pipeline.
 Task DeleteOldCacheDirectoryTask() {
   return base::BindOnce([](base::OnceClosure callback) {
     DeleteOldCacheDirectoryAsync();
@@ -215,7 +216,8 @@ Task DeleteOldCacheDirectoryTask() {
 }
 
 // Emits UMA metrics for the total duration of the migration process.
-Task RecordMigrationDurationTask(std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
+Task RecordMigrationDurationTask(
+    std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
   return base::BindOnce(
       [](std::unique_ptr<base::ElapsedTimer> elapsed_timer,
          base::OnceClosure callback) {
@@ -475,7 +477,8 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
 }
 
 // static
-// Converts the legacy protobuf format for cookies into Chromium's CanonicalCookie format.
+// Converts the legacy protobuf format for cookies into Chromium's
+// CanonicalCookie format.
 std::vector<std::unique_ptr<net::CanonicalCookie>>
 MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
@@ -494,7 +497,8 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
 }
 
 // static
-// Returns an asynchronous task that injects all legacy cookies into the new Chromium Network Service.
+// Returns an asynchronous task that injects all legacy cookies into the new
+// Chromium Network Service.
 Task MigrationManager::CookieTask(
     content::StoragePartition* partition,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
@@ -511,8 +515,8 @@ Task MigrationManager::CookieTask(
         auto shared_state = base::MakeRefCounted<SharedClosureState>();
         shared_state->cb = std::move(callback);
 
-        // A barrier closure that executes the 'shared_state' callback only after
-        // all individual cookie Puts have completed.
+        // A barrier closure that executes the 'shared_state' callback only
+        // after all individual cookie Puts have completed.
         base::RepeatingClosure barrier = base::BarrierClosure(
             cookies.size(), base::BindOnce(
                                 [](scoped_refptr<SharedClosureState> state) {
@@ -533,9 +537,9 @@ Task MigrationManager::CookieTask(
                   [](base::RepeatingClosure barrier, std::string cookie_name,
                      net::CookieAccessResult result) {
                     if (!result.status.IsInclude()) {
-                      LOG(ERROR) << "SetCanonicalCookie failed for: "
-                                 << cookie_name << " with status: "
-                                 << result.status.GetDebugString();
+                      LOG(ERROR)
+                          << "SetCanonicalCookie failed for: " << cookie_name
+                          << " with status: " << result.status.GetDebugString();
                     }
                     barrier.Run();
                   },
@@ -543,7 +547,8 @@ Task MigrationManager::CookieTask(
         }
 
         // Hard timeout fallback: if the Network Service IPC drops the callback
-        // or hangs, this task guarantees the app startup resumes after 2 seconds.
+        // or hangs, this task guarantees the app startup resumes after 2
+        // seconds.
         base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE,
             base::BindOnce(
@@ -584,12 +589,13 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
 }
 
 // static
-// Returns an asynchronous task that injects all legacy LocalStorage key-value pairs
-// into the Chromium Storage Service.
-// This is executed as a multi-step sequence:
+// Returns an asynchronous task that injects all legacy LocalStorage key-value
+// pairs into the Chromium Storage Service. This is executed as a multi-step
+// sequence:
 // 1. Send all `Put` commands over Mojo.
 // 2. Call `Flush()` to ensure LevelDB writes the Puts to the physical disk.
-// 3. Call `PurgeMemory()` so that the Renderer fetches fresh data instead of using cached state.
+// 3. Call `PurgeMemory()` so that the Renderer fetches fresh data instead of
+// using cached state.
 Task MigrationManager::LocalStorageTask(
     content::StoragePartition* partition,
     const url::Origin& origin,
@@ -641,8 +647,9 @@ Task MigrationManager::LocalStorageTask(
                   },
                   shared_state));
 
-              // Hard timeout fallback: if the disk IO hangs or the Storage Service
-              // crashes during flush, resume app startup after 2 seconds.
+              // Hard timeout fallback: if the disk IO hangs or the Storage
+              // Service crashes during flush, resume app startup after 2
+              // seconds.
               base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
                   FROM_HERE,
                   base::BindOnce(
@@ -660,7 +667,8 @@ Task MigrationManager::LocalStorageTask(
 
         // STEP 1: Put keys step.
         // Iterates through all k/v pairs and sends Mojo Put commands.
-        // The `flush_step` runs only when the barrier closes (all Puts have responded).
+        // The `flush_step` runs only when the barrier closes (all Puts have
+        // responded).
         base::RepeatingClosure barrier =
             base::BarrierClosure(pairs.size(), std::move(flush_step));
 

@@ -17,6 +17,8 @@
 
 #include <memory>
 
+#include "base/sequence_checker.h"
+
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
@@ -83,6 +85,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  private:
   bool migration_finished_ = false;
   std::vector<base::OnceClosure> pending_tasks_;
+
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace cobalt
