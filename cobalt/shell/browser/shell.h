@@ -39,6 +39,10 @@
 
 class GURL;
 
+namespace cobalt {
+class AppLifecycleDelegateTest;
+}
+
 namespace content {
 class BrowserContext;
 class JavaScriptDialogManager;
@@ -207,6 +211,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   friend class TestShell;
   friend class SplashScreenTest;
+<<<<<<< HEAD
+=======
+  friend class LifecycleTest;
+  friend class cobalt::AppLifecycleDelegateTest;
+>>>>>>> 7bd8d8c8db (Cherry pick PR #9265: Cobalt Lifecycle: Add AppLifecycleDelegate tests (#9570))
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,

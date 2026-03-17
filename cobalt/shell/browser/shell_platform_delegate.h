@@ -40,6 +40,7 @@ namespace content {
 class JavaScriptDialogManager;
 class Shell;
 class ShellPlatformDataAura;
+class ShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
@@ -161,6 +162,7 @@ class ShellPlatformDelegate {
 #endif
 
  private:
+  friend class ShellTestBase;
 #if BUILDFLAG(IS_APPLE)
   std::unique_ptr<display::ScopedNativeScreen> screen_;
 #endif
