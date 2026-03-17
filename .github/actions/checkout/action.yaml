@@ -81,15 +81,19 @@ runs:
           depth_arg+=(--depth "${FETCH_DEPTH}")
         fi
 
-        git clone \
-          --filter=blob:none \
-          --reference-if-able "${CACHE_PATH}" \
-          --dissociate \
-          "${depth_arg[@]}" \
-          "${REPO_URL}" \
-          "${DEST_PATH}"
+        if [ -n "${CACHE_PATH}" ]; then
+          # Use git worktree for faster checkout since we have a local cache.
+          git -C "${CACHE_PATH}" worktree prune
+          git -C "${CACHE_PATH}" worktree add "${GITHUB_WORKSPACE}/${DEST_PATH}" --detach --no-checkout
+        else
+          git clone \
+            --filter=blob:none \
+            "${depth_arg[@]}" \
+            "${REPO_URL}" \
+            "${DEST_PATH}"
+        fi
 
         git config --global --add safe.directory "${GITHUB_WORKSPACE}/${DEST_PATH}"
 
-        git -C "${DEST_PATH}" fetch "${deptch_arg[@]}" origin "${REF}"
+        git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${REF}"
         git -C "${DEST_PATH}" checkout "${REF}"
