@@ -145,7 +145,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
           for (int i = 0; i < kDecodersToCreate; ++i) {
             SbMediaAudioSampleInfo dummy_audio_sample_info = {
                 kSbMediaAudioCodecNone};
-            PlayerComponents::Factory::creation_parameters(
+            PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
                 /*surface_view=*/nullptr,
