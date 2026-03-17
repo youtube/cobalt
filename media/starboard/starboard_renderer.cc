@@ -14,14 +14,20 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include <variant>
+
 #include "base/feature_list.h"
+#include "base/json/string_escape.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 
@@ -115,6 +121,47 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
   }
 }
 
+void ConfigureDecoderBufferAllocator(bool use_external_allocator) {
+  static base::NoDestructor<std::unique_ptr<DecoderBufferAllocator>>
+      g_external_allocator;
+  DecoderBuffer::Allocator* instance = DecoderBuffer::Allocator::GetInstance();
+
+  if (use_external_allocator) {
+    if (instance) {
+      LOG(INFO) << "DecoderBufferAllocator is already configured. Keeping "
+                   "current instance.";
+    } else {
+      LOG(INFO) << "Creating and setting new DecoderBufferAllocator.";
+      *g_external_allocator = std::make_unique<DecoderBufferAllocator>();
+      DecoderBuffer::Allocator::Set(g_external_allocator->get());
+    }
+  } else {
+    if (instance) {
+      LOG(INFO) << "Destroying DecoderBufferAllocator instance. Using "
+                   "default allocator from now on.";
+      // NOTE: The use_external_allocator flag, controlled by the YouTube
+      // experimentation tooling, changes when a new Kabuki app is loaded.
+      // A change in this flag signifies a new app load, making it safe
+      // to destroy the DecoderBufferAllocator from the previous session.
+      g_external_allocator->reset();
+      DecoderBuffer::Allocator::Set(nullptr);
+    } else {
+      LOG(INFO) << "Keeping current default DecoderBufferAllocator.";
+    }
+  }
+}
+
+bool ShouldUseExternalAllocator(
+    const std::map<std::string, H5vccSettingValue>& h5vcc_settings) {
+  auto it = h5vcc_settings.find("Media.DisableExternalAllocator");
+  if (it != h5vcc_settings.end()) {
+    if (const int64_t* value_ptr = std::get_if<int64_t>(&it->second)) {
+      return *value_ptr != 1;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -124,7 +171,8 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-    const gfx::Size& viewport_size
+    const gfx::Size& viewport_size,
+    const std::map<std::string, H5vccSettingValue> h5vcc_settings
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -140,21 +188,23 @@ StarboardRenderer::StarboardRenderer(
       max_video_capabilities_(max_video_capabilities),
       // TODO: b/375674101 - Connect this to the starboard::feature.
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
-      viewport_size_(viewport_size)
+      viewport_size_(viewport_size),
 #if BUILDFLAG(IS_ANDROID)
-      ,
-      android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb)),
 #endif  // BUILDFLAG(IS_ANDROID)
-{
+      use_external_allocator_(ShouldUseExternalAllocator(h5vcc_settings)) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
-            << ", max_video_capabilities=\"" << max_video_capabilities_ << "\""
+            << ", max_video_capabilities="
+            << base::GetQuotedJSONString(max_video_capabilities_)
             << ", max_samples_per_write=" << max_samples_per_write_
-            << ", view_port_size=" << viewport_size_.ToString();
+            << ", view_port_size=" << viewport_size_.ToString()
+            << ", use_external_allocator="
+            << (use_external_allocator_ ? "true" : "false");
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -571,6 +621,8 @@ void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(audio_stream_ || video_stream_);
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
+
+  ConfigureDecoderBufferAllocator(use_external_allocator_);
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the

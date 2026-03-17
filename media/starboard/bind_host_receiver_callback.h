@@ -23,6 +23,11 @@ namespace media {
 // Handy callback type to get sb window handle from CobaltContentRendererClient.
 using GetSbWindowHandleCallback = base::RepeatingCallback<uint64_t()>;
 
+// Handy callback type to bind host receiver to
+// VideoGeometryChangeSubscriber on browser thread.
+using BindHostReceiverCallback =
+    base::RepeatingCallback<void(mojo::GenericPendingReceiver)>;
+
 }  // namespace media
 
 #endif  // MEDIA_STARBOARD_BIND_HOST_RECEIVER_CALLBACK_H_
