@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/strings/stringprintf.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -152,8 +153,11 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
   void VerifySplashVideoFromCacheWithContent(
       const std::string& cache_name,
       const std::string& query_param,
-      const std::string& content,
-      const std::string& expected_content) {
+      const std::optional<std::string>& content,
+      const std::string& expected_content,
+      int expected_uma_state) {
+    base::HistogramTester histogram_tester;
+
     ASSERT_TRUE(embedded_test_server()->Start());
     H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
         embedded_test_server()->base_url().spec());
@@ -172,23 +176,25 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     GURL setup_url = embedded_test_server()->GetURL("/title1.html");
     EXPECT_TRUE(NavigateToURL(shell(), setup_url));
 
-    // Put a video into the cache.
-    std::string script =
-        base::StringPrintf(R"(
-      (async () => {
-        try {
-          const cache = await caches.open('%s');
-          const blob = new Blob(['%s'], {type: 'video/webm'});
-          const response = new Response(blob);
-          await cache.put('splash.webm', response);
-          return 'Success';
-        } catch (e) {
-          return 'Exception: ' + e.toString();
-        }
-      })();
-    )",
-                           cache_name.c_str(), content.c_str());
-    EXPECT_EQ("Success", EvalJs(shell(), script));
+    if (content.has_value()) {
+      // Put a video into the cache.
+      std::string script =
+          base::StringPrintf(R"(
+        (async () => {
+          try {
+            const cache = await caches.open('%s');
+            const blob = new Blob(['%s'], {type: 'video/webm'});
+            const response = new Response(blob);
+            await cache.put('splash.webm', response);
+            return 'Success';
+          } catch (e) {
+            return 'Exception: ' + e.toString();
+          }
+        })();
+      )",
+                             cache_name.c_str(), content.value().c_str());
+      EXPECT_EQ("Success", EvalJs(shell(), script));
+    }
 
     // 2. Fetch via h5vcc-embedded scheme.
     // The loader should find the cached content from the test domain.
@@ -216,13 +222,16 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     std::string result = EvalJs(shell(), fetch_script).ExtractString();
     EXPECT_EQ(expected_content, result);
 
+    histogram_tester.ExpectUniqueSample("Cobalt.SplashScreen.FetchedFromCache",
+                                        expected_uma_state, 1);
+
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
   }
 
   void VerifySplashVideoFromCache(const std::string& cache_name,
                                   const std::string& query_param) {
     VerifySplashVideoFromCacheWithContent(cache_name, query_param, "aaabbbccc",
-                                          "aaabbbccc");
+                                          "aaabbbccc", 1 /* kOkCache */);
   }
 
  protected:
@@ -286,6 +295,12 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   EXPECT_EQ("Dimensions: 1920x1080", EvalJs(shell(), CheckImageDimension()));
 }
 
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       LoadSplashVideoNoCache) {
+  VerifySplashVideoFromCacheWithContent("default", "", std::nullopt,
+                                        "BUILTIN_SPLASH", 0 /* kOkBuiltIn */);
+}
+
 // If not specified, use cache "default".
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoFromDefaultCache) {
@@ -307,7 +322,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
   H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(150);
   std::string large_content(151, 'x');
   VerifySplashVideoFromCacheWithContent("default", "", large_content,
-                                        "BUILTIN_SPLASH");
+                                        "BUILTIN_SPLASH",
+                                        3 /* kErrorOnCacheFileOversize */);
 }
-
 }  // namespace content
