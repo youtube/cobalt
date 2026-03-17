@@ -16,19 +16,27 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/trace_event/memory_dump_manager.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/browser/storage_partition.h"
+#include "net/dns/public/dns_over_https_config.h"
+#include "net/dns/public/doh_provider_entry.h"
+#include "net/dns/public/secure_dns_mode.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
+#include "services/network/public/mojom/network_service.mojom.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
@@ -103,7 +111,49 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+
+  if (base::FeatureList::IsEnabled(features::kAsyncDnsAndDoH)) {
+    ConfigureAsyncDnsAndDoH();
+  }
+
   return ShellBrowserMainParts::PreMainMessageLoopRun();
+}
+
+void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
+  // Note: The built-in Async DNS client and therefore DoH is not supported
+  // on iOS. On iOS, the compilation of the built-in DNS resolver in
+  // Chromium's network stack is disabled due to apple store regulations.
+  if (auto* network_service = content::GetNetworkService()) {
+    std::vector<net::DnsOverHttpsServerConfig> doh_servers;
+    // Collect all globally available, enabled DoH providers.
+    // This provides a fallback mechanism: if the first server is unreachable,
+    // the network stack will try the next ones.
+    for (const net::DohProviderEntry* provider :
+         net::DohProviderEntry::GetList()) {
+      if (provider->display_globally &&
+          base::FeatureList::IsEnabled(provider->feature)) {
+        doh_servers.push_back(provider->doh_server_config);
+      }
+    }
+
+    absl::optional<net::DnsOverHttpsConfig> doh_config;
+    if (!doh_servers.empty()) {
+      doh_config = net::DnsOverHttpsConfig(std::move(doh_servers));
+    }
+
+    // kAutomatic means DoH lookups will be performed first if available.
+    // If the DoH server is unreachable, it will gracefully fall back to
+    // using the standard, unencrypted DNS resolution.
+    // If the provided URL is empty or invalid, we turn DoH off entirely.
+    auto secure_dns_mode = doh_config && !doh_config->servers().empty()
+                               ? net::SecureDnsMode::kAutomatic
+                               : net::SecureDnsMode::kOff;
+
+    network_service->ConfigureStubHostResolver(
+        /*insecure_dns_client_enabled=*/true,
+        secure_dns_mode, doh_config ? *doh_config : net::DnsOverHttpsConfig(),
+        /*additional_dns_types_enabled=*/true);
+  }
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {

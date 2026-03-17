@@ -43,21 +43,22 @@ uint32_t StrikeCache::HashTraits::Hash(const SkDescriptor& descriptor) {
 
 TextStrike::TextStrike(const SkStrikeSpec& strikeSpec) : fStrikeSpec{strikeSpec} {}
 
-Glyph* TextStrike::getGlyph(SkPackedGlyphID packedGlyphID) {
-    Glyph* glyph = fCache.findOrNull(packedGlyphID);
+Glyph* TextStrike::getGlyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format) {
+    GlyphKey key(packedGlyphID, format);
+    Glyph* glyph = fCache.findOrNull(key);
     if (glyph == nullptr) {
-        glyph = fAlloc.make<Glyph>(packedGlyphID);
+        glyph = fAlloc.make<Glyph>(packedGlyphID, format);
         fCache.set(glyph);
     }
     return glyph;
 }
 
-const SkPackedGlyphID& TextStrike::HashTraits::GetKey(const Glyph* glyph) {
-    return glyph->fPackedID;
+const GlyphKey TextStrike::HashTraits::GetKey(const Glyph* glyph) {
+    return GlyphKey(glyph->fPackedID, glyph->fMaskFormat);
 }
 
-uint32_t TextStrike::HashTraits::Hash(SkPackedGlyphID key) {
-    return key.hash();
+uint32_t TextStrike::HashTraits::Hash(GlyphKey key) {
+    return key.fID.hash();
 }
 
 }  // namespace sktext::gpu

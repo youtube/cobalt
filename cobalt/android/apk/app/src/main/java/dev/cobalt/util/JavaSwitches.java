@@ -27,12 +27,6 @@ public class JavaSwitches {
   public static final String ENABLE_LOW_END_DEVICE_MODE_NO_SIMULATED_MEMORY =
       "EnableLowEndDeviceModeNoSimulatedMemory";
 
-  /**
-   * GPU flag to enable memory settings in layer tree and set max_memory_for_prepaint_percentage.
-   * Value type: Integer (MiB)
-   */
-  public static final String CC_LAYER_TREE_OPTIMIZATION = "CCLayerTreeOptimization";
-
   /** V8 flag to enable jitless mode. Value type: Boolean (presence means true) */
   public static final String V8_JITLESS = "V8Jitless";
 
@@ -65,12 +59,6 @@ public class JavaSwitches {
   public static final String DISABLE_SPLASH_SCREEN = "DisableSplashScreen";
   public static final String FORCE_IMAGE_SPLASH_SCREEN = "ForceImageSplashScreen";
 
-  /** flag to disable PartitionAllocBackupRefPtr */
-  public static final String DISABLE_BRP = "DisableBRP";
-
-  /** flag to enable PartitionAllocBackupRefPtr with reclaimer */
-  public static final String ENABLE_BRP_RECLAIMER = "EnableBRPRcelaimer";
-
   /** flag to enable AndroidOverlay for SbPlayer */
   public static final String ENABLE_ANDROID_OVERLAY = "EnableAndroidOverlay";
 
@@ -100,6 +88,9 @@ public class JavaSwitches {
   /** flag to disable low performance software av1 decoder */
   public static final String DISABLE_SW_AV1_DECODER = "DisableLowPerformanceAv1Decoder";
 
+  /** flag to enable Async DNS mode and DNS over Https */
+  public static final String ENABLE_ASYNC_DNS_AND_DOH = "EnableAsyncDnsAndDoH";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -113,12 +104,6 @@ public class JavaSwitches {
       }
     } else {
       extraCommandLineArgs.add("--enable-features=PartialLowEndModeOnMidRangeDevices");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION)) {
-      extraCommandLineArgs.add(
-          "--cc-layer-tree-optimization="
-              + javaSwitches.get(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION).replaceAll("[^0-9]", ""));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.V8_JITLESS)) {
@@ -173,15 +158,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--force-image-splash-screen");
     }
 
-    // BRP settings
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_BRP)) {
-      extraCommandLineArgs.add("--disable-features=PartitionAllocBackupRefPtr");
-    }
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_BRP_RECLAIMER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ANDROID_OVERLAY)) {
       extraCommandLineArgs.add("--CobaltUsingAndroidOverlay");
       extraCommandLineArgs.add("--enable-features=CobaltUsingAndroidOverlay");
@@ -218,6 +194,10 @@ public class JavaSwitches {
     }
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_SW_AV1_DECODER)) {
       extraCommandLineArgs.add("--enable-features=RejectLowPerformanceSoftwareDecoder");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ASYNC_DNS_AND_DOH)) {
+      extraCommandLineArgs.add("--enable-features=AsyncDnsAndDoH");
     }
 
     return extraCommandLineArgs;
