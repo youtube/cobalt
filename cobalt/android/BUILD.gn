@@ -234,9 +234,7 @@ shared_library_with_jni("libchrobalt") {
       "//media/midi",
     ]
   }
-  sources = [
-    "cobalt_library_loader.cc",
-  ]
+  sources = [ "cobalt_library_loader.cc" ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
   if (is_official_build) {
