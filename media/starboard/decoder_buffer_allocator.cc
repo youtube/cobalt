@@ -232,4 +232,29 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
 }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+<<<<<<< HEAD
+=======
+void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
+  base::AutoLock scoped_lock(mutex_);
+  if (is_memory_pool_allocated_on_demand_ == enabled) {
+    return;
+  }
+
+  LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
+            << ToString(is_memory_pool_allocated_on_demand_) << " -> "
+            << ToString(enabled);
+
+  is_memory_pool_allocated_on_demand_ = enabled;
+  // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
+  // reset the strategy.
+  if (is_memory_pool_allocated_on_demand_ && strategy_ &&
+      strategy_->GetAllocated() == 0) {
+    LOG(INFO) << "Freed " << strategy_->GetCapacity()
+              << " bytes of media buffer pool since allocator now allocates on "
+                 "demand.";
+    strategy_.reset();
+  }
+}
+
+>>>>>>> 4a4bc9e71f (Cherry pick PR #8749: media: Remove external allocator toggle (#9576))
 }  // namespace media

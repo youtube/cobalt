@@ -33,6 +33,16 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   // allocator is in place will fail.
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
+<<<<<<< HEAD
+=======
+  s_use_allocator = true;
+}
+
+// static
+void DecoderBuffer::EnableAllocateOnDemand(bool enabled) {
+  CHECK(s_allocator);
+  s_allocator->SetAllocateOnDemand(enabled);
+>>>>>>> 4a4bc9e71f (Cherry pick PR #8749: media: Remove external allocator toggle (#9576))
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

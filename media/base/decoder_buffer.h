@@ -87,12 +87,20 @@ class MEDIA_EXPORT DecoderBuffer
     virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
+<<<<<<< HEAD
+=======
+    virtual void SetAllocateOnDemand(bool enabled) = 0;
+>>>>>>> 4a4bc9e71f (Cherry pick PR #8749: media: Remove external allocator toggle (#9576))
 
    protected:
     ~Allocator() {}
 
+<<<<<<< HEAD
     static void Set(Allocator* allocator);
   };
+=======
+  static void EnableAllocateOnDemand(bool enabled);
+>>>>>>> 4a4bc9e71f (Cherry pick PR #8749: media: Remove external allocator toggle (#9576))
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.

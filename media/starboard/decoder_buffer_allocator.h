@@ -74,6 +74,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
+<<<<<<< HEAD
+=======
+  void SetAllocateOnDemand(bool enabled) override;
+>>>>>>> 4a4bc9e71f (Cherry pick PR #8749: media: Remove external allocator toggle (#9576))
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
