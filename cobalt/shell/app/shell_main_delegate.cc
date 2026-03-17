@@ -71,8 +71,16 @@
 #include "content/public/browser/android/compositor.h"
 #endif
 
+#if !BUILDFLAG(IS_ANDROIDTV)
+#include "components/crash/core/app/crashpad.h"  // nogncheck
+#endif
+
 #if BUILDFLAG(IS_APPLE)
 #include "cobalt/shell/app/paths_mac.h"
+#endif
+
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 
 namespace {
@@ -257,6 +265,22 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   return std::move(main_function_params);
 #endif
 }
+
+#if BUILDFLAG(IS_LINUX)
+void ShellMainDelegate::ZygoteForked() {
+#if !BUILDFLAG(IS_ANDROIDTV)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableCrashReporter)) {
+    std::string process_type =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kProcessType);
+    crash_reporter::InitializeCrashpad(false, process_type);
+    crash_reporter::SetFirstChanceExceptionHandler(
+        v8::TryHandleWebAssemblyTrapPosix);
+  }
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+}
+#endif  // BUILDFLAG(IS_LINUX)
 
 void ShellMainDelegate::InitializeResourceBundle() {
 #if BUILDFLAG(IS_ANDROID)
