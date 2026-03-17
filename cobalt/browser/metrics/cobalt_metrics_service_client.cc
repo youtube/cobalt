@@ -46,7 +46,15 @@ class MetricsPollingState
  public:
   explicit MetricsPollingState(CobaltMetricsServiceClient* parent)
       : parent_(parent) {}
-  virtual void RequestMetrics() = 0;
+
+  // Parent pointer.
+  raw_ptr<CobaltMetricsServiceClient> parent_;
+
+  // Task runner for background metrics collection.
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+
+  // Flag to stop logging.
+  bool stop_logging = false;
 
   void RecordMetricsAfterDelay() {
     if (stop_logging) {
@@ -74,18 +82,11 @@ class MetricsPollingState
         delay);
   }
 
-  // Parent pointer.
-  raw_ptr<CobaltMetricsServiceClient> parent_;
-
-  // Task runner for background metrics collection.
-  scoped_refptr<base::SequencedTaskRunner> task_runner;
-
-  // Flag to stop logging.
-  bool stop_logging = false;
+  virtual void RequestMetrics() = 0;
 
  protected:
-  virtual ~MetricsPollingState() = default;
   friend class base::RefCountedThreadSafe<MetricsPollingState>;
+  virtual ~MetricsPollingState() = default;
 };
 
 struct CobaltMetricsServiceClient::MemoryPollingState
@@ -106,20 +107,21 @@ struct CobaltMetricsServiceClient::CpuPollingState
     : public MetricsPollingState {
   using MetricsPollingState::MetricsPollingState;
 
+  std::unique_ptr<base::ProcessMetrics> process_metrics_;
+
   void RequestMetrics() override {
     if (stop_logging) {
       return;
     }
 
-    if (!cpu_emitter_) {
-      cpu_emitter_ = parent_->CreateCpuMetricsEmitter();
+    if (!process_metrics_) {
+      process_metrics_ = base::ProcessMetrics::CreateCurrentProcessMetrics();
     }
-    cpu_emitter_->FetchAndEmitCpuMetrics();
 
+    parent_->CreateCpuMetricsEmitter()->FetchAndEmitCpuMetrics(
+        process_metrics_.get());
     RecordMetricsAfterDelay();
   }
-
-  std::unique_ptr<CobaltCpuMetricsEmitter> cpu_emitter_;
 };
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
@@ -391,9 +393,9 @@ CobaltMetricsServiceClient::CreateMemoryMetricsEmitter() {
   return base::MakeRefCounted<CobaltMemoryMetricsEmitter>();
 }
 
-std::unique_ptr<CobaltCpuMetricsEmitter>
+scoped_refptr<CobaltCpuMetricsEmitter>
 CobaltMetricsServiceClient::CreateCpuMetricsEmitter() {
-  return std::make_unique<CobaltCpuMetricsEmitter>();
+  return base::MakeRefCounted<CobaltCpuMetricsEmitter>();
 }
 
 }  // namespace cobalt

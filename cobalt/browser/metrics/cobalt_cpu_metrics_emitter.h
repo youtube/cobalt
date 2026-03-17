@@ -17,8 +17,9 @@
 
 #include <memory>
 
+#include "base/memory/ref_counted.h"
 #include "base/process/process_metrics.h"
-#include "cobalt/common/cobalt_thread_checker.h"
+#include "base/sequence_checker.h"
 
 namespace cobalt {
 
@@ -27,21 +28,24 @@ namespace cobalt {
 // CobaltCpuMetricsEmitter to maintain stateful CPU usage tracking for the
 // current process to enable incremental delta reporting. This class is not
 // thread-safe and must be called from the same TaskRunner it was created on.
-class CobaltCpuMetricsEmitter {
+class CobaltCpuMetricsEmitter
+    : public base::RefCountedThreadSafe<CobaltCpuMetricsEmitter> {
  public:
   CobaltCpuMetricsEmitter();
 
   CobaltCpuMetricsEmitter(const CobaltCpuMetricsEmitter&) = delete;
   CobaltCpuMetricsEmitter& operator=(const CobaltCpuMetricsEmitter&) = delete;
 
-  void FetchAndEmitCpuMetrics();
+  void FetchAndEmitCpuMetrics(base::ProcessMetrics* process_metrics);
+
+ protected:
   // TODO(b/492251096): add tests for CPU metrics emitter class
   virtual ~CobaltCpuMetricsEmitter();
 
  private:
-  std::unique_ptr<base::ProcessMetrics> process_metrics_;
+  friend class base::RefCountedThreadSafe<CobaltCpuMetricsEmitter>;
 
-  COBALT_THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace cobalt

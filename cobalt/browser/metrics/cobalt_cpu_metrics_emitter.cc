@@ -20,22 +20,22 @@
 
 namespace cobalt {
 
-CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter()
-    : process_metrics_(base::ProcessMetrics::CreateProcessMetrics(
-          base::GetCurrentProcessHandle())) {
-  COBALT_DETACH_FROM_THREAD(thread_checker_);
-}
+CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter() = default;
 
 CobaltCpuMetricsEmitter::~CobaltCpuMetricsEmitter() = default;
 
-void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics(
+    base::ProcessMetrics* process_metrics) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!process_metrics) {
+    return;
+  }
 
   // Total CPU utilization in percentage of all cores in between every call.
   constexpr double kInvalidCPUUsageValue = 0.0;
   const double cpu_usage =
-      process_metrics_->GetPlatformIndependentCPUUsage().value_or(
-          kInvalidCPUUsageValue);
+      process_metrics->GetPlatformIndependentCPUUsage().value_or(
+          kInvalidCPUUsageValue);    
   // Divide by the number of processors to log average per core CPU usage.
   base::UmaHistogramPercentage(
       "CPU.Total.UsageInPercentage",
