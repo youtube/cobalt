@@ -1705,10 +1705,11 @@ gfx::Rect SurfaceAggregator::PrewalkRenderPass(
       // already full damage for the surface.
       if (damage_type == FrameDamageType::kFrame) {
         auto& per_quad_damage_rect = GetOptionalDamageRectFromQuad(quad);
-        DCHECK(per_quad_damage_rect.has_value());
-        // The DrawQuad `per_quad_damage_rect` is already in the render pass
-        // coordinate space instead of quad rect coordinate space.
-        quad_target_space_damage_rect = per_quad_damage_rect.value();
+        if (per_quad_damage_rect.has_value()) {
+          // The DrawQuad `per_quad_damage_rect` is already in the render pass
+          // coordinate space instead of quad rect coordinate space.
+          quad_target_space_damage_rect = per_quad_damage_rect.value();
+        }
       }
     }
 

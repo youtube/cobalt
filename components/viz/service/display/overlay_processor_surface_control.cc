@@ -119,8 +119,10 @@ void OverlayProcessorSurfaceControl::CheckOverlaySupportImpl(
 void OverlayProcessorSurfaceControl::AdjustOutputSurfaceOverlay(
     absl::optional<OutputSurfaceOverlayPlane>* output_surface_plane) {
   // For surface control, we should always have a valid |output_surface_plane|
-  // here.
-  DCHECK(output_surface_plane && output_surface_plane->has_value());
+  // for the main plane.
+  if (!output_surface_plane || !output_surface_plane->has_value()) {
+    return;
+  }
 
   OutputSurfaceOverlayPlane& plane = output_surface_plane->value();
   DCHECK(gfx::SurfaceControl::SupportsColorSpace(plane.color_space))

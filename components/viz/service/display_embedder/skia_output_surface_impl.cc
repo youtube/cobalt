@@ -414,7 +414,10 @@ SkCanvas* SkiaOutputSurfaceImpl::BeginPaintCurrentFrame() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Make sure there is no unsubmitted PaintFrame or PaintRenderPass.
   DCHECK(!current_paint_);
-  DCHECK(root_ddl_recorder_);
+  if (!root_ddl_recorder_) {
+    DLOG(ERROR) << "BeginPaintCurrentFrame called before Reshape";
+    return nullptr;
+  }
   reset_ddl_recorder_on_swap_ = true;
   current_paint_.emplace(&root_ddl_recorder_.value());
   return current_paint_->ddl_recorder()->getCanvas();
