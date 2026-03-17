@@ -32,13 +32,7 @@
 
 namespace media {
 
-<<<<<<< HEAD
-=======
 namespace {
-
-// Used to determine if the memory allocated is large. The underlying logic can
-// be different.
-const size_t kSmallAllocationThreshold = 512;
 
 const char* ToString(bool value) {
   return value ? "enabled" : "disabled";
@@ -46,7 +40,6 @@ const char* ToString(bool value) {
 
 }  // namespace
 
->>>>>>> e25e3a63f3 (media: Add AllocateOnDemand experiment (#8119))
 DecoderBufferAllocator::DecoderBufferAllocator()
     : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
                              SbMediaGetInitialBufferCapacity(),
