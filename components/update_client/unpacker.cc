@@ -25,6 +25,10 @@
 #include "components/update_client/utils.h"
 #include "third_party/zlib/google/compression_utils.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace {
 
 constexpr base::FilePath::CharType kMetadataFolder[] =
@@ -41,6 +45,27 @@ namespace update_client {
 
 Unpacker::Result::Result() = default;
 
+#if BUILDFLAG(IS_STARBOARD)
+Unpacker::Unpacker(const OperationResult& crx_operation_result,
+                   std::unique_ptr<Unzipper> unzipper,
+                   base::OnceCallback<void(const Result& result)> callback)
+    : result_(crx_operation_result),
+      path_(crx_operation_result.response),
+      unzipper_(std::move(unzipper)),
+      callback_(std::move(callback)) {}
+
+Unpacker::~Unpacker() = default;
+
+void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
+                      const OperationResult& crx_operation_result,
+                      std::unique_ptr<Unzipper> unzipper,
+                      crx_file::VerifierFormat crx_format,
+                      base::OnceCallback<void(const Result& result)> callback) {
+  base::WrapRefCounted(
+      new Unpacker(crx_operation_result, std::move(unzipper), std::move(callback)))
+      ->Verify(pk_hash, crx_format);
+}
+#else
 Unpacker::Unpacker(const base::FilePath& path,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
@@ -59,6 +84,8 @@ void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
       new Unpacker(path, std::move(unzipper), std::move(callback)))
       ->Verify(pk_hash, crx_format);
 }
+#endif
+
 
 void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
                       crx_file::VerifierFormat crx_format) {
@@ -86,8 +113,12 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
 void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if BUILDFLAG(IS_STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+  unpack_path_ = result_.installation_dir;
+#else
   // The directory of path_ is the installation slot.
   unpack_path_ = path_.DirName();
+#endif  // defined(IN_MEMORY_UPDATES)
 #else  // BUILDFLAG(IS_STARBOARD)
   if (!base::CreateNewTempDirectory(
           FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
