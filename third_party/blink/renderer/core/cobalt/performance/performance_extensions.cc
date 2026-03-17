@@ -69,14 +69,31 @@ uint64_t PerformanceExtensions::measureReservedVirtualMemory(ScriptState* script
 
 ScriptPromise PerformanceExtensions::getAppStartupTime(
     ScriptState* script_state,
-    const Performance&,
+    const Performance& performance_obj,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-  int64_t startup_time = 0;
-  BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
   ScriptPromise promise = resolver->Promise();
-  resolver->Resolve(startup_time);
+
+  auto remote_performance = BindRemotePerformance(script_state);
+
+  int64_t startup_duration_old = 0;
+  remote_performance->GetAppStartupTime(&startup_duration_old);
+
+  int64_t startup_timestamp_new = 0;
+  remote_performance->GetAppStartupTimeStamp(&startup_timestamp_new);
+
+  double new_way_ms = Performance::MonotonicTimeToDOMHighResTimeStamp(
+      performance_obj.GetTimeOriginInternal(),
+      base::TimeTicks::FromInternalValue(startup_timestamp_new),
+      true /* allow_negative_value */,
+      ExecutionContext::From(script_state)->CrossOriginIsolatedCapability());
+
+  LOG(INFO) << "App Startup Comparison:";
+  LOG(INFO) << "  Old Way (duration in ms):       " << (startup_duration_old / 1000.0);
+  LOG(INFO) << "  New Way relative to origin (ms): " << new_way_ms;
+
+  resolver->Resolve(startup_duration_old);
   return promise;
 }
 
