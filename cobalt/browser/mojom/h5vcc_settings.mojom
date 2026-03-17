@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "net/base/network_change_notifier.h"
+module cobalt.mojom;
 
-namespace net {
-
-class NET_EXPORT_PRIVATE NetworkChangeNotifierStarboard
-    : public NetworkChangeNotifier {
- public:
-  NetworkChangeNotifierStarboard() {}
-
-  ConnectionType GetCurrentConnectionType() const override {
-    NOTIMPLEMENTED();
-    return CONNECTION_UNKNOWN;
-  }
+union SettingValue {
+  string string_value;
+  int64 int_value;
 };
 
-}
+struct Settings {
+  map<string, SettingValue> settings;
+};
+
+interface H5vccSettings {
+  // Synchronous call is used here because this is called before player
+  // creation. Though it blocks the render thread, it is acceptable, since it
+  // happens only at the construction stage.
+  [Sync]
+  GetSettings() => (Settings settings);
+};

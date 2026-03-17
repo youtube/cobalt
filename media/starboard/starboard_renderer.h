@@ -30,6 +30,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -55,7 +56,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
-                    const gfx::Size& viewport_size
+                    const gfx::Size& viewport_size,
+                    bool enable_flush_during_seek,
+                    bool enable_reset_audio_decoder
 #if BUILDFLAG(IS_ANDROID)
                     ,
                     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -188,6 +191,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const std::string max_video_capabilities_;
   const int max_samples_per_write_;
   const gfx::Size viewport_size_;
+  const bool enable_flush_during_seek_;
+  const bool enable_reset_audio_decoder_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -196,10 +201,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   jobject surface_view_ = nullptr;
   std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
-
-  // TODO: b/455661813 - Set use_external_allocator_ based on GlobalFeatures,
-  // once http://go/cobalt-pr/7836 lands.
-  const bool use_external_allocator_ = true;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;

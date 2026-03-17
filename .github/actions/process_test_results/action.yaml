@@ -37,8 +37,8 @@ runs:
         TESTS_SKIPPED: ${{ steps.test-summary.outputs.skipped }}
         TESTS_TOTAL: ${{ steps.test-summary.outputs.total }}
         RESULTS_GLOB: ${{ inputs.results_glob }}
-        NUM_GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
         TARGET_NAME: ${{ inputs.target_name }}
+        GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         # Check test status.
         exit_code=0
@@ -47,15 +47,9 @@ runs:
         # nullglob to return empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        # Workaround for nplb not supporting sharding.
-        num_shards=${NUM_GTEST_SHARDS}
-        if [[ "${RESULTS_GLOB}" =~ nplb ]]; then
-          num_shards=1
-        fi
-
         result_xmls=(${RESULTS_GLOB})
-        if [ ${#result_xmls[@]} -ne ${num_shards} ]; then
-          echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${NUM_GTEST_SHARDS}). Did a test shard crash?"
+        if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ]; then
+          echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${GTEST_SHARDS}). Did a test shard crash?"
           exit_code=1
         fi
 

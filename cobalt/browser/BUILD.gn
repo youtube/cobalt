@@ -21,6 +21,7 @@ if (is_ios) {
 
 source_set("browser") {
   sources = [
+    "captured_surface_controller_stub.cc",
     "cobalt_browser_interface_binders.cc",
     "cobalt_browser_interface_binders.h",
     "cobalt_browser_main_parts.cc",
@@ -31,6 +32,8 @@ source_set("browser") {
     "cobalt_secure_navigation_throttle.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "h5vcc_settings_impl.cc",
+    "h5vcc_settings_impl.h",
   ]
 
   if (is_androidtv) {
@@ -69,6 +72,7 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_storage/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
+    "//cobalt/browser/mojom",
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
@@ -192,4 +196,19 @@ source_set("command_line_logger") {
     "command_line_logger.h",
   ]
   deps = [ "//base" ]
+}
+
+source_set("cobalt_crash_annotations") {
+  sources = [
+    "cobalt_crash_annotations.cc",
+    "cobalt_crash_annotations.h",
+  ]
+  deps = [
+    "//base",
+    "//third_party/crashpad/crashpad/client",
+  ]
+  if (is_android) {
+    sources += [ "crash_annotator/crash_annotator_jni.cc" ]
+    deps += [ "//cobalt/android:jni_headers" ]
+  }
 }

@@ -31,7 +31,9 @@ struct MEDIA_EXPORT StarboardRendererConfig {
                           base::TimeDelta audio_write_duration_local,
                           base::TimeDelta audio_write_duration_remote,
                           const std::string& max_video_capabilities,
-                          const gfx::Size& viewport_size);
+                          const gfx::Size& viewport_size,
+                          const bool enable_flush_during_seek,
+                          const bool enable_reset_audio_decoder);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -40,6 +42,8 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   base::TimeDelta audio_write_duration_remote;
   std::string max_video_capabilities;
   gfx::Size viewport_size;
+  bool enable_flush_during_seek;
+  bool enable_reset_audio_decoder;
 };
 
 }  // namespace media

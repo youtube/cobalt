@@ -190,7 +190,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -312,13 +313,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
-        FeatureList::IsEnabled(features::kForceResetAudioDecoder);
+        FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
+        creation_parameters.reset_audio_decoder();
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`kForceResetAudioDecoder` is set to true, force resetting"
         << " audio decoder during Reset().";
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
@@ -464,7 +467,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.

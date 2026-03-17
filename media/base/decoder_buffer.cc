@@ -19,12 +19,9 @@ namespace media {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
-}  // namespace
 
-// static
-DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
-  return s_allocator;
-}
+bool s_use_allocator = false;
+}  // namespace
 
 // static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
@@ -33,6 +30,20 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   // allocator is in place will fail.
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
+  s_use_allocator = true;
+}
+
+// static
+void DecoderBuffer::EnableAllocator(bool enabled) {
+  CHECK(s_allocator);
+  s_allocator->SetEnabled(enabled);
+  s_use_allocator = enabled;
+}
+
+// static
+void DecoderBuffer::EnableAllocateOnDemand(bool enabled) {
+  CHECK(s_allocator);
+  s_allocator->SetAllocateOnDemand(enabled);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -77,7 +88,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
-  if (s_allocator) {
+  if (s_use_allocator) {
     Initialize(type);
   } else {
     Initialize();
@@ -174,7 +185,7 @@ DecoderBuffer::~DecoderBuffer() = default;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize() {
-  if (s_allocator) {
+  if (s_use_allocator) {
     // This is used by Mojo.
     Initialize(DemuxerStream::UNKNOWN);
     return;
