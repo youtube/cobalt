@@ -59,11 +59,19 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 
  private:
+  void EnsureH5vccSettingsRemoteInitialized();
   void OnGetSbWindow(uint64_t handle);
 
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
 
+<<<<<<< HEAD
+=======
+  std::unique_ptr<mojo::Remote<cobalt::mojom::H5vccSettings>,
+                  base::OnTaskRunnerDeleter>
+      h5vcc_settings_remote_;
+
+>>>>>>> e6ebb4349f (cobalt: Address Mojo sequence checker crash in CobaltContentRendererClient (#9535))
   base::ScopedClosureRunner unregister_thread_closure;
 
   gfx::Size viewport_size_;

@@ -91,7 +91,32 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
 
 }  // namespace
 
+<<<<<<< HEAD
 CobaltContentRendererClient::CobaltContentRendererClient() {
+=======
+void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
+  CHECK(content::RenderThread::IsMainThread());
+  if (h5vcc_settings_remote_) {
+    return;
+  }
+
+  h5vcc_settings_remote_ = {
+      new mojo::Remote<cobalt::mojom::H5vccSettings>(),
+      base::OnTaskRunnerDeleter(
+          base::SequencedTaskRunner::GetCurrentDefault())};
+  content::RenderThread::Get()->BindHostReceiver(
+      h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
+}
+
+void CobaltContentRendererClient::BindHostReceiver(
+    mojo::GenericPendingReceiver receiver) {
+  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  BindHostReceiverWithValuation(std::move(receiver));
+}
+
+CobaltContentRendererClient::CobaltContentRendererClient()
+    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+>>>>>>> e6ebb4349f (cobalt: Address Mojo sequence checker crash in CobaltContentRendererClient (#9535))
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
@@ -129,6 +154,11 @@ void CobaltContentRendererClient::RenderFrameCreated(
             },
             weak_factory_.GetWeakPtr(), std::move(window_provider))));
   }
+<<<<<<< HEAD
+=======
+
+  EnsureH5vccSettingsRemoteInitialized();
+>>>>>>> e6ebb4349f (cobalt: Address Mojo sequence checker crash in CobaltContentRendererClient (#9535))
 }
 
 void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
@@ -145,6 +175,7 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   CHECK(content::RenderThread::IsMainThread());
+
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
@@ -225,6 +256,7 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   CHECK(content::RenderThread::IsMainThread());
+
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   renderer_factory_traits->audio_write_duration_local =
       base::Microseconds(kSbPlayerWriteDurationLocal);
@@ -239,6 +271,34 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
+<<<<<<< HEAD
+=======
+
+  EnsureH5vccSettingsRemoteInitialized();
+
+  cobalt::mojom::SettingsPtr settings;
+  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
+    for (auto& [key, value] : settings->settings) {
+      if (!AppendSettingToSwitch(key, value)) {
+        if (value->is_string_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, std::move(value->get_string_value()));
+        } else if (value->is_int_value()) {
+          renderer_factory_traits->h5vcc_settings.emplace(
+              key, value->get_int_value());
+        } else {
+          NOTREACHED();
+        }
+      }
+    }
+  }
+
+  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
+  renderer_factory_traits->bind_host_receiver_callback =
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
+                              weak_factory_.GetWeakPtr()));
+>>>>>>> e6ebb4349f (cobalt: Address Mojo sequence checker crash in CobaltContentRendererClient (#9535))
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
