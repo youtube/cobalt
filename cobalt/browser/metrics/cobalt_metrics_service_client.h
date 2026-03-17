@@ -107,7 +107,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
-  // Forces a memory metrics record for testing.
+  // Forces a metrics record for testing.
   void ScheduleRecordForTesting(base::OnceClosure done_callback);
 
  protected:
@@ -123,10 +123,14 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::RepeatingTimer idle_refresh_timer_;
 
  private:
-  struct State;
+  struct MemoryPollingState;
+  struct CpuPollingState;
 
   // Starts the periodic memory metrics logger.
   void StartMemoryMetricsLogger();
+
+  // Starts the periodic CPU metrics logger.
+  void StartCpuMetricsLogger();
 
   // Virtual to be overridden in tests.
   virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
@@ -141,6 +145,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   virtual scoped_refptr<CobaltMemoryMetricsEmitter>
   CreateMemoryMetricsEmitter();
 
+  // Virtual to be overridden in tests.
   virtual std::unique_ptr<CobaltCpuMetricsEmitter> CreateCpuMetricsEmitter();
 
   // Virtual to be overridden in tests.
@@ -165,8 +170,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
 
   base::TimeDelta min_idle_refresh_interval_ = kMinIdleRefreshInterval;
 
-  // State object for background memory metrics collection.
-  scoped_refptr<State> state_;
+  // State objects for background metrics collection.
+  scoped_refptr<MemoryPollingState> memory_state_;
+  scoped_refptr<CpuPollingState> cpu_state_;
 
   // Usually `log_uploader_` would be created lazily in CreateUploader() (during
   // first metrics upload), however there's a race condition of many seconds

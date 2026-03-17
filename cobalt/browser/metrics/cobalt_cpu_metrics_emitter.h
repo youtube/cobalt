@@ -23,9 +23,10 @@
 namespace cobalt {
 
 // This class fetches CPU metrics for the current process and its threads,
-// and emits UMA metrics. It maintains state to calculate deltas between
-// emissions. This class is not thread-safe and must be called from the same
-// TaskRunner it was created on.
+// and records an entry on UMA histogram. It's initialized once in
+// CobaltCpuMetricsEmitter to maintain stateful CPU usage tracking for the
+// current process to enable incremental delta reporting. This class is not
+// thread-safe and must be called from the same TaskRunner it was created on.
 class CobaltCpuMetricsEmitter {
  public:
   CobaltCpuMetricsEmitter();
@@ -34,6 +35,7 @@ class CobaltCpuMetricsEmitter {
   CobaltCpuMetricsEmitter& operator=(const CobaltCpuMetricsEmitter&) = delete;
 
   void FetchAndEmitCpuMetrics();
+  // TODO(b/492251096): add tests for CPU metrics emitter class
   virtual ~CobaltCpuMetricsEmitter();
 
  private:
