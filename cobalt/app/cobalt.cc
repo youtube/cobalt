@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+<<<<<<< HEAD
 #include <unistd.h>
 
 #include <array>
@@ -39,74 +40,15 @@
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
+=======
+#include "cobalt/app/app_lifecycle_delegate.h"
+>>>>>>> 11fb0fe591 (Cherry pick PR #9150: Refactor Cobalt application lifecycle into AppLifecycleDelegate (#9523))
 #include "starboard/event.h"
-#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include <init_musl.h>
-#if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/browser/loader_app_metrics.h"
-#endif
-#endif
-
-using ui::PlatformEventSourceStarboard;
-
-namespace {
-
-content::ContentMainRunner* GetContentMainRunner() {
-  static base::NoDestructor<std::unique_ptr<content::ContentMainRunner>> runner{
-      content::ContentMainRunner::Create()};
-  return runner->get();
-}
-
-static base::AtExitManager* g_exit_manager = nullptr;
-static cobalt::CobaltMainDelegate* g_content_main_delegate = nullptr;
-static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
-
-}  // namespace
-
-int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
-  // content::ContentMainParams params(g_content_main_delegate.Get().get());
-  content::ContentMainParams params(g_content_main_delegate);
-
-  // TODO: (cobalt b/375241103) Reimplement this in a clean way.
-  // Preprocess the raw command line arguments with the defaults expected by
-  // Cobalt.
-  cobalt::CommandLinePreprocessor init_cmd_line(argc, argv);
-  const auto& init_argv = init_cmd_line.argv();
-
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  logging::SetMinLogLevel(logging::LOGGING_FATAL);
-#endif
-
-  std::stringstream ss;
-  std::vector<const char*> args;
-  for (const auto& arg : init_argv) {
-    args.push_back(arg.c_str());
-    ss << " " << arg;
-  }
-  LOG(INFO) << "Parsed command line string:" << ss.str();
-
-  if (initial_deep_link) {
-    auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
-    manager->set_deep_link(initial_deep_link);
-  }
-
-  // This expression exists to ensure that we apply the argument overrides
-  // only on the main process, not on spawned processes such as the zygote.
-  if ((!strcmp(argv[0], "/proc/self/exe")) ||
-      ((argc >= 2) && !strcmp(argv[1], "--type=zygote"))) {
-    params.argc = argc;
-    params.argv = argv;
-  } else {
-    params.argc = args.size();
-    params.argv = args.data();
-  }
-
-  return RunContentProcess(std::move(params), GetContentMainRunner());
-}
+namespace {}  // namespace
 
 void SbEventHandle(const SbEvent* event) {
+<<<<<<< HEAD
   switch (event->type) {
     case kSbEventTypePreload: {
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
@@ -231,6 +173,18 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventDateTimeConfigurationChanged:
       device::NotifyTimeZoneChangeStarboard();
       break;
+=======
+  // This object's lifetime extends beyond the function's lifetime, until the
+  // function is called with kSbEventTypeStop at some time in the future.
+  static cobalt::AppLifecycleDelegate* s_lifecycle_delegate = nullptr;
+  if (!s_lifecycle_delegate) {
+    s_lifecycle_delegate = new cobalt::AppLifecycleDelegate();
+  }
+  s_lifecycle_delegate->HandleEvent(event);
+  if (event->type == kSbEventTypeStop) {
+    delete s_lifecycle_delegate;
+    s_lifecycle_delegate = nullptr;
+>>>>>>> 11fb0fe591 (Cherry pick PR #9150: Refactor Cobalt application lifecycle into AppLifecycleDelegate (#9523))
   }
 }
 
