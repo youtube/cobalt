@@ -64,7 +64,7 @@ void StubVideoDecoder::WriteEndOfStream() {
   decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
 }
 
-void StubVideoDecoder::Reset() {
+void StubVideoDecoder::Reset(bool is_teardown) {
   SB_DCHECK(BelongsToCurrentThread());
 
   video_stream_info_ = media::VideoStreamInfo();

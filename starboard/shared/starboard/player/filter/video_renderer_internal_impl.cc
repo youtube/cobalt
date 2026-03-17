@@ -26,6 +26,8 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
+#include <chrono>
+
 namespace starboard::shared::starboard::player::filter {
 
 namespace {
@@ -78,13 +80,15 @@ VideoRendererImpl::VideoRendererImpl(
 
 VideoRendererImpl::~VideoRendererImpl() {
   SB_DCHECK(BelongsToCurrentThread());
+  SB_LOG(INFO) << "TEST calling reset for destruction";
+  auto start = std::chrono::steady_clock::now();
 
   sink_ = NULL;
 
   // Be sure to release anything created by the decoder_ before releasing the
   // decoder_ itself.
   if (first_input_written_) {
-    decoder_->Reset();
+    decoder_->Reset(false);
   }
 
   // Now both the decoder thread and the sink thread should have been shutdown.
@@ -93,6 +97,12 @@ VideoRendererImpl::~VideoRendererImpl() {
   number_of_frames_.store(0);
 
   decoder_.reset();
+  auto end = std::chrono::steady_clock::now();
+  auto duration_ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  SB_LOG(INFO) << "TEST the total amount of time for destruction "
+                  "(enable_flush_during_seek = true) "
+               << duration_ms.count();
 }
 
 void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
@@ -167,7 +177,8 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK_GE(seek_to_time, 0);
 
   if (first_input_written_) {
-    decoder_->Reset();
+    SB_LOG(INFO) << "TEST calling reset for seek";
+    decoder_->Reset(false);
     first_input_written_ = false;
   }
 

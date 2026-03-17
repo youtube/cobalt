@@ -96,7 +96,7 @@ class VideoDecoder
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
-  void Reset() override;
+  void Reset(bool is_teardown) override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   void UpdateDecodeTargetSizeAndContentRegion_Locked();

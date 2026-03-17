@@ -99,7 +99,7 @@ class VideoDecoder {
   // over data from previous buffers.  |decoder_status_cb| won't be called
   // after this function returns unless WriteInputFrame() or WriteEndOfStream()
   // is called again.
-  virtual void Reset() = 0;
+  virtual void Reset(bool is_teardown) = 0;
 
   // This function can only be called when the current SbPlayerOutputMode is
   // |kSbPlayerOutputModeDecodeToTexture|.  It has to return valid value after

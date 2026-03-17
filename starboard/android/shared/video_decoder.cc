@@ -399,7 +399,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
       surface_view_(surface_view),
-      enable_flush_during_seek_(enable_flush_during_seek),
+      enable_flush_during_seek_(true),
       reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
                                                             : 0),
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
@@ -643,14 +643,14 @@ void VideoDecoder::WriteEndOfStream() {
   media_decoder_->WriteEndOfStream();
 }
 
-void VideoDecoder::Reset() {
+void VideoDecoder::Reset(bool is_teardown) {
   SB_CHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
   // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
   // set video_fps_ to 0 will call InitializeCodec(),
   // which we do not need if flush the codec.
-  if (!enable_flush_during_seek_ || !media_decoder_ ||
+  if (!enable_flush_during_seek_ || !media_decoder_ || is_teardown ||
       !media_decoder_->Flush()) {
     TeardownCodec();
     if (reset_delay_usec_ > 0) {
