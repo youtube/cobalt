@@ -262,6 +262,16 @@ ShellPlatformDelegate* Shell::GetPlatform() {
   return g_platform;
 }
 
+<<<<<<< HEAD
+=======
+// static
+void Shell::OnReveal() {
+  if (g_platform) {
+    g_platform->OnReveal();
+  }
+}
+
+>>>>>>> e47052bd97 (Cherry pick PR #9264: Cobalt Lifecycle robustness improvements. (#9561))
 void Shell::FinishShellInitialization(Shell* shell) {
   WebContents* raw_web_contents = shell->web_contents();
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
