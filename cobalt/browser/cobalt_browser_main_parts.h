@@ -75,7 +75,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // C25 Storage Migration
   void StartStorageMigration();
   void OnMigrationComplete();
-  void PostOrRunIfMigrationFinished(base::OnceClosure task) override;
+  void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override;
 
  protected:
   void InitializeMessageLoopContext() override;

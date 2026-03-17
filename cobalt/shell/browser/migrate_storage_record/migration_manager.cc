@@ -215,7 +215,7 @@ Task DeleteOldCacheDirectoryTask() {
 }
 
 // Emits UMA metrics for the total duration of the migration process.
-Task RecordMetricsTask(std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
+Task RecordMigrationDurationTask(std::unique_ptr<base::ElapsedTimer> elapsed_timer) {
   return base::BindOnce(
       [](std::unique_ptr<base::ElapsedTimer> elapsed_timer,
          base::OnceClosure callback) {
@@ -466,7 +466,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage)));
   tasks.push_back(LocalStorageTask(partition, origin,
                                    ToLocalStorageItems(origin, *storage)));
-  tasks.push_back(RecordMetricsTask(std::move(elapsed_timer)));
+  tasks.push_back(RecordMigrationDurationTask(std::move(elapsed_timer)));
   tasks.push_back(DeleteOldCacheDirectoryTask());
 
   // Execute the chained tasks. The done_callback will be invoked when all

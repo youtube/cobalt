@@ -196,7 +196,7 @@ void ShellBrowserMainParts::PostDestroyThreads() {
 #endif
 }
 
-void ShellBrowserMainParts::PostOrRunIfMigrationFinished(
+void ShellBrowserMainParts::PostOrRunIfStorageMigrationFinished(
     base::OnceClosure task) {
   // Default implementation doesn't defer tasks.
   std::move(task).Run();

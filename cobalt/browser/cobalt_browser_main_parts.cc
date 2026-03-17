@@ -143,7 +143,7 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   pending_tasks_.clear();
 }
 
-void CobaltBrowserMainParts::PostOrRunIfMigrationFinished(
+void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
     base::OnceClosure task) {
   if (!migration_finished_) {
     DLOG(INFO) << "Deferring launchShell until migration finishes.";
