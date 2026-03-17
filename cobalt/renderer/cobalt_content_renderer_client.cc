@@ -19,10 +19,7 @@
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
-<<<<<<< HEAD
-=======
 #include "media/base/decoder_buffer.h"
->>>>>>> b80a08de08b (Fix conflict)
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
@@ -43,11 +40,16 @@ namespace cobalt {
 
 namespace {
 
+const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
+const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
+    "Media.VideoBufferSizeClampMb";
+
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
 // corresponding value.
 const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
-    {"Media.VideoBufferSizeClampMb", switches::kMSEVideoBufferSizeLimitClampMb},
+    {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
+     switches::kMSEVideoBufferSizeLimitClampMb},
 };
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
@@ -359,19 +361,8 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 
   cobalt::mojom::SettingsPtr settings;
   if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
-    for (auto& [key, value] : settings->settings) {
-      if (!AppendSettingToSwitch(key, value)) {
-        if (value->is_string_value()) {
-          renderer_factory_traits->h5vcc_settings.emplace(
-              key, std::move(value->get_string_value()));
-        } else if (value->is_int_value()) {
-          renderer_factory_traits->h5vcc_settings.emplace(
-              key, value->get_int_value());
-        } else {
-          NOTREACHED();
-        }
-      }
-    }
+    auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
+    ProcessH5vccSettings(h5vcc_settings);
   }
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
