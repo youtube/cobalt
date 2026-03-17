@@ -33,6 +33,23 @@ namespace cobalt {
 
 namespace {
 
+<<<<<<< HEAD
+=======
+const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
+const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
+    "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
+    "Media.VideoBufferSizeClampMb";
+
+// Map that stores all current bindings of H5vcc settings to media switches.
+// If a setting has a corresponding switch, we will enable the switch with the
+// corresponding value.
+const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
+    {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
+     switches::kMSEVideoBufferSizeLimitClampMb},
+};
+
+>>>>>>> 7810fe413c (Cherry pick PR #8119: media: Add AllocateOnDemand experiment (#9563))
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
 // gets lost with hardcoded MIME string. This can sometimes cause issues. For
@@ -89,6 +106,87 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
+<<<<<<< HEAD
+=======
+void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
+  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
+}
+
+// TODO: b/460292554 - This code is a tentative solution, and will be replaced
+// once base::Feature is fully supported.
+//
+// Append the h5vcc setting to the corresponding media switch, if such mapping
+// exists. H5vcc settings are either pass their value to a media switch for code
+// in /media to use, or are given to Starboard Renderer for direct usage.
+bool AppendSettingToSwitch(const std::string& setting_name,
+                           const ::media::H5vccSettingValue& setting_value) {
+  auto it = kH5vccSettingToSwitchMap.find(setting_name);
+  if (it == kH5vccSettingToSwitchMap.end()) {
+    return false;
+  }
+  std::string switch_name = it->second;
+  std::string setting_str;
+  if (auto* val_str = std::get_if<std::string>(&setting_value)) {
+    setting_str = *val_str;
+  } else if (auto* val_int = std::get_if<int64_t>(&setting_value)) {
+    setting_str = base::NumberToString(*val_int);
+  } else {
+    LOG(WARNING) << "Attempted to apply switch " << switch_name
+                 << " but the setting value was not an integer or string.";
+    return false;
+  }
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
+                                                            setting_str);
+  LOG(INFO) << "Applied command line switch: " << switch_name << " = "
+            << setting_str;
+  return true;
+}
+
+std::map<std::string, ::media::H5vccSettingValue> ParseH5vccSettings(
+    cobalt::mojom::SettingsPtr settings) {
+  std::map<std::string, ::media::H5vccSettingValue> h5vcc_settings;
+  for (auto& [key, value] : settings->settings) {
+    if (value->is_string_value()) {
+      h5vcc_settings.emplace(key, std::move(value->get_string_value()));
+    } else if (value->is_int_value()) {
+      h5vcc_settings.emplace(key, value->get_int_value());
+    } else {
+      NOTREACHED();
+    }
+  }
+  return h5vcc_settings;
+}
+
+template <typename T>
+const T* GetSettingValue(
+    const std::map<std::string, ::media::H5vccSettingValue>& settings,
+    const std::string& key) {
+  auto it = settings.find(key);
+  if (it == settings.end()) {
+    return nullptr;
+  }
+  return std::get_if<T>(&it->second);
+}
+
+void ProcessH5vccSettings(
+    const std::map<std::string, ::media::H5vccSettingValue>& settings) {
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaDisableAllocator)) {
+    bool disable_allocator = *val != 0;
+    ::media::DecoderBuffer::EnableAllocator(!disable_allocator);
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
+    bool enable_allocate_on_demand = *val != 0;
+    ::media::DecoderBuffer::EnableAllocateOnDemand(enable_allocate_on_demand);
+  }
+
+  for (const auto& [setting_name, setting_value] : settings) {
+    AppendSettingToSwitch(setting_name, setting_value);
+  }
+}
+
+>>>>>>> 7810fe413c (Cherry pick PR #8119: media: Add AllocateOnDemand experiment (#9563))
 }  // namespace
 
 CobaltContentRendererClient::CobaltContentRendererClient() {

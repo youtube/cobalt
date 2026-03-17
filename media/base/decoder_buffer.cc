@@ -34,6 +34,12 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
 }
+
+// static
+void DecoderBuffer::EnableAllocateOnDemand(bool enabled) {
+  CHECK(s_allocator);
+  s_allocator->SetAllocateOnDemand(enabled);
+}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {

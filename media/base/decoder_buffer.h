@@ -87,12 +87,22 @@ class MEDIA_EXPORT DecoderBuffer
     virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
+<<<<<<< HEAD
+=======
+    virtual void SetEnabled(bool enabled) = 0;
+    virtual void SetAllocateOnDemand(bool enabled) = 0;
+>>>>>>> 7810fe413c (Cherry pick PR #8119: media: Add AllocateOnDemand experiment (#9563))
 
    protected:
     ~Allocator() {}
 
+<<<<<<< HEAD
     static void Set(Allocator* allocator);
   };
+=======
+  static void EnableAllocator(bool enabled);
+  static void EnableAllocateOnDemand(bool enabled);
+>>>>>>> 7810fe413c (Cherry pick PR #8119: media: Add AllocateOnDemand experiment (#9563))
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
