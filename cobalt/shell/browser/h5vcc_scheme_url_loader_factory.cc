@@ -322,14 +322,21 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void OnCacheMatched(const std::string& cache_name,
                       blink::mojom::MatchResultPtr result) {
     if (!result->is_response()) {
+      const auto status = result->get_status();
+      SplashScreenFetchedState state =
+          SplashScreenFetchedState::kErrorOnReadCache;
+      // If the cache entry is not found, or the splash cache is not found in
+      // the cache entry, it's not an error of reading cache, but just a cache
+      // miss.
+      if (status == blink::mojom::CacheStorageError::kErrorCacheNameNotFound ||
+          status == blink::mojom::CacheStorageError::kErrorNotFound) {
+        state = SplashScreenFetchedState::kOkBuiltIn;
+      }
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(
               "Failed to match splash video from cache %s, reason: %d",
-              cache_name.c_str(), static_cast<int>(result->get_status())),
-          result->get_status() ==
-                  blink::mojom::CacheStorageError::kErrorCacheNameNotFound
-              ? SplashScreenFetchedState::kOkBuiltIn
-              : SplashScreenFetchedState::kErrorOnReadCache);
+              cache_name.c_str(), static_cast<int>(status)),
+          state);
     }
     LOG(INFO) << "Found splash video in cache: " << cache_name;
     auto& response = result->get_response();
