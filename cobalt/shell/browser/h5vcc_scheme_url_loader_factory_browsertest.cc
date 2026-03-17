@@ -155,7 +155,8 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
       const std::string& query_param,
       const std::optional<std::string>& content,
       const std::string& expected_content,
-      int expected_uma_state) {
+      int expected_uma_state,
+      bool create_empty_cache = false) {
     base::HistogramTester histogram_tester;
 
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -193,6 +194,20 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
         })();
       )",
                              cache_name.c_str(), content.value().c_str());
+      EXPECT_EQ("Success", EvalJs(shell(), script));
+    } else if (create_empty_cache) {
+      // Create the cache but don't add the video.
+      std::string script = base::StringPrintf(R"(
+        (async () => {
+          try {
+            await caches.open('%s');
+            return 'Success';
+          } catch (e) {
+            return 'Exception: ' + e.toString();
+          }
+        })();
+      )",
+                                              cache_name.c_str());
       EXPECT_EQ("Success", EvalJs(shell(), script));
     }
 
@@ -299,6 +314,19 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoNoCache) {
   VerifySplashVideoFromCacheWithContent("default", "", std::nullopt,
                                         "BUILTIN_SPLASH", 0 /* kOkBuiltIn */);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       CacheExistsButResourceMissing) {
+  VerifySplashVideoFromCacheWithContent("default", "", std::nullopt,
+                                        "BUILTIN_SPLASH", 0 /* kOkBuiltIn */,
+                                        /*create_empty_cache=*/true);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       CacheExistsWithEmptyResource) {
+  VerifySplashVideoFromCacheWithContent("default", "", "", "BUILTIN_SPLASH",
+                                        2 /* kErrorOnCacheEmptyContent */);
 }
 
 // If not specified, use cache "default".

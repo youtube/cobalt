@@ -340,7 +340,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
     LOG(INFO) << "Found splash video in cache: " << cache_name;
     auto& response = result->get_response();
-    if (response->blob->size == 0) {
+    if (!response->blob || response->blob->size == 0) {
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(
               "Splash video from %s is empty. Fallback to builtin.",
