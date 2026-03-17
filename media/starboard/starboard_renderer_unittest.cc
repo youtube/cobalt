@@ -173,6 +173,17 @@ class StarboardRendererTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  base::MockOnceCallback<void(bool)> set_cdm_cb_;
+  base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
+  NiceMock<MockCdmContext> cdm_context_;
+  NiceMock<MockMediaResource> media_resource_;
+  NiceMock<MockRendererClient> renderer_client_;
+  std::vector<std::unique_ptr<StrictMock<MockDemuxerStream>>> streams_;
+  StrictMock<MockSbPlayerInterface> mock_sbplayer_interface_;
+  SbPlayerDecoderStatusFunc decoder_status_cb_ = nullptr;
+  SbPlayerStatusFunc player_status_cb_ = nullptr;
+  SbPlayerErrorFunc player_error_cb_ = nullptr;
+  void* context_ = nullptr;
   const std::unique_ptr<StarboardRenderer> renderer_ =
       std::make_unique<StarboardRenderer>(
           task_environment_.GetMainThreadTaskRunner(),
@@ -189,17 +200,6 @@ class StarboardRendererTest : public testing::Test {
           /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
       );
-  base::MockOnceCallback<void(bool)> set_cdm_cb_;
-  base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
-  NiceMock<MockCdmContext> cdm_context_;
-  NiceMock<MockMediaResource> media_resource_;
-  NiceMock<MockRendererClient> renderer_client_;
-  std::vector<std::unique_ptr<StrictMock<MockDemuxerStream>>> streams_;
-  StrictMock<MockSbPlayerInterface> mock_sbplayer_interface_;
-  SbPlayerDecoderStatusFunc decoder_status_cb_ = nullptr;
-  SbPlayerStatusFunc player_status_cb_ = nullptr;
-  SbPlayerErrorFunc player_error_cb_ = nullptr;
-  void* context_ = nullptr;
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {

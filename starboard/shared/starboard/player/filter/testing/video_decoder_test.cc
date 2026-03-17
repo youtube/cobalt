@@ -45,8 +45,6 @@ using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::ValuesIn;
 
-using CreationParameters = PlayerComponents::Factory::CreationParameters;
-
 class VideoDecoderTest
     : public ::testing::TestWithParam<std::tuple<VideoTestParam, bool>> {
  public:
@@ -147,10 +145,12 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
           for (int i = 0; i < kDecodersToCreate; ++i) {
             SbMediaAudioSampleInfo dummy_audio_sample_info = {
                 kSbMediaAudioCodecNone};
-            CreationParameters creation_parameters(
+            PlayerComponents::Factory::creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
-                &players[i], output_mode, max_video_input_size, nullptr, false,
-                false,
+                &players[i], output_mode, max_video_input_size,
+                /*surface_view=*/nullptr,
+                /*flush_decoder_during_reset=*/false,
+                /*reset_audio_decoder=*/false,
                 fake_graphics_context_provider_.decoder_target_provider(),
                 &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
