@@ -40,7 +40,6 @@ namespace cobalt {
 
 namespace {
 
-const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
@@ -184,11 +183,6 @@ const T* GetSettingValue(
 ParsedH5vccSettings ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
   ParsedH5vccSettings parsed;
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaDisableAllocator)) {
-    bool disable_allocator = *val != 0;
-    ::media::DecoderBuffer::EnableAllocator(!disable_allocator);
-  }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
     bool enable_allocate_on_demand = *val != 0;
