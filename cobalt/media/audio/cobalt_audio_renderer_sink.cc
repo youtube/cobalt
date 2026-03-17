@@ -37,9 +37,10 @@ void SbAudioSinkDeleter::operator()(SbAudioSink sink) const {
 
 void CobaltAudioRendererSink::Initialize(const AudioParameters& params,
                                          RenderCallback* callback) {
-  LOG(INFO) << "CobaltAudioRendererSink::Initialize - called with following "
-               "parameters:"
-            << params.AsHumanReadableString();
+  LOG(INFO)
+      << "YO THOR CobaltAudioRendererSink::Initialize - called with following "
+         "parameters:"
+      << params.AsHumanReadableString();
   params_ = params;
   output_sample_type_ = GetPreferredOutputStarboardSampleType();
 
@@ -51,6 +52,8 @@ void CobaltAudioRendererSink::Initialize(const AudioParameters& params,
 void CobaltAudioRendererSink::Start() {
   DCHECK(callback_);
   int frames_per_render_buffer = params_.frames_per_buffer();
+
+  return;
 
   frames_per_channel_ = std::max(
       AlignUp(

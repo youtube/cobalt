@@ -136,16 +136,16 @@ class AudioManagerAndroid {
             logd("MODIFY_AUDIO_SETTINGS permission is missing");
         }
 
-        mAudioDeviceSelector.init();
+        // mAudioDeviceSelector.init();
 
-        sBackgroundHandler.post(() -> {
-          synchronized(AudioManagerAndroid.class) {
-              if (sCachedDeviceInfo == null) {
-                  // This 60ms call now happens here, not on your Audio Thread
-                  sCachedDeviceInfo = mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-              }
-          }
-        });
+        // sBackgroundHandler.post(() -> {
+        //   synchronized(AudioManagerAndroid.class) {
+        //       if (sCachedDeviceInfo == null) {
+        //           // This 60ms call now happens here, not on your Audio Thread
+        //           sCachedDeviceInfo = mAudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        //       }
+        //   }
+        // });
 
         mIsInitialized = true;
     }

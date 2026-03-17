@@ -16,7 +16,7 @@
 
 namespace media {
 
-constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(5);
+constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(0);
 
 // TODO(dalecurtis): Merge with AudioDeviceDescription::IsDefaultDevice() once
 // that file has been moved to media/base.

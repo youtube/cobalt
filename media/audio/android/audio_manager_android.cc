@@ -209,10 +209,11 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // COBALT MOD: Hardcode parameters to match C25 and avoid Java calls.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
-  const int sample_rate = 16000;  // Match c25_microphone_impl.cc
-  const int buffer_size = 128;  // Match c25_microphone_impl.cc kSamplesPerBuffer
+  const int sample_rate = 48000;  // Match c25_microphone_impl.cc
+  const int buffer_size = 480;  // Match c25_microphone_impl.cc kSamplesPerBuffer
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                         //ChannelLayoutConfig(CHANNEL_LAYOUT_DISCRETE, 1),
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
                          sample_rate, buffer_size);
   params.set_effects(AudioParameters::NO_EFFECTS);
@@ -255,6 +256,7 @@ AudioOutputStream* AudioManagerAndroid::MakeAudioOutputStream(
     const std::string& device_id,
     const LogCallback& log_callback) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  LOG(INFO) << "YO THOR: Output requested! Params: " << params.AsHumanReadableString();
   AudioOutputStream* stream = AudioManagerBase::MakeAudioOutputStream(
       params, device_id, AudioManager::LogCallback());
   if (stream)
@@ -364,6 +366,11 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "YO THOR COBALT MOD: Forcing OpenSLESInputStream for low latency input.";
+  // COBALT NUCLEAR OPTION: Mute all playback to release the hardware clock lock
+  for (auto* stream : streams_) {
+    stream->SetVolume(0.0);
+  }
+
   return new OpenSLESInputStream(this, params);
 #else
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
@@ -428,7 +435,9 @@ AudioParameters AudioManagerAndroid::GetPreferredOutputStreamParameters(
   LOG(INFO) << "YO THOR COBALT MOD: Stubbing GetPreferredOutputStreamParameters";
   // COBALT MOD: Return default parameters to avoid Java calls.
   return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                         ChannelLayoutConfig::Stereo(), 16000, 128);
+                         ChannelLayoutConfig(CHANNEL_LAYOUT_DISCRETE, 1),
+                         //ChannelLayoutConfig::Mono(),
+                         48000, 480);
 #else
   DVLOG(1) << __FUNCTION__;
   // TODO(tommi): Support |output_device_id|.
@@ -525,7 +534,7 @@ int AudioManagerAndroid::GetNativeOutputSampleRate() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "YO THOR COBALT MOD: Stubbing GetNativeOutputSampleRate";
   // COBALT MOD: Return default sample rate to avoid Java calls.
-  return 16000;
+  return 48000;
 #else
   return Java_AudioManagerAndroid_getNativeOutputSampleRate(
       base::android::AttachCurrentThread(), GetJavaAudioManager());
