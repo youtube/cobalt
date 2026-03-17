@@ -20,7 +20,7 @@ namespace media {
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
 
-bool s_use_allocator = true;
+bool s_use_allocator = false;
 }  // namespace
 
 // static
