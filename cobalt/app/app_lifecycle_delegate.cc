@@ -78,16 +78,16 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
 #if BUILDFLAG(IS_STARBOARD)
-      {
-        auto* client = cobalt::CobaltContentBrowserClient::Get();
-        if (client) {
-          if (event->type == kSbEventTypeBlur) {
-            client->DispatchBlur();
-          } else {
-            client->DispatchFocus();
-          }
+    {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        if (event->type == kSbEventTypeBlur) {
+          client->DispatchBlur();
+        } else {
+          client->DispatchFocus();
         }
       }
+    }
       if (platform_event_source_) {
         platform_event_source_->HandleFocusEvent(event);
       }
@@ -159,25 +159,25 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
 #if BUILDFLAG(IS_STARBOARD)
-      {
-        auto* notifier = content::GetNetworkChangeNotifier();
-        if (notifier) {
-          auto* passive_notifier =
-              static_cast<net::NetworkChangeNotifierPassive*>(notifier);
-          net::NetworkChangeNotifier::ConnectionType type =
-              event->type == kSbEventTypeOsNetworkConnected
-                  ? net::NetworkChangeNotifier::CONNECTION_UNKNOWN
-                  : net::NetworkChangeNotifier::CONNECTION_NONE;
-          net::NetworkChangeNotifier::ConnectionSubtype subtype =
-              event->type == kSbEventTypeOsNetworkConnected
-                  ? net::NetworkChangeNotifier::SUBTYPE_UNKNOWN
-                  : net::NetworkChangeNotifier::SUBTYPE_NONE;
-          passive_notifier->OnConnectionChanged(type);
-          passive_notifier->OnConnectionSubtypeChanged(type, subtype);
-        }
+    {
+      auto* notifier = content::GetNetworkChangeNotifier();
+      if (notifier) {
+        auto* passive_notifier =
+            static_cast<net::NetworkChangeNotifierPassive*>(notifier);
+        net::NetworkChangeNotifier::ConnectionType type =
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::CONNECTION_UNKNOWN
+                : net::NetworkChangeNotifier::CONNECTION_NONE;
+        net::NetworkChangeNotifier::ConnectionSubtype subtype =
+            event->type == kSbEventTypeOsNetworkConnected
+                ? net::NetworkChangeNotifier::SUBTYPE_UNKNOWN
+                : net::NetworkChangeNotifier::SUBTYPE_NONE;
+        passive_notifier->OnConnectionChanged(type);
+        passive_notifier->OnConnectionSubtypeChanged(type, subtype);
       }
+    }
 #endif
-      break;
+    break;
     case kSbEventDateTimeConfigurationChanged:
 #if BUILDFLAG(IS_STARBOARD)
       device::NotifyTimeZoneChangeStarboard();
