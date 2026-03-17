@@ -33,6 +33,7 @@
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/browser/storage_partition.h"
 #include "net/dns/public/dns_over_https_config.h"
+#include "net/dns/public/doh_provider_entry.h"
 #include "net/dns/public/secure_dns_mode.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
@@ -123,18 +124,22 @@ void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
   // on iOS. On iOS, the compilation of the built-in DNS resolver in
   // Chromium's network stack is disabled due to apple store regulations.
   if (auto* network_service = content::GetNetworkService()) {
-    // DoH stands for "DNS over HTTPS". It increases privacy and security by
-    // preventing eavesdropping and manipulation of DNS data.
-    // By default, we configure it to use Google Public DNS, but this can be
-    // overridden via the --doh-url command line switch to support environments
-    // with specific network policies or different privacy requirements.
-    std::string doh_url = "https://dns.google/dns-query{?dns}";
-    auto* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kDnsOverHttpsUrl)) {
-      doh_url = command_line->GetSwitchValueASCII(switches::kDnsOverHttpsUrl);
+    std::vector<net::DnsOverHttpsServerConfig> doh_servers;
+    // Collect all globally available, enabled DoH providers.
+    // This provides a fallback mechanism: if the first server is unreachable,
+    // the network stack will try the next ones.
+    for (const net::DohProviderEntry* provider :
+         net::DohProviderEntry::GetList()) {
+      if (provider->display_globally &&
+          base::FeatureList::IsEnabled(provider->feature)) {
+        doh_servers.push_back(provider->doh_server_config);
+      }
     }
 
-    auto doh_config = net::DnsOverHttpsConfig::FromString(doh_url);
+    absl::optional<net::DnsOverHttpsConfig> doh_config;
+    if (!doh_servers.empty()) {
+      doh_config = net::DnsOverHttpsConfig(std::move(doh_servers));
+    }
 
     // kAutomatic means DoH lookups will be performed first if available.
     // If the DoH server is unreachable, it will gracefully fall back to
@@ -145,8 +150,7 @@ void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
                                : net::SecureDnsMode::kOff;
 
     network_service->ConfigureStubHostResolver(
-        /*insecure_dns_client_enabled=*/true,  // Forces Chromium's fast Async
-                                               // DNS
+        /*insecure_dns_client_enabled=*/true,
         secure_dns_mode, doh_config ? *doh_config : net::DnsOverHttpsConfig(),
         /*additional_dns_types_enabled=*/true);
   }
