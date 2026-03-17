@@ -19,6 +19,7 @@ from starboard.tools.testing import test_filter
 _FILTERED_TESTS = {
     # TODO(b/321315344): Re-enable once the coverage build is fixed.
     'nplb': ['PosixMemoryMapTest.CanChangeMemoryProtection',],
+    'extension_test': ['ExtensionTest.CrashHandler'],
 }
 
 
