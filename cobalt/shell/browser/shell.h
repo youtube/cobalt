@@ -201,21 +201,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     delay_popup_contents_delegate_for_testing_ = delay;
   }
 
- protected:
-  static void FinishShellInitialization(Shell* shell);
-
  private:
   class DevToolsWebContentsObserver;
 
   friend class TestShell;
   friend class SplashScreenTest;
   friend class LifecycleTest;
-
-  Shell(std::unique_ptr<WebContents> web_contents,
-        std::unique_ptr<WebContents> splash_screen_web_contents,
-        bool should_set_delegate,
-        const std::string& topic = "",
-        bool skip_for_testing = false);
 
   enum State {
     STATE_SPLASH_SCREEN_UNINITIALIZED,
@@ -246,6 +237,15 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   void ToggleFullscreenModeForTab(WebContents* web_contents,
                                   bool enter_fullscreen);
+
+  Shell(std::unique_ptr<WebContents> web_contents,
+        std::unique_ptr<WebContents> splash_screen_web_contents,
+        bool should_set_delegate,
+        const std::string& topic = "",
+        bool skip_for_testing = false);
+
+  static void FinishShellInitialization(Shell* shell);
+
   // WebContentsObserver
   void LoadProgressChanged(double progress) override;
   void TitleWasSet(NavigationEntry* entry) override;
