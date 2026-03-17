@@ -182,7 +182,7 @@ static_library("read_evergreen_version") {
   ]
   deps = [
     "//starboard/common",
-    "//third_party/jsoncpp:jsoncpp",
+    "//third_party/jsoncpp",
   ]
   configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
@@ -195,7 +195,7 @@ source_set("read_evergreen_version_test") {
     "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/jsoncpp:jsoncpp",
+    "//third_party/jsoncpp",
   ]
   configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
