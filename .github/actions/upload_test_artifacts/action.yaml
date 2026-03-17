@@ -73,7 +73,7 @@ runs:
           # Determine the browser test target for this platform.
           BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
           if [[ "${PLATFORM}" == *linux* ]]; then
-            BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests_runner"
+            BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
           fi
           if [[ -n "${TARGETS}" ]]; then
             TARGETS="${TARGETS},${BROWSERTEST_TARGET}"

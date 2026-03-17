@@ -431,7 +431,11 @@ test("cobalt_browsertests") {
       "//starboard:starboard_headers_only",
     ]
     data_deps += [ ":cobalt_browsertests_runner_script" ]
-    custom_launcher = "$root_out_dir/cobalt_browsertests_runner"
+
+    # Modular build does not call generate_wrapper().
+    if (!use_custom_libc) {
+      custom_launcher = "$root_out_dir/cobalt_browsertests_runner"
+    }
   }
 
   if (is_posix) {
