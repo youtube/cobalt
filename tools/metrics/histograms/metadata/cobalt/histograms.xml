@@ -208,14 +208,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Storage.Exit.LocalStorageFlushDuration" units="ms"
+<histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the time it takes to flush local storage during a graceful
-    application exit (e.g., via window.h5vcc.system.exit()). This helps to
-    understand the performance of the operation and can serve as a health signal
-    for the storage backend.
+    Records the time it takes to initiate the flush of local storage during a
+    graceful application exit (e.g., via window.h5vcc.system.exit()). As
+    `Flush()` is an asynchronous operation, this metric captures the time until
+    the commit is scheduled, not the completion of the data write to persistent
+    storage.
   </summary>
 </histogram>
 
