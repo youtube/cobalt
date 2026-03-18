@@ -23,6 +23,7 @@
 #include <stdio.h>
 
 #include <cstring>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -57,6 +58,22 @@ std::string ToString(const T& val) {
   std::stringstream ss;
   ss << val;
   return ss.str();
+}
+
+inline std::string ToString(const std::string& val) {
+  return val;
+}
+
+inline std::string ToString(bool val) {
+  return val ? "true" : "false";
+}
+
+template <typename T>
+std::string ToString(const std::optional<T>& val) {
+  if (!val) {
+    return "(nullopt)";
+  }
+  return ToString(*val);
 }
 
 std::string HexEncode(const void* data,

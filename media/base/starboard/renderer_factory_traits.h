@@ -23,7 +23,6 @@
 #include "media/base/media_export.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/timestamp_constants.h"
-#include "media/starboard/bind_host_receiver_callback.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -37,13 +36,8 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
-  bool enable_flush_during_seek = false;
-  bool enable_reset_audio_decoder = false;
-  std::optional<int> initial_max_frames_in_decoder;
-  std::optional<int> max_pending_input_frames;
-  std::optional<int> video_decoder_poll_interval_ms;
+  StarboardRendererConfig::ExperimentalFeatures experimental_features;
   gfx::Size viewport_size;
-  BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 
 }  // namespace media

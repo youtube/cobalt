@@ -57,7 +57,7 @@ public:
     // the sub runs.
     int unflattenSize() const { return GlyphVectorSize(fGlyphs.size()); }
 
-    void packedGlyphIDToGlyph(StrikeCache* cache);
+    void packedGlyphIDToGlyph(StrikeCache* cache, skgpu::MaskFormat);
 
 #if defined(SK_GANESH)
     std::tuple<bool, int> regenerateAtlas(

@@ -24,7 +24,6 @@
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "ui/gfx/geometry/rect_conversions.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/task/bind_post_task.h"
@@ -40,7 +39,6 @@ StarboardRendererClient::StarboardRendererClient(
     VideoRendererSink* video_renderer_sink,
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
-    BindHostReceiverCallback bind_host_receiver_callback,
     GpuVideoAcceleratorFactories* gpu_factories
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -55,7 +53,6 @@ StarboardRendererClient::StarboardRendererClient(
       pending_renderer_extension_(std::move(pending_renderer_extension)),
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
-      bind_host_receiver_callback_(bind_host_receiver_callback),
       gpu_factories_(gpu_factories)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -65,7 +62,6 @@ StarboardRendererClient::StarboardRendererClient(
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
-  DCHECK(bind_host_receiver_callback_);
   LOG(INFO) << "StarboardRendererClient constructed.";
 }
 
@@ -89,18 +85,6 @@ void StarboardRendererClient::Initialize(MediaResource* media_resource,
 
   client_ = client;
   init_cb_ = std::move(init_cb);
-
-  // Bind the receiver of VideoGeometryChangeSubscriber on renderer Thread.
-  // This uses BindPostTaskToCurrentDefault() to ensure the callback is ran
-  // on renderer thread, not media thread.
-  bind_host_receiver_callback_.Run(
-      video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
-  DCHECK(video_geometry_change_subcriber_remote_);
-  video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
-      video_overlay_factory_->overlay_plane_id(),
-      video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
-      base::BindOnce(&StarboardRendererClient::OnSubscribeToVideoGeometryChange,
-                     base::Unretained(this), media_resource, client));
 
   DCHECK(!AreMojoPipesConnected());
   InitAndBindMojoRenderer(base::BindOnce(
@@ -284,24 +268,10 @@ void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions) {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-void StarboardRendererClient::OnVideoGeometryChange(
-    const gfx::RectF& rect_f,
-    gfx::OverlayTransform /* transform */) {
-  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  gfx::Rect new_bounds = gfx::ToEnclosingRect(rect_f);
-  renderer_extension_->OnVideoGeometryChange(new_bounds);
-}
-
 void StarboardRendererClient::OnConnectionError() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   MEDIA_LOG(ERROR, media_log_) << "StarboardRendererClient disconnected";
   client_->OnError(PIPELINE_ERROR_DISCONNECTED);
-}
-
-void StarboardRendererClient::OnSubscribeToVideoGeometryChange(
-    MediaResource* media_resource,
-    RendererClient* client) {
-  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
 }
 
 void StarboardRendererClient::InitAndBindMojoRenderer(

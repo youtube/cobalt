@@ -11,6 +11,12 @@
 #include "content/public/common/content_client.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace cobalt::media {
+class VideoGeometrySetterService;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace gpu {
 struct GpuPreferences;
 class GpuDriverBugWorkarounds;
@@ -55,6 +61,10 @@ class CONTENT_EXPORT ContentGpuClient {
   virtual gpu::SharedImageManager* GetSharedImageManager();
   virtual gpu::Scheduler* GetScheduler();
   virtual viz::VizCompositorThreadRunner* GetVizCompositorThreadRunner();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual cobalt::media::VideoGeometrySetterService* GetVideoGeometrySetterService();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace content

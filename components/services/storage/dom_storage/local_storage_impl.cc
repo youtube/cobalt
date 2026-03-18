@@ -560,7 +560,7 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
   if (!status.ok()) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
-    DeleteAndRecreateDatabase();
+    DeleteAndRecreateDatabase(DatabaseResetReason::kOpenFailed);
     return;
   }
 
@@ -588,14 +588,14 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
                              &db_version) ||
         db_version < kMinSchemaVersion ||
         db_version > kCurrentLocalStorageSchemaVersion) {
-      DeleteAndRecreateDatabase();
+      DeleteAndRecreateDatabase(DatabaseResetReason::kVersionMismatch);
       return;
     }
 
     database_initialized_ = true;
   } else {
     // Other read error. Possibly database corruption.
-    DeleteAndRecreateDatabase();
+    DeleteAndRecreateDatabase(DatabaseResetReason::kReadError);
     return;
   }
 
@@ -620,7 +620,9 @@ void LocalStorageImpl::OnConnectionFinished() {
   on_database_opened_callbacks_.clear();
 }
 
-void LocalStorageImpl::DeleteAndRecreateDatabase() {
+void LocalStorageImpl::DeleteAndRecreateDatabase(
+    DatabaseResetReason reason /*= DatabaseResetReason::kUnknown*/) {
+  UMA_HISTOGRAM_ENUMERATION("Cobalt.LocalStorage.DatabaseResetReason", reason);
   if (connection_state_ == CONNECTION_SHUTDOWN)
     return;
 
@@ -822,7 +824,7 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
     // Deleting StorageAreas in here could cause more commits (and commit
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
-    DeleteAndRecreateDatabase();
+    DeleteAndRecreateDatabase(DatabaseResetReason::kCommitError);
   }
 }
 

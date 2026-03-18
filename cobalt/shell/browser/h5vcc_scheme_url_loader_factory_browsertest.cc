@@ -215,6 +215,8 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
 
     std::string result = EvalJs(shell(), fetch_script).ExtractString();
     EXPECT_EQ(expected_content, result);
+
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
   }
 
   void VerifySplashVideoFromCache(const std::string& cache_name,
@@ -307,5 +309,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
   VerifySplashVideoFromCacheWithContent("default", "", large_content,
                                         "BUILTIN_SPLASH");
 }
+
+// TODO(b/492206459): Add a check for native splash screen UMA
 
 }  // namespace content

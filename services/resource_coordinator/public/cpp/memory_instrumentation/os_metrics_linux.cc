@@ -311,6 +311,9 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
   dump->platform_private_footprint->rss_anon_bytes = rss_anon_bytes;
   dump->platform_private_footprint->vm_swap_bytes = vm_swap_bytes;
   dump->resident_set_kb = process_metrics->GetResidentSetSize() / 1024;
+#if BUILDFLAG(IS_COBALT)
+  dump->vm_size_kb = process_metrics->GetVmSizeBytes() / 1024;
+#endif
   dump->peak_resident_set_kb = GetPeakResidentSetSize(pid);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(pid);
 

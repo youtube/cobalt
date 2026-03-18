@@ -21,23 +21,26 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/command_line_logger.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_settings_impl.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -153,12 +156,9 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient()
-    : video_geometry_setter_service_(
-          std::unique_ptr<cobalt::media::VideoGeometrySetterService,
-                          base::OnTaskRunnerDeleter>(
-              nullptr,
-              base::OnTaskRunnerDeleter(nullptr))) {
+CobaltContentBrowserClient::CobaltContentBrowserClient(
+    const std::string& deep_link)
+    : deep_link_(deep_link) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -174,7 +174,8 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
+  auto browser_main_parts =
+      std::make_unique<CobaltBrowserMainParts>(deep_link_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
@@ -340,41 +341,14 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
 
-void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
-  DCHECK(!video_geometry_setter_service_);
-  video_geometry_setter_service_ =
-      std::unique_ptr<cobalt::media::VideoGeometrySetterService,
-                      base::OnTaskRunnerDeleter>(
-          new media::VideoGeometrySetterService,
-          base::OnTaskRunnerDeleter(
-              base::SingleThreadTaskRunner::GetCurrentDefault()));
-}
-
 void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
     service_manager::BinderRegistry* registry,
     blink::AssociatedInterfaceRegistry* associated_registry,
     content::RenderProcessHost* render_process_host) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (!video_geometry_setter_service_) {
-    CreateVideoGeometrySetterService();
-  }
-  registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
-      video_geometry_setter_service_->GetBindSubscriberCallback(),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
   registry->AddInterface<cobalt::mojom::H5vccSettings>(
       base::BindRepeating(&H5vccSettingsImpl::Create),
       base::SingleThreadTaskRunner::GetCurrentDefault());
-}
-
-void CobaltContentBrowserClient::BindGpuHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (!video_geometry_setter_service_) {
-    CreateVideoGeometrySetterService();
-  }
-  if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
-    video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
-  }
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
@@ -407,7 +381,13 @@ void CobaltContentBrowserClient::DispatchBlur() {
       web_contents->GetRenderViewHost()->GetWidget()->Blur();
     }
   }
-  FlushCookiesAndLocalStorage(base::DoNothing());
+  auto start_time = std::make_unique<base::ElapsedTimer>();
+  FlushCookiesAndLocalStorage(base::BindOnce(
+      [](std::unique_ptr<base::ElapsedTimer> timer) {
+        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
+                            timer->Elapsed());
+      },
+      std::move(start_time)));
 }
 
 void CobaltContentBrowserClient::DispatchFocus() {
@@ -532,6 +512,11 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  UMA_HISTOGRAM_BOOLEAN(
+      "Cobalt.Features.TestFinchFeature",
+      base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  base::UmaHistogramSparse("Cobalt.Features.TestFinchFeatureParam",
+                           base::Hash(features::kTestFinchFeatureParam.Get()));
   LOG(INFO) << "CobaltCommandLine: enable_features=["
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures)
             << "], disable_features=["

@@ -27,11 +27,14 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
  public:
   BidirectionalFitDecoderBufferAllocatorStrategy(
       std::size_t initial_capacity,
-      std::size_t allocation_increment)
-      : birectional_fit_allocator_(&fallback_allocator_,
+      std::size_t allocation_increment,
+      bool enable_decommit_on_idle)
+      : fallback_allocator_(enable_decommit_on_idle),
+        birectional_fit_allocator_(&fallback_allocator_,
                                    initial_capacity,
                                    kSmallAllocationThreshold,
-                                   allocation_increment) {}
+                                   allocation_increment,
+                                   enable_decommit_on_idle) {}
 
   void* Allocate(DemuxerStream::Type type,
                  size_t size,

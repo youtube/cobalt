@@ -8,6 +8,10 @@ import("//build/config/ui.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/media_options.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 # See //content/BUILD.gn for how this works.
 group("gpu") {
   visibility = [ "//content/*" ]  # This is an internal content API.
@@ -91,6 +95,10 @@ target(link_target_type, "gpu_sources") {
     "//ui/gl/init",
     "//ui/latency/ipc",
   ]
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [ "//cobalt/media/service" ]
+  }
 
   if (!is_chromeos_ash || !is_chrome_branded) {
     deps += [

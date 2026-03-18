@@ -49,6 +49,8 @@ using ::starboard::GetPlayerStateName;
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
 
+constexpr int kDefaultMaxSamplePerWrite = 1;
+
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
   for (auto&& configuration : configurations) {
@@ -124,11 +126,7 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-    bool enable_flush_during_seek,
-    bool enable_reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -144,11 +142,10 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
-      enable_flush_during_seek_(enable_flush_during_seek),
-      enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      experimental_features_(experimental_features),
+      max_samples_per_write_(
+          experimental_features.max_samples_per_write.value_or(
+              kDefaultMaxSamplePerWrite)),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -158,17 +155,14 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
+  CHECK_GT(max_samples_per_write_, 0);
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
             << base::GetQuotedJSONString(max_video_capabilities_)
-            << ", initial_max_frames_in_decoder="
-            << initial_max_frames_in_decoder_.value_or(-1)
-            << ", max_pending_input_frames="
-            << max_pending_input_frames_.value_or(-1)
-            << ", video_decoder_poll_interval_ms="
-            << video_decoder_poll_interval_ms_.value_or(-1);
+            << ", max_samples_per_write=" << max_samples_per_write_
+            << ", experimental_features=" << experimental_features_;
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -338,7 +332,8 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
     if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
+            media::kCobaltReportBufferingStateDuringFlush) ||
+        experimental_features_.report_buffering_state_during_flush) {
       task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
@@ -545,8 +540,14 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
                                    weak_factory_.GetWeakPtr());
   config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
                                     weak_factory_.GetWeakPtr());
-  config.rect = gfx::Rect(viewport_size_);
-  config.secure = false;
+  gfx::Rect initial_rect = gfx::Rect(viewport_size_);
+  if (initial_rect.IsEmpty()) {
+    // Provide a default non-zero size, this is fine as it will be
+    // updated by OnVideoGeometryChange().
+    initial_rect = gfx::Rect(0, 0, 1920, 1080);
+  }
+  config.rect = initial_rect;
+  config.secure = cdm_context_ != nullptr;
   config.power_efficient = false;
 
   overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
@@ -624,9 +625,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
-        initial_max_frames_in_decoder_, max_pending_input_frames_,
-        video_decoder_poll_interval_ms_
+        /*max_video_input_size=*/-1, experimental_features_
 #if BUILDFLAG(IS_ANDROID)
         ,
         // TODO: b/475294958 - Revisit platform-specific codes above starboard.
@@ -731,13 +730,14 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
 void StarboardRenderer::OnDemuxerStreamRead(
     DemuxerStream* stream,
+    int max_buffers,
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                       weak_factory_.GetWeakPtr(), stream, status, buffers));
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                                  weak_factory_.GetWeakPtr(), stream,
+                                  max_buffers, status, buffers));
     return;
   }
 
@@ -809,8 +809,10 @@ void StarboardRenderer::OnDemuxerStreamRead(
           stream->video_decoder_config().visible_rect().size());
     }
     UpdateDecoderConfig(stream);
-    stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                                   weak_factory_.GetWeakPtr(), stream));
+    stream->Read(
+        max_buffers,
+        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                       weak_factory_.GetWeakPtr(), stream, max_buffers));
   } else if (status == DemuxerStream::kError) {
     client_->OnError(PIPELINE_ERROR_READ);
   }
@@ -833,10 +835,8 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  int max_buffers = max_audio_samples_per_write_ > 1
-                        ? std::min(max_number_of_buffers_to_write,
-                                   max_audio_samples_per_write_)
-                        : 1;
+  int max_buffers =
+      std::min(max_number_of_buffers_to_write, max_samples_per_write_);
 
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
@@ -894,13 +894,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
         audio_read_delayed_ = true;
         return;
       }
-      if (max_audio_samples_per_write_ > 1 &&
-          !time_ahead_of_playback.is_negative()) {
+      if (max_samples_per_write_ > 1 && !time_ahead_of_playback.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(adjusted_write_duration,
                                                        time_ahead_of_playback,
                                                        false /* is_preroll */);
       }
-    } else if (max_audio_samples_per_write_ > 1) {
+    } else if (max_samples_per_write_ > 1) {
       if (!time_ahead_of_playback_for_preroll.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(
             adjusted_write_duration_for_preroll,
@@ -935,7 +934,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 
   stream->Read(max_buffers,
                base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                              weak_factory_.GetWeakPtr(), stream));
+                              weak_factory_.GetWeakPtr(), stream, max_buffers));
 }
 
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
@@ -1077,8 +1076,7 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
 
   int estimated_max_buffers = 1;
-  if (!(max_audio_samples_per_write_ > 1) ||
-      write_duration <= time_ahead_of_playback) {
+  if (max_samples_per_write_ <= 1 || write_duration <= time_ahead_of_playback) {
     return estimated_max_buffers;
   }
 

@@ -215,6 +215,16 @@ void InPlaceReuseAllocatorBase::Free(void* memory) {
         AddFreeBlock(MemoryBlock(i, fallback_allocations_[i].address,
                                  fallback_allocations_[i].size));
       }
+
+      if (enable_decommit_on_idle_) {
+        SB_LOG(INFO) << "Batched free triggered idle state, decommitting "
+                     << fallback_allocations_.size()
+                     << " fallback allocations.";
+        for (const auto& fallback_allocation : fallback_allocations_) {
+          fallback_allocator_->Decommit(fallback_allocation.address,
+                                        fallback_allocation.size);
+        }
+      }
     } else {
       for (auto address_to_free : pending_frees_) {
         bool freed = TryFree(address_to_free);
@@ -362,6 +372,15 @@ bool InPlaceReuseAllocatorBase::TryFree(void* memory) {
   total_allocated_in_bytes_ -= block.size();
   --total_allocated_blocks_;
 
+  if (enable_decommit_on_idle_ && total_allocated_in_bytes_ == 0) {
+    SB_LOG(INFO) << "Allocator reached idle state, decommitting "
+                 << fallback_allocations_.size() << " fallback allocations.";
+    for (const auto& fallback_allocation : fallback_allocations_) {
+      fallback_allocator_->Decommit(fallback_allocation.address,
+                                    fallback_allocation.size);
+    }
+  }
+
   return true;
 }
 
@@ -369,10 +388,12 @@ InPlaceReuseAllocatorBase::InPlaceReuseAllocatorBase(
     Allocator* fallback_allocator,
     size_t initial_capacity,
     size_t allocation_increment,
-    size_t max_capacity)
+    size_t max_capacity,
+    bool enable_decommit_on_idle)
     : fallback_allocator_(fallback_allocator),
       allocation_increment_(allocation_increment),
-      max_capacity_in_bytes_(max_capacity) {
+      max_capacity_in_bytes_(max_capacity),
+      enable_decommit_on_idle_(enable_decommit_on_idle) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
     SB_DCHECK(iter != free_blocks_.end());
@@ -392,7 +413,7 @@ InPlaceReuseAllocatorBase::~InPlaceReuseAllocatorBase() {
   SB_LOG_IF(ERROR, allocated_block_head_ != nullptr)
       << total_allocated_blocks_ << " blocks still allocated.";
 
-  for (auto fallback_allocation : fallback_allocations_) {
+  for (const auto& fallback_allocation : fallback_allocations_) {
     fallback_allocator_->Free(fallback_allocation.address);
   }
 }

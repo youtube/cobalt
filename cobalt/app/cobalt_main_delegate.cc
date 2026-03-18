@@ -42,13 +42,18 @@
 namespace cobalt {
 
 CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
-    : content::ShellMainDelegate(is_content_browsertests) {}
+    : content::ShellMainDelegate(is_content_browsertests), deep_link_("") {}
+
+CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link)
+    : content::ShellMainDelegate(/*is_content_browsertests=*/false),
+      deep_link_(initial_deep_link ? initial_deep_link : "") {}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
 absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(14);
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(14);
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
@@ -59,7 +64,7 @@ absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
-  browser_client_ = std::make_unique<CobaltContentBrowserClient>();
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>(deep_link_);
   return browser_client_.get();
 }
 
@@ -83,7 +88,8 @@ CobaltMainDelegate::CreateContentUtilityClient() {
 absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(15);
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(15);
 #endif
   content::RenderFrameHost::AllowInjectingJavaScript();
 
@@ -126,7 +132,8 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
 #if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()->SetStartupMilestone(16);
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(16);
 #endif
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {

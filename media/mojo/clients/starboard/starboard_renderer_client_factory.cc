@@ -51,13 +51,8 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
               ? kAudioWriteDurationRemote.Get()
               : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
-      enable_flush_during_seek_(traits->enable_flush_during_seek),
-      enable_reset_audio_decoder_(traits->enable_reset_audio_decoder),
-      initial_max_frames_in_decoder_(traits->initial_max_frames_in_decoder),
-      max_pending_input_frames_(traits->max_pending_input_frames),
-      video_decoder_poll_interval_ms_(traits->video_decoder_poll_interval_ms),
-      viewport_size_(traits->viewport_size),
-      bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
+      experimental_features_(traits->experimental_features),
+      viewport_size_(traits->viewport_size) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
 
@@ -74,7 +69,6 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   DCHECK(mojo_renderer_factory_);
-  DCHECK(bind_host_receiver_callback_);
 
   mojo::PendingReceiver<mojom::MediaLog> media_log_pending_receiver;
   auto media_log_pending_remote =
@@ -112,9 +106,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   StarboardRendererConfig config(
       overlay_factory->overlay_plane_id(), audio_write_duration_local_,
       audio_write_duration_remote_, max_video_capabilities_,
-      enable_flush_during_seek_, enable_reset_audio_decoder_,
-      initial_max_frames_in_decoder_, max_pending_input_frames_,
-      video_decoder_poll_interval_ms_, viewport_size_);
+      experimental_features_, viewport_size_);
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
           std::move(media_log_pending_remote), config,
@@ -126,8 +118,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       media_task_runner, media_log_->Clone(), std::move(mojo_renderer),
       std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
-      std::move(client_extension_receiver), bind_host_receiver_callback_,
-      gpu_factories
+      std::move(client_extension_receiver), gpu_factories
 #if BUILDFLAG(IS_ANDROID)
       ,
       std::move(request_overlay_info_cb)

@@ -23,8 +23,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
-#include "media/starboard/bind_host_receiver_callback.h"
-#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
+#include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -38,8 +37,10 @@ namespace {
 
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
+// TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
+// TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
@@ -48,8 +49,22 @@ const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
     "Media.VideoInitialMaxFramesInDecoder";
 const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
     "Media.VideoMaxPendingInputFrames";
+const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
+    "Media.VideoDecoderInitialPrerollCount";
 const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
     "Media.VideoDecoderPollIntervalMs";
+const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
+    "Media.VideoRendererMinInputBuffers";
+const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
+    "Media.VideoRendererMinDecodedFrames";
+const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
+    "Media.MaxSamplesPerWrite";
+const char kH5vccSettingsKeyMediaMediaCodecResetDelayMs[] =
+    "Media.MediaCodecResetDelayMs";
+const char kH5vccSettingsKeyMediaPauseUsingAudioTrackState[] =
+    "Media.PauseUsingAudioTrackState";
+const char kH5vccSettingsKeyMediaReportBufferingStateDuringFlush[] =
+    "Media.ReportBufferingStateDuringFlush";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -59,14 +74,8 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
      switches::kMSEVideoBufferSizeLimitClampMb},
 };
 
-struct ParsedH5vccSettings {
-  bool enable_flush_during_seek = false;
-  bool enable_reset_audio_decoder = false;
-  std::optional<int> initial_max_frames_in_decoder;
-  std::optional<int> max_pending_input_frames;
-  std::optional<int> video_decoder_poll_interval_ms;
-};
-
+using ExperimentalFeatures =
+    ::media::StarboardRendererConfig::ExperimentalFeatures;
 using H5vccSettingValue = std::variant<std::string, int64_t>;
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
@@ -118,10 +127,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
       ::media::EME_CODEC_AC3 | ::media::EME_CODEC_EAC3;
   // TODO(b/375232937) Add IAMF
   return codecs;
-}
-
-void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
-  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
 // TODO: b/460292554 - This code is a tentative solution, and will be replaced
@@ -182,6 +187,7 @@ const T* GetSettingValue(
 
 constexpr int kMaxFramesInDecoderLimit = 10'000;
 constexpr int kMaxVideoDecoderPollIntervalMs = 60'000;  // 1 minute.
+constexpr int kMaxMediaCodecResetDelayMs = 1'000;       // 1 second.
 // Experiment framework uses 0 as the sentinel value for unset.
 // e.g.)
 // http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
@@ -210,13 +216,15 @@ std::optional<int> ProcessRangedIntH5vccSetting(
   return static_cast<int>(*val);
 }
 
-ParsedH5vccSettings ProcessH5vccSettings(
+ExperimentalFeatures ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
-  ParsedH5vccSettings parsed;
+  ExperimentalFeatures parsed;
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
     bool enable_allocate_on_demand = *val != 0;
-    media::DecoderBuffer::EnableAllocateOnDemand(enable_allocate_on_demand);
+    auto* allocator = media::DecoderBufferAllocator::Get();
+    CHECK(allocator);
+    allocator->SetAllocateOnDemand(enable_allocate_on_demand);
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
@@ -226,6 +234,14 @@ ParsedH5vccSettings ProcessH5vccSettings(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
   }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaPauseUsingAudioTrackState)) {
+    parsed.pause_using_audio_track_state = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaReportBufferingStateDuringFlush)) {
+    parsed.report_buffering_state_during_flush = *val != 0;
+  }
 
   parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder,
@@ -233,9 +249,24 @@ ParsedH5vccSettings ProcessH5vccSettings(
   parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, /*min_val=*/1,
       kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
+  parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
       kMaxVideoDecoderPollIntervalMs, kH5vccUnsetSentinel);
+  parsed.video_renderer_min_input_buffers = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoRendererMinInputBuffers,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.video_renderer_min_decoded_frames = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
+      /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.media_codec_reset_delay_ms = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaMediaCodecResetDelayMs,
+      /*min_val=*/0, kMaxMediaCodecResetDelayMs, kH5vccUnsetSentinel);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
@@ -244,11 +275,6 @@ ParsedH5vccSettings ProcessH5vccSettings(
 }
 
 }  // namespace
-
-static_assert(std::is_same<::media::BindHostReceiverCallback,
-                           base::RepeatingCallback<
-                               decltype(BindHostReceiverWithValuation)>>::value,
-              "These two types must be the same");
 
 CobaltContentRendererClient::CobaltContentRendererClient() {
   DETACH_FROM_THREAD(thread_checker_);
@@ -354,12 +380,6 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   communication->RunScriptsAtDocumentStart();
 }
 
-void CobaltContentRendererClient::BindHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  BindHostReceiverWithValuation(std::move(receiver));
-}
-
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     media::RendererFactoryTraits* renderer_factory_traits) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -375,29 +395,14 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   }
 
   cobalt::mojom::SettingsPtr settings;
-  ParsedH5vccSettings parsed;
+  ExperimentalFeatures experimental_features;
   if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
-    parsed = ProcessH5vccSettings(h5vcc_settings);
+    experimental_features = ProcessH5vccSettings(h5vcc_settings);
   }
-  // TODO: b/474454335 - Remove once experiments are done.
-  renderer_factory_traits->enable_flush_during_seek =
-      parsed.enable_flush_during_seek;
-  renderer_factory_traits->enable_reset_audio_decoder =
-      parsed.enable_reset_audio_decoder;
-  renderer_factory_traits->initial_max_frames_in_decoder =
-      parsed.initial_max_frames_in_decoder;
-  renderer_factory_traits->max_pending_input_frames =
-      parsed.max_pending_input_frames;
-  renderer_factory_traits->video_decoder_poll_interval_ms =
-      parsed.video_decoder_poll_interval_ms;
+  renderer_factory_traits->experimental_features = experimental_features;
 
   renderer_factory_traits->viewport_size = viewport_size_;
-  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
-  renderer_factory_traits->bind_host_receiver_callback =
-      base::BindPostTaskToCurrentDefault(
-          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
-                              weak_factory_.GetWeakPtr()));
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

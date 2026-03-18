@@ -32,6 +32,8 @@ class CORE_EXPORT PerformanceExtensions final {
   // Web-exposed interface:
   static uint64_t measureAvailableCpuMemory(ScriptState*, const Performance&);
   static uint64_t measureUsedCpuMemory(ScriptState*, const Performance&);
+  static uint64_t measureUsedSwapMemory(ScriptState*, const Performance&);
+  static uint64_t measureReservedVirtualMemory(ScriptState*, const Performance&);
   static ScriptPromise getAppStartupTime(ScriptState*,
                                          const Performance&,
                                          ExceptionState&);

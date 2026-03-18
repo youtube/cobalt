@@ -30,6 +30,8 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
   explicit CobaltMainDelegate(bool is_content_browsertests = false);
 
+  explicit CobaltMainDelegate(const char* initial_deep_link = nullptr);
+
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
 
@@ -63,6 +65,8 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
   std::unique_ptr<CobaltContentUtilityClient> utility_client_;
+
+  std::string deep_link_;
 
   void InitializeHangWatcher();
 };

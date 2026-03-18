@@ -3,7 +3,7 @@ package dev.cobalt.shell;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class crashes the application if scheduled and not disarmed
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class StartupGuard {
     private final Handler handler;
     private final Runnable crashRunnable;
-    private final AtomicInteger startupStatus = new AtomicInteger(0);
+    private final AtomicLong startupStatus = new AtomicLong(0L);
 
     private static class LazyHolder {
         private static final StartupGuard INSTANCE = new StartupGuard();
@@ -35,7 +35,7 @@ public class StartupGuard {
             @Override
             public void run() {
                 throw new RuntimeException(
-                        "Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x" + Integer.toHexString(startupStatus.get()));
+                        "Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x" + Long.toHexString(startupStatus.get()));
             }
         };
     }
@@ -50,15 +50,15 @@ public class StartupGuard {
 
     /**
      * Sets a milestone bit in the startup status.
-     * @param milestone The milestone to set, 0-indexed.
+     * @param milestone The milestone to set, 0-indexed (0-63).
      */
     public void setStartupMilestone(int milestone) {
-        if (milestone < 0 || milestone >= 32) {
+        if (milestone < 0 || milestone >= 64) {
             Log.e(TAG, "Invalid milestone: " + milestone);
             return;
         }
         Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
-        int mask = 1 << milestone;
+        long mask = 1L << milestone;
         startupStatus.updateAndGet(current -> current | mask);
     }
 
@@ -81,7 +81,7 @@ public class StartupGuard {
     public void disarm() {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
-            Log.i(TAG, "StartupGuard cancelled crash. Status: 0x" + Integer.toHexString(startupStatus.get()));
+            Log.i(TAG, "StartupGuard cancelled crash. Status: 0x" + Long.toHexString(startupStatus.get()));
         }
     }
 }
