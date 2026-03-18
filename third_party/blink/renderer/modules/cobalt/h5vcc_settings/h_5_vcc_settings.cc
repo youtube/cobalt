@@ -71,7 +71,7 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
       resolver->Reject(V8ThrowException::CreateTypeError(
           script_state->GetIsolate(),
           String("The value for '") + kMediaAppendFirstSegmentSynchronously +
-                 "' must be a number."));
+              "' must be a number."));
     }
     return promise;
   }
