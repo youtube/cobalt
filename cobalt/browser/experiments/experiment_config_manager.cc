@@ -23,6 +23,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/version.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
 
@@ -206,6 +207,9 @@ void ExperimentConfigManager::StoreSafeConfig() {
   experiment_config_->SetString(
       kSafeConfigActiveConfigData,
       experiment_config_->GetString(kExperimentConfigActiveConfigData));
+  experiment_config_->SetString(
+      kSafeConfigMinVersion,
+      experiment_config_->GetString(kExperimentConfigMinVersion));
   experiment_config_->CommitPendingWrite();
   called_store_safe_config_ = true;
 }

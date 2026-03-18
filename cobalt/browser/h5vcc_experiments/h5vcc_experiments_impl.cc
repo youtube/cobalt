@@ -23,6 +23,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/version.h"
 #include "components/metrics/clean_exit_beacon.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -109,6 +110,8 @@ void H5vccExperimentsImpl::SetExperimentState(
       std::move(
           experiment_config.Find(cobalt::kExperimentConfigActiveConfigData)
               ->GetString()));
+  experiment_config_ptr->SetString(cobalt::kExperimentConfigMinVersion,
+                                   COBALT_VERSION);
   experiment_config_ptr->SetString(
       cobalt::kLatestConfigHash,
       std::move(
