@@ -23,9 +23,9 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -131,6 +131,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
   if (result != 0) {
+    LOG(ERROR) << "PreMainMessageLoopRun failed with result: " << result
+               << ". Aborting storage migration.";
     return result;
   }
 
@@ -204,8 +206,8 @@ void CobaltBrowserMainParts::ConfigureAsyncDnsAndDoH() {
                                : net::SecureDnsMode::kOff;
 
     network_service->ConfigureStubHostResolver(
-        /*insecure_dns_client_enabled=*/true,
-        secure_dns_mode, doh_config ? *doh_config : net::DnsOverHttpsConfig(),
+        /*insecure_dns_client_enabled=*/true, secure_dns_mode,
+        doh_config ? *doh_config : net::DnsOverHttpsConfig(),
         /*additional_dns_types_enabled=*/true);
   }
 }

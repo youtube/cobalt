@@ -83,7 +83,8 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
         ShellBrowserContext* browserContext =
             ShellContentBrowserClient::Get()->browser_context();
         Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
-                               switches::ShouldCreateSplashScreen(), deeplink_url);
+                               switches::ShouldCreateSplashScreen(),
+                               deeplink_url);
       },
       std::move(url), std::move(deeplink_url));
 
