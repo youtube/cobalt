@@ -91,6 +91,9 @@ Always run the pretty print utility on this file after editing:
     Records whether the version strings in the Finch config are valid and can be
     parsed correctly. A false value indicates a malformed version string was
     received.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
