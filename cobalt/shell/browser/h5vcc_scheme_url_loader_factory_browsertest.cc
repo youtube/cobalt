@@ -145,17 +145,20 @@ const char kBuiltinSplash[] = "BUILTIN_SPLASH";
 class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     : public H5vccSchemeURLLoaderFactoryBrowserTest {
  public:
-  // Verifies that the splash video is correctly loaded from the cache.
-  // |cache_name|: The name of the cache storage to use.
-  // |query_param|: URL query parameters to append to the fetch request.
-  // |content|: The content to store in the cache.
+  // Verifies that the splash video is correctly loaded from the cache (or falls
+  // back). |cache_name|: The name of the cache storage to use. |query_param|:
+  // URL query parameters to append to the fetch request. |content|: The
+  // optional content to store in the cache. If nullopt, no content is put.
   // |expected_content|: The expected content to be retrieved.
+  // |expected_uma_state|: The expected UMA state metric
+  // (SplashScreenFetchedState). |create_empty_cache|: If true, creates the
+  // cache even if no content is put.
   void VerifySplashVideoFromCacheWithContent(
       const std::string& cache_name,
       const std::string& query_param,
       const std::optional<std::string>& content,
       const std::string& expected_content,
-      int expected_uma_state,
+      SplashScreenFetchedState expected_uma_state,
       bool create_empty_cache = false) {
     base::HistogramTester histogram_tester;
 
@@ -246,7 +249,8 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
   void VerifySplashVideoFromCache(const std::string& cache_name,
                                   const std::string& query_param) {
     VerifySplashVideoFromCacheWithContent(cache_name, query_param, "aaabbbccc",
-                                          "aaabbbccc", 1 /* kOkCache */);
+                                          "aaabbbccc",
+                                          SplashScreenFetchedState::kOkCache);
   }
 
  protected:
@@ -313,20 +317,22 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoNoCache) {
   VerifySplashVideoFromCacheWithContent("default", "", std::nullopt,
-                                        "BUILTIN_SPLASH", 0 /* kOkBuiltIn */);
+                                        "BUILTIN_SPLASH",
+                                        SplashScreenFetchedState::kOkBuiltIn);
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        CacheExistsButResourceMissing) {
-  VerifySplashVideoFromCacheWithContent("default", "", std::nullopt,
-                                        "BUILTIN_SPLASH", 0 /* kOkBuiltIn */,
-                                        /*create_empty_cache=*/true);
+  VerifySplashVideoFromCacheWithContent(
+      "default", "", std::nullopt, "BUILTIN_SPLASH",
+      SplashScreenFetchedState::kOkBuiltIn, /*create_empty_cache=*/true);
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        CacheExistsWithEmptyResource) {
-  VerifySplashVideoFromCacheWithContent("default", "", "", "BUILTIN_SPLASH",
-                                        2 /* kErrorOnCacheEmptyContent */);
+  VerifySplashVideoFromCacheWithContent(
+      "default", "", "", "BUILTIN_SPLASH",
+      SplashScreenFetchedState::kErrorOnCacheEmptyContent);
 }
 
 // If not specified, use cache "default".
@@ -349,8 +355,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
   // Set a smaller size for testing.
   H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(150);
   std::string large_content(151, 'x');
-  VerifySplashVideoFromCacheWithContent("default", "", large_content,
-                                        "BUILTIN_SPLASH",
-                                        3 /* kErrorOnCacheFileOversize */);
+  VerifySplashVideoFromCacheWithContent(
+      "default", "", large_content, "BUILTIN_SPLASH",
+      SplashScreenFetchedState::kErrorOnCacheFileOversize);
 }
 }  // namespace content

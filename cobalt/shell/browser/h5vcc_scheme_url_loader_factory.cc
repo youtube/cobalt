@@ -73,17 +73,6 @@ const char kH5vccContentSecurityPolicy[] =
     "connect-src 'self' blob: data: %s:;";
 }  // namespace
 
-// An enum for UMA histogram to indicate the state of retrieving splash screen
-enum class SplashScreenFetchedState {
-  kOkBuiltIn = 0,
-  kOkCache = 1,
-  kErrorOnCacheEmptyContent = 2,
-  kErrorOnCacheFileOversize = 3,
-  kErrorOnReadCache = 4,
-  kErrorOnResourceNotFound = 5,
-  kMaxValue = kErrorOnResourceNotFound,
-};
-
 class BlobReader : public blink::mojom::BlobReaderClient {
  public:
   using ContentReadyCallback = base::OnceCallback<void(std::vector<uint8_t>)>;
