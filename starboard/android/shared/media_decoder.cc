@@ -230,7 +230,11 @@ MediaCodecDecoder::MediaCodecDecoder(
     *error_message = media_codec_bridge.error();
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
+    return;
   }
+  SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
+               << ToString(tunnel_mode_enabled_)
+               << ", initial_max_frames=" << initial_max_frames;
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
