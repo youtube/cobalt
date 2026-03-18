@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "build/build_config.h"
@@ -126,8 +127,9 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_, surface_view_, flush_decoder_during_reset_,
-      reset_audio_decoder_, decode_target_graphics_context_provider_, job_queue,
-      drm_system_);
+      reset_audio_decoder_, video_initial_max_frames_in_decoder_,
+      video_max_pending_input_frames_, decode_target_graphics_context_provider_,
+      job_queue, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -562,6 +564,22 @@ void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
   SB_LOG(INFO) << "Set reset_audio_decoder from " << reset_audio_decoder_
                << " to " << reset_audio_decoder;
   reset_audio_decoder_ = reset_audio_decoder;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
+    int video_initial_max_frames_in_decoder) {
+  SB_LOG(INFO) << "Set video_initial_max_frames_in_decoder from "
+               << video_initial_max_frames_in_decoder_ << " to "
+               << video_initial_max_frames_in_decoder;
+  video_initial_max_frames_in_decoder_ = video_initial_max_frames_in_decoder;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
+    int video_max_pending_input_frames) {
+  SB_LOG(INFO) << "Set video_max_pending_input_frames from "
+               << video_max_pending_input_frames_ << " to "
+               << video_max_pending_input_frames;
+  video_max_pending_input_frames_ = video_max_pending_input_frames;
 }
 
 }  // namespace starboard

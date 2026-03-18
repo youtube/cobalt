@@ -147,7 +147,9 @@ class MediaServiceTest : public testing::Test {
                                  "width=1920; height=1080; framerate=15;",
                                  gfx::Size(1920, 1080),
                                  /*enable_flush_during_seek=*/false,
-                                 /*enable_reset_audio_decoder=*/false);
+                                 /*enable_reset_audio_decoder=*/false,
+                                 /*initial_max_frames_in_decoder=*/std::nullopt,
+                                 /*max_pending_input_frames=*/std::nullopt);
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),
       config, renderer_.BindNewPipeAndPassReceiver(),

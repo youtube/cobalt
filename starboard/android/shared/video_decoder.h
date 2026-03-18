@@ -57,8 +57,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
  public:
   class Sink;
   struct FlowControlOptions {
-    std::optional<int> max_pending_input_frames;
     std::optional<int> initial_max_frames_in_decoder;
+    std::optional<int> max_pending_input_frames;
   };
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,

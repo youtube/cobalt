@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "starboard/android/shared/configurate_seek.h"
+#include "starboard/android/shared/video_decoder_configuration_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -210,6 +211,15 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       starboard::GetForceFlushDecoderDuringResetForCurrentThread());
   handler->SetResetAudioDecoder(
       starboard::GetForceResetAudioDecoderForCurrentThread());
+  if (auto initial_max_frames_in_decoder =
+          starboard::GetVideoInitialMaxFramesInDecoderForCurrentThread()) {
+    handler->SetVideoInitialMaxFramesInDecoder(*initial_max_frames_in_decoder);
+  }
+  if (auto max_pending_input_frames =
+          starboard::GetVideoMaxPendingInputFramesForCurrentThread()) {
+    handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
+  }
+
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));

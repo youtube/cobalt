@@ -15,6 +15,7 @@
 #ifndef MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_
 #define MEDIA_BASE_STARBOARD_STARBOARD_RENDERER_CONFIG_H_
 
+#include <optional>
 #include <string>
 
 #include "base/time/time.h"
@@ -33,7 +34,9 @@ struct MEDIA_EXPORT StarboardRendererConfig {
                           const std::string& max_video_capabilities,
                           const gfx::Size& viewport_size,
                           const bool enable_flush_during_seek,
-                          const bool enable_reset_audio_decoder);
+                          const bool enable_reset_audio_decoder,
+                          std::optional<int> initial_max_frames_in_decoder,
+                          std::optional<int> max_pending_input_frames);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -44,6 +47,8 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   gfx::Size viewport_size;
   bool enable_flush_during_seek;
   bool enable_reset_audio_decoder;
+  std::optional<int> initial_max_frames_in_decoder;
+  std::optional<int> max_pending_input_frames;
 };
 
 }  // namespace media
