@@ -40,17 +40,18 @@ jobs:
           git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}" || git fetch origin "${TARGET_BRANCH}"
 
           git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+          git reset --hard "${TARGET_BRANCH}"
 
           # Run the Python script to perform cherry-picks and get PR links from stdout
           PR_LINKS=$(python3 .github/scripts/autoroll_lts.py \
             --target-branch "${TARGET_BRANCH}" \
             --start-commit "${START_COMMIT}")
 
-          if [[ -n "$PR_LINKS" ]]; then
+          if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "$GITHUB_OUTPUT"
             {
               echo "pr_links<<EOF"
-              echo "$PR_LINKS"
+              echo "${PR_LINKS}"
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
           else
@@ -72,12 +73,14 @@ jobs:
             echo ""
             echo "Original pull requests:"
             echo "${PR_LINKS}"
-          } > "$PR_BODY_FILE"
+          } > "${PR_BODY_FILE}"
 
           PR_TITLE="Autoroll from main to ${TARGET_BRANCH}"
 
-          if gh pr view "autoroll-to-${TARGET_BRANCH}" --json number >/dev/null 2>&1; then
-            gh pr edit "autoroll-to-${TARGET_BRANCH}" --title "$PR_TITLE" --body-file "$PR_BODY_FILE"
+          PR_STATE=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
+
+          if [[ "$PR_STATE" == "OPEN" ]]; then
+            gh pr edit "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
           else
-            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-to-${TARGET_BRANCH}" --title "$PR_TITLE" --body-file "$PR_BODY_FILE"
+            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
           fi
