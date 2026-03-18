@@ -47,6 +47,7 @@
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_module.h"
+#include "net/base/url_util.h"
 #include "net/grit/net_resources.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -125,7 +126,9 @@ scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
 
 }  // namespace
 
-ShellBrowserMainParts::ShellBrowserMainParts() = default;
+ShellBrowserMainParts::ShellBrowserMainParts(bool is_visible,
+                                             const std::string& deep_link)
+    : is_visible_(is_visible), deep_link_(deep_link) {}
 
 ShellBrowserMainParts::~ShellBrowserMainParts() = default;
 
@@ -157,7 +160,7 @@ void ShellBrowserMainParts::InitializeMessageLoopContext() {
 #if BUILDFLAG(IS_ANDROID)
                          false /* create_splash_screen_web_contents */
 #else
-                         switches::ShouldCreateSplashScreen()
+                         switches::ShouldCreateSplashScreen(), deep_link_
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 }
@@ -195,7 +198,7 @@ void ShellBrowserMainParts::PostCreateThreads() {
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
-  Shell::Initialize(CreateShellPlatformDelegate());
+  Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
   InitializeMessageLoopContext();

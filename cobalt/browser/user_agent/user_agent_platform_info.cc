@@ -190,7 +190,12 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
 }
 #elif BUILDFLAG(IS_STARBOARD)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
-  const std::string os_name = base::SysInfo::OperatingSystemName();
+  std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_friendly_name =
+      base::starboard::SbSysInfo::OSFriendlyName();
+  if (!os_friendly_name.empty()) {
+    os_name = os_friendly_name + "; " + os_name;
+  }
   const std::string os_version = base::SysInfo::OperatingSystemVersion();
   set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));

@@ -20,6 +20,7 @@
 #include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
+#include "cobalt/version.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/pref_names.h"
@@ -40,10 +41,14 @@ class ExperimentConfigManagerTest : public testing::Test {
         kExperimentConfigFeatures);
     pref_service_->registry()->RegisterDictionaryPref(
         kExperimentConfigFeatureParams);
+    pref_service_->registry()->RegisterStringPref(kExperimentConfigMinVersion,
+                                                  std::string());
     pref_service_->registry()->RegisterStringPref(kSafeConfigActiveConfigData,
                                                   std::string());
     pref_service_->registry()->RegisterDictionaryPref(kSafeConfigFeatures);
     pref_service_->registry()->RegisterDictionaryPref(kSafeConfigFeatureParams);
+    pref_service_->registry()->RegisterStringPref(kSafeConfigMinVersion,
+                                                  std::string());
     pref_service_->registry()->RegisterDictionaryPref(kFinchParameters);
     pref_service_->registry()->RegisterTimePref(
         variations::prefs::kVariationsLastFetchTime, base::Time());

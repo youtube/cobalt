@@ -81,6 +81,7 @@ void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void PopulateCobaltFrameBinders(
+    absl::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
 // We want to use the Java Mojo implementation for 1P ATV only.
@@ -102,8 +103,8 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
   binder_map->Add<h5vcc_runtime::mojom::H5vccRuntime>(
       base::BindRepeating(&h5vcc_runtime::H5vccRuntimeImpl::Create));
-  binder_map->Add<performance::mojom::CobaltPerformance>(
-      base::BindRepeating(&performance::PerformanceImpl::Create));
+  binder_map->Add<performance::mojom::CobaltPerformance>(base::BindRepeating(
+      &performance::PerformanceImpl::Create, app_startup_timestamp));
 #if BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
