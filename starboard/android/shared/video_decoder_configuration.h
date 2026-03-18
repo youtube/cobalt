@@ -15,10 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_
 
-namespace starboard::android::shared {
+namespace starboard {
 
 const void* GetVideoDecoderConfigurationApi();
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_

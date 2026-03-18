@@ -34,14 +34,10 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
       audio_write_duration_remote, max_video_capabilities,
-<<<<<<< HEAD
       gfx::Size(1920, 1080), enable_flush_during_seek,
-      enable_reset_audio_decoder);
-=======
-      enable_flush_during_seek, enable_reset_audio_decoder,
+      enable_reset_audio_decoder,
       /*initial_max_frames_in_decoder=*/std::nullopt,
-      /*max_pending_input_frames=*/std::nullopt, gfx::Size(1920, 1080));
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
+      /*max_pending_input_frames=*/std::nullopt);
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);

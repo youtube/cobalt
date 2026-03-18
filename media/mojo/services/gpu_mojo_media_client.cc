@@ -100,12 +100,8 @@ StarboardRendererTraits::StarboardRendererTraits(
     const gfx::Size& viewport_size,
     const bool enable_flush_during_seek,
     const bool enable_reset_audio_decoder,
-<<<<<<< HEAD
-=======
     std::optional<int> initial_max_frames_in_decoder,
     std::optional<int> max_pending_input_frames,
-    const gfx::Size& viewport_size,
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -122,12 +118,8 @@ StarboardRendererTraits::StarboardRendererTraits(
       viewport_size(viewport_size),
       enable_flush_during_seek(enable_flush_during_seek),
       enable_reset_audio_decoder(enable_reset_audio_decoder),
-<<<<<<< HEAD
-=======
       initial_max_frames_in_decoder(initial_max_frames_in_decoder),
       max_pending_input_frames(max_pending_input_frames),
-      viewport_size(viewport_size),
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
@@ -319,12 +311,8 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       config.audio_write_duration_local, config.audio_write_duration_remote,
       config.max_video_capabilities, config.viewport_size,
       config.enable_flush_during_seek, config.enable_reset_audio_decoder,
-<<<<<<< HEAD
-      std::move(renderer_extension_receiver),
-=======
       config.initial_max_frames_in_decoder, config.max_pending_input_frames,
-      config.viewport_size, std::move(renderer_extension_receiver),
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
+      std::move(renderer_extension_receiver),
       std::move(client_extension_remote), base::BindRepeating(
         &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
   return CreatePlatformStarboardRenderer(std::move(traits));

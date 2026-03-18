@@ -329,7 +329,6 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   bool rendered_;
 };
 
-<<<<<<< HEAD
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
 MediaCodecVideoDecoder::Create(JobQueue* job_queue,
                                const VideoStreamInfo& video_stream_info,
@@ -394,36 +393,15 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     std::string* error_message)
     : JobOwner(job_queue),
       video_codec_(video_stream_info.codec),
-=======
-VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
-                           SbDrmSystem drm_system,
-                           SbPlayerOutputMode output_mode,
-                           SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider,
-                           const std::string& max_video_capabilities,
-                           int tunnel_mode_audio_session_id,
-                           bool force_secure_pipeline_under_tunnel_mode,
-                           bool force_reset_surface,
-                           bool force_reset_surface_under_tunnel_mode,
-                           bool force_big_endian_hdr_metadata,
-                           int max_video_input_size,
-                           void* surface_view,
-                           bool enable_flush_during_seek,
-                           int64_t reset_delay_usec,
-                           int64_t flush_delay_usec,
-                           const ExperimentalFeatures& experimental_features,
-                           std::string* error_message)
-    : video_codec_(video_stream_info.codec),
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       initial_max_frames_in_decoder_(
-          experimental_features.initial_max_frames_in_decoder),
+          flow_control_options.initial_max_frames_in_decoder),
       max_pending_inputs_size_(
-          experimental_features.max_pending_input_frames.value_or(
+          flow_control_options.max_pending_input_frames.value_or(
               kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),

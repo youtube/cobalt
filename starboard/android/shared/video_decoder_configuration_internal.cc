@@ -20,7 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -96,4 +96,4 @@ void SetVideoMaxPendingInputFramesForCurrentThread(
                                max_pending_input_frames);
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

@@ -17,7 +17,7 @@
 #include "starboard/android/shared/video_decoder_configuration_internal.h"
 #include "starboard/extension/video_decoder_configuration.h"
 
-namespace starboard::android::shared {
+namespace starboard {
 
 namespace {
 
@@ -38,4 +38,4 @@ const void* GetVideoDecoderConfigurationApi() {
   return &kVideoDecoderConfigurationApi;
 }
 
-}  // namespace starboard::android::shared
+}  // namespace starboard

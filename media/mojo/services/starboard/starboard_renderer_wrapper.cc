@@ -44,14 +44,9 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.max_video_capabilities,
           traits.viewport_size,
           traits.enable_flush_during_seek,
-<<<<<<< HEAD
-          traits.enable_reset_audio_decoder
-=======
           traits.enable_reset_audio_decoder,
           traits.initial_max_frames_in_decoder,
-          traits.max_pending_input_frames,
-          traits.viewport_size
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
+          traits.max_pending_input_frames
 #if BUILDFLAG(IS_ANDROID)
           ,
           std::move(traits.android_overlay_factory_cb)

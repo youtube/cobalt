@@ -17,7 +17,7 @@
 
 #include <optional>
 
-namespace starboard::android::shared {
+namespace starboard {
 
 // Get initial_max_frames_in_decoder via
 // SetVideoInitialMaxFramesInDecoderForCurrentThread().
@@ -37,6 +37,6 @@ std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread();
 void SetVideoMaxPendingInputFramesForCurrentThread(
     int max_pending_input_frames);
 
-}  // namespace starboard::android::shared
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_INTERNAL_H_

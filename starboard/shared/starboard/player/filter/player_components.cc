@@ -99,12 +99,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     void* surface_view,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
-<<<<<<< HEAD
-=======
     std::optional<int> video_initial_max_frames_in_decoder,
     std::optional<int> video_max_pending_input_frames,
-    void* surface_view,
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -116,15 +112,11 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       surface_view_(surface_view),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
-<<<<<<< HEAD
-=======
-      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
-      video_max_pending_input_frames_(video_max_pending_input_frames),
-      surface_view_(surface_view),
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
+      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
+      video_max_pending_input_frames_(video_max_pending_input_frames),
       drm_system_(drm_system) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -141,12 +133,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     void* surface_view,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder,
-<<<<<<< HEAD
-=======
     std::optional<int> video_initial_max_frames_in_decoder,
     std::optional<int> video_max_pending_input_frames,
-    void* surface_view,
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -159,48 +147,20 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       surface_view_(surface_view),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder),
-<<<<<<< HEAD
-=======
-      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
-      video_max_pending_input_frames_(video_max_pending_input_frames),
-      surface_view_(surface_view),
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
+      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
+      video_max_pending_input_frames_(video_max_pending_input_frames),
       drm_system_(drm_system) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
   SB_CHECK(job_queue_);
 }
 
-<<<<<<< HEAD
 NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
-=======
-PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const CreationParameters& that) {
-  this->audio_stream_info_ = that.audio_stream_info_;
-  this->video_stream_info_ = that.video_stream_info_;
-  this->player_ = that.player_;
-  this->output_mode_ = that.output_mode_;
-  this->max_video_input_size_ = that.max_video_input_size_;
-  this->flush_decoder_during_reset_ = that.flush_decoder_during_reset_;
-  this->reset_audio_decoder_ = that.reset_audio_decoder_;
-  this->video_initial_max_frames_in_decoder_ =
-      that.video_initial_max_frames_in_decoder_;
-  this->video_max_pending_input_frames_ = that.video_max_pending_input_frames_;
-  this->surface_view_ = that.surface_view_;
-  this->decode_target_graphics_context_provider_ =
-      that.decode_target_graphics_context_provider_;
-  this->drm_system_ = that.drm_system_;
-}
-
-std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
-    const CreationParameters& creation_parameters,
-    std::string* error_message) {
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_CHECK(creation_parameters.job_queue());

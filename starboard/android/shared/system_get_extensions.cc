@@ -74,7 +74,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetPlayerSetMaxVideoInputSizeApi();
   }
   if (strcmp(name, kStarboardExtensionVideoDecoderConfigurationName) == 0) {
-    return starboard::android::shared::GetVideoDecoderConfigurationApi();
+    return starboard::GetVideoDecoderConfigurationApi();
   }
   if (strcmp(name, kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0) {
     return starboard::GetPlayerSetVideoSurfaceViewApi();

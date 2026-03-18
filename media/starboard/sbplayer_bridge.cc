@@ -765,8 +765,6 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
   }
 
-<<<<<<< HEAD
-=======
   const StarboardExtensionVideoDecoderConfigurationApi*
       video_decoder_configuration_extension =
           static_cast<const StarboardExtensionVideoDecoderConfigurationApi*>(
@@ -787,22 +785,6 @@ void SbPlayerBridge::CreatePlayer() {
               *max_pending_input_frames_);
     }
   }
-
-#if BUILDFLAG(IS_ANDROID)
-  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
-      player_set_video_surface_view_extension =
-          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
-  if (player_set_video_surface_view_extension &&
-      strcmp(player_set_video_surface_view_extension->name,
-             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
-      player_set_video_surface_view_extension->version >= 1) {
-    player_set_video_surface_view_extension
-        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,

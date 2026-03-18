@@ -505,42 +505,25 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-<<<<<<< HEAD
-    // TODO: b/455938352 - Connect this options to h5vcc settings.
     MediaCodecVideoDecoder::FlowControlOptions flow_control_options;
+    flow_control_options.initial_max_frames_in_decoder =
+        creation_parameters.video_initial_max_frames_in_decoder();
+    flow_control_options.max_pending_input_frames =
+        creation_parameters.video_max_pending_input_frames();
+
     auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
-=======
-    VideoDecoder::ExperimentalFeatures experimental_features;
-    experimental_features.initial_max_frames_in_decoder =
-        creation_parameters.video_initial_max_frames_in_decoder();
-    experimental_features.max_pending_input_frames =
-        creation_parameters.video_max_pending_input_frames();
-    auto video_decoder = std::make_unique<VideoDecoder>(
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-<<<<<<< HEAD
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         flow_control_options);
     if (!result) {
       return Failure(result.error());
-=======
-        force_reset_surface, kForceResetSurfaceUnderTunnelMode,
-        force_big_endian_hdr_metadata, max_video_input_size,
-        creation_parameters.surface_view(), enable_flush_during_seek,
-        reset_delay_usec, flush_delay_usec, experimental_features,
-        error_message);
-    if ((*error_message).empty() &&
-        (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
-         video_decoder->is_decoder_created())) {
-      return video_decoder;
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
     }
 
     return result;
@@ -628,14 +611,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 };
 
-<<<<<<< HEAD
-=======
 }  // namespace
-}  // namespace starboard::android::shared
-
-namespace starboard::shared::starboard::player::filter {
-
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
   return std::make_unique<PlayerComponentsFactory>();

@@ -65,12 +65,8 @@ class PlayerComponents {
                          void* surface_view,
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
-<<<<<<< HEAD
-=======
                          std::optional<int> video_initial_max_frames_in_decoder,
                          std::optional<int> video_max_pending_input_frames,
-                         void* surface_view,
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -83,12 +79,8 @@ class PlayerComponents {
                          void* surface_view,
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
-<<<<<<< HEAD
-=======
                          std::optional<int> video_initial_max_frames_in_decoder,
                          std::optional<int> video_max_pending_input_frames,
-                         void* surface_view,
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,

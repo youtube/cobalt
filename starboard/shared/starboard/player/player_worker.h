@@ -107,14 +107,10 @@ class PlayerWorker {
     virtual void SetFlushDecoderDuringReset(
         bool flush_decoder_during_reset) = 0;
     virtual void SetResetAudioDecoder(bool reset_audio_decoder) = 0;
-<<<<<<< HEAD
-=======
-    virtual void SetVideoSurfaceView(void* surface_view) = 0;
     virtual void SetVideoInitialMaxFramesInDecoder(
         int video_initial_max_frames_in_decoder) = 0;
     virtual void SetVideoMaxPendingInputFrames(
         int video_max_pending_input_frames) = 0;
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
 
    private:
     Handler(const Handler&) = delete;

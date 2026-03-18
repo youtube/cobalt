@@ -41,13 +41,9 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   gfx::Size viewport_size;
   bool enable_flush_during_seek = false;
   bool enable_reset_audio_decoder = false;
-<<<<<<< HEAD
-  GetSbWindowHandleCallback get_sb_window_handle_callback;
-=======
   std::optional<int> initial_max_frames_in_decoder;
   std::optional<int> max_pending_input_frames;
-  gfx::Size viewport_size;
->>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
+  GetSbWindowHandleCallback get_sb_window_handle_callback;
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 
