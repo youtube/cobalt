@@ -34,10 +34,9 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
 }
 
 // static
-void DecoderBuffer::EnableAllocator(bool enabled) {
+void DecoderBuffer::EnableAllocateOnDemand(bool enabled) {
   CHECK(s_allocator);
-  s_allocator->SetEnabled(enabled);
-  s_use_allocator = enabled;
+  s_allocator->SetAllocateOnDemand(enabled);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
