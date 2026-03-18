@@ -156,10 +156,56 @@ void WriteMigrationSentinelAsync() {
                    base::FilePath sentinel_path = GetMigrationSentinelPath();
                    if (!sentinel_path.empty()) {
                      if (!base::WriteFile(sentinel_path, "1")) {
-                       LOG(ERROR) << "Failed to write migration sentinel file to "
-                                  << sentinel_path.value();
+                       LOG(ERROR)
+                           << "Failed to write migration sentinel file to "
+                           << sentinel_path.value();
                      }
                    }
+                 }));
+}
+
+// Generates the Base64 encoded key used to look up the legacy Starboard storage
+// record for the given URL.
+std::string GetApplicationKey(const GURL& url) {
+  std::string encoded_url;
+  base::Base64UrlEncode(url_matcher::util::Normalize(url).spec(),
+                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                        &encoded_url);
+  return encoded_url;
+}
+
+// Deletes the C25 Starboard Storage Record file from disk.
+// Returns true if the deletion was successful or the record was already
+// invalid.
+bool DeleteLegacyStorageRecord(starboard::StorageRecord* record) {
+  if (!record || !record->IsValid()) {
+    return true;  // Nothing to delete if null or not valid.
+  }
+  if (!record->Delete()) {
+    LOG(ERROR) << "Failed to delete legacy storage record.";
+    return false;
+  }
+  return true;
+}
+
+// Deletes the legacy starboard storage files asynchronously.
+void DeleteLegacyStorageFilesAsync() {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(FROM_HERE, base::BindOnce([]() {
+                   GURL initial_url(switches::GetInitialURL(
+                       *base::CommandLine::ForCurrentProcess()));
+                   if (initial_url.is_valid()) {
+                     std::string partition_key = GetApplicationKey(initial_url);
+                     auto record = std::make_unique<starboard::StorageRecord>(
+                         partition_key.c_str());
+                     DeleteLegacyStorageRecord(record.get());
+                   }
+                   // Also attempt to delete the fallback default record.
+                   auto fallback_record =
+                       std::make_unique<starboard::StorageRecord>();
+                   DeleteLegacyStorageRecord(fallback_record.get());
                  }));
 }
 
@@ -179,7 +225,8 @@ void DeleteOldCacheDirectoryAsync() {
 
             base::FilePath current_cache_path;
             if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
-              LOG(ERROR) << "Failed to get current cache directory. Skipping deletion of old cache path.";
+              LOG(ERROR) << "Failed to get current cache directory. Skipping "
+                            "deletion of old cache path.";
               return;
             }
             if (!old_cache_path.IsParent(current_cache_path) &&
@@ -217,13 +264,19 @@ void DeleteOldCacheDirectoryAsync() {
           }));
 }
 
-// Creates a task that triggers the deletion of old cache directories and writes
-// the migration sentinel file, then immediately advances the migration
-// pipeline.
-Task DeleteOldCacheDirectoryTask() {
+// Triggers the deletion of old cache directories, deletes the legacy storage
+// files, and writes the migration sentinel file.
+void CleanupLegacyFilesAsync() {
+  DeleteOldCacheDirectoryAsync();
+  DeleteLegacyStorageFilesAsync();
+  WriteMigrationSentinelAsync();
+}
+
+// Creates a task that runs the legacy files cleanup and then immediately
+// advances the migration pipeline.
+Task CleanupLegacyFilesTask() {
   return base::BindOnce([](base::OnceClosure callback) {
-    DeleteOldCacheDirectoryAsync();
-    WriteMigrationSentinelAsync();
+    CleanupLegacyFilesAsync();
     std::move(callback).Run();
   });
 }
@@ -247,19 +300,9 @@ Task RecordMigrationDurationTask(
 // Legacy Storage Reader
 // ============================================================================
 
-// Generates the Base64 encoded key used to look up the legacy Starboard storage
-// record for the given URL.
-std::string GetApplicationKey(const GURL& url) {
-  std::string encoded_url;
-  base::Base64UrlEncode(url_matcher::util::Normalize(url).spec(),
-                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
-                        &encoded_url);
-  return encoded_url;
-}
-
 // Reads the legacy Starboard storage record from disk and parses it into a
 // cobalt::storage::Storage protobuf.
-std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
+std::unique_ptr<cobalt::storage::Storage> ReadAndParseLegacyStorageRecord() {
   // Legacy Storage records start with the header 'SAV1'.
   constexpr char kRecordHeader[] = "SAV1";
   constexpr size_t kRecordHeaderSize = 4;
@@ -279,7 +322,6 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
     if (!record->IsValid()) {
-      record->Delete();
       bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
       if (!fallback) {
         result = StorageReadResult::kPartitionKeyNotDefault;
@@ -288,14 +330,12 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
 
       record = std::make_unique<starboard::StorageRecord>();
       if (!record->IsValid()) {
-        record->Delete();
         result = StorageReadResult::kRecordInvalid;
         return;
       }
     }
 
     if (record->GetSize() < kRecordHeaderSize) {
-      record->Delete();
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -304,13 +344,6 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
-    if (!record->Delete()) {
-      LOG(ERROR)
-          << "Failed to delete legacy storage record. Aborting migration "
-             "to prevent overwrite loop.";
-      result = StorageReadResult::kDeleteFailed;
-      return;
-    }
     if (read_result != bytes.size()) {
       result = StorageReadResult::kReadMismatch;
       return;
@@ -457,12 +490,11 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   }
   url::Origin origin = url::Origin::Create(initial_url);
 
-  auto storage = ReadStorage();
+  auto storage = ReadAndParseLegacyStorageRecord();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
     LOG(INFO) << "Nothing to migrate.";
-    DeleteOldCacheDirectoryAsync();
-    WriteMigrationSentinelAsync();
+    CleanupLegacyFilesAsync();
     std::move(done_callback).Run();
     return;
   }
@@ -480,7 +512,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   tasks.push_back(LocalStorageTask(partition, origin,
                                    ToLocalStorageItems(origin, *storage)));
   tasks.push_back(RecordMigrationDurationTask(std::move(elapsed_timer)));
-  tasks.push_back(DeleteOldCacheDirectoryTask());
+  tasks.push_back(CleanupLegacyFilesTask());
 
   // Execute the chained tasks. The done_callback will be invoked when all
   // steps, including async background work, have completed.
