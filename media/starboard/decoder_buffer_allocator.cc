@@ -32,19 +32,24 @@
 
 namespace media {
 
-DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
-    : DecoderBufferAllocator(type,
-                             SbMediaIsBufferPoolAllocateOnDemand(),
+namespace {
+
+const char* ToString(bool value) {
+  return value ? "enabled" : "disabled";
+}
+
+}  // namespace
+
+DecoderBufferAllocator::DecoderBufferAllocator()
+    : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
                              SbMediaGetInitialBufferCapacity(),
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
-    Type type,
     bool is_memory_pool_allocated_on_demand,
     int initial_capacity,
     int allocation_unit)
-    : type_(type),
-      is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
+    : is_memory_pool_allocated_on_demand_(is_memory_pool_allocated_on_demand),
       initial_capacity_(initial_capacity),
       allocation_unit_(allocation_unit) {
   DCHECK_GE(initial_capacity_, 0);
@@ -52,24 +57,14 @@ DecoderBufferAllocator::DecoderBufferAllocator(
 
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated media buffer pool on demand.";
-    if (type_ == Type::kGlobal) {
-      Allocator::Set(this);
-    }
     return;
   }
 
   base::AutoLock scoped_lock(mutex_);
   EnsureStrategyIsCreated();
-  if (type_ == Type::kGlobal) {
-    Allocator::Set(this);
-  }
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-  if (type_ == Type::kGlobal) {
-    Allocator::Set(nullptr);
-  }
-
   base::AutoLock scoped_lock(mutex_);
 
   if (strategy_) {
@@ -79,11 +74,10 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
-
-  base::AutoLock scoped_lock(mutex_);
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
@@ -93,11 +87,11 @@ void DecoderBufferAllocator::Suspend() {
 }
 
 void DecoderBufferAllocator::Resume() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
-  base::AutoLock scoped_lock(mutex_);
   EnsureStrategyIsCreated();
 }
 
@@ -152,10 +146,6 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 }
 
-int DecoderBufferAllocator::GetAudioBufferBudget() const {
-  return SbMediaGetAudioBufferBudget();
-}
-
 int DecoderBufferAllocator::GetBufferAlignment() const {
   return sizeof(void*);
 }
@@ -168,25 +158,6 @@ base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
   return base::Microseconds(
       SbMediaGetBufferGarbageCollectionDurationThreshold());
-}
-
-int DecoderBufferAllocator::GetProgressiveBufferBudget(
-    VideoCodec codec,
-    int resolution_width,
-    int resolution_height,
-    int bits_per_pixel) const {
-  return SbMediaGetProgressiveBufferBudget(
-      MediaVideoCodecToSbMediaVideoCodec(codec), resolution_width,
-      resolution_height, bits_per_pixel);
-}
-
-int DecoderBufferAllocator::GetVideoBufferBudget(VideoCodec codec,
-                                                 int resolution_width,
-                                                 int resolution_height,
-                                                 int bits_per_pixel) const {
-  return SbMediaGetVideoBufferBudget(MediaVideoCodecToSbMediaVideoCodec(codec),
-                                     resolution_width, resolution_height,
-                                     bits_per_pixel);
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
@@ -254,5 +225,27 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
   }
 }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
+  base::AutoLock scoped_lock(mutex_);
+  if (is_memory_pool_allocated_on_demand_ == enabled) {
+    return;
+  }
+
+  LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
+            << ToString(is_memory_pool_allocated_on_demand_) << " -> "
+            << ToString(enabled);
+
+  is_memory_pool_allocated_on_demand_ = enabled;
+  // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
+  // reset the strategy.
+  if (is_memory_pool_allocated_on_demand_ && strategy_ &&
+      strategy_->GetAllocated() == 0) {
+    LOG(INFO) << "Freed " << strategy_->GetCapacity()
+              << " bytes of media buffer pool since allocator now allocates on "
+                 "demand.";
+    strategy_.reset();
+  }
+}
 
 }  // namespace media

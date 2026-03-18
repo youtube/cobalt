@@ -25,6 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/once.h"
+#include "starboard/common/string.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -255,7 +256,7 @@ void MimeSupportabilityCache::DumpCache() {
         ss << "\n    Height : " << video_info.frame_height;
         ss << "\n    Fps : " << video_info.fps;
         ss << "\n    DecodeToTexture : "
-           << to_string(video_info.decode_to_texture_required);
+           << ToString(video_info.decode_to_texture_required);
       }
     } else {
       ss << "\n    Mime info is not valid";

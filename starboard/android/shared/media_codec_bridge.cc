@@ -94,7 +94,7 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
   return os << "{display_size=" << size.display_size
-            << ", has_crop_values=" << to_string(size.has_crop_values) << "}";
+            << ", has_crop_values=" << ToString(size.has_crop_values) << "}";
 }
 
 FrameSize::FrameSize()
@@ -230,7 +230,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     return Failure(
         FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
                      static_cast<const char*>(mime),
-                     starboard::to_string(!!j_media_crypto).data()));
+                     starboard::ToString(!!j_media_crypto).data()));
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -299,12 +299,12 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       << __func__ << ": video_codec=" << GetMediaVideoCodecName(video_codec)
       << ", frame_size_hint=" << frame_size_hint << ", fps=" << fps
       << ", max_frame_size=" << max_frame_size
-      << ", has_color_metadata=" << to_string(color_metadata)
-      << ", require_secured_decoder=" << to_string(require_secured_decoder)
-      << ", require_software_codec=" << to_string(require_software_codec)
+      << ", has_color_metadata=" << ToString(!!color_metadata)
+      << ", require_secured_decoder=" << ToString(require_secured_decoder)
+      << ", require_software_codec=" << ToString(require_software_codec)
       << ", tunnel_mode_audio_session_id=" << tunnel_mode_audio_session_id
       << ", force_big_endian_hdr_metadata="
-      << to_string(force_big_endian_hdr_metadata)
+      << ToString(force_big_endian_hdr_metadata)
       << ", max_video_input_size=" << max_video_input_size;
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());

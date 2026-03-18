@@ -64,6 +64,7 @@ group("cobalt_shell_lib_deps") {
     "//base",
     "//base:base_static",
     "//cc/base",
+    "//cobalt/browser:switches",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
@@ -126,7 +127,6 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//services/tracing/public/cpp",
       "//services/tracing/public/mojom:mojom",
-      "//ui/accessibility:ax_base",
     ]
   }
 
@@ -176,7 +176,10 @@ group("cobalt_shell_lib_deps") {
   }
 
   if (is_androidtv) {
-    public_deps += [ "//cobalt/android/oom_intervention" ]
+    public_deps += [
+      "//cobalt/android/oom_intervention",
+      "//cobalt/browser:hang_watcher_delegate",
+    ]
   }
 }
 

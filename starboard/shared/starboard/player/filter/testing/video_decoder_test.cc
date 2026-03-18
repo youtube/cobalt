@@ -148,8 +148,11 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
+                /*surface_view=*/nullptr,
+                /*flush_decoder_during_reset=*/false,
+                /*reset_audio_decoder=*/false,
                 fake_graphics_context_provider_.decoder_target_provider(),
-                nullptr, &job_queue_);
+                &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
                       max_video_input_size);
 

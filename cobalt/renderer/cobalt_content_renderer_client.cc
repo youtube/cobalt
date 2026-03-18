@@ -5,7 +5,11 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
+#include <variant>
 
+#include "base/command_line.h"
+#include "base/containers/flat_map.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -15,10 +19,13 @@
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
@@ -32,6 +39,30 @@
 namespace cobalt {
 
 namespace {
+
+const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
+    "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
+    "Media.EnableFlushDuringSeek";
+const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
+    "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
+    "Media.VideoBufferSizeClampMb";
+
+// Map that stores all current bindings of H5vcc settings to media switches.
+// If a setting has a corresponding switch, we will enable the switch with the
+// corresponding value.
+const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
+    {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
+     switches::kMSEVideoBufferSizeLimitClampMb},
+};
+
+struct ParsedH5vccSettings {
+  bool enable_flush_during_seek = false;
+  bool enable_reset_audio_decoder = false;
+};
+
+using H5vccSettingValue = std::variant<std::string, int64_t>;
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
@@ -89,9 +120,113 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
+void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
+  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
+}
+
+// TODO: b/460292554 - This code is a tentative solution, and will be replaced
+// once base::Feature is fully supported.
+//
+// Append the h5vcc setting to the corresponding media switch, if such mapping
+// exists. H5vcc settings are either pass their value to a media switch for code
+// in /media to use, or are given to Starboard Renderer for direct usage.
+bool AppendSettingToSwitch(const std::string& setting_name,
+                           const H5vccSettingValue& setting_value) {
+  auto it = kH5vccSettingToSwitchMap.find(setting_name);
+  if (it == kH5vccSettingToSwitchMap.end()) {
+    return false;
+  }
+  std::string switch_name = it->second;
+  std::string setting_str;
+  if (auto* val_str = std::get_if<std::string>(&setting_value)) {
+    setting_str = *val_str;
+  } else if (auto* val_int = std::get_if<int64_t>(&setting_value)) {
+    setting_str = base::NumberToString(*val_int);
+  } else {
+    LOG(WARNING) << "Attempted to apply switch " << switch_name
+                 << " but the setting value was not an integer or string.";
+    return false;
+  }
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
+                                                            setting_str);
+  LOG(INFO) << "Applied command line switch: " << switch_name << " = "
+            << setting_str;
+  return true;
+}
+
+std::map<std::string, H5vccSettingValue> ParseH5vccSettings(
+    cobalt::mojom::SettingsPtr settings) {
+  std::map<std::string, H5vccSettingValue> h5vcc_settings;
+  for (auto& [key, value] : settings->settings) {
+    if (value->is_string_value()) {
+      h5vcc_settings.emplace(key, std::move(value->get_string_value()));
+    } else if (value->is_int_value()) {
+      h5vcc_settings.emplace(key, value->get_int_value());
+    } else {
+      NOTREACHED();
+    }
+  }
+  return h5vcc_settings;
+}
+
+template <typename T>
+const T* GetSettingValue(
+    const std::map<std::string, H5vccSettingValue>& settings,
+    const std::string& key) {
+  auto it = settings.find(key);
+  if (it == settings.end()) {
+    return nullptr;
+  }
+  return std::get_if<T>(&it->second);
+}
+
+ParsedH5vccSettings ProcessH5vccSettings(
+    const std::map<std::string, H5vccSettingValue>& settings) {
+  ParsedH5vccSettings parsed;
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
+    bool enable_allocate_on_demand = *val != 0;
+    ::media::DecoderBuffer::EnableAllocateOnDemand(enable_allocate_on_demand);
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
+    parsed.enable_flush_during_seek = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
+    parsed.enable_reset_audio_decoder = *val != 0;
+  }
+
+  for (const auto& [setting_name, setting_value] : settings) {
+    AppendSettingToSwitch(setting_name, setting_value);
+  }
+  return parsed;
+}
+
 }  // namespace
 
-CobaltContentRendererClient::CobaltContentRendererClient() {
+void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
+  CHECK(content::RenderThread::IsMainThread());
+  if (h5vcc_settings_remote_) {
+    return;
+  }
+
+  h5vcc_settings_remote_ = {
+      new mojo::Remote<cobalt::mojom::H5vccSettings>(),
+      base::OnTaskRunnerDeleter(
+          base::SequencedTaskRunner::GetCurrentDefault())};
+  content::RenderThread::Get()->BindHostReceiver(
+      h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
+}
+
+void CobaltContentRendererClient::BindHostReceiver(
+    mojo::GenericPendingReceiver receiver) {
+  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  BindHostReceiverWithValuation(std::move(receiver));
+}
+
+CobaltContentRendererClient::CobaltContentRendererClient()
+    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
@@ -129,6 +264,8 @@ void CobaltContentRendererClient::RenderFrameCreated(
             },
             weak_factory_.GetWeakPtr(), std::move(window_provider))));
   }
+
+  EnsureH5vccSettingsRemoteInitialized();
 }
 
 void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
@@ -145,6 +282,7 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   CHECK(content::RenderThread::IsMainThread());
+
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
@@ -225,6 +363,7 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   CHECK(content::RenderThread::IsMainThread());
+
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   renderer_factory_traits->audio_write_duration_local =
       base::Microseconds(kSbPlayerWriteDurationLocal);
@@ -239,6 +378,26 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
+
+  EnsureH5vccSettingsRemoteInitialized();
+
+  cobalt::mojom::SettingsPtr settings;
+  ParsedH5vccSettings parsed;
+  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
+    auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
+    parsed = ProcessH5vccSettings(h5vcc_settings);
+  }
+  // TODO: b/474454335 - Remove once experiments are done.
+  renderer_factory_traits->enable_flush_during_seek =
+      parsed.enable_flush_during_seek;
+  renderer_factory_traits->enable_reset_audio_decoder =
+      parsed.enable_reset_audio_decoder;
+
+  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
+  renderer_factory_traits->bind_host_receiver_callback =
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
+                              weak_factory_.GetWeakPtr()));
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {

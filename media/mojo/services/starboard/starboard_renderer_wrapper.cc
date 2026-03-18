@@ -42,7 +42,9 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities,
-          traits.viewport_size
+          traits.viewport_size,
+          traits.enable_flush_during_seek,
+          traits.enable_reset_audio_decoder
 #if BUILDFLAG(IS_ANDROID)
           ,
           std::move(traits.android_overlay_factory_cb)
@@ -205,7 +207,9 @@ void StarboardRendererWrapper::OnVideoGeometryChange(
     const gfx::RectF& rect_f,
     gfx::OverlayTransform /* transform */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  gfx::Rect new_bounds = gfx::ToNearestRect(rect_f);
+  // Use gfx::ToEnclosedRect() to align with `NotifyOverlayPromotion()`
+  // in //components/viz/service/display/overlay_processor_android.cc.
+  gfx::Rect new_bounds = gfx::ToEnclosedRect(rect_f);
   GetRenderer()->OnVideoGeometryChange(new_bounds);
 }
 

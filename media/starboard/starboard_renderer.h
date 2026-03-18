@@ -30,6 +30,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -55,7 +56,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
-                    const gfx::Size& viewport_size
+                    const gfx::Size& viewport_size,
+                    bool enable_flush_during_seek,
+                    bool enable_reset_audio_decoder
 #if BUILDFLAG(IS_ANDROID)
                     ,
                     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -142,6 +145,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
+                           int max_buffers,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
@@ -185,7 +189,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const int max_samples_per_write_;
   const gfx::Size viewport_size_;
+  const bool enable_flush_during_seek_;
+  const bool enable_reset_audio_decoder_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -241,8 +248,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   Time last_time_media_time_retrieved_;
 
   bool audio_read_delayed_ = false;
-  // TODO(b/375674101): Support batched samples write.
-  const int max_audio_samples_per_write_ = 1;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 

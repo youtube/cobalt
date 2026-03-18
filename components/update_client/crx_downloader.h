@@ -110,15 +110,15 @@ class CrxDownloader : public base::RefCountedThreadSafe<CrxDownloader> {
   // downloaded to.
   // These functions do not take ownership of |dst|, which must refer to a valid
   // string that outlives this object.
-  void StartDownloadFromUrl(const GURL& url,
+  base::OnceClosure StartDownloadFromUrl(const GURL& url,
                             const std::string& expected_hash,
                             std::string* dst,
                             DownloadCallback download_callback);
-  void StartDownload(const std::vector<GURL>& urls,
+  base::OnceClosure StartDownload(const std::vector<GURL>& urls,
                      const std::string& expected_hash,
                      std::string* dst,
                      DownloadCallback download_callback);
-#endif                     
+#endif
 
 #if BUILDFLAG(IS_STARBOARD)
   void CancelDownload();

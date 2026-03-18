@@ -113,7 +113,9 @@ class SbPlayerBridge {
                  DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
-                 int max_video_input_size
+                 int max_video_input_size,
+                 bool flush_decoder_during_reset,
+                 bool reset_audio_decoder
 #if BUILDFLAG(IS_ANDROID)
                  ,
                  jobject surface_view
@@ -335,6 +337,9 @@ class SbPlayerBridge {
   std::string video_mime_type_;
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
+
+  const bool flush_decoder_during_reset_;
+  const bool reset_audio_decoder_;
 
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
   // Set the maximum size in bytes of an input buffer for video.

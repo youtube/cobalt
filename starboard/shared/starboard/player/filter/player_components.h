@@ -62,6 +62,8 @@ class PlayerComponents {
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
                          void* surface_view,
+                         bool flush_decoder_during_reset,
+                         bool reset_audio_decoder,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -72,6 +74,8 @@ class PlayerComponents {
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
                          void* surface_view,
+                         bool flush_decoder_during_reset,
+                         bool reset_audio_decoder,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -119,6 +123,10 @@ class PlayerComponents {
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
       void* surface_view() const { return surface_view_; }
+      bool flush_decoder_during_reset() const {
+        return flush_decoder_during_reset_;
+      }
+      bool reset_audio_decoder() const { return reset_audio_decoder_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
@@ -143,6 +151,8 @@ class PlayerComponents {
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
       void* surface_view_;
+      bool flush_decoder_during_reset_ = false;
+      bool reset_audio_decoder_ = false;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
       JobQueue* const job_queue_;

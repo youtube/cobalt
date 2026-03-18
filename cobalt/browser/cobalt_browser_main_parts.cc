@@ -42,6 +42,10 @@
 
 namespace cobalt {
 
+CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
+                                               bool is_visible)
+    : ShellBrowserMainParts(deep_link, is_visible) {}
+
 namespace {
 
 void InitializeBrowserMemoryInstrumentationClient() {
