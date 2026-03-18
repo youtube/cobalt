@@ -67,10 +67,12 @@ jobs:
           git push origin "autoroll-to-${TARGET_BRANCH}" --force
 
           PR_BODY_FILE=$(mktemp)
-          echo "Automated cherry-pick roll to ${TARGET_BRANCH}." > "$PR_BODY_FILE"
-          echo "" >> "$PR_BODY_FILE"
-          echo "Original pull requests:" >> "$PR_BODY_FILE"
-          echo "${PR_LINKS}" >> "$PR_BODY_FILE"
+          {
+            echo "Automated cherry-pick roll to ${TARGET_BRANCH}."
+            echo ""
+            echo "Original pull requests:"
+            echo "${PR_LINKS}"
+          } > "$PR_BODY_FILE"
 
           PR_TITLE="Autoroll from main to ${TARGET_BRANCH}"
 
