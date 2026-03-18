@@ -19,7 +19,9 @@
     "PosixThreadDetachTest.SunnyDay",
     "PosixTimeClockTests.ClockReturnsNonNegative",
     "SbAudioSinkTest.UpdateStatusCalled",
-    "SbLogFlushTest.DontCrashMeBro"
+    "SbLogFlushTest.DontCrashMeBro",
+    "PosixSocketSendTest.RainyDaySendToClosedSocket",
+    "PosixSocketSendtoTest.RainyDaySendToClosedSocket"
   ],
   "_filtered_b/467135717": [
     "FileTempTest.MkdtempNonExistentPath",

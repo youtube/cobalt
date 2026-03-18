@@ -86,14 +86,17 @@ void InstallComplete(
     base::OnceCallback<void(const CrxInstaller::Result&)>
         installer_result_callback,
 #if BUILDFLAG(IS_STARBOARD)
-    const OperationResult& crx_operation_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& crx_operation_result,
+#else
     base::FilePath crx_file,
+#endif
     const CrxInstaller::Result& result) {
   event_adder.Run(
       MakeSimpleOperationEvent(result.result, protocol_request::kEventCrx3));
@@ -106,10 +109,8 @@ void InstallComplete(
     return;
   }
 #if BUILDFLAG(IS_STARBOARD)
-  OperationResult result_obj = crx_operation_result;
-  result_obj.response = crx_file;
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), result_obj));
+      FROM_HERE, base::BindOnce(std::move(callback), crx_operation_result));
 #else
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), crx_file));
@@ -174,7 +175,11 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
 
 // Runs on the original sequence.
 void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
+#if BUILDFLAG(IS_STARBOARD)
+            const OperationResult& crx_operation_result,
+#else
             const base::FilePath& crx_file,
+#endif
             std::unique_ptr<Unzipper> unzipper,
             const std::vector<uint8_t>& pk_hash,
             crx_file::VerifierFormat crx_format,
@@ -183,6 +188,17 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
     // Caching is optional: continue with the install, but add a task to clean
     // up crx_file.
     callback = base::BindOnce(
+#if BUILDFLAG(IS_STARBOARD)
+        [](const OperationResult& crx_operation_result,
+           base::OnceCallback<void(const Unpacker::Result&)> callback,
+           const Unpacker::Result& result) {
+          base::ThreadPool::PostTaskAndReply(
+              FROM_HERE, kTaskTraits,
+              base::BindOnce(IgnoreResult(&base::DeleteFile), crx_operation_result.response),
+              base::BindOnce(std::move(callback), result));
+        },
+        crx_operation_result, std::move(callback));
+#else
         [](const base::FilePath& crx_file,
            base::OnceCallback<void(const Unpacker::Result&)> callback,
            const Unpacker::Result& result) {
@@ -192,6 +208,7 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
               base::BindOnce(std::move(callback), result));
         },
         crx_file, std::move(callback));
+#endif
   }
 
   // Unpack the file.
@@ -201,7 +218,11 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
           base::BindOnce(
               &Unpacker::Unpack, pk_hash,
               // If and only if cached, the original path no longer exists.
+#if BUILDFLAG(IS_STARBOARD)
+              crx_operation_result,
+#else
               cache_result.has_value() ? cache_result.value() : crx_file,
+#endif
               std::move(unzipper), crx_format,
               base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
@@ -232,8 +253,16 @@ base::OnceClosure InstallOperation(
         callback) {
   state_tracker.Run(ComponentState::kUpdating);
 #if BUILDFLAG(IS_STARBOARD)
-  const base::FilePath& crx_file = crx_operation_result.response;
-#endif
+  Unpack(
+      base::BindOnce(
+          &Install,
+          base::BindOnce(&InstallComplete, std::move(installer_result_callback),
+                         std::move(callback), event_adder,
+                         crx_operation_result),
+          std::move(install_params), installer, progress_callback),
+      crx_operation_result, std::move(unzipper), pk_hash, crx_format,
+      base::unexpected(UnpackerError::kCrxCacheNotProvided));
+#else
   crx_cache->Put(
       // TODO(crbug.com/399617574): Remove FP.
       crx_file, id, file_hash, /*fp=*/{},
@@ -243,12 +272,10 @@ base::OnceClosure InstallOperation(
               &Install,
               base::BindOnce(&InstallComplete,
                              std::move(installer_result_callback),
-#if BUILDFLAG(IS_STARBOARD)
-                             crx_operation_result,
-#endif
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
           crx_file, std::move(unzipper), pk_hash, crx_format));
+#endif
   return base::DoNothing();
 }
 

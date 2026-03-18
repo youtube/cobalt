@@ -193,9 +193,10 @@ class StarboardRendererTest : public testing::Test {
           /*audio_write_duration_remote=*/base::Seconds(1),
           /*max_video_capabilities=*/"",
           /*viewport_size=*/gfx::Size(),
-          /*h5vcc_settings=*/std::map<std::string, H5vccSettingValue>()
+          /*enable_flush_during_seek=*/false,
+          /*enable_reset_audio_decoder=*/false
 #if BUILDFLAG(IS_ANDROID)
-              ,
+          ,
           /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
       );
