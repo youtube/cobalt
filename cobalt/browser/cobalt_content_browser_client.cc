@@ -34,6 +34,7 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/command_line_logger.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_settings_impl.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
