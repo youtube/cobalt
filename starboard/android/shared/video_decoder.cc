@@ -400,6 +400,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       max_video_capabilities_(max_video_capabilities),
       initial_max_frames_in_decoder_(
           flow_control_options.initial_max_frames_in_decoder),
+      video_decoder_poll_interval_ms_(
+          flow_control_options.video_decoder_poll_interval_ms),
       max_pending_inputs_size_(
           flow_control_options.max_pending_input_frames.value_or(
               kDefaultMaxPendingInputsSize)),
@@ -789,7 +791,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_);
+      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
+      video_decoder_poll_interval_ms_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

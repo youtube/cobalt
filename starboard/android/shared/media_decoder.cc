@@ -36,6 +36,9 @@ const jint kNoOffset = 0;
 const jlong kNoPts = 0;
 const jint kNoBufferFlags = 0;
 
+constexpr int64_t kDefaultVideoDecoderPollIntervalUs = 1'000;         // 1 msec
+constexpr int64_t kDefaultVideoDecoderTunnelPollIntervalUs = 10'000;  // 10 msec
+
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
     case MEDIA_CODEC_OK:
@@ -123,7 +126,8 @@ MediaCodecDecoder::CreateForVideo(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<int> initial_max_frames) {
+    std::optional<int> initial_max_frames,
+    std::optional<int> video_decoder_poll_interval_ms) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -131,7 +135,7 @@ MediaCodecDecoder::CreateForVideo(
       color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      initial_max_frames, &error_message);
+      initial_max_frames, video_decoder_poll_interval_ms, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -149,7 +153,8 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
-      flush_delay_usec_(0) {
+      flush_delay_usec_(0),
+      video_decoder_poll_interval_us_(kDefaultVideoDecoderPollIntervalUs) {
   SB_CHECK(host_);
   SB_CHECK(error_message);
 
@@ -193,6 +198,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<int> initial_max_frames,
+    std::optional<int> video_decoder_poll_interval_ms,
     std::string* error_message)
     : JobOwner(job_queue),
 
@@ -203,6 +209,11 @@ MediaCodecDecoder::MediaCodecDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
+      video_decoder_poll_interval_us_(
+          video_decoder_poll_interval_ms
+              ? static_cast<int64_t>(*video_decoder_poll_interval_ms) * 1'000
+              : (tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
+                                      : kDefaultVideoDecoderPollIntervalUs)),
       decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
         if (!initial_max_frames || tunnel_mode_enabled_) {
           return nullptr;
@@ -234,7 +245,9 @@ MediaCodecDecoder::MediaCodecDecoder(
   }
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
                << ToString(tunnel_mode_enabled_)
-               << ", initial_max_frames=" << initial_max_frames;
+               << ", initial_max_frames=" << initial_max_frames
+               << ", video_decoder_poll_interval(msec)="
+               << video_decoder_poll_interval_us_ / 1'000;
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
@@ -446,16 +459,8 @@ void MediaCodecDecoder::DecoderThreadFunc() {
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
         if (!can_process_input() && dequeue_output_results.empty()) {
-          // Wait for a signal or a timeout. We don't use a predicate here
-          // because the complex conditions are already checked by the
-          // surrounding loop, which will re-evaluate the state when this wait
-          // returns.
-          // Tunnel mode doesn't need Tick() function. It only waits for new
-          // inputs and outputs, so it's safe to wait for longer time.
-          const auto poll_interval = tunnel_mode_enabled_
-                                         ? std::chrono::milliseconds(10)
-                                         : std::chrono::milliseconds(1);
-          condition_variable_.wait_for(lock, poll_interval);
+          condition_variable_.wait_for(
+              lock, std::chrono::microseconds(video_decoder_poll_interval_us_));
         }
       }
     }

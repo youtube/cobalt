@@ -59,6 +59,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   struct FlowControlOptions {
     std::optional<int> initial_max_frames_in_decoder;
     std::optional<int> max_pending_input_frames;
+    std::optional<int> video_decoder_poll_interval_ms;
   };
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,
@@ -163,6 +164,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
   const std::optional<int> initial_max_frames_in_decoder_;
+  const std::optional<int> video_decoder_poll_interval_ms_;
   const size_t max_pending_inputs_size_;
 
   // Android doesn't officially support multi concurrent codecs. But the device

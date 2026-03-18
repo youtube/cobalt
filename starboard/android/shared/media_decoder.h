@@ -99,7 +99,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
-      std::optional<int> initial_max_frames);
+      std::optional<int> initial_max_frames,
+      std::optional<int> video_decoder_poll_interval_ms);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -128,6 +129,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<int> initial_max_frames,
+      std::optional<int> video_decoder_poll_interval_ms,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -222,6 +224,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
+  const int64_t video_decoder_poll_interval_us_;
 
   ErrorCB error_cb_;
 

@@ -52,6 +52,8 @@ const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
     "Media.VideoInitialMaxFramesInDecoder";
 const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
     "Media.VideoMaxPendingInputFrames";
+const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
+    "Media.VideoDecoderPollIntervalMs";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -66,6 +68,7 @@ struct ParsedH5vccSettings {
   bool enable_reset_audio_decoder = false;
   std::optional<int> initial_max_frames_in_decoder;
   std::optional<int> max_pending_input_frames;
+  std::optional<int> video_decoder_poll_interval_ms;
 };
 
 using H5vccSettingValue = std::variant<std::string, int64_t>;
@@ -187,6 +190,7 @@ const T* GetSettingValue(
 }
 
 constexpr int kMaxFramesInDecoderLimit = 10'000;
+constexpr int kMaxVideoDecoderPollIntervalMs = 60'000;  // 1 minute.
 
 std::optional<int> ProcessRangedIntH5vccSetting(
     const std::map<std::string, H5vccSettingValue>& settings,
@@ -228,6 +232,9 @@ ParsedH5vccSettings ProcessH5vccSettings(
   parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, 1,
       kMaxFramesInDecoderLimit);
+  parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, 1,
+      kMaxVideoDecoderPollIntervalMs);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
@@ -428,6 +435,8 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       parsed.initial_max_frames_in_decoder;
   renderer_factory_traits->max_pending_input_frames =
       parsed.max_pending_input_frames;
+  renderer_factory_traits->video_decoder_poll_interval_ms =
+      parsed.video_decoder_poll_interval_ms;
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =
