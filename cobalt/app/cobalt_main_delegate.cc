@@ -187,7 +187,7 @@ void CobaltMainDelegate::PreSandboxStartup() {
       crash_reporter::SetFirstChanceExceptionHandler(
           v8::TryHandleWebAssemblyTrapPosix);
 #endif
-      }
+    }
   }
 
 #if !BUILDFLAG(IS_ANDROIDTV)
