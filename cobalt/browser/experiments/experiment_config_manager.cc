@@ -162,8 +162,6 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
     return ExperimentConfigType::kEmptyConfig;
   }
-<<<<<<< HEAD
-=======
 
   // Check if a rollback happened. If so, apply the empty config.
   std::string recorded_cobalt_version =
@@ -180,7 +178,6 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
     return ExperimentConfigType::kEmptyConfig;
   }
 
->>>>>>> eeba5fc1ad3 (cobalt: Fix rollback version logic (#8839))
   return config_type;
 }
 

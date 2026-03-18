@@ -403,8 +403,6 @@ TEST_F(ExperimentConfigManagerTest,
             ExperimentConfigType::kRegularConfig);
 }
 
-<<<<<<< HEAD
-=======
 TEST_F(ExperimentConfigManagerTest,
        GetExperimentConfigTypeReturnsEmptyOnRegularConfigRollback) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
@@ -599,5 +597,4 @@ TEST_F(ExperimentConfigManagerTest, CompareVersions) {
                                       false, 4);
 }
 
->>>>>>> eeba5fc1ad3 (cobalt: Fix rollback version logic (#8839))
 }  // namespace cobalt
