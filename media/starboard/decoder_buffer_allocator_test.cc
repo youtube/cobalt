@@ -109,11 +109,7 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
         // In the format of "allocate <handle> <buffer_type> <size>
         // <alignment>"
         CHECK_EQ(tokens[0], "allocate");
-<<<<<<< HEAD
-        CHECK_EQ(pointers.count(pointer), 0u);
-=======
-        CHECK_EQ(handles.count(handle), 0);
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+        CHECK_EQ(handles.count(handle), 0u);
 
         int alignment = StringToInt(tokens[4]);
 
@@ -122,17 +118,10 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
         operations.emplace_back(Operation{Operation::Type::kAllocate, handle,
                                           buffer_type, size, alignment});
       } else {
-<<<<<<< HEAD
-        // In the format of "free <pointer> <buffer_type> <size>"
+        // In the format of "free <handle> <buffer_type> <size>"
         CHECK_EQ(tokens.size(), 4u);
         CHECK_EQ(tokens[0], "free");
-        CHECK_EQ(pointers.erase(pointer), 1u);
-=======
-        // In the format of "free <handle> <buffer_type> <size>"
-        CHECK_EQ(tokens.size(), 4);
-        CHECK_EQ(tokens[0], "free");
-        CHECK_EQ(handles.erase(handle), 1);
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+        CHECK_EQ(handles.erase(handle), 1u);
 
         operations.emplace_back(
             Operation{Operation::Type::kFree, handle, buffer_type, size});
@@ -174,11 +163,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
 
   for (auto&& operation : operations) {
     if (operation.operation_type == Operation::Type::kAllocate) {
-<<<<<<< HEAD
-      CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0u);
-=======
-      CHECK_EQ(handle_to_handle_map.count(operation.handle), 0);
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+      CHECK_EQ(handle_to_handle_map.count(operation.handle), 0u);
 
       Handle h = allocator.Allocate(operation.buffer_type, operation.size,
                                     operation.alignment);
@@ -196,11 +181,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
                      handle_to_handle_map[operation.handle], operation.size);
       ++free_operations_since_last_allocate;
 
-<<<<<<< HEAD
-      CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1u);
-=======
-      CHECK_EQ(handle_to_handle_map.erase(operation.handle), 1);
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+      CHECK_EQ(handle_to_handle_map.erase(operation.handle), 1u);
     }
   }
 
@@ -258,11 +239,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
         }
 
         if (operation.operation_type == Operation::Type::kAllocate) {
-<<<<<<< HEAD
-          CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0u);
-=======
-          CHECK_EQ(handle_to_handle_map.count(operation.handle), 0);
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+          CHECK_EQ(handle_to_handle_map.count(operation.handle), 0u);
 
           handle_to_handle_map[operation.handle] = allocator.Allocate(
               operation.buffer_type, operation.size, operation.alignment);
@@ -276,11 +253,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
           allocator.Free(operation.buffer_type,
                          handle_to_handle_map[operation.handle],
                          operation.size);
-<<<<<<< HEAD
-          CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1u);
-=======
-          CHECK_EQ(handle_to_handle_map.erase(operation.handle), 1);
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+          CHECK_EQ(handle_to_handle_map.erase(operation.handle), 1u);
         }
       }
 
