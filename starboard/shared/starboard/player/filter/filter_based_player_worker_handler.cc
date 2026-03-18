@@ -569,21 +569,16 @@ void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
 void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
     int video_initial_max_frames_in_decoder) {
   SB_LOG(INFO) << "Set video_initial_max_frames_in_decoder from "
-               << (video_initial_max_frames_in_decoder_.has_value()
-                       ? std::to_string(
-                             video_initial_max_frames_in_decoder_.value())
-                       : "(nullopt)")
-               << " to " << video_initial_max_frames_in_decoder;
+               << video_initial_max_frames_in_decoder_ << " to "
+               << video_initial_max_frames_in_decoder;
   video_initial_max_frames_in_decoder_ = video_initial_max_frames_in_decoder;
 }
 
 void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
     int video_max_pending_input_frames) {
   SB_LOG(INFO) << "Set video_max_pending_input_frames from "
-               << (video_max_pending_input_frames_.has_value()
-                       ? std::to_string(video_max_pending_input_frames_.value())
-                       : "(nullopt)")
-               << " to " << video_max_pending_input_frames;
+               << video_max_pending_input_frames_ << " to "
+               << video_max_pending_input_frames;
   video_max_pending_input_frames_ = video_max_pending_input_frames;
 }
 

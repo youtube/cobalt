@@ -28,6 +28,7 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/string.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android/android_overlay.h"
@@ -168,9 +169,9 @@ StarboardRenderer::StarboardRenderer(
             << ", max_samples_per_write=" << max_samples_per_write_
             << ", view_port_size=" << viewport_size_.ToString()
             << ", initial_max_frames_in_decoder="
-            << initial_max_frames_in_decoder_.value_or(-1)
+            << starboard::ToString(initial_max_frames_in_decoder_)
             << ", max_pending_input_frames="
-            << max_pending_input_frames_.value_or(-1);
+            << starboard::ToString(max_pending_input_frames_);
 }
 
 StarboardRenderer::~StarboardRenderer() {

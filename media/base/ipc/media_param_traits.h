@@ -6,16 +6,8 @@
 #define MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_H_
 
 #include "ipc/ipc_message.h"
-#include "ipc/ipc_message_utils.h"
 #include "ipc/ipc_param_traits.h"
 #include "media/base/ipc/media_param_traits_macros.h"
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// Included after media_param_traits_macros.h to ensure BUILDFLAG is defined
-// (via media/media_buildflags.h) without adding an explicit dependency
-// for non-Starboard builds.
-#include <optional>
-#endif
 
 namespace media {
 class AudioParameters;

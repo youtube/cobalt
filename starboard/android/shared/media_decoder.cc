@@ -233,10 +233,8 @@ MediaCodecDecoder::MediaCodecDecoder(
     return;
   }
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
-               << (tunnel_mode_enabled_ ? "true" : "false")
-               << ", initial_max_frames="
-               << (initial_max_frames ? std::to_string(*initial_max_frames)
-                                      : "(nullopt)");
+               << ToString(tunnel_mode_enabled_)
+               << ", initial_max_frames=" << initial_max_frames;
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
