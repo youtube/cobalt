@@ -14,8 +14,6 @@
 
 #include "cobalt/app/app_lifecycle_delegate.h"
 
-#include <unistd.h>
-
 #include <array>
 #include <cstddef>
 #include <sstream>
@@ -23,6 +21,7 @@
 #include <vector>
 
 #include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
+#include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
@@ -55,16 +54,73 @@ content::ContentMainRunner* GetContentMainRunner() {
       main_runner{content::ContentMainRunner::Create()};
   return main_runner->get();
 }
+
+class DefaultAppLifecycleRunner : public cobalt::AppLifecycleRunner {
+ public:
+  DefaultAppLifecycleRunner() = default;
+  ~DefaultAppLifecycleRunner() override = default;
+
+  void InitializeSystem() override {
+    exit_manager_ = std::make_unique<base::AtExitManager>();
+  }
+
+  void CreateMainDelegate(bool is_visible,
+                          const char* initial_deep_link) override {
+    content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
+        initial_deep_link, false /* is_content_browsertests */, is_visible);
+  }
+
+  cobalt::CobaltMainDelegate* GetMainDelegate() override {
+    return content_main_delegate_.get();
+  }
+
+  int Run(content::ContentMainParams params) override {
+    if (main_runner_) {
+      LOG(WARNING) << "AppLifecycleRunner::Run called multiple times.";
+      return -1;
+    }
+    main_runner_ = GetContentMainRunner();
+    return RunContentProcess(std::move(params), main_runner_);
+  }
+
+  void ShutDown() override {
+    content::Shell::Shutdown();
+    if (main_runner_) {
+      main_runner_->Shutdown();
+    }
+    if (content_main_delegate_) {
+      content_main_delegate_->Shutdown();
+      content_main_delegate_.reset();
+    }
+    // We intentionally do not null main_runner_ here to enforce the one-shot
+    // rule: once stopped, the process cannot be re-started.
+    exit_manager_.reset();
+  }
+
+  bool IsRunning() const override { return content_main_delegate_ != nullptr; }
+
+ private:
+  std::unique_ptr<base::AtExitManager> exit_manager_;
+  content::ContentMainRunner* main_runner_ = nullptr;
+  std::unique_ptr<cobalt::CobaltMainDelegate> content_main_delegate_;
+};
+
 }  // namespace
 
 namespace cobalt {
 
-AppLifecycleDelegate::AppLifecycleDelegate() = default;
+AppLifecycleDelegate::AppLifecycleDelegate(
+    std::unique_ptr<AppLifecycleRunner> runner)
+    : runner_(std::move(runner)) {
+  if (!runner_) {
+    runner_ = std::make_unique<DefaultAppLifecycleRunner>();
+  }
+}
 
 AppLifecycleDelegate::~AppLifecycleDelegate() = default;
 
 bool AppLifecycleDelegate::IsRunning() const {
-  return content_main_delegate_ != nullptr;
+  return runner_->IsRunning();
 }
 
 void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
@@ -192,7 +248,7 @@ void AppLifecycleDelegate::OnStart(const SbEvent* event) {
   init_musl();
 #endif
   SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-  exit_manager_ = std::make_unique<base::AtExitManager>();
+  runner_->InitializeSystem();
 #if BUILDFLAG(IS_STARBOARD)
   platform_event_source_ = std::make_unique<ui::PlatformEventSourceStarboard>();
 #endif
@@ -212,40 +268,23 @@ void AppLifecycleDelegate::OnStart(const SbEvent* event) {
 }
 
 void AppLifecycleDelegate::OnStop(const SbEvent* event) {
-  if (!IsRunning()) {
+  if (!runner_->IsRunning()) {
     return;
   }
-  content::Shell::Shutdown();
-
-  if (main_runner_) {
-    main_runner_->Shutdown();
-  }
-
-  if (content_main_delegate_) {
-    content_main_delegate_->Shutdown();
-  }
-  content_main_delegate_.reset();
+  runner_->ShutDown();
 
 #if BUILDFLAG(IS_STARBOARD)
   platform_event_source_.reset();
 #endif
-  exit_manager_.reset();
 }
 
 int AppLifecycleDelegate::Run(bool is_visible,
                               int argc,
                               const char** argv,
                               const char* initial_deep_link) {
-  if (main_runner_) {
-    LOG(WARNING) << "AppLifecycleDelegate::Run called multiple times.";
-    return -1;
-  }
-  main_runner_ = GetContentMainRunner();
+  runner_->CreateMainDelegate(is_visible, initial_deep_link);
 
-  content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-      initial_deep_link, false /* is_content_browsertests */, is_visible);
-
-  content::ContentMainParams params(content_main_delegate_.get());
+  content::ContentMainParams params(runner_->GetMainDelegate());
 
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
@@ -290,6 +329,6 @@ int AppLifecycleDelegate::Run(bool is_visible,
 #endif
 #endif
 
-  return RunContentProcess(std::move(params), main_runner_);
+  return runner_->Run(std::move(params));
 }
 }  // namespace cobalt

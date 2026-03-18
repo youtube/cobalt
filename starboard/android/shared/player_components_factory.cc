@@ -190,7 +190,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -312,13 +313,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
-        FeatureList::IsEnabled(features::kForceResetAudioDecoder);
+        FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
+        creation_parameters.reset_audio_decoder();
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`kForceResetAudioDecoder` is set to true, force resetting"
         << " audio decoder during Reset().";
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
@@ -464,7 +467,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
@@ -497,6 +501,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
+    // TODO: b/455938352 - Connect this options to h5vcc settings.
+    MediaCodecVideoDecoder::FlowControlOptions flow_control_options;
     auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
@@ -506,7 +512,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
-        enable_flush_during_seek, reset_delay_usec, flush_delay_usec);
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+        flow_control_options);
     if (!result) {
       return Failure(result.error());
     }

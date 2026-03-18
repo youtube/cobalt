@@ -40,9 +40,12 @@ namespace cobalt {
 
 namespace {
 
-const char kH5vccSettingsKeyMediaDisableAllocator[] = "Media.DisableAllocator";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
+    "Media.EnableFlushDuringSeek";
+const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
+    "Media.EnableResetAudioDecoder";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 
@@ -53,6 +56,13 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
     {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
      switches::kMSEVideoBufferSizeLimitClampMb},
 };
+
+struct ParsedH5vccSettings {
+  bool enable_flush_during_seek = false;
+  bool enable_reset_audio_decoder = false;
+};
+
+using H5vccSettingValue = std::variant<std::string, int64_t>;
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
@@ -121,7 +131,7 @@ void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
 // exists. H5vcc settings are either pass their value to a media switch for code
 // in /media to use, or are given to Starboard Renderer for direct usage.
 bool AppendSettingToSwitch(const std::string& setting_name,
-                           const ::media::H5vccSettingValue& setting_value) {
+                           const H5vccSettingValue& setting_value) {
   auto it = kH5vccSettingToSwitchMap.find(setting_name);
   if (it == kH5vccSettingToSwitchMap.end()) {
     return false;
@@ -144,9 +154,9 @@ bool AppendSettingToSwitch(const std::string& setting_name,
   return true;
 }
 
-std::map<std::string, ::media::H5vccSettingValue> ParseH5vccSettings(
+std::map<std::string, H5vccSettingValue> ParseH5vccSettings(
     cobalt::mojom::SettingsPtr settings) {
-  std::map<std::string, ::media::H5vccSettingValue> h5vcc_settings;
+  std::map<std::string, H5vccSettingValue> h5vcc_settings;
   for (auto& [key, value] : settings->settings) {
     if (value->is_string_value()) {
       h5vcc_settings.emplace(key, std::move(value->get_string_value()));
@@ -161,7 +171,7 @@ std::map<std::string, ::media::H5vccSettingValue> ParseH5vccSettings(
 
 template <typename T>
 const T* GetSettingValue(
-    const std::map<std::string, ::media::H5vccSettingValue>& settings,
+    const std::map<std::string, H5vccSettingValue>& settings,
     const std::string& key) {
   auto it = settings.find(key);
   if (it == settings.end()) {
@@ -170,22 +180,27 @@ const T* GetSettingValue(
   return std::get_if<T>(&it->second);
 }
 
-void ProcessH5vccSettings(
-    const std::map<std::string, ::media::H5vccSettingValue>& settings) {
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaDisableAllocator)) {
-    bool disable_allocator = *val != 0;
-    ::media::DecoderBuffer::EnableAllocator(!disable_allocator);
-  }
+ParsedH5vccSettings ProcessH5vccSettings(
+    const std::map<std::string, H5vccSettingValue>& settings) {
+  ParsedH5vccSettings parsed;
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
     bool enable_allocate_on_demand = *val != 0;
     ::media::DecoderBuffer::EnableAllocateOnDemand(enable_allocate_on_demand);
   }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
+    parsed.enable_flush_during_seek = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
+    parsed.enable_reset_audio_decoder = *val != 0;
+  }
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
   }
+  return parsed;
 }
 
 }  // namespace
@@ -367,10 +382,16 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   EnsureH5vccSettingsRemoteInitialized();
 
   cobalt::mojom::SettingsPtr settings;
+  ParsedH5vccSettings parsed;
   if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
-    ProcessH5vccSettings(h5vcc_settings);
+    parsed = ProcessH5vccSettings(h5vcc_settings);
   }
+  // TODO: b/474454335 - Remove once experiments are done.
+  renderer_factory_traits->enable_flush_during_seek =
+      parsed.enable_flush_during_seek;
+  renderer_factory_traits->enable_reset_audio_decoder =
+      parsed.enable_reset_audio_decoder;
 
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =
