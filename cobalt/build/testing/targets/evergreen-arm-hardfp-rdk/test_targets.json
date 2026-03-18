@@ -1,5 +1,8 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
+  "TODO(todo): EGL init issue, needs new image": [
+    "cc:cc_unittests_loader"
+  ],
   "TODO(b/486053854): Tests pass but crashes on exit": [
     "gpu:gl_tests_loader",
     "gpu:gpu_unittests_loader",
@@ -26,7 +29,6 @@
     "third_party/opus:test_opus_padding_loader"
   ],
   "test_targets": [
-    "cc:cc_unittests_loader",
     "crypto:crypto_unittests_loader",
     "media/mojo:media_mojo_unittests_loader",
     "skia:skia_unittests_loader",
@@ -37,7 +39,6 @@
     "ui/ozone:ozone_unittests_loader"
   ],
   "executables": [
-    "out/evergreen-arm-hardfp-rdk_devel/cc_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/crypto_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/media_mojo_unittests_loader.py",
     "out/evergreen-arm-hardfp-rdk_devel/skia_unittests_loader.py",
