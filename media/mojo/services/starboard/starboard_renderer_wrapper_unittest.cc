@@ -65,7 +65,15 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
+<<<<<<< HEAD
                           viewport_size
+=======
+                          viewport_size,
+                          /*enable_flush_during_seek=*/false,
+                          /*enable_reset_audio_decoder=*/false,
+                          /*initial_max_frames_in_decoder=*/std::nullopt,
+                          /*max_pending_input_frames=*/std::nullopt
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
 #if BUILDFLAG(IS_ANDROID)
                           ,
                           android_overlay_factory_cb
@@ -172,7 +180,16 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), &video_geometry_setter_service_,
         base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
+<<<<<<< HEAD
         std::string(), gfx::Size(), std::move(renderer_extension_receiver),
+=======
+        std::string(), gfx::Size(),
+        /*enable_flush_during_seek=*/false,
+        /*enable_reset_audio_decoder=*/false,
+        /*initial_max_frames_in_decoder=*/std::nullopt,
+        /*max_pending_input_frames=*/std::nullopt,
+        std::move(renderer_extension_receiver),
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));

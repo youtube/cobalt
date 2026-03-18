@@ -81,6 +81,13 @@ struct StarboardRendererTraits {
   base::TimeDelta audio_write_duration_remote;
   const std::string& max_video_capabilities;
   const gfx::Size& viewport_size;
+<<<<<<< HEAD
+=======
+  const bool enable_flush_during_seek;
+  const bool enable_reset_audio_decoder;
+  const std::optional<int> initial_max_frames_in_decoder;
+  const std::optional<int> max_pending_input_frames;
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -102,6 +109,13 @@ struct StarboardRendererTraits {
       base::TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
       const gfx::Size& viewport_size,
+<<<<<<< HEAD
+=======
+      const bool enable_flush_during_seek,
+      const bool enable_reset_audio_decoder,
+      std::optional<int> initial_max_frames_in_decoder,
+      std::optional<int> max_pending_input_frames,
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>

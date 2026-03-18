@@ -60,6 +60,15 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   Result<void> SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
   void SetVideoSurfaceView(void* surface_view) override;
+<<<<<<< HEAD
+=======
+  void SetFlushDecoderDuringReset(bool flush_decoder_during_reset) override;
+  void SetResetAudioDecoder(bool reset_audio_decoder) override;
+  void SetVideoInitialMaxFramesInDecoder(
+      int video_initial_max_frames_in_decoder) override;
+  void SetVideoMaxPendingInputFrames(
+      int video_max_pending_input_frames) override;
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   void Stop() override;
 
   void Update();
@@ -112,6 +121,13 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
   void* surface_view_ = nullptr;
+<<<<<<< HEAD
+=======
+  bool flush_decoder_during_reset_ = false;
+  bool reset_audio_decoder_ = false;
+  std::optional<int> video_initial_max_frames_in_decoder_;
+  std::optional<int> video_max_pending_input_frames_;
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const VideoStreamInfo video_stream_info_;

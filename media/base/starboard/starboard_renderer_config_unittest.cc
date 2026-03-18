@@ -29,10 +29,22 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
       base::Microseconds(100000);
   const std::string max_video_capabilities =
       "width=1920; height=1080; framerate=15;";
+<<<<<<< HEAD
   StarboardRendererConfig config(base::UnguessableToken::Create(),
                                  audio_write_duration_local,
                                  audio_write_duration_remote,
                                  max_video_capabilities, gfx::Size(1920, 1080));
+=======
+  const bool enable_flush_during_seek = false;
+  const bool enable_reset_audio_decoder = false;
+  StarboardRendererConfig config(
+      base::UnguessableToken::Create(), audio_write_duration_local,
+      audio_write_duration_remote, max_video_capabilities,
+      gfx::Size(1920, 1080), enable_flush_during_seek,
+      enable_reset_audio_decoder,
+      /*initial_max_frames_in_decoder=*/std::nullopt,
+      /*max_pending_input_frames=*/std::nullopt);
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);

@@ -38,6 +38,11 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+<<<<<<< HEAD
+=======
+#include "starboard/extension/player_configurate_seek.h"
+#include "starboard/extension/video_decoder_configuration.h"
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -150,7 +155,15 @@ SbPlayerBridge::SbPlayerBridge(
     DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
+<<<<<<< HEAD
     int max_video_input_size
+=======
+    int max_video_input_size,
+    bool flush_decoder_during_reset,
+    bool reset_audio_decoder,
+    std::optional<int> initial_max_frames_in_decoder,
+    std::optional<int> max_pending_input_frames
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -186,7 +199,15 @@ SbPlayerBridge::SbPlayerBridge(
 #if SB_HAS(PLAYER_WITH_URL)
       is_url_based_(false),
 #endif  // SB_HAS(PLAYER_WITH_URL
+<<<<<<< HEAD
       max_video_capabilities_(max_video_capabilities)
+=======
+      max_video_capabilities_(max_video_capabilities),
+      flush_decoder_during_reset_(flush_decoder_during_reset),
+      reset_audio_decoder_(reset_audio_decoder),
+      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
+      max_pending_input_frames_(max_pending_input_frames)
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -738,6 +759,46 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetVideoSurfaceViewForCurrentThread(surface_view_);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+<<<<<<< HEAD
+=======
+
+  const StarboardExtensionPlayerConfigurateSeekApi*
+      player_configurate_seek_extension =
+          static_cast<const StarboardExtensionPlayerConfigurateSeekApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerConfigurateSeekName));
+  if (player_configurate_seek_extension &&
+      strcmp(player_configurate_seek_extension->name,
+             kStarboardExtensionPlayerConfigurateSeekName) == 0 &&
+      player_configurate_seek_extension->version >= 1) {
+    player_configurate_seek_extension
+        ->SetForceFlushDecoderDuringResetForCurrentThread(
+            flush_decoder_during_reset_);
+    player_configurate_seek_extension
+        ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
+  }
+
+  const StarboardExtensionVideoDecoderConfigurationApi*
+      video_decoder_configuration_extension =
+          static_cast<const StarboardExtensionVideoDecoderConfigurationApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionVideoDecoderConfigurationName));
+  if (video_decoder_configuration_extension &&
+      strcmp(video_decoder_configuration_extension->name,
+             kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
+      video_decoder_configuration_extension->version >= 1) {
+    if (initial_max_frames_in_decoder_) {
+      video_decoder_configuration_extension
+          ->SetVideoInitialMaxFramesInDecoderForCurrentThread(
+              *initial_max_frames_in_decoder_);
+    }
+    if (max_pending_input_frames_) {
+      video_decoder_configuration_extension
+          ->SetVideoMaxPendingInputFramesForCurrentThread(
+              *max_pending_input_frames_);
+    }
+  }
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,

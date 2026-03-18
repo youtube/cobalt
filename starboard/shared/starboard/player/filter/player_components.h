@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,13 @@ class PlayerComponents {
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
                          void* surface_view,
+<<<<<<< HEAD
+=======
+                         bool flush_decoder_during_reset,
+                         bool reset_audio_decoder,
+                         std::optional<int> video_initial_max_frames_in_decoder,
+                         std::optional<int> video_max_pending_input_frames,
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -72,6 +80,13 @@ class PlayerComponents {
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
                          void* surface_view,
+<<<<<<< HEAD
+=======
+                         bool flush_decoder_during_reset,
+                         bool reset_audio_decoder,
+                         std::optional<int> video_initial_max_frames_in_decoder,
+                         std::optional<int> video_max_pending_input_frames,
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -124,6 +139,12 @@ class PlayerComponents {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
+      std::optional<int> video_initial_max_frames_in_decoder() const {
+        return video_initial_max_frames_in_decoder_;
+      }
+      std::optional<int> video_max_pending_input_frames() const {
+        return video_max_pending_input_frames_;
+      }
 
       JobQueue* job_queue() const { return job_queue_; }
 
@@ -146,6 +167,9 @@ class PlayerComponents {
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
       JobQueue* const job_queue_;
+
+      std::optional<int> video_initial_max_frames_in_decoder_;
+      std::optional<int> video_max_pending_input_frames_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.

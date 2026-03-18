@@ -97,6 +97,13 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
     void* surface_view,
+<<<<<<< HEAD
+=======
+    bool flush_decoder_during_reset,
+    bool reset_audio_decoder,
+    std::optional<int> video_initial_max_frames_in_decoder,
+    std::optional<int> video_max_pending_input_frames,
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -109,6 +116,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
+      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
+      video_max_pending_input_frames_(video_max_pending_input_frames),
       drm_system_(drm_system) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -123,6 +132,13 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
     void* surface_view,
+<<<<<<< HEAD
+=======
+    bool flush_decoder_during_reset,
+    bool reset_audio_decoder,
+    std::optional<int> video_initial_max_frames_in_decoder,
+    std::optional<int> video_max_pending_input_frames,
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -136,6 +152,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
+      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
+      video_max_pending_input_frames_(video_max_pending_input_frames),
       drm_system_(drm_system) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);

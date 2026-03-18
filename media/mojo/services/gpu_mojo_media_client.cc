@@ -98,6 +98,13 @@ StarboardRendererTraits::StarboardRendererTraits(
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
     const gfx::Size& viewport_size,
+<<<<<<< HEAD
+=======
+    const bool enable_flush_during_seek,
+    const bool enable_reset_audio_decoder,
+    std::optional<int> initial_max_frames_in_decoder,
+    std::optional<int> max_pending_input_frames,
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -112,6 +119,13 @@ StarboardRendererTraits::StarboardRendererTraits(
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
       viewport_size(viewport_size),
+<<<<<<< HEAD
+=======
+      enable_flush_during_seek(enable_flush_during_seek),
+      enable_reset_audio_decoder(enable_reset_audio_decoder),
+      initial_max_frames_in_decoder(initial_max_frames_in_decoder),
+      max_pending_input_frames(max_pending_input_frames),
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
@@ -302,8 +316,15 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       video_geometry_setter_service_, config.overlay_plane_id,
       config.audio_write_duration_local, config.audio_write_duration_remote,
       config.max_video_capabilities, config.viewport_size,
+<<<<<<< HEAD
       std::move(renderer_extension_receiver), std::move(client_extension_remote),
       base::BindRepeating(
+=======
+      config.enable_flush_during_seek, config.enable_reset_audio_decoder,
+      config.initial_max_frames_in_decoder, config.max_pending_input_frames,
+      std::move(renderer_extension_receiver),
+      std::move(client_extension_remote), base::BindRepeating(
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
         &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
   return CreatePlatformStarboardRenderer(std::move(traits));
 }

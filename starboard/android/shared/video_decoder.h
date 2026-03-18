@@ -56,6 +56,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private VideoSurfaceHolder {
  public:
   class Sink;
+<<<<<<< HEAD
+=======
+  struct FlowControlOptions {
+    std::optional<int> initial_max_frames_in_decoder;
+    std::optional<int> max_pending_input_frames;
+  };
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,
       const VideoStreamInfo& video_stream_info,

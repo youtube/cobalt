@@ -18,9 +18,11 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include "base/strings/string_number_conversions.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
@@ -54,6 +56,8 @@ namespace {
 
 using base::android::AttachCurrentThread;
 using features::FeatureList;
+
+namespace {
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -471,6 +475,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
+<<<<<<< HEAD
+=======
+    MediaCodecVideoDecoder::FlowControlOptions flow_control_options;
+    flow_control_options.initial_max_frames_in_decoder =
+        creation_parameters.video_initial_max_frames_in_decoder();
+    flow_control_options.max_pending_input_frames =
+        creation_parameters.video_max_pending_input_frames();
+
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
     auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
@@ -570,6 +583,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 };
 
+}  // namespace
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
   return std::make_unique<PlayerComponentsFactory>();

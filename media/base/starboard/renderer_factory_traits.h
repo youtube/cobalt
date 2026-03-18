@@ -15,6 +15,12 @@
 #ifndef MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 #define MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 
+<<<<<<< HEAD
+=======
+#include <optional>
+#include <string>
+
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/time/time.h"
@@ -35,6 +41,13 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
   gfx::Size viewport_size;
+<<<<<<< HEAD
+=======
+  bool enable_flush_during_seek = false;
+  bool enable_reset_audio_decoder = false;
+  std::optional<int> initial_max_frames_in_decoder;
+  std::optional<int> max_pending_input_frames;
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   GetSbWindowHandleCallback get_sb_window_handle_callback;
 };
 

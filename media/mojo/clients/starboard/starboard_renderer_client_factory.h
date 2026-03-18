@@ -71,6 +71,13 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
   const gfx::Size viewport_size_;
+<<<<<<< HEAD
+=======
+  const bool enable_flush_during_seek_;
+  const bool enable_reset_audio_decoder_;
+  const std::optional<int> initial_max_frames_in_decoder_;
+  const std::optional<int> max_pending_input_frames_;
+>>>>>>> 6432ebcc71 (Cherry pick PR #8810: media: Connect H5vcc settings to video decoder flow control options (#9598))
   const GetSbWindowHandleCallback get_sb_window_handle_callback_;
 };
 
