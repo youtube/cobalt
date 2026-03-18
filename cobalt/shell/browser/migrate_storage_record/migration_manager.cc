@@ -584,6 +584,10 @@ Task MigrationManager::CookieTask(
                           << "SetCanonicalCookie failed for: " << cookie_name
                           << " with status: " << result.status.GetDebugString();
                     }
+                    base::UmaHistogramEnumeration(
+                        kCookieInjectionResultHistogram,
+                        result.status.IsInclude() ? InjectionResult::kSuccess
+                                                  : InjectionResult::kError);
                     barrier.Run();
                   },
                   barrier, name));
@@ -731,6 +735,10 @@ Task MigrationManager::LocalStorageTask(
                           } else {
                             LOG(ERROR) << "Put FAILED for key: " << key_str;
                           }
+                          base::UmaHistogramEnumeration(
+                              kLocalStorageInjectionResultHistogram,
+                              success ? InjectionResult::kSuccess
+                                      : InjectionResult::kError);
                           barrier.Run();
                         },
                         barrier, key_str));
