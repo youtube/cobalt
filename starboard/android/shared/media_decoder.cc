@@ -36,7 +36,8 @@ const jint kNoOffset = 0;
 const jlong kNoPts = 0;
 const jint kNoBufferFlags = 0;
 
-constexpr int64_t kDefaultVideoDecoderPollIntervalUs = 1'000;  // 1 msec
+constexpr int64_t kDefaultVideoDecoderPollIntervalUs = 1'000;         // 1 msec
+constexpr int64_t kDefaultVideoDecoderTunnelPollIntervalUs = 10'000;  // 10 msec
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -211,7 +212,8 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           video_decoder_poll_interval_ms
               ? static_cast<int64_t>(*video_decoder_poll_interval_ms) * 1'000
-              : kDefaultVideoDecoderPollIntervalUs),
+              : (tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
+                                      : kDefaultVideoDecoderPollIntervalUs)),
       decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
         if (!initial_max_frames || tunnel_mode_enabled_) {
           return nullptr;

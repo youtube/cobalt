@@ -45,13 +45,27 @@ namespace starboard {
 class MediaCodecDecoder final : private MediaCodecBridge::Handler,
                                 protected JobQueue::JobOwner {
  public:
+  using FrameRenderedCB = std::function<void(int64_t)>;
+  using FirstTunnelFrameReadyCB = std::function<void(void)>;
+
+  // This class should be implemented by the users of MediaCodecDecoder to
+  // receive various notifications.  Note that all such functions are called on
+  // the decoder thread.
+  // TODO: Replace this with std::function<> based callbacks.
   class Host {
    public:
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
     virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
+    // This function gets called frequently on the decoding thread to give the
+    // Host a chance to process when the MediaCodecDecoder is decoding.
+    // TODO: Revise the scheduling logic to give the host a chance to process in
+    //       a more elegant way.
     virtual bool Tick(MediaCodecBridge* media_codec_bridge) = 0;
+    // This function gets called before calling Flush() on the contained
+    // MediaCodecBridge so the host can have a chance to do necessary cleanups
+    // before the MediaCodecBridge is flushed.
     virtual void OnFlushing() = 0;
 
     virtual bool IsBufferDecodeOnly(
@@ -60,9 +74,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
    protected:
     ~Host() {}
   };
-
-  using FrameRenderedCB = std::function<void(int64_t)>;
-  using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
       JobQueue* job_queue,
@@ -73,6 +84,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       JobQueue* job_queue,
       Host* host,
       SbMediaVideoCodec video_codec,
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
       const Size& frame_size_hint,
       const std::optional<Size>& max_frame_size,
       int fps,
@@ -134,6 +147,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   }
 
  private:
+  // Holding inputs to be processed.  They are mostly InputBuffer objects, but
+  // can also be codec configs or end of streams.
   struct PendingInput {
     enum Type {
       kInvalid,
@@ -158,6 +173,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     std::vector<uint8_t> codec_config;
   };
 
+  // Holding a PendingInput and a DequeueInputResult when call to
+  // QueueInputBuffer or QueueSecureInputBuffer fails so it can be retried
+  // later.
   struct PendingInputToRetry {
     DequeueInputResult dequeue_input_result;
     PendingInput pending_input;
@@ -178,6 +196,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
 
+  // MediaCodecBridge::Handler methods
+  // Note that these methods are called from the default looper and is not on
+  // the decoder thread.
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
                          const std::string& diagnostic_info) override;
@@ -227,7 +248,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
+  // Working thread to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
+  // Factory method guarantees that media_codec_bridge_ is non-null.
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
