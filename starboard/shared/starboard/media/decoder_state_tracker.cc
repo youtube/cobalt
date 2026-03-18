@@ -62,13 +62,8 @@ DecoderStateTracker::~DecoderStateTracker() {
   SB_LOG(INFO) << "Destroying DecoderStateTracker.";
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  std::unique_ptr<JobThread> thread_to_destroy;
-  {
-    std::lock_guard lock(mutex_);
-    thread_to_destroy = std::move(logging_thread_);
-  }
-  if (thread_to_destroy) {
-    thread_to_destroy->job_queue()->StopSoon();
+  if (logging_thread_) {
+    logging_thread_->Stop();
   }
 #endif
 }
