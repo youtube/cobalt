@@ -32,6 +32,14 @@
 
 namespace media {
 
+namespace {
+
+const char* ToString(bool value) {
+  return value ? "enabled" : "disabled";
+}
+
+}  // namespace
+
 DecoderBufferAllocator::DecoderBufferAllocator()
     : DecoderBufferAllocator(SbMediaIsBufferPoolAllocateOnDemand(),
                              SbMediaGetInitialBufferCapacity(),
@@ -66,11 +74,10 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
-
-  base::AutoLock scoped_lock(mutex_);
 
   if (strategy_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
@@ -80,11 +87,11 @@ void DecoderBufferAllocator::Suspend() {
 }
 
 void DecoderBufferAllocator::Resume() {
+  base::AutoLock scoped_lock(mutex_);
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
-  base::AutoLock scoped_lock(mutex_);
   EnsureStrategyIsCreated();
 }
 
@@ -131,11 +138,9 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  if ((is_memory_pool_allocated_on_demand_ || !enabled_) &&
-      strategy_->GetAllocated() == 0) {
+  if (is_memory_pool_allocated_on_demand_ && strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
-              << " bytes of media buffer pool"
-              << (enabled_ ? " `on demand`." : " since allocator is disabled.");
+              << " bytes of media buffer pool `on demand`.";
     // `strategy_->PrintAllocations()` will be called inside the dtor.
     strategy_.reset();
   }
@@ -221,22 +226,24 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
 }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-void DecoderBufferAllocator::SetEnabled(bool enabled) {
-  static const auto to_string = [](bool value) {
-    return value ? "enabled" : "disabled";
-  };
-
+void DecoderBufferAllocator::SetAllocateOnDemand(bool enabled) {
   base::AutoLock scoped_lock(mutex_);
-  if (enabled_ == enabled) {
+  if (is_memory_pool_allocated_on_demand_ == enabled) {
     return;
   }
 
-  LOG(INFO) << "DecoderBufferAllocator::SetEnabled: " << to_string(enabled_)
-            << " -> " << to_string(enabled);
-  enabled_ = enabled;
-  if (!enabled_ && strategy_ && strategy_->GetAllocated() == 0) {
+  LOG(INFO) << "DecoderBufferAllocator::SetAllocateOnDemand: "
+            << ToString(is_memory_pool_allocated_on_demand_) << " -> "
+            << ToString(enabled);
+
+  is_memory_pool_allocated_on_demand_ = enabled;
+  // If we enable |is_memory_pool_allocated_on_demand_|, we should try to
+  // reset the strategy.
+  if (is_memory_pool_allocated_on_demand_ && strategy_ &&
+      strategy_->GetAllocated() == 0) {
     LOG(INFO) << "Freed " << strategy_->GetCapacity()
-              << " bytes of media buffer pool since allocator is disabled.";
+              << " bytes of media buffer pool since allocator now allocates on "
+                 "demand.";
     strategy_.reset();
   }
 }

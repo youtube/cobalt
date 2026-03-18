@@ -29,6 +29,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":app_key",
       ":installation_manager",
       ":memory_tracker_thread",
+      ":read_evergreen_version",
       ":record_loader_app_status",
       ":reset_evergreen_update",
       ":slot_management",
@@ -174,6 +175,31 @@ source_set("drain_file_test") {
   ]
 }
 
+static_library("read_evergreen_version") {
+  sources = [
+    "read_evergreen_version.cc",
+    "read_evergreen_version.h",
+  ]
+  deps = [
+    "//starboard/common",
+    "//third_party/jsoncpp",
+  ]
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+}
+
+source_set("read_evergreen_version_test") {
+  testonly = true
+  sources = [ "read_evergreen_version_test.cc" ]
+  deps = [
+    ":read_evergreen_version",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/jsoncpp",
+  ]
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+}
+
 proto_library("installation_store_proto") {
   sources = [ "installation_store.proto" ]
   generate_python = false
@@ -227,12 +253,12 @@ static_library("slot_management") {
     ":app_key_files",
     ":drain_file",
     ":installation_manager",
+    ":read_evergreen_version",
     "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/elf_loader",
     "//starboard/elf_loader:constants",
     "//starboard/elf_loader:sabi_string",
-    "//third_party/jsoncpp:jsoncpp",
   ]
 
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain &&
@@ -241,8 +267,6 @@ static_library("slot_management") {
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
   }
-
-  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
 if (current_toolchain == starboard_toolchain) {
   source_set("slot_management_test") {
@@ -260,9 +284,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
       "//testing/gtest",
-      "//third_party/jsoncpp:jsoncpp",
     ]
-    configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
   }
 }
 

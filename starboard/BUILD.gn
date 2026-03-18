@@ -264,6 +264,7 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/loader_app:drain_file_test",
         "//starboard/loader_app:installation_manager_test",
         "//starboard/loader_app:memory_tracker_thread",
+        "//starboard/loader_app:read_evergreen_version_test",
         "//starboard/loader_app:slot_management_test",
       ]
     }

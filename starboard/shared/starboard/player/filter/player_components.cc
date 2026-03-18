@@ -97,6 +97,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
     void* surface_view,
+    bool flush_decoder_during_reset,
+    bool reset_audio_decoder,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -106,6 +108,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
       surface_view_(surface_view),
+      flush_decoder_during_reset_(flush_decoder_during_reset),
+      reset_audio_decoder_(reset_audio_decoder),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
@@ -123,6 +127,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
     void* surface_view,
+    bool flush_decoder_during_reset,
+    bool reset_audio_decoder,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -133,6 +139,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
       surface_view_(surface_view),
+      flush_decoder_during_reset_(flush_decoder_during_reset),
+      reset_audio_decoder_(reset_audio_decoder),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       job_queue_(job_queue),
