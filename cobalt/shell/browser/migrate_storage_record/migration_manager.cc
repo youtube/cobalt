@@ -86,6 +86,9 @@ struct SharedClosureState : public base::RefCounted<SharedClosureState> {
   ~SharedClosureState() = default;
 };
 
+constexpr char kOutcomeHistogram[] = "Cobalt.StorageMigration.Outcome";
+constexpr char kFastPathDurationHistogram[] =
+    "Cobalt.StorageMigration.FastPathDuration";
 constexpr char kReadResultHistogram[] = "Cobalt.StorageMigration.ReadResult";
 constexpr char kCookieInjectionResultHistogram[] =
     "Cobalt.StorageMigration.CookieInjectionResult";
@@ -252,6 +255,7 @@ void DeleteOldCacheDirectoryAsync() {
 // Triggers the deletion of old cache directories, deletes the legacy storage
 // files, and writes the migration sentinel file.
 void CleanupLegacyFilesAsync(scoped_refptr<MigrationState> state) {
+  base::UmaHistogramEnumeration(kOutcomeHistogram, state->GetOutcome());
   DeleteOldCacheDirectoryAsync();
   DeleteLegacyStorageFilesAsync();
   WriteMigrationSentinelAsync(state);
@@ -462,6 +466,10 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
     LOG(INFO) << "Migration sentinel file found. Skipping migration.";
     LOG(INFO) << "RunMigration fast path took "
               << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
+    base::UmaHistogramTimes(kFastPathDurationHistogram,
+                            elapsed_timer->Elapsed());
+    base::UmaHistogramEnumeration(kOutcomeHistogram,
+                                  MigrationOutcome::kFastPath);
     std::move(done_callback).Run();
     return;
   }
@@ -484,9 +492,10 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
 
   auto state = base::MakeRefCounted<MigrationState>();
   state->read_result = read_result;
+  state->has_data_to_migrate = storage && (storage->cookies_size() > 0 ||
+                                           storage->local_storages_size() > 0);
 
-  if (!storage ||
-      (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
+  if (!state->has_data_to_migrate) {
     LOG(INFO) << "Nothing to migrate.";
     CleanupLegacyFilesAsync(state);
     std::move(done_callback).Run();
@@ -597,14 +606,17 @@ Task MigrationManager::CookieTask(
         base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE,
             base::BindOnce(
-                [](scoped_refptr<SharedClosureState> state) {
-                  if (state->cb) {
+                [](scoped_refptr<SharedClosureState> shared_state,
+                   scoped_refptr<MigrationState> migration_state) {
+                  if (shared_state->cb) {
                     LOG(ERROR) << "Cookie injection timed out after 2 "
                                   "seconds. Proceeding anyway.";
-                    state->Run();
+                    migration_state->UpdateCookieResult(
+                        InjectionResult::kTimeout);
+                    shared_state->Run();
                   }
                 },
-                shared_state),
+                shared_state, state),
             base::Seconds(2));
       },
       partition, std::move(cookies), state);
@@ -677,6 +689,7 @@ Task MigrationManager::LocalStorageTask(
         // Tells the Storage Service to commit the LevelDB transactions to disk.
         base::OnceClosure flush_step = base::BindOnce(
             [](content::StoragePartition* partition,
+               scoped_refptr<MigrationState> state,
                base::OnceClosure next_step) {
               LOG(INFO) << "LocalStorage Puts complete. Flushing...";
 
@@ -699,17 +712,20 @@ Task MigrationManager::LocalStorageTask(
               base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
                   FROM_HERE,
                   base::BindOnce(
-                      [](scoped_refptr<SharedClosureState> state) {
-                        if (state->cb) {
+                      [](scoped_refptr<SharedClosureState> shared_state,
+                         scoped_refptr<MigrationState> migration_state) {
+                        if (shared_state->cb) {
                           LOG(ERROR) << "LocalStorage Flush timed out "
                                         "after 2 seconds. Proceeding anyway.";
-                          state->Run();
+                          migration_state->UpdateLocalStorageResult(
+                              InjectionResult::kTimeout);
+                          shared_state->Run();
                         }
                       },
-                      shared_state),
+                      shared_state, state),
                   base::Seconds(2));
             },
-            base::Unretained(partition), std::move(purge_memory_step));
+            base::Unretained(partition), state, std::move(purge_memory_step));
 
         // STEP 1: Put keys step.
         // Iterates through all k/v pairs and sends Mojo Put commands.

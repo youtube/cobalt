@@ -49,7 +49,18 @@ enum class StorageReadResult {
 enum class InjectionResult {
   kSuccess = 0,
   kError = 1,
-  kMaxValue = kError,
+  kTimeout = 2,
+  kMaxValue = kTimeout,
+};
+
+// Tracks the overall outcome of the migration process.
+enum class MigrationOutcome {
+  kFastPath = 0,
+  kSkipped = 1,
+  kSuccess = 2,
+  kFailed = 3,
+  kTimeout = 4,
+  kMaxValue = kTimeout,
 };
 
 // Used to sequence tasks.
@@ -57,20 +68,56 @@ using Task = base::OnceCallback<void(base::OnceClosure)>;
 
 struct MigrationState : public base::RefCountedThreadSafe<MigrationState> {
   StorageReadResult read_result = StorageReadResult::kSuccess;
+  bool has_data_to_migrate = false;
   std::atomic<InjectionResult> cookie_result{InjectionResult::kSuccess};
   std::atomic<InjectionResult> local_storage_result{InjectionResult::kSuccess};
 
   void UpdateCookieResult(InjectionResult res) {
-    if (res == InjectionResult::kError) {
-      cookie_result.store(InjectionResult::kError, std::memory_order_relaxed);
+    InjectionResult current = cookie_result.load(std::memory_order_relaxed);
+    // Lock-free compare-and-swap loop to ensure the atomic state always
+    // reflects the most severe result (kSuccess < kError < kTimeout) when
+    // evaluated concurrently.
+    while (current < res) {
+      if (cookie_result.compare_exchange_weak(current, res,
+                                              std::memory_order_relaxed)) {
+        break;
+      }
     }
   }
 
   void UpdateLocalStorageResult(InjectionResult res) {
-    if (res == InjectionResult::kError) {
-      local_storage_result.store(InjectionResult::kError,
-                                 std::memory_order_relaxed);
+    InjectionResult current =
+        local_storage_result.load(std::memory_order_relaxed);
+    // Lock-free compare-and-swap loop to ensure the atomic state always
+    // reflects the most severe result (kSuccess < kError < kTimeout) when
+    // evaluated concurrently.
+    while (current < res) {
+      if (local_storage_result.compare_exchange_weak(
+              current, res, std::memory_order_relaxed)) {
+        break;
+      }
     }
+  }
+
+  MigrationOutcome GetOutcome() const {
+    if (!has_data_to_migrate) {
+      if (read_result == StorageReadResult::kSuccess ||
+          read_result == StorageReadResult::kRecordInvalid) {
+        return MigrationOutcome::kSkipped;
+      }
+      return MigrationOutcome::kFailed;
+    }
+    InjectionResult c_res = cookie_result.load(std::memory_order_relaxed);
+    InjectionResult ls_res =
+        local_storage_result.load(std::memory_order_relaxed);
+    if (c_res == InjectionResult::kTimeout ||
+        ls_res == InjectionResult::kTimeout) {
+      return MigrationOutcome::kTimeout;
+    }
+    if (c_res == InjectionResult::kError || ls_res == InjectionResult::kError) {
+      return MigrationOutcome::kFailed;
+    }
+    return MigrationOutcome::kSuccess;
   }
 
  private:

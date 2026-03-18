@@ -102,6 +102,25 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.StorageMigration.FastPathDuration" units="ms"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the total time taken to check for the migration fast path during
+    startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.Outcome" enum="MigrationOutcome"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the final outcome of the storage migration process. Tracks whether
+    the migration took the fast path, skipped due to no data, fully succeeded,
+    or failed during read/injection.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.StorageMigration.Duration" units="ms"
     expires_after="never">
   <owner>haozheng@google.com</owner>
