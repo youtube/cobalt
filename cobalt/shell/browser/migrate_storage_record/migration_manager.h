@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
@@ -30,8 +31,52 @@
 namespace cobalt {
 namespace migrate_storage_record {
 
+// Tracks the outcome of attempting to read the legacy Starboard storage record.
+enum class StorageReadResult {
+  kSuccess = 0,
+  kPartitionKeyNotDefault = 1,
+  kRecordInvalid = 2,
+  kSizeTooSmall = 3,
+  kDeleteFailed = 4,
+  kReadMismatch = 5,
+  kHeaderMismatch = 6,
+  kParseError = 7,
+  kMaxValue = kParseError,
+};
+
+// Tracks the outcome of individual data injection operations into the new
+// Chromium-based storage partitions.
+enum class InjectionResult {
+  kSuccess = 0,
+  kError = 1,
+  kMaxValue = kError,
+};
+
 // Used to sequence tasks.
 using Task = base::OnceCallback<void(base::OnceClosure)>;
+
+struct MigrationState : public base::RefCountedThreadSafe<MigrationState> {
+  StorageReadResult read_result = StorageReadResult::kSuccess;
+  std::atomic<InjectionResult> cookie_result{InjectionResult::kSuccess};
+  std::atomic<InjectionResult> local_storage_result{InjectionResult::kSuccess};
+
+  void UpdateCookieResult(InjectionResult res) {
+    if (res == InjectionResult::kError) {
+      cookie_result.store(InjectionResult::kError, std::memory_order_relaxed);
+    }
+  }
+
+  void UpdateLocalStorageResult(InjectionResult res) {
+    if (res == InjectionResult::kError) {
+      local_storage_result.store(InjectionResult::kError,
+                                 std::memory_order_relaxed);
+    }
+  }
+
+ private:
+  friend class base::RefCountedThreadSafe<MigrationState>;
+  ~MigrationState() = default;
+};
 
 class MigrationManager {
  public:
@@ -45,11 +90,13 @@ class MigrationManager {
   static Task GroupTasks(std::vector<Task> tasks);
   static Task CookieTask(
       content::StoragePartition* partition,
-      std::vector<std::unique_ptr<net::CanonicalCookie>> cookies);
+      std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
+      scoped_refptr<MigrationState> state);
   static Task LocalStorageTask(
       content::StoragePartition* partition,
       const url::Origin& origin,
-      std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs);
+      std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs,
+      scoped_refptr<MigrationState> state);
   static std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
   ToLocalStorageItems(const url::Origin& page_origin,
                       const cobalt::storage::Storage& storage);
