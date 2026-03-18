@@ -145,14 +145,17 @@ const char kBuiltinSplash[] = "BUILTIN_SPLASH";
 class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     : public H5vccSchemeURLLoaderFactoryBrowserTest {
  public:
-  // Verifies that the splash video is correctly loaded from the cache (or falls
-  // back). |cache_name|: The name of the cache storage to use. |query_param|:
-  // URL query parameters to append to the fetch request. |content|: The
-  // optional content to store in the cache. If nullopt, no content is put.
+  // Verifies that the splash video is correctly loaded from the cache (or
+  // falls back).
+  // |cache_name|: The name of the cache storage to use.
+  // |query_param|: URL query parameters to append to the fetch request.
+  // |content|: The optional content to store in the cache. If nullopt,
+  //  no content is put.
   // |expected_content|: The expected content to be retrieved.
   // |expected_uma_state|: The expected UMA state metric
-  // (SplashScreenFetchedState). |create_empty_cache|: If true, creates the
-  // cache even if no content is put.
+  //  of SplashScreenFetchedState.
+  // |create_empty_cache|: If true, creates the cache even if no content
+  //  is put.
   void VerifySplashVideoFromCacheWithContent(
       const std::string& cache_name,
       const std::string& query_param,
