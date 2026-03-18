@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,18 +26,18 @@ namespace {
 TEST(IamfBufferReaderTest, InitialState) {
   const uint8_t kTestData[] = {1, 2, 3, 4};
   IamfBufferReader reader(kTestData, sizeof(kTestData));
-  EXPECT_EQ(reader.pos(), 0);
-  EXPECT_EQ(reader.size(), 4);
-  EXPECT_EQ(reader.BytesRemaining(), 4);
+  EXPECT_EQ(reader.pos(), 0U);
+  EXPECT_EQ(reader.size(), 4U);
+  EXPECT_EQ(reader.BytesRemaining(), 4U);
   EXPECT_EQ(reader.buf(), kTestData);
   EXPECT_EQ(reader.CurrentData(), kTestData);
 }
 
 TEST(IamfBufferReaderTest, InitialStateEmpty) {
   IamfBufferReader reader(nullptr, 0);
-  EXPECT_EQ(reader.pos(), 0);
-  EXPECT_EQ(reader.size(), 0);
-  EXPECT_EQ(reader.BytesRemaining(), 0);
+  EXPECT_EQ(reader.pos(), 0U);
+  EXPECT_EQ(reader.size(), 0U);
+  EXPECT_EQ(reader.BytesRemaining(), 0U);
   EXPECT_EQ(reader.buf(), nullptr);
   EXPECT_EQ(reader.CurrentData(), nullptr);
 }
@@ -48,19 +48,19 @@ TEST(IamfBufferReaderTest, Read1AndReadByte) {
 
   uint8_t byte1;
   ASSERT_TRUE(reader.Read1(&byte1));
-  EXPECT_EQ(byte1, 0x11);
-  EXPECT_EQ(reader.pos(), 1);
-  EXPECT_EQ(reader.BytesRemaining(), 2);
+  EXPECT_EQ(byte1, 0x11U);
+  EXPECT_EQ(reader.pos(), 1U);
+  EXPECT_EQ(reader.BytesRemaining(), 2U);
 
   auto byte2_opt = reader.ReadByte();
   ASSERT_TRUE(byte2_opt.has_value());
-  EXPECT_EQ(*byte2_opt, 0x22);
-  EXPECT_EQ(reader.pos(), 2);
+  EXPECT_EQ(*byte2_opt, 0x22U);
+  EXPECT_EQ(reader.pos(), 2U);
 
   uint8_t byte3;
   ASSERT_TRUE(reader.Read1(&byte3));
-  EXPECT_EQ(byte3, 0x33);
-  EXPECT_EQ(reader.pos(), 3);
+  EXPECT_EQ(byte3, 0x33U);
+  EXPECT_EQ(reader.pos(), 3U);
 
   // Read past the end.
   uint8_t byte4;
@@ -74,9 +74,10 @@ TEST(IamfBufferReaderTest, Read4) {
 
   uint32_t value;
   ASSERT_TRUE(reader.Read4(&value));
-  // Assumes little-endian, which is checked in the class constructor.
-  EXPECT_EQ(value, 0x78563412);
-  EXPECT_EQ(reader.pos(), 4);
+  // The IAMF stream uses big-endian (network byte order). The test data
+  // {0x12, 0x34, 0x56, 0x78} correctly represents the value 0x12345678.
+  EXPECT_EQ(value, 0x12345678U);
+  EXPECT_EQ(reader.pos(), 4U);
 
   // Not enough bytes left.
   EXPECT_FALSE(reader.Read4(&value));
@@ -94,17 +95,17 @@ TEST(IamfBufferReaderTest, ReadLeb128) {
 
   uint32_t value;
   ASSERT_TRUE(reader.ReadLeb128(&value));
-  EXPECT_EQ(value, 2);
+  EXPECT_EQ(value, 2U);
 
   auto opt_value = reader.ReadLeb128();
   ASSERT_TRUE(opt_value.has_value());
-  EXPECT_EQ(*opt_value, 127);
+  EXPECT_EQ(*opt_value, 127U);
 
   ASSERT_TRUE(reader.ReadLeb128(&value));
-  EXPECT_EQ(value, 129);
+  EXPECT_EQ(value, 129U);
 
   ASSERT_TRUE(reader.ReadLeb128(&value));
-  EXPECT_EQ(value, 624485);
+  EXPECT_EQ(value, 624485U);
 
   EXPECT_FALSE(reader.ReadLeb128(&value));
 }
@@ -131,11 +132,11 @@ TEST(IamfBufferReaderTest, ReadString) {
   std::string str;
   ASSERT_TRUE(reader.ReadString(&str));
   EXPECT_EQ(str, "hello");
-  EXPECT_EQ(reader.pos(), 6);
+  EXPECT_EQ(reader.pos(), 6U);
 
   ASSERT_TRUE(reader.ReadString(&str));
   EXPECT_EQ(str, "world");
-  EXPECT_EQ(reader.pos(), 12);
+  EXPECT_EQ(reader.pos(), 12U);
 
   EXPECT_FALSE(reader.ReadString(&str));
 }
@@ -152,14 +153,14 @@ TEST(IamfBufferReaderTest, SkipBytesAndSkip) {
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
   ASSERT_TRUE(reader.SkipBytes(2));
-  EXPECT_EQ(reader.pos(), 2);
+  EXPECT_EQ(reader.pos(), 2U);
 
   ASSERT_TRUE(reader.Skip(3));
-  EXPECT_EQ(reader.pos(), 5);
+  EXPECT_EQ(reader.pos(), 5U);
 
   // Skip to the end.
   ASSERT_TRUE(reader.SkipBytes(1));
-  EXPECT_EQ(reader.pos(), 6);
+  EXPECT_EQ(reader.pos(), 6U);
 
   // Cannot skip past the end.
   EXPECT_FALSE(reader.Skip(1));
@@ -171,42 +172,42 @@ TEST(IamfBufferReaderTest, SkipLeb128AndSkipString) {
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
   ASSERT_TRUE(reader.SkipLeb128());
-  EXPECT_EQ(reader.pos(), 2);
+  EXPECT_EQ(reader.pos(), 2U);
 
   ASSERT_TRUE(reader.SkipString());
-  EXPECT_EQ(reader.pos(), 5);
+  EXPECT_EQ(reader.pos(), 5U);
 }
 
 TEST(IamfBufferReaderTest, MixedOperations) {
   const uint8_t kTestData[] = {
       0x12, 0x34, 0x56, 0x78,        // Read4
       't',  'e',  's',  't',  '\0',  // ReadString
-      0x9F, 0x02,                    // ReadLeb128 (351)
+      0xDF, 0x02,                    // ReadLeb128 (351)
       0xFF,                          // Read1
   };
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
   uint32_t val4;
   ASSERT_TRUE(reader.Read4(&val4));
-  EXPECT_EQ(val4, 0x78563412);
-  EXPECT_EQ(reader.pos(), 4);
+  EXPECT_EQ(val4, 0x12345678U);
+  EXPECT_EQ(reader.pos(), 4U);
 
   std::string str;
   ASSERT_TRUE(reader.ReadString(&str));
   EXPECT_EQ(str, "test");
-  EXPECT_EQ(reader.pos(), 9);
+  EXPECT_EQ(reader.pos(), 9U);
 
   uint32_t val_leb;
   ASSERT_TRUE(reader.ReadLeb128(&val_leb));
-  EXPECT_EQ(val_leb, 351);
-  EXPECT_EQ(reader.pos(), 11);
+  EXPECT_EQ(val_leb, 351U);
+  EXPECT_EQ(reader.pos(), 11U);
 
   uint8_t val1;
   ASSERT_TRUE(reader.Read1(&val1));
-  EXPECT_EQ(val1, 0xFF);
-  EXPECT_EQ(reader.pos(), 12);
+  EXPECT_EQ(val1, 0xFFU);
+  EXPECT_EQ(reader.pos(), 12U);
 
-  EXPECT_EQ(reader.BytesRemaining(), 0);
+  EXPECT_EQ(reader.BytesRemaining(), 0U);
 }
 
 }  // namespace

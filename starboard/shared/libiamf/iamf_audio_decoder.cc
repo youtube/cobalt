@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/libiamf/IAMF_defines.h"
 #include "starboard/shared/libiamf/iamf_decoder_utils.h"
 // TODO: Add libiamf to //third_party.
 // #include "third_party/libiamf/source/code/include/IAMF_defines.h"

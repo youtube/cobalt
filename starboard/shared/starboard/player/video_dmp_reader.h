@@ -138,10 +138,8 @@ class VideoDmpReader {
     size_t audio_access_units_size = 0;
     int64_t audio_bitrate = 0;
     int audio_duration = 0;
-#if ENABLE_IAMF_DECODE
     std::optional<uint8_t> iamf_primary_profile;
     std::optional<uint8_t> iamf_additional_profile;
-#endif  // ENABLE_IAMF_DECODE
 
     SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
     size_t video_access_units_size = 0;

@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -172,7 +172,7 @@ int IamfBufferReader::ReadLeb128Internal(const uint8_t* buf,
 
   *value = 0;
   bool error = true;
-  size_t i = 0;
+  int i = 0;
   for (; i < max_bytes_to_read; ++i) {
     uint8_t byte = buf[i];
     *value |= ((byte & 0x7f) << (i * 7));
@@ -194,21 +194,18 @@ int IamfBufferReader::ReadStringInternal(const uint8_t* buf,
   SB_DCHECK(buf);
   SB_DCHECK(str);
 
-  str->clear();
-  str->resize(max_bytes_to_read);
-
-  int bytes_read = ::starboard::strlcpy(
-      str->data(), reinterpret_cast<const char*>(buf), max_bytes_to_read);
-  if (bytes_read == max_bytes_to_read) {
-    // Ensure that the string is null terminated.
-    if (buf[bytes_read] != '\0') {
-      return -1;
-    }
+  // Find the null terminator safely within the buffer bounds.
+  const void* null_terminator = memchr(buf, '\0', max_bytes_to_read);
+  if (!null_terminator) {
+    // No null terminator found within the readable range.
+    return -1;
   }
-  str->resize(bytes_read);
 
-  // Account for null terminator.
-  return ++bytes_read;
+  const int bytes_read = static_cast<const uint8_t*>(null_terminator) - buf;
+  str->assign(reinterpret_cast<const char*>(buf), bytes_read);
+
+  // Account for the null terminator itself in the total bytes read.
+  return bytes_read + 1;
 }
 
 }  // namespace starboard
