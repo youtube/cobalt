@@ -295,7 +295,7 @@ public class StarboardBridge {
     if (currentActivity != null) {
       currentActivity.finishAndRemoveTask();
     }
-    System.exit(0);
+    System.exit(errorLevel);
   }
 
   public boolean onSearchRequested() {
