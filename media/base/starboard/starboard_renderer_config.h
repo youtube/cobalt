@@ -36,7 +36,8 @@ struct MEDIA_EXPORT StarboardRendererConfig {
                           const bool enable_flush_during_seek,
                           const bool enable_reset_audio_decoder,
                           std::optional<int> initial_max_frames_in_decoder,
-                          std::optional<int> max_pending_input_frames);
+                          std::optional<int> max_pending_input_frames,
+                          std::optional<int> video_decoder_poll_interval_ms);
   StarboardRendererConfig(const StarboardRendererConfig&);
   StarboardRendererConfig& operator=(const StarboardRendererConfig&);
 
@@ -49,6 +50,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   bool enable_reset_audio_decoder;
   std::optional<int> initial_max_frames_in_decoder;
   std::optional<int> max_pending_input_frames;
+  std::optional<int> video_decoder_poll_interval_ms;
 };
 
 }  // namespace media

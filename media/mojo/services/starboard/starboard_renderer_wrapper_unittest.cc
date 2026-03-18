@@ -69,7 +69,8 @@ class MockStarboardRenderer : public StarboardRenderer {
                           /*enable_flush_during_seek=*/false,
                           /*enable_reset_audio_decoder=*/false,
                           /*initial_max_frames_in_decoder=*/std::nullopt,
-                          /*max_pending_input_frames=*/std::nullopt
+                          /*max_pending_input_frames=*/std::nullopt,
+                          /*video_decoder_poll_interval_ms=*/std::nullopt
 #if BUILDFLAG(IS_ANDROID)
                           ,
                           android_overlay_factory_cb
@@ -181,6 +182,7 @@ class StarboardRendererWrapperTest : public testing::Test {
         /*enable_reset_audio_decoder=*/false,
         /*initial_max_frames_in_decoder=*/std::nullopt,
         /*max_pending_input_frames=*/std::nullopt,
+        /*video_decoder_poll_interval_ms=*/std::nullopt,
         std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =

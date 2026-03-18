@@ -128,8 +128,8 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_, surface_view_, flush_decoder_during_reset_,
       reset_audio_decoder_, video_initial_max_frames_in_decoder_,
-      video_max_pending_input_frames_, decode_target_graphics_context_provider_,
-      job_queue, drm_system_);
+      video_max_pending_input_frames_, video_decoder_poll_interval_ms_,
+      decode_target_graphics_context_provider_, job_queue, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -580,6 +580,14 @@ void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
                << video_max_pending_input_frames_ << " to "
                << video_max_pending_input_frames;
   video_max_pending_input_frames_ = video_max_pending_input_frames;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoDecoderPollIntervalMs(
+    int video_decoder_poll_interval_ms) {
+  SB_LOG(INFO) << "Set video_decoder_poll_interval_ms from "
+               << video_decoder_poll_interval_ms_ << " to "
+               << video_decoder_poll_interval_ms;
+  video_decoder_poll_interval_ms_ = video_decoder_poll_interval_ms;
 }
 
 }  // namespace starboard
