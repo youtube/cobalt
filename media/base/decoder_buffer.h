@@ -215,18 +215,15 @@ class MEDIA_EXPORT DecoderBuffer
     duration_ = duration;
   }
 
-<<<<<<< HEAD
-  // The pointer to the start of the buffer. Prefer to construct a span around
-  // the buffer, such as `base::span(decoder_buffer)`.
-  // TODO(crbug.com/365814210): Remove in favor of AsSpan().
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   Allocator::Handle handle() const {
     return allocator_data_->handle;
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+  // The pointer to the start of the buffer. Prefer to construct a span around
+  // the buffer, such as `base::span(decoder_buffer)`.
+  // TODO(crbug.com/365814210): Remove in favor of AsSpan().
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -359,20 +356,8 @@ class MEDIA_EXPORT DecoderBuffer
     size_ = size;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
-  bool end_of_stream() const { return is_end_of_stream_; }
-=======
 
-  bool end_of_stream() const {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (allocator_data_) {
-      return allocator_data_->handle == Allocator::kInvalidHandle;
-    }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-    return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
-           !external_memory_ && !data_;
-  }
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+  bool end_of_stream() const { return is_end_of_stream_; }
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
