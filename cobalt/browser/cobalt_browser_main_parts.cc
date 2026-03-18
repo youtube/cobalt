@@ -114,6 +114,10 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
+  if (result != 0) {
+    return result;
+  }
+
   StartStorageMigration();
 
   return result;
@@ -124,24 +128,19 @@ void CobaltBrowserMainParts::StartStorageMigration() {
   content::StoragePartition* partition =
       browser_context()->GetDefaultStoragePartition();
 
-  if (partition) {
-    cobalt::migrate_storage_record::MigrationManager::RunMigration(
-        partition, base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
-                                  base::Unretained(this)));
-  } else {
-    LOG(ERROR) << "BrowserContext not available for storage migration.";
-    OnMigrationComplete();
-  }
+  DCHECK(partition);
+  cobalt::migrate_storage_record::MigrationManager::RunMigration(
+      partition, base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
+                                base::Unretained(this)));
 }
 
 void CobaltBrowserMainParts::OnMigrationComplete() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  LOG(INFO) << "Migration complete. Proceeding with deferred tasks.";
+  LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
   migration_finished_ = true;
-  for (auto& task : pending_tasks_) {
-    std::move(task).Run();
+  if (pending_task_) {
+    std::move(pending_task_).Run();
   }
-  pending_tasks_.clear();
 }
 
 void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
@@ -149,10 +148,11 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!migration_finished_) {
     LOG(INFO) << "Deferring launchShell until migration finishes.";
-    pending_tasks_.push_back(std::move(task));
+    DCHECK(!pending_task_) << "Only one storage migration task is supported.";
+    pending_task_ = std::move(task);
   } else {
     LOG(INFO) << "Migration already finished, running launchShell "
-                  "immediately.";
+                 "immediately.";
     std::move(task).Run();
   }
 }

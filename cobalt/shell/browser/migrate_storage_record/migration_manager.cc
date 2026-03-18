@@ -140,6 +140,7 @@ base::FilePath GetOldCachePath() {
 base::FilePath GetMigrationSentinelPath() {
   base::FilePath current_cache_path;
   if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
+    LOG(ERROR) << "Failed to get cache directory for migration sentinel file.";
     return base::FilePath();
   }
   return current_cache_path.Append("migration_completed.txt");
@@ -154,7 +155,10 @@ void WriteMigrationSentinelAsync() {
       ->PostTask(FROM_HERE, base::BindOnce([]() {
                    base::FilePath sentinel_path = GetMigrationSentinelPath();
                    if (!sentinel_path.empty()) {
-                     base::WriteFile(sentinel_path, "1");
+                     if (!base::WriteFile(sentinel_path, "1")) {
+                       LOG(ERROR) << "Failed to write migration sentinel file to "
+                                  << sentinel_path.value();
+                     }
                    }
                  }));
 }
@@ -174,10 +178,16 @@ void DeleteOldCacheDirectoryAsync() {
             }
 
             base::FilePath current_cache_path;
-            base::PathService::Get(base::DIR_CACHE, &current_cache_path);
+            if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
+              LOG(ERROR) << "Failed to get current cache directory. Skipping deletion of old cache path.";
+              return;
+            }
             if (!old_cache_path.IsParent(current_cache_path) &&
                 old_cache_path != current_cache_path) {
-              base::DeletePathRecursively(old_cache_path);
+              if (!base::DeletePathRecursively(old_cache_path)) {
+                LOG(ERROR) << "Failed to delete old cache directory: "
+                           << old_cache_path.value();
+              }
               return;
             }
 
@@ -198,7 +208,10 @@ void DeleteOldCacheDirectoryAsync() {
             for (const auto& subpath : old_cache_subpaths) {
               base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
               if (base::PathExists(old_cache_subpath)) {
-                base::DeletePathRecursively(old_cache_subpath);
+                if (!base::DeletePathRecursively(old_cache_subpath)) {
+                  LOG(ERROR) << "Failed to delete old cache subpath: "
+                             << old_cache_subpath.value();
+                }
               }
             }
           }));
@@ -290,8 +303,6 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     auto bytes = std::vector<uint8_t>(record->GetSize());
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
-
-    LOG(INFO) << "Read " << read_result << " bytes from legacy storage.";
 
     if (!record->Delete()) {
       LOG(ERROR)
