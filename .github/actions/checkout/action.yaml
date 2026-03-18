@@ -81,17 +81,13 @@ runs:
           depth_arg+=(--depth "${FETCH_DEPTH}")
         fi
 
-        if [ -n "${CACHE_PATH}" ]; then
-          # Use git worktree for faster checkout since we have a local cache.
-          git -C "${CACHE_PATH}" worktree prune
-          git -C "${CACHE_PATH}" worktree add "${GITHUB_WORKSPACE}/${DEST_PATH}" --detach --no-checkout
-        else
-          git clone \
-            --filter=blob:none \
-            "${depth_arg[@]}" \
-            "${REPO_URL}" \
-            "${DEST_PATH}"
-        fi
+        git clone \
+          --filter=blob:none \
+          --reference-if-able "${CACHE_PATH}" \
+          --no-checkout \
+          "${depth_arg[@]}" \
+          "${REPO_URL}" \
+          "${DEST_PATH}"
 
         git config --global --add safe.directory "${GITHUB_WORKSPACE}/${DEST_PATH}"
 
