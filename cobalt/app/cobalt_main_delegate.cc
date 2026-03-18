@@ -180,13 +180,14 @@ void CobaltMainDelegate::PreSandboxStartup() {
         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
             switches::kProcessType);
     CobaltCrashReporterClient::Create();
-    crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-    crash_reporter::SetUploadConsent(true);
-
+    if (process_type != switches::kZygoteProcess) {
+      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+      crash_reporter::SetUploadConsent(true);
 #if BUILDFLAG(IS_LINUX)
-    crash_reporter::SetFirstChanceExceptionHandler(
-        v8::TryHandleWebAssemblyTrapPosix);
+      crash_reporter::SetFirstChanceExceptionHandler(
+          v8::TryHandleWebAssemblyTrapPosix);
 #endif
+      }
   }
 
 #if !BUILDFLAG(IS_ANDROIDTV)
