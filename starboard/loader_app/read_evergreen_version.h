@@ -19,11 +19,16 @@
 
 namespace loader_app {
 
-// The max length of Evergreen version string.
+// The max length of Evergreen version string, including the
+// null terminator.
 extern const int kMaxEgVersionLength;
 
 // Reads the Evergreen version from the manifest file at the
-// |manifest_file_path|, and stores in |version|.
+// |manifest_file_path|, and stores in |version|. Returns false
+// if the manifest file is not found or cannot be read, the
+// evergreen version cannot be parsed, or the stored |version|
+// string is truncated. |version_length| should include space for
+// the terminating null character.
 bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
                           char* version,
                           int version_length);
