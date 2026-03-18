@@ -64,7 +64,7 @@ class DirectMaskGlyphVertexFillBenchmark : public Benchmark {
 
         const sktext::gpu::AtlasSubRun* subRun = fBlob->testingOnlyFirstSubRun();
         SkASSERT(subRun);
-        subRun->testingOnly_packedGlyphIDToGlyph(&fCache);
+        subRun->testingOnly_packedGlyphIDToGlyph(&fCache, subRun->maskFormat());
         fVertices.reset(new char[subRun->vertexStride(drawMatrix) * subRun->glyphCount() * 4]);
     }
 

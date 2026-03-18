@@ -332,7 +332,8 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
     if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
+            media::kCobaltReportBufferingStateDuringFlush) ||
+        experimental_features_.report_buffering_state_during_flush) {
       task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
@@ -539,8 +540,14 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
                                    weak_factory_.GetWeakPtr());
   config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
                                     weak_factory_.GetWeakPtr());
-  config.rect = gfx::Rect(viewport_size_);
-  config.secure = false;
+  gfx::Rect initial_rect = gfx::Rect(viewport_size_);
+  if (initial_rect.IsEmpty()) {
+    // Provide a default non-zero size, this is fine as it will be
+    // updated by OnVideoGeometryChange().
+    initial_rect = gfx::Rect(0, 0, 1920, 1080);
+  }
+  config.rect = initial_rect;
+  config.secure = cdm_context_ != nullptr;
   config.power_efficient = false;
 
   overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
@@ -618,13 +625,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1, experimental_features_.enable_flush_during_seek,
-        experimental_features_.enable_reset_audio_decoder,
-        experimental_features_.initial_max_frames_in_decoder,
-        experimental_features_.max_pending_input_frames,
-        experimental_features_.video_decoder_initial_preroll_count,
-        experimental_features_.video_decoder_poll_interval_ms,
-        experimental_features_.media_codec_reset_delay_ms
+        /*max_video_input_size=*/-1, experimental_features_
 #if BUILDFLAG(IS_ANDROID)
         ,
         // TODO: b/475294958 - Revisit platform-specific codes above starboard.

@@ -37,7 +37,8 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--enable-low-end-device-mode");
     assertThat(args).contains("--disable-rgba-4444-textures");
     assertThat(args).contains("--js-flags=--optimize-for-size");
-    assertThat(args).hasSize(4);
+    assertThat(args).contains("--js-flags=--max-old-space-size=512");
+    assertThat(args).hasSize(5);
   }
 
   @Test
@@ -53,14 +54,12 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
     javaSwitches.put(JavaSwitches.V8_HEAP_GROWING_PERCENT, "50");
     javaSwitches.put(JavaSwitches.V8_NOWASM_CODE_GC, "true");
-    javaSwitches.put(JavaSwitches.CC_LAYER_TREE_OPTIMIZATION, "0");
     javaSwitches.put(JavaSwitches.DISABLE_SPLASH_SCREEN, "true");
     javaSwitches.put(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN, "true");
-    javaSwitches.put(JavaSwitches.NUM_RASTER_THREADS, "4");
-    javaSwitches.put(JavaSwitches.DISABLE_BRP, "true");
-    javaSwitches.put(JavaSwitches.ENABLE_BRP_RECLAIMER, "true");
     javaSwitches.put(JavaSwitches.SKIA_FONT_CACHE, "true");
     javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "24");
+    javaSwitches.put(JavaSwitches.ENABLE_AV1_STARTUP_OPTIMIZATION, "true");
+    javaSwitches.put(JavaSwitches.DISABLE_SW_AV1_DECODER, "true");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
@@ -68,8 +67,7 @@ public class JavaSwitchesTest {
     assertThat(args).doesNotContain("--enable-low-end-device-mode");
     assertThat(args).doesNotContain("--disable-rgba-4444-textures");
 
-    assertThat(args).contains("--cc-layer-tree-optimization=0");
-
+    assertThat(args).contains("--enable-features=PartialLowEndModeOnMidRangeDevices");
     assertThat(args).contains("--js-flags=--jitless");
     assertThat(args).contains("--js-flags=--write-protect-code-memory");
     assertThat(args).contains("--js-flags=--gc-interval=1000");
@@ -81,12 +79,11 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--nowasm-code-gc");
     assertThat(args).contains("--disable-splash-screen");
     assertThat(args).contains("--force-image-splash-screen");
-    assertThat(args).contains("--num-raster-threads=4");
-    assertThat(args).contains("--disable-features=PartitionAllocBackupRefPtr");
-    assertThat(args).contains("--enable-features=PartitionAllocBackupRefPtr:brp-mode/enabled-with-memory-reclaimer");
     assertThat(args).contains("--enable-features=SkiaFontCache");
     assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=24");
-    assertThat(args).hasSize(17);
+    assertThat(args).contains("--enable-features=EnableAv1StartupOptimization");
+    assertThat(args).contains("--enable-features=RejectLowPerformanceSoftwareDecoder");
+    assertThat(args).hasSize(16);
   }
 
   @Test

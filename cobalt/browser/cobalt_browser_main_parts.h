@@ -44,7 +44,7 @@ class GlobalFeatures;
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  CobaltBrowserMainParts() = default;
+  explicit CobaltBrowserMainParts(const std::string& deep_link);
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
@@ -74,6 +74,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Starts metrics recording.
   void StartMetricsRecording();
+
+  // Configures Async DNS and DoH using the Network Service.
+  void ConfigureAsyncDnsAndDoH();
 
   // C25 Storage Migration
   void StartStorageMigration();

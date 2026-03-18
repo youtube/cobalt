@@ -445,6 +445,14 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   return supported;
 }
 
+bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
+  if (!is_enabled_) {
+    // When the cache is not enabled, always checks video fps.
+    return true;
+  }
+  return is_av1_8k_capped_at_30_;
+}
+
 bool MediaCapabilitiesCache::GetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* configuration) {
@@ -619,6 +627,7 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
     supported_transfer_ids_ = GetSupportedHdrTypes();
     LoadCodecInfos_Locked();
     LoadAudioConfigurations_Locked();
+    LoadIsAv18kCappedAt30_Locked();
   }
 }
 
@@ -683,6 +692,30 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
          ::starboard::android::shared::GetAudioConfiguration(
              audio_configurations_.size(), &configuration)) {
     audio_configurations_.push_back(configuration);
+  }
+}
+
+void MediaCapabilitiesCache::LoadIsAv18kCappedAt30_Locked() {
+  const bool enable_av1_startup_optimization =
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableAv1StartupOptimization);
+  if (!enable_av1_startup_optimization) {
+    return;
+  }
+
+  is_av1_8k_capped_at_30_ = false;
+  for (const auto& video_capability :
+       video_codec_capabilities_map_[SupportedVideoCodecToMimeType(
+           kSbMediaVideoCodecAv1)]) {
+    constexpr int kWidth8K = 7680;
+    constexpr int kHeight8K = 4320;
+    if (video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+                                                        /*fps=*/0) &&
+        !video_capability->AreResolutionAndRateSupported(kWidth8K, kHeight8K,
+                                                         /*fps=*/60)) {
+      is_av1_8k_capped_at_30_ = true;
+      break;
+    }
   }
 }
 

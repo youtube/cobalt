@@ -31,25 +31,13 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
-<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
-    enum="BooleanHung" expires_after="never">
-  <owner>antonlunev@google.com</owner>
-  <summary>
-    Every 10 seconds, a boolean is recorded to this histogram to indicate
-    whether the RendererThread of a Browser process was hung. The thread is hung
-    if the current work unit started running more than 10 seconds ago. This is
-    emitted only in single process mode(when renderer is a thread inside
-    BrowserProcess).
-  </summary>
-</histogram>
-
 <histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the age of the Finch configuration in days each time it is
-    checked at startup. This data is used to determine an appropriate
-    expiration threshold.
+    Records the age of the Finch configuration in days each time it is checked
+    at startup. This data is used to determine an appropriate expiration
+    threshold.
   </summary>
 </histogram>
 
@@ -57,8 +45,8 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
   <summary>
-    Records the state of the Finch configuration at startup. This is used
-    to monitor the frequency of expired or invalid configurations.
+    Records the state of the Finch configuration at startup. This is used to
+    monitor the frequency of expired or invalid configurations.
   </summary>
 </histogram>
 
@@ -79,6 +67,29 @@ Always run the pretty print utility on this file after editing:
     Records whether the version strings in the Finch config are valid and can be
     parsed correctly. A false value indicates a malformed version string was
     received.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
+    enum="LocalStorageDatabaseResetReason" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the reason why the Local Storage database was reset.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the number of times a platform error was raised due to a navigation
+    timeout or other network error. This is logged every time RaisePlatformError
+    is called; each logged count is the cumulative number of times the error has
+    been raised. The actual number of sessions with a specific number of platform
+    errors raised can be calculated by subtracting the values of counts larger than
+    said number. For example, sessions with 2 calls to RaisePlatformError would be
+    (count for 2 calls) - (count for 3 calls) - ... (count for max calls).
+    This value is reset to 0 on a successful navigation/app load.
   </summary>
 </histogram>
 
@@ -162,11 +173,101 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
-    enum="LocalStorageDatabaseResetReason" expires_after="never">
+<histogram name="Cobalt.SplashScreen.FetchedFromCache"
+    enum="SplashScreenFetchedState" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records whether a splash screen resource was successfully retrieved from
+    cache and indicates the reason when on error. This is recorded for every
+    splash screen request handled by h5vcc scheme loader.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
+    expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the reason why the Local Storage database was reset.
+    Measures the average time spent per cookie operation during a batch commit
+    to the SQLite database. This provides a normalized view of commit
+    performance, helping to identify how efficiently the database handles
+    operations as the batch size changes.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Cookie.LoadDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total time it takes to load all cookies from the SQLite database
+    into memory when the application starts and makes its first network request.
+    This helps us understand the performance impact of cookie loading on
+    startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Cookie.PendingOperationsAtCommit"
+    units="operations" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the number of pending cookie operations (add, update, delete) that
+    are being committed to the database in a single batch. This gives an
+    indication of the amount of data at risk of loss if a crash occurs between
+    commits (the &quot;crash gap&quot;).
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Exit.CookieFlushDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to flush cookies during a graceful application
+    exit (e.g., via window.h5vcc.system.exit()). This helps to understand the
+    performance of the operation and can serve as a health signal for the
+    storage backend.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Exit.LocalStorageFlushDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to flush local storage during a graceful
+    application exit (e.g., via window.h5vcc.system.exit()). This helps to
+    understand the performance of the operation and can serve as a health signal
+    for the storage backend.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to flush both cookies and local storage during the
+    onPause event on Android. This helps to understand if the operation
+    completes within the short window granted by the OS before the app is
+    killed.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    For every navigation in the primary main frame, this boolean is recorded to
+    indicate whether the navigation resulted in a network error. This is used to
+    track the navigation success rate. Aborted navigations are not included.
+  </summary>
+</histogram>
+
+<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
+    enum="BooleanHung" expires_after="never">
+  <owner>antonlunev@google.com</owner>
+  <summary>
+    Every 10 seconds, a boolean is recorded to this histogram to indicate
+    whether the RendererThread of a Browser process was hung. The thread is hung
+    if the current work unit started running more than 10 seconds ago. This is
+    emitted only in single process mode(when renderer is a thread inside
+    BrowserProcess).
   </summary>
 </histogram>
 

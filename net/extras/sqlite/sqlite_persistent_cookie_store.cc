@@ -28,6 +28,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "net/cookies/canonical_cookie.h"
@@ -433,6 +434,11 @@ class SQLitePersistentCookieStore::Backend
   //
   // Not owned.
   raw_ptr<CookieCryptoDelegate, DanglingUntriaged> crypto_;
+
+#if BUILDFLAG(IS_COBALT)
+  // Timer for the total load time of the cookie database.
+  std::unique_ptr<base::ElapsedTimer> load_timer_;
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 namespace {
@@ -737,6 +743,9 @@ void SQLitePersistentCookieStore::Backend::Load(
   PostBackgroundTask(FROM_HERE,
                      base::BindOnce(&Backend::LoadAndNotifyInBackground, this,
                                     std::move(loaded_callback)));
+#if BUILDFLAG(IS_COBALT)
+  load_timer_ = std::make_unique<base::ElapsedTimer>();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void SQLitePersistentCookieStore::Backend::LoadCookiesForKey(
@@ -1502,6 +1511,10 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
 
 void SQLitePersistentCookieStore::Backend::DoCommit() {
   DCHECK(background_task_runner()->RunsTasksInCurrentSequence());
+#if BUILDFLAG(IS_COBALT)
+  size_t op_count = 0;
+  base::ElapsedTimer commit_timer;
+#endif  // BUILDFLAG(IS_COBALT)
 
   PendingOperationsMap ops;
   {
@@ -1509,6 +1522,14 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     pending_.swap(ops);
     num_pending_ = 0;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  for (const auto& op : ops) {
+    op_count += op.second.size();
+  }
+  UMA_HISTOGRAM_COUNTS_1000("Cobalt.Storage.Cookie.PendingOperationsAtCommit",
+                           op_count);
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Maybe an old timer fired or we are already Close()'ed.
   if (!db() || ops.empty())
@@ -1630,6 +1651,14 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
   if (!commit_ok) {
     RecordCookieCommitProblem(COOKIE_COMMIT_PROBLEM_TRANSACTION_COMMIT);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  base::TimeDelta elapsed = commit_timer.Elapsed();
+  if (op_count > 0) {
+    UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.CommitDurationPerOperation",
+                        elapsed / op_count);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 size_t SQLitePersistentCookieStore::Backend::GetQueueLengthForTesting() {
@@ -1711,6 +1740,13 @@ void SQLitePersistentCookieStore::Backend::BackgroundDeleteAllInList(
 void SQLitePersistentCookieStore::Backend::FinishedLoadingCookies(
     LoadedCallback loaded_callback,
     bool success) {
+#if BUILDFLAG(IS_COBALT)
+  if (load_timer_) {
+    UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.LoadDuration",
+                        load_timer_->Elapsed());
+    load_timer_.reset();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   PostClientTask(FROM_HERE,
                  base::BindOnce(&Backend::CompleteLoadInForeground, this,
                                 std::move(loaded_callback), success));

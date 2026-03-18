@@ -67,22 +67,25 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
                                   const JavaParamRef<jstring>& jurl,
-                                  const JavaParamRef<jstring>& jtopic) {
+                                  const JavaParamRef<jstring>& jdeeplink_url) {
+  ShellBrowserContext* browserContext =
+      ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
-  std::string topic = base::android::ConvertJavaStringToUTF8(env, jtopic);
+  std::string deeplink_url =
+      base::android::ConvertJavaStringToUTF8(env, jdeeplink_url);
 
   // We wrap the WebContents creation into a task because we must ensure
   // that any asynchronous storage migration is completely finished before
   // the browser accesses the default storage partition. If WebContents
   // is created too early, the JS environment will start with empty data.
   auto create_window_task = base::BindOnce(
-      [](GURL url, std::string topic) {
+      [](GURL url, std::string deeplink_url) {
         ShellBrowserContext* browserContext =
             ShellContentBrowserClient::Get()->browser_context();
         Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
-                               switches::ShouldCreateSplashScreen(), topic);
+                               switches::ShouldCreateSplashScreen(), deeplink_url);
       },
-      std::move(url), std::move(topic));
+      std::move(url), std::move(deeplink_url));
 
   auto* parts = ShellContentBrowserClient::Get()->shell_browser_main_parts();
   if (parts) {

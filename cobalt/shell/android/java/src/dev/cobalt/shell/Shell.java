@@ -231,11 +231,10 @@ public class Shell {
             mWebContents.onShow();
         }
         mContentViewRenderView.setCurrentWebContents(mWebContents);
+        mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }
-
-        mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
     }
 
     /**

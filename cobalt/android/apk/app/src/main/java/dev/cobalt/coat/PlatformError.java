@@ -171,6 +171,7 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     mDialog = null;
+    sendResponse(mResponse, mData);
   }
 
   /** Informs Starboard when the error is dismissed. */
