@@ -39,14 +39,11 @@
 #include "base/numerics/checked_math.h"
 #include "media/base/logging_override_if_enabled.h"
 #include "media/base/stream_parser_buffer.h"
-<<<<<<< HEAD
 #include "partition_alloc/partition_alloc.h"
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> a166c8504f (cobalt: Support synchronous MSE init segment append (#8492))
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_source_buffer.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
