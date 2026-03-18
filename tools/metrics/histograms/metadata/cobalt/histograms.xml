@@ -195,6 +195,67 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.StorageMigration.CookieInjectionResult"
+    enum="StorageInjectionResult" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to inject a single cookie into the new
+    Chromium-based storage during migration from legacy Starboard storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.CookiesCount" units="cookies"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total number of cookies found in the legacy Starboard storage
+    record during a migration attempt.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.Duration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total time taken to migrate data from the legacy Starboard
+    storage record to the new Chromium-based storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.LocalStorageCount" units="entries"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the total number of localStorage entries found in the legacy
+    Starboard storage record during a migration attempt.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.LocalStorageInjectionResult"
+    enum="StorageInjectionResult" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to inject a single localStorage entry into
+    the new Chromium-based storage during migration from legacy Starboard
+    storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.ReadResult" enum="StorageReadResult"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of attempting to read and parse the legacy Starboard
+    storage record during migration.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
