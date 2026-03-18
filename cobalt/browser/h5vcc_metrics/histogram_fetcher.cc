@@ -34,12 +34,12 @@ HistogramFetcher::~HistogramFetcher() = default;
 std::string HistogramFetcher::FetchHistograms(
     metrics::MetricsStateManager* state_manager,
     metrics::MetricsServiceClient* service_client) {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   CHECK(state_manager);
   CHECK(service_client);
 
   // Synchronously fetch subprocess histograms that live in shared memory.
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
   if (state_manager->client_id().empty()) {
     return std::string();
@@ -81,7 +81,7 @@ std::string HistogramFetcher::FetchHistograms(
   }
   std::string encoded_log;
   log.FinalizeLog(false, service_client->GetVersionString(),
-                  log.GetCurrentClockTime(false), &encoded_log);
+                  &encoded_log);
   uma_proto.CopyFrom(*log.uma_proto());
 
   cobalt::browser::metrics::CobaltUMAEvent cobalt_proto;
