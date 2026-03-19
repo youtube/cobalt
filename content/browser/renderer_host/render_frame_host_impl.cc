@@ -11110,11 +11110,15 @@ void RenderFrameHostImpl::ResetPermissionsPolicy() {
 void RenderFrameHostImpl::CreateAudioInputStreamFactory(
     mojo::PendingReceiver<blink::mojom::RendererAudioInputStreamFactory>
         receiver) {
-  BrowserMainLoop* browser_main_loop = BrowserMainLoop::GetInstance();
-  DCHECK(browser_main_loop);
-  MediaStreamManager* msm = browser_main_loop->media_stream_manager();
-  audio_service_audio_input_stream_factory_.emplace(std::move(receiver), msm,
-                                                    this);
+  if (!audio_service_audio_input_stream_factory_) {
+    BrowserMainLoop* browser_main_loop = BrowserMainLoop::GetInstance();
+    DCHECK(browser_main_loop);
+    MediaStreamManager* msm = browser_main_loop->media_stream_manager();
+    audio_service_audio_input_stream_factory_.emplace(std::move(receiver), msm,
+                                                      this);
+  } else if (receiver.is_valid()) {
+    audio_service_audio_input_stream_factory_->Init(std::move(receiver));
+  }
 }
 
 void RenderFrameHostImpl::CreateAudioOutputStreamFactory(

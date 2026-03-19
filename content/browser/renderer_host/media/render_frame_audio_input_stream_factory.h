@@ -37,8 +37,13 @@ class CONTENT_EXPORT RenderFrameAudioInputStreamFactory final {
 
   ~RenderFrameAudioInputStreamFactory();
 
- private:
+  void Init(mojo::PendingReceiver<blink::mojom::RendererAudioInputStreamFactory>
+                receiver);
+
   class Core;
+  Core* GetCore() { return core_.get(); }
+
+ private:
   std::unique_ptr<Core> core_;
 };
 

@@ -34,6 +34,7 @@
 #include "content/browser/interest_group/ad_auction_service_impl.h"
 #include "content/browser/keyboard_lock/keyboard_lock_service_impl.h"
 #include "content/browser/loader/content_security_notifier.h"
+#include "content/browser/media/media_devices_util.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/media/midi_host.h"
 #include "content/browser/media/session/media_session_service_impl.h"
@@ -954,9 +955,11 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
         GetIOThreadTaskRunner({}));
 
     map->Add<blink::mojom::MediaStreamDispatcherHost>(
-        base::BindRepeating(&MediaStreamDispatcherHost::Create,
-                            host->GetProcess()->GetID(), host->GetRoutingID(),
-                            base::Unretained(media_stream_manager)),
+        base::BindRepeating(
+            &MediaStreamDispatcherHost::Create, host->GetProcess()->GetID(),
+            host->GetRoutingID(), base::Unretained(media_stream_manager),
+            GetMediaDeviceSaltAndOrigin(host->GetProcess()->GetID(),
+                                        host->GetRoutingID())),
         GetIOThreadTaskRunner({}));
 
     map->Add<media::mojom::VideoCaptureHost>(

@@ -248,6 +248,7 @@ class DocumentServiceBase;
 
 class AgentSchedulingGroupHost;
 class BrowsingContextState;
+class RenderFrameImpl;
 class CodeCacheHostImpl;
 class CrossOriginEmbedderPolicyReporter;
 class CrossOriginOpenerPolicyAccessReportManager;
@@ -421,6 +422,12 @@ class CONTENT_EXPORT RenderFrameHostImpl
   WebExposedIsolationLevel GetWebExposedIsolationLevel() override;
   const GURL& GetLastCommittedURL() const override;
   const url::Origin& GetLastCommittedOrigin() const override;
+
+  RenderFrameAudioInputStreamFactory* GetAudioInputStreamFactory() {
+    return audio_service_audio_input_stream_factory_.has_value()
+               ? &audio_service_audio_input_stream_factory_.value()
+               : nullptr;
+  }
   const net::NetworkIsolationKey& GetNetworkIsolationKey() override;
   const net::IsolationInfo& GetIsolationInfoForSubresources() override;
   net::IsolationInfo GetPendingIsolationInfoForSubresources() override;
@@ -3014,6 +3021,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
  private:
   friend class ResumeCommitClosureSetObserver;
   friend class RenderFrameHostPermissionsPolicyTest;
+  friend class RenderFrameImpl;
   friend class TestRenderFrameHost;
   friend class TestRenderViewHost;
   friend class TextInputTestLocalFrame;

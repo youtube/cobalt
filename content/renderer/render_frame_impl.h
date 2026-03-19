@@ -1231,6 +1231,11 @@ class CONTENT_EXPORT RenderFrameImpl
   mojo::Remote<blink::mojom::RendererAudioInputStreamFactory>
       audio_input_stream_factory_;
 
+#if BUILDFLAG(IS_COBALT)
+  std::unique_ptr<blink::mojom::RendererAudioInputStreamFactory>
+      local_audio_input_stream_factory_;
+#endif
+
   // This interface handles generated code cache requests both to fetch code
   // cache when loading resources and to store code caches when code caches are
   // generated during the JS / Wasm script execution.

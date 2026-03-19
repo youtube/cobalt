@@ -93,6 +93,7 @@ AudioInputStreamBroker::~AudioInputStreamBroker() {
 void AudioInputStreamBroker::CreateStream(
     media::mojom::AudioStreamFactory* factory) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "AudioInputStreamBroker::CreateStream device_id=" << device_id_;
   DCHECK(!observer_receiver_.is_bound());
   DCHECK(!pending_client_receiver_);
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("audio", "CreateStream", this, "device id",
@@ -145,6 +146,7 @@ void AudioInputStreamBroker::StreamCreated(
     bool initially_muted,
     const absl::optional<base::UnguessableToken>& stream_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "AudioInputStreamBroker::StreamCreated success=" << !!data_pipe;
   awaiting_created_ = false;
   TRACE_EVENT_NESTABLE_ASYNC_END1("audio", "CreateStream", this, "success",
                                   !!data_pipe);

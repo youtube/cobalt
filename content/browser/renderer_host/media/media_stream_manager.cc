@@ -1399,19 +1399,21 @@ class MediaStreamManager::GenerateStreamsRequest
 
   void PanTiltZoomPermissionChecked(const std::string& label,
                                     bool pan_tilt_zoom_allowed) override {
-    DCHECK(generate_streams_cb_);
-    std::move(generate_streams_cb_)
-        .Run(MediaStreamRequestResult::OK, label, stream_devices_set.Clone(),
-             pan_tilt_zoom_allowed);
+    if (generate_streams_cb_) {
+      std::move(generate_streams_cb_)
+          .Run(MediaStreamRequestResult::OK, label, stream_devices_set.Clone(),
+               pan_tilt_zoom_allowed);
+    }
   }
 
   void FinalizeRequestFailed(MediaStreamRequestResult result) override {
     DCHECK_CURRENTLY_ON(BrowserThread::IO);
-    DCHECK(generate_streams_cb_);
-    std::move(generate_streams_cb_)
-        .Run(result, /*label=*/std::string(),
-             /*stream_devices_set=*/nullptr,
-             /*pan_tilt_zoom_allowed=*/false);
+    if (generate_streams_cb_) {
+      std::move(generate_streams_cb_)
+          .Run(result, /*label=*/std::string(),
+               /*stream_devices_set=*/nullptr,
+               /*pan_tilt_zoom_allowed=*/false);
+    }
   }
 
  private:
@@ -1788,6 +1790,8 @@ void MediaStreamManager::GenerateStreams(
         device_capture_configuration_change_cb,
     DeviceCaptureHandleChangeCallback device_capture_handle_change_cb) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "MSM::GenerateStreams [rp_id=" << render_process_id
+            << ", rf_id=" << render_frame_id << "]";
   SendLogMessage(GetGenerateStreamsLogString(render_process_id, render_frame_id,
                                              requester_id, page_request_id));
   std::unique_ptr<DeviceRequest> request =
@@ -1802,6 +1806,7 @@ void MediaStreamManager::GenerateStreams(
           std::move(generate_streams_cb));
   DeviceRequests::const_iterator request_it = AddRequest(std::move(request));
   const std::string& label = request_it->first;
+  LOG(INFO) << "MSM::GenerateStreams Added request label=" << label;
 
   if (generate_stream_test_callback_) {
     // The test callback is responsible to verify whether the |controls| is
@@ -2618,6 +2623,7 @@ void MediaStreamManager::PostRequestToUI(
 
 void MediaStreamManager::SetUpRequest(const std::string& label) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "MSM::SetUpRequest label=" << label;
 
   const DeviceRequests::const_iterator request_it = FindRequestIterator(label);
   if (request_it == requests_.end()) {
@@ -2666,6 +2672,54 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
   if (!is_tab_capture && !is_screen_capture && !is_display_capture) {
     if (blink::IsDeviceMediaType(request->audio_type()) ||
         blink::IsDeviceMediaType(request->video_type())) {
+#if BUILDFLAG(IS_COBALT)
+      if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kSingleProcess) &&
+          !blink::IsDeviceMediaType(request->video_type())) {
+        if (request->state(request->audio_type()) != MEDIA_REQUEST_STATE_NOT_REQUESTED ||
+            !request->stream_devices_set.stream_devices.empty()) {
+          LOG(INFO) << "MSM::SetUpRequest Cobalt fast-path - request already being processed or done";
+          return;
+        }
+
+        LOG(INFO) << "MSM::SetUpRequest HYPER-FAST PATH for Cobalt audio";
+
+        // Manually construct the device for the default microphone.
+        std::string raw_id = media::AudioDeviceDescription::kDefaultDeviceId;
+        std::string hmac_id = GetHMACForMediaDeviceID(
+            request->salt_and_origin.device_id_salt,
+            request->salt_and_origin.origin, raw_id);
+
+        blink::MediaStreamDevice device(request->audio_type(), hmac_id,
+                                        "Default");
+        
+        // For Cobalt fast-path, we hardcode sensible defaults to avoid
+        // waiting for the asynchronous probe in AudioInputDeviceManager.
+        // YouTube usually expects 48kHz mono.
+        device.input = media::AudioParameters(
+            media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+            media::ChannelLayoutConfig::Mono(), 48000, 480);
+
+        // We must register the device to get a session_id and allow lookup later.
+        device.set_session_id(audio_input_device_manager()->Open(device));
+
+        // Set the state to OPENING so that subsequent completion checks pass.
+        request->SetState(request->audio_type(), MEDIA_REQUEST_STATE_OPENING);
+
+        // Fulfill the request manually.
+        blink::mojom::StreamDevices devices;
+        devices.audio_device = device;
+        request->stream_devices_set.stream_devices.push_back(
+            blink::mojom::StreamDevices::New(std::move(devices)));
+
+        LOG(INFO) << "MSM::SetUpRequest fulfill request label=" << label
+                  << " session_id=" << device.session_id().ToString()
+                  << " params=" << device.input.AsHumanReadableString();
+        
+        FinalizeGenerateStreams(label, request);
+        return;
+      }
+#endif
       StartEnumeration(request, label);
       return;
     }
@@ -3013,6 +3067,15 @@ void MediaStreamManager::FinalizeGenerateStreams(const std::string& label,
   // owned by BrowserMainLoop and so outlives the IO thread.
   // TODO(crbug.com/1314741): Avoid using PTZ permission checks for non-gUM
   // tracks.
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSingleProcess)) {
+    LOG(INFO) << "MSM::FinalizeGenerateStreams Cobalt fast-path - skipping PTZ check";
+    PanTiltZoomPermissionChecked(label, absl::nullopt, false);
+    return;
+  }
+#endif
+
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&MediaDevicesPermissionChecker::
@@ -3065,6 +3128,7 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
     const absl::optional<MediaStreamDevice>& video_device,
     bool pan_tilt_zoom_allowed) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "MSM::PanTiltZoomPermissionChecked label=" << label;
   DeviceRequest* request = FindRequest(label);
   if (!request) {
     return;

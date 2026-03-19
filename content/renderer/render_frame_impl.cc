@@ -107,6 +107,87 @@
 #include "content/renderer/web_ui_extension.h"
 #include "content/renderer/web_ui_extension_data.h"
 #include "content/renderer/worker/dedicated_worker_host_factory_client.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/switches.h"
+#include "content/browser/renderer_host/media/render_frame_audio_input_stream_factory.h"
+#include "content/browser/renderer_host/media/render_frame_audio_input_stream_factory_core.h"
+#include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/public/browser/browser_task_traits.h"
+
+namespace {
+// This class is used in single-process mode to bypass Mojo and call the
+// browser-side factory directly.
+class LocalAudioInputStreamFactory
+    : public blink::mojom::RendererAudioInputStreamFactory {
+ public:
+  explicit LocalAudioInputStreamFactory(int render_process_id,
+                                        int render_frame_id)
+      : render_process_id_(render_process_id),
+        render_frame_id_(render_frame_id) {}
+
+  void CreateStream(
+      mojo::PendingRemote<blink::mojom::RendererAudioInputStreamFactoryClient>
+          client,
+      const base::UnguessableToken& session_id,
+      const media::AudioParameters& audio_params,
+      bool automatic_gain_control,
+      uint32_t shared_memory_count,
+      media::mojom::AudioProcessingConfigPtr processing_config) override {
+    LOG(INFO) << "LocalAudioInputStreamFactory::CreateStream session_id=" << session_id.ToString();
+    auto task = base::BindOnce(
+        [](int render_process_id, int render_frame_id,
+           mojo::PendingRemote<
+               blink::mojom::RendererAudioInputStreamFactoryClient> client,
+           const base::UnguessableToken& session_id,
+           const media::AudioParameters& audio_params,
+           bool automatic_gain_control, uint32_t shared_memory_count,
+           media::mojom::AudioProcessingConfigPtr processing_config) {
+          LOG(INFO) << "LocalAudioInputStreamFactory::CreateStream task running on IO thread";
+          auto* core =
+              content::RenderFrameAudioInputStreamFactory::Core::Get(
+                  render_process_id, render_frame_id);
+          if (core) {
+            core->CreateStream(std::move(client), session_id, audio_params,
+                               automatic_gain_control, shared_memory_count,
+                               std::move(processing_config));
+          } else {
+            LOG(ERROR) << "LocalAudioInputStreamFactory::CreateStream NO CORE FOUND for rp="
+                       << render_process_id << " rf=" << render_frame_id;
+          }
+        },
+        render_process_id_, render_frame_id_, std::move(client), session_id,
+        audio_params, automatic_gain_control, shared_memory_count,
+        std::move(processing_config));
+    content::GetIOThreadTaskRunner({})->PostTask(FROM_HERE, std::move(task));
+  }
+
+  void AssociateInputAndOutputForAec(
+      const base::UnguessableToken& input_stream_id,
+      const std::string& output_device_id) override {
+    auto task = base::BindOnce(
+        [](int render_process_id, int render_frame_id,
+           const base::UnguessableToken& input_stream_id,
+           const std::string& output_device_id) {
+          auto* core =
+              content::RenderFrameAudioInputStreamFactory::Core::Get(
+                  render_process_id, render_frame_id);
+          if (core) {
+            core->AssociateInputAndOutputForAec(input_stream_id,
+                                                output_device_id);
+          }
+        },
+        render_process_id_, render_frame_id_, input_stream_id, output_device_id);
+    content::GetIOThreadTaskRunner({})->PostTask(FROM_HERE, std::move(task));
+  }
+
+ private:
+  const int render_process_id_;
+  const int render_frame_id_;
+};
+}  // namespace
+#endif
+
 #include "crypto/sha2.h"
 #include "ipc/ipc_message.h"
 #include "media/mojo/mojom/audio_processing.mojom.h"
@@ -4486,6 +4567,34 @@ bool RenderFrameImpl::ShouldUseUserAgentOverride() const {
 
 blink::mojom::RendererAudioInputStreamFactory*
 RenderFrameImpl::GetAudioInputStreamFactory() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSingleProcess)) {
+    if (!local_audio_input_stream_factory_) {
+      // In single-process mode, we must ensure the browser-side factory
+      // is initialized so its Core is registered in the static map.
+      // RenderFrameHostImpl::FromID must be called on the UI thread.
+      int rp_id = content::RenderThread::Get()->GetClientId();
+      int rf_id = routing_id_;
+      content::GetUIThreadTaskRunner({})->PostTask(
+          FROM_HERE, base::BindOnce(
+                         [](int render_process_id, int render_frame_id) {
+                           content::RenderFrameHostImpl* rfh =
+                               content::RenderFrameHostImpl::FromID(
+                                   render_process_id, render_frame_id);
+                           if (rfh) {
+                             rfh->CreateAudioInputStreamFactory(
+                                 mojo::NullReceiver());
+                           }
+                         },
+                         rp_id, rf_id));
+
+      local_audio_input_stream_factory_ =
+          std::make_unique<LocalAudioInputStreamFactory>(rp_id, rf_id);
+    }
+    return local_audio_input_stream_factory_.get();
+  }
+#endif
   if (!audio_input_stream_factory_)
     GetBrowserInterfaceBroker()->GetInterface(
         audio_input_stream_factory_.BindNewPipeAndPassReceiver(

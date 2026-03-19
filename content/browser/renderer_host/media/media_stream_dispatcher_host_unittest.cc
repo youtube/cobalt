@@ -1352,6 +1352,7 @@ TEST_F(MediaStreamDispatcherHostTest,
     mojo::Remote<blink::mojom::MediaStreamDispatcherHost> client;
     MediaStreamDispatcherHost::Create(kProcessId, kRenderId,
                                       media_stream_manager_.get(),
+                                      MediaDeviceSaltAndOrigin(),
                                       client.BindNewPipeAndPassReceiver());
     EXPECT_TRUE(client.is_bound());
     EXPECT_EQ(media_stream_manager_->num_dispatcher_hosts(), 1u);

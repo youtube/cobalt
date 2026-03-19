@@ -85,6 +85,7 @@ void ForwardingAudioStreamFactory::Core::CreateInputStream(
     mojo::PendingRemote<blink::mojom::RendererAudioInputStreamFactoryClient>
         renderer_factory_client) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "FASF::Core::CreateInputStream device_id=" << device_id;
 
   // |this| owns |inputs_|, so Unretained is safe.
   inputs_

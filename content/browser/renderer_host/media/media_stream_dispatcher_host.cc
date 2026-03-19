@@ -35,6 +35,10 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "url/origin.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/switches.h"
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
 #include "content/browser/media/capture/crop_id_web_contents_helper.h"
 #endif
@@ -215,13 +219,15 @@ struct MediaStreamDispatcherHost::PendingAccessRequest {
 MediaStreamDispatcherHost::MediaStreamDispatcherHost(
     int render_process_id,
     int render_frame_id,
-    MediaStreamManager* media_stream_manager)
+    MediaStreamManager* media_stream_manager,
+    MediaDeviceSaltAndOrigin salt_and_origin)
     : render_process_id_(render_process_id),
       render_frame_id_(render_frame_id),
       requester_id_(next_requester_id_++),
       media_stream_manager_(media_stream_manager),
       salt_and_origin_callback_(
-          base::BindRepeating(&GetMediaDeviceSaltAndOrigin)) {
+          base::BindRepeating(&GetMediaDeviceSaltAndOrigin)),
+      salt_and_origin_(std::move(salt_and_origin)) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   // TODO(crbug.com/1265369): Register focus_callback only when needed.
@@ -247,12 +253,14 @@ void MediaStreamDispatcherHost::Create(
     int render_process_id,
     int render_frame_id,
     MediaStreamManager* media_stream_manager,
+    MediaDeviceSaltAndOrigin salt_and_origin,
     mojo::PendingReceiver<blink::mojom::MediaStreamDispatcherHost> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   media_stream_manager->RegisterDispatcherHost(
       std::make_unique<MediaStreamDispatcherHost>(
-          render_process_id, render_frame_id, media_stream_manager),
+          render_process_id, render_frame_id, media_stream_manager,
+          std::move(salt_and_origin)),
       std::move(receiver));
 }
 
@@ -451,6 +459,22 @@ void MediaStreamDispatcherHost::GenerateStreams(
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSingleProcess)) {
+    LOG(INFO) << "MSDH::GenerateStreams Cobalt fast-path TRIGGERED";
+    GenerateStreamsUIThreadCheckResult result;
+    result.request_allowed = true;
+    result.salt_and_origin = salt_and_origin_;
+    // For Cobalt, we skip salt/origin HMACs for default devices in fast-path
+    // or use a simplified one.
+    DoGenerateStreams(page_request_id, controls, user_gesture,
+                      std::move(audio_stream_selection_info_ptr),
+                      std::move(callback), std::move(result));
+    return;
+  }
+#endif
+
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
@@ -486,7 +510,16 @@ void MediaStreamDispatcherHost::DoGenerateStreams(
   MediaDeviceSaltAndOrigin salt_and_origin =
       std::move(ui_check_result.salt_and_origin);
   ui_check_result = {};
-  if (!MediaStreamManager::IsOriginAllowed(render_process_id_,
+
+#if BUILDFLAG(IS_COBALT)
+  bool skip_origin_check = base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kSingleProcess);
+#else
+  bool skip_origin_check = false;
+#endif
+
+  if (!skip_origin_check &&
+      !MediaStreamManager::IsOriginAllowed(render_process_id_,
                                            salt_and_origin.origin)) {
     std::move(callback).Run(
         blink::mojom::MediaStreamRequestResult::INVALID_SECURITY_ORIGIN,
@@ -506,7 +539,10 @@ void MediaStreamDispatcherHost::DoGenerateStreams(
       !base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kUseFakeUIForMediaStream) &&
       !salt_and_origin.is_background;
+  LOG(INFO) << "MSDH::DoGenerateStreams needs_focus=" << needs_focus
+            << " has_focus=" << salt_and_origin.has_focus;
   if (needs_focus && !salt_and_origin.has_focus) {
+    LOG(INFO) << "MSDH::DoGenerateStreams QUEUING REQUEST due to focus";
     pending_requests_.push_back(std::make_unique<PendingAccessRequest>(
         page_request_id, controls, user_gesture,
         std::move(audio_stream_selection_info_ptr), std::move(callback),

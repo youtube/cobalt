@@ -35,19 +35,23 @@ class MediaStreamManager;
 class CONTENT_EXPORT MediaStreamDispatcherHost
     : public blink::mojom::MediaStreamDispatcherHost {
  public:
-  MediaStreamDispatcherHost(int render_process_id,
-                            int render_frame_id,
-                            MediaStreamManager* media_stream_manager);
+  MediaStreamDispatcherHost(
+      int render_process_id,
+      int render_frame_id,
+      MediaStreamManager* media_stream_manager,
+      MediaDeviceSaltAndOrigin salt_and_origin);
 
   MediaStreamDispatcherHost(const MediaStreamDispatcherHost&) = delete;
   MediaStreamDispatcherHost& operator=(const MediaStreamDispatcherHost&) =
       delete;
 
   ~MediaStreamDispatcherHost() override;
+
   static void Create(
       int render_process_id,
       int render_frame_id,
       MediaStreamManager* media_stream_manager,
+      MediaDeviceSaltAndOrigin salt_and_origin,
       mojo::PendingReceiver<blink::mojom::MediaStreamDispatcherHost> receiver);
 
   void OnWebContentsFocused();
@@ -200,6 +204,7 @@ class CONTENT_EXPORT MediaStreamDispatcherHost
   mojo::Remote<blink::mojom::MediaStreamDeviceObserver>
       media_stream_device_observer_;
   MediaDeviceSaltAndOriginCallback salt_and_origin_callback_;
+  MediaDeviceSaltAndOrigin salt_and_origin_;
 
   std::unique_ptr<MediaStreamWebContentsObserver,
                   BrowserThread::DeleteOnUIThread>

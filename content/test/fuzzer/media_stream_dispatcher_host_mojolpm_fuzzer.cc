@@ -217,7 +217,7 @@ void MediaStreamDispatcherHostTestcase::AddMediaStreamDispatcherHostImpl(
   content::MediaStreamDispatcherHost::Create(
       render_frame_host_->GetProcess()->GetID(),
       render_frame_host_->GetRoutingID(), media_stream_manager_.get(),
-      std::move(receiver));
+      content::MediaDeviceSaltAndOrigin(), std::move(receiver));
 }
 
 // Component(s) which we fuzz
