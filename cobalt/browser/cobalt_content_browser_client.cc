@@ -21,11 +21,8 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-<<<<<<< HEAD
-=======
 #include "base/functional/callback.h"
 #include "base/hash/hash.h"
->>>>>>> 203785b00a (Add test Finch features. (#8630))
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
