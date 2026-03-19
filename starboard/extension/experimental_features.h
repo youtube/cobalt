@@ -38,6 +38,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   const int* media_codec_reset_delay_ms;
   bool pause_using_audio_track_state;
   bool reset_audio_decoder;
+  bool skip_flush_on_decoder_teardown;
   const int* video_decoder_initial_preroll_count;
   const int* video_renderer_min_decoded_frames;
   const int* video_renderer_min_input_buffers;

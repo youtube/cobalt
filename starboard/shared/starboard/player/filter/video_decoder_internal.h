@@ -101,6 +101,12 @@ class VideoDecoder {
   // is called again.
   virtual void Reset() = 0;
 
+  // Alternative function to Reset the codec specifically in cases where it is
+  // being torn down. By default, this function will be equivalent to the
+  // Reset() function, but platforms may redefine this function for use as they
+  // see fit.
+  virtual void ResetForTeardown() { Reset(); }
+
   // This function can only be called when the current SbPlayerOutputMode is
   // |kSbPlayerOutputModeDecodeToTexture|.  It has to return valid value after
   // the |decoder_status_cb| is called with a valid frame for the first time
