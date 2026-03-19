@@ -12,8 +12,8 @@ def get_out(cmd):
 
 def get_commits(start, target):
   cmd = [
-      "git", "rev-list", "--no-merges", "--oneline", "--reverse", "main",
-      f"^{target}", f"{start}^..main"
+      "git", "rev-list", "--oneline", "--reverse", "main", f"^{target}",
+      f"{start}^..main"
   ]
   return get_out(cmd).splitlines()
 
