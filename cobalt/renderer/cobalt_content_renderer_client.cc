@@ -43,12 +43,16 @@ namespace {
 
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
+    "Media.EnableAv1StartupOptimization";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
+    "Media.DisableLowPerformanceSoftwareDecoder";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
@@ -235,6 +239,10 @@ ExperimentalFeatures ProcessH5vccSettings(
     allocator->SetAllocateOnDemand(enable_allocate_on_demand);
   }
   if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
+    parsed.enable_av1_startup_optimization = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
     parsed.enable_flush_during_seek = *val != 0;
   }
@@ -242,6 +250,22 @@ ExperimentalFeatures ProcessH5vccSettings(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
   }
+<<<<<<< HEAD
+=======
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
+    parsed.disable_low_performance_sw_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaPauseUsingAudioTrackState)) {
+    parsed.pause_using_audio_track_state = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaReportBufferingStateDuringFlush)) {
+    parsed.report_buffering_state_during_flush = *val != 0;
+  }
+>>>>>>> 86eab108e5 (android: add h5vcc experiment for av1 optimization (#9581))
 
   parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder,

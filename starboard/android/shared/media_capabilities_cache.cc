@@ -402,6 +402,14 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
     // When the cache is not enabled, always checks video fps.
     return true;
   }
+
+  const bool enable_av1_startup_optimization =
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableAv1StartupOptimization);
+  if (!enable_av1_startup_optimization && !is_av1_opt_enabled_) {
+    return true;
+  }
+
   return is_av1_8k_capped_at_30_;
 }
 
@@ -517,8 +525,13 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     const bool reject_low_performance_software_decoder =
         features::FeatureList::IsEnabled(
             starboard::features::kRejectLowPerformanceSoftwareDecoder);
+<<<<<<< HEAD
     if (reject_low_performance_software_decoder && !require_software_codec &&
         video_capability->is_software_decoder()) {
+=======
+    if ((reject_low_performance_software_deocder || !is_sw_decoder_enabled_) &&
+        !require_software_codec && video_capability->is_software_decoder()) {
+>>>>>>> 86eab108e5 (android: add h5vcc experiment for av1 optimization (#9581))
       const int kMinimumWidth = 1920;
       const int kMinimumHeight = 1080;
       if (!video_capability->AreResolutionAndRateSupported(kMinimumWidth,
@@ -589,13 +602,6 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
 }
 
 void MediaCapabilitiesCache::LoadIsAv18kCappedAt30_Locked() {
-  const bool enable_av1_startup_optimization =
-      starboard::features::FeatureList::IsEnabled(
-          starboard::features::kEnableAv1StartupOptimization);
-  if (!enable_av1_startup_optimization) {
-    return;
-  }
-
   is_av1_8k_capped_at_30_ = false;
   for (const auto& video_capability :
        video_codec_capabilities_map_[SupportedVideoCodecToMimeType(

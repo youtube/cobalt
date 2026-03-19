@@ -42,10 +42,21 @@ StarboardRendererConfig::StarboardRendererConfig(
 std::ostream& operator<<(
     std::ostream& os,
     const StarboardRendererConfig::ExperimentalFeatures& features) {
-  return os << "{enable_flush_during_seek="
+  return os << "{enable_av1_startup_optimization="
+            << ToString(features.enable_av1_startup_optimization)
+            << ", enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
+<<<<<<< HEAD
+=======
+            << ", disable_low_performance_sw_decoder="
+            << ToString(features.disable_low_performance_sw_decoder)
+            << ", pause_using_audio_track_state="
+            << ToString(features.pause_using_audio_track_state)
+            << ", report_buffering_state_during_flush="
+            << ToString(features.report_buffering_state_during_flush)
+>>>>>>> 86eab108e5 (android: add h5vcc experiment for av1 optimization (#9581))
             << ", initial_max_frames_in_decoder="
             << ToString(features.initial_max_frames_in_decoder)
             << ", max_pending_input_frames="
