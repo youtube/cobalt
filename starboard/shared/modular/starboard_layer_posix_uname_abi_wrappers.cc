@@ -23,14 +23,24 @@
 #include "starboard/common/string.h"
 
 void CopyUtsField(const char* src, size_t src_sz, char* dest, size_t dest_sz) {
-  if (src == nullptr || dest == nullptr) {
+  if (src == nullptr || dest == nullptr || dest_sz == 0) {
     return;
   }
 
-  if (starboard::strlcpy(dest, src, dest_sz) >= dest_sz) {
-    SB_LOG(WARNING) << "Truncated utsname field."
-                    << " src_sz=" << src_sz << " dest_sz=" << dest_sz;
+  memset(dest, 0, dest_sz);
+
+  if (src_sz == 0) {
+    return;
   }
+
+  // Find actual length in source without overreading past its field size.
+  size_t len = 0;
+  while (len < src_sz && src[len] != '\0') {
+    len++;
+  }
+
+  size_t to_copy = std::min(len, dest_sz - 1);
+  memcpy(dest, src, to_copy);
 }
 
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
@@ -39,6 +49,9 @@ SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
     errno = EFAULT;
     return -1;
   }
+
+  // Clear the provided struct first to ensure no garbage is left in tail fields.
+  memset(musl_uts, 0, sizeof(*musl_uts));
 
   struct utsname uts = {0};  // The type from platform toolchain.
   int retval = uname(&uts);
