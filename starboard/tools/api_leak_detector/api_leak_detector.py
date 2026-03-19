@@ -133,6 +133,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'getrlimit',
     'getsockname',
     'getsockopt',
+    'getuid',
     'gmtime_r',
     'isatty',
     'kill',
