@@ -331,6 +331,11 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
+  typedef std::function<void(double playback_rate)> PlaybackRateChangedCB;
+
+  Sink(PlaybackRateChangedCB playback_rate_changed_cb)
+      : playback_rate_changed_cb_(playback_rate_changed_cb) {}
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -341,6 +346,11 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   }
 
  private:
+  void SetPlaybackRate(double playback_rate) {
+    SB_DCHECK(playback_rate_changed_cb_);
+    playback_rate_changed_cb_(playback_rate);
+  }
+
   void SetRenderCB(RenderCB render_cb) override {
     SB_DCHECK(!render_cb_);
     SB_DCHECK(render_cb);
@@ -359,6 +369,7 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     return kReleased;
   }
 
+  PlaybackRateChangedCB playback_rate_changed_cb_;
   RenderCB render_cb_;
   bool rendered_;
 };
@@ -469,7 +480,7 @@ VideoDecoder::~VideoDecoder() {
 
 scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
   if (sink_ == NULL) {
-    sink_ = new Sink;
+    sink_ = new Sink(std::bind(&VideoDecoder::SetPlaybackRate, this, _1));
   }
   return sink_;
 }
@@ -1215,6 +1226,10 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
 }
 
 void VideoDecoder::SetPlaybackRate(double playback_rate) {
+  if (playback_rate_ == playback_rate) {
+    return;
+  }
+
   playback_rate_ = playback_rate;
   if (media_decoder_) {
     media_decoder_->SetPlaybackRate(playback_rate);
