@@ -15,12 +15,14 @@
 #include "cobalt/shell/android/shell_manager.h"
 
 #include <memory>
+
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/ShellManager_jni.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
@@ -68,8 +70,6 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
                                   const JavaParamRef<jstring>& jurl,
                                   const JavaParamRef<jstring>& jdeeplink_url) {
-  ShellBrowserContext* browserContext =
-      ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
   std::string deeplink_url =
       base::android::ConvertJavaStringToUTF8(env, jdeeplink_url);
@@ -80,6 +80,22 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
   // is created too early, the JS environment will start with empty data.
   auto create_window_task = base::BindOnce(
       [](GURL url, std::string deeplink_url) {
+        std::string status_param = cobalt::migrate_storage_record::
+            MigrationManager::GetMigrationStatusUrlParameter();
+        if (!status_param.empty()) {
+          // If a migration occurred on this launch, append its outcome directly
+          // to the URL's query parameters (e.g. "?migration_status=0-0-0").
+          // This makes the migration telemetry accessible to the loaded web
+          // app.
+          GURL::Replacements replacements;
+          std::string query = url.query();
+          if (!query.empty()) {
+            query += "&";
+          }
+          query += status_param;
+          replacements.SetQueryStr(query);
+          url = url.ReplaceComponents(replacements);
+        }
         ShellBrowserContext* browserContext =
             ShellContentBrowserClient::Get()->browser_context();
         Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),

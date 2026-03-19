@@ -120,6 +120,13 @@ struct MigrationState : public base::RefCountedThreadSafe<MigrationState> {
     return MigrationOutcome::kSuccess;
   }
 
+  std::string GetStatusString() const {
+    return base::StringPrintf(
+        "%d-%d-%d", static_cast<int>(read_result),
+        static_cast<int>(cookie_result.load(std::memory_order_relaxed)),
+        static_cast<int>(local_storage_result.load(std::memory_order_relaxed)));
+  }
+
  private:
   friend class base::RefCountedThreadSafe<MigrationState>;
   ~MigrationState() = default;
@@ -129,6 +136,11 @@ class MigrationManager {
  public:
   static void RunMigration(content::StoragePartition* partition,
                            base::OnceClosure done_callback);
+
+  // Returns the url parameter to attach to the launch URL, formatted as
+  // "migration_status=read|cookie|local_storage".
+  // Returns an empty string if the migration fast path was taken.
+  static std::string GetMigrationStatusUrlParameter();
 
  private:
   friend class MigrationManagerTest;

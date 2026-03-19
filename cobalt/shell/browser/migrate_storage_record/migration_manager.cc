@@ -70,6 +70,8 @@ namespace {
 // Shared Utilities
 // ============================================================================
 
+std::string g_migration_status_param;
+
 // A thread-safe, reference-counted wrapper around a base::OnceClosure.
 // This is used to ensure a callback is executed exactly once, even if
 // multiple async paths (like an IPC response and a timeout) attempt to run it.
@@ -139,11 +141,8 @@ void WriteMigrationSentinelAsync(scoped_refptr<MigrationState> state) {
               [](scoped_refptr<MigrationState> state) {
                 base::FilePath sentinel_path = GetMigrationSentinelPath();
                 if (!sentinel_path.empty()) {
-                  std::string content = base::StringPrintf(
-                      "%d|%d|%d", static_cast<int>(state->read_result),
-                      static_cast<int>(state->cookie_result.load()),
-                      static_cast<int>(state->local_storage_result.load()));
-                  if (!base::WriteFile(sentinel_path, content)) {
+                  if (!base::WriteFile(sentinel_path,
+                                       state->GetStatusString())) {
                     LOG(ERROR) << "Failed to write migration sentinel file to "
                                << sentinel_path.value();
                   }
@@ -252,10 +251,15 @@ void DeleteOldCacheDirectoryAsync() {
           }));
 }
 
+void SetMigrationStatusUrlParameter(scoped_refptr<MigrationState> state) {
+  g_migration_status_param = "migration_status=" + state->GetStatusString();
+}
+
 // Triggers the deletion of old cache directories, deletes the legacy storage
 // files, and writes the migration sentinel file.
 void CleanupLegacyFilesAsync(scoped_refptr<MigrationState> state) {
   base::UmaHistogramEnumeration(kOutcomeHistogram, state->GetOutcome());
+  SetMigrationStatusUrlParameter(state);
   DeleteOldCacheDirectoryAsync();
   DeleteLegacyStorageFilesAsync();
   WriteMigrationSentinelAsync(state);
@@ -422,6 +426,11 @@ std::vector<uint8_t> FormatStringForLocalStorage(const std::string& input) {
 }
 
 }  // namespace
+
+// static
+std::string MigrationManager::GetMigrationStatusUrlParameter() {
+  return g_migration_status_param;
+}
 
 // static
 // Groups multiple sequential asynchronous tasks into a single chain of
