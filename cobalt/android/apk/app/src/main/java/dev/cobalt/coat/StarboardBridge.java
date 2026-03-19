@@ -208,7 +208,7 @@ public class StarboardBridge {
       StarboardBridgeJni.get().closeNativeStarboard(nativeApp);
       closeAllServices();
       advertisingId.shutdown();
-      activity.finishAndRemoveTask();
+      System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
@@ -291,11 +291,11 @@ public class StarboardBridge {
 
   /* Immediate shutdown, used at least by StandalonePlayerActivity. */
   public void requestStop(int errorLevel) {
+    applicationStopped = true;
     Activity currentActivity = activityHolder.get();
     if (currentActivity != null) {
       currentActivity.finishAndRemoveTask();
     }
-    System.exit(errorLevel);
   }
 
   public boolean onSearchRequested() {
