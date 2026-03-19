@@ -16,6 +16,8 @@
 
 extern "C" {
 uid_t getuid(void) {
+  // A non-zero UID to return for the stub implementation of getuid(). The value
+  // itself is not important, as long as it is not 0 (root).
   return 1;
 }
 }  // extern "C"
