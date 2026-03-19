@@ -39,6 +39,9 @@
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+#if !BUILDFLAG(IS_ANDROIDTV)
+#include "components/crash/core/common/crash_key.h"
+#endif
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -216,6 +219,14 @@ bool ShellMainDelegate::ShouldCreateFeatureList(InvokedIn invoked_in) {
 
 bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
   return ShouldCreateFeatureList(invoked_in);
+}
+
+void ShellMainDelegate::PreSandboxStartup() {
+  #if !BUILDFLAG(IS_ANDROIDTV)
+  crash_reporter::InitializeCrashKeys();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+  InitializeResourceBundle();
 }
 
 std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(

@@ -34,10 +34,6 @@
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 
-#if !BUILDFLAG(IS_ANDROIDTV)
-#include "components/crash/core/common/crash_key.h"
-#endif
-
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
@@ -190,11 +186,7 @@ void CobaltMainDelegate::PreSandboxStartup() {
     }
   }
 
-#if !BUILDFLAG(IS_ANDROIDTV)
-  crash_reporter::InitializeCrashKeys();
-#endif
-
-  InitializeResourceBundle();
+  ShellMainDelegate::PreSandboxStartup();
 }
 
 void CobaltMainDelegate::Shutdown() {
