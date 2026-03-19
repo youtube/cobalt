@@ -19,6 +19,14 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#if defined(ANDROID)
+namespace starboard {
+bool IsAndroidAssetPath(const char* path);
+}  // namespace starboard
+
+using starboard::IsAndroidAssetPath;
+#endif
+
 static_assert(S_ISUID == 04000,
               "The Starboard layer wrapper expects this value from musl");
 static_assert(S_ISGID == 02000,
@@ -203,6 +211,20 @@ int __abi_wrap_fstatat(int fildes,
     return -1;
   }
   struct stat stat_info;  // The type from platform toolchain.
-  int retval = fstatat(fildes, path, &stat_info, flag);
+  int retval;
+#if defined(ANDROID)
+  // The AT_FDCWD and flag == 0 checks are here to ensure that the stat call
+  // came from the musl's stat implementation that calls fstatat with those
+  // specific arguments. Then, if this is an asset path, we route the call
+  // through the stat call that is implemented as __wrap_stat in
+  // starboard/android/shared/posix_emu/stat.cc and can handle asset paths.
+  if (fildes == AT_FDCWD && flag == 0 && path && IsAndroidAssetPath(path)) {
+    retval = stat(path, &stat_info);
+  } else {
+#endif
+    retval = fstatat(fildes, path, &stat_info, flag);
+#if defined(ANDROID)
+  }  // if (fildes == AT_FDCWD && flag == 0 && path && IsAndroidAssetPath(path))
+#endif
   return stat_helper(retval, &stat_info, musl_info);
 }
