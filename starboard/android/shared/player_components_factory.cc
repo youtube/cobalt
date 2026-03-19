@@ -18,9 +18,11 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include "base/strings/string_number_conversions.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
@@ -54,6 +56,8 @@ namespace {
 
 using base::android::AttachCurrentThread;
 using features::FeatureList;
+
+namespace {
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -501,6 +505,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
+    MediaCodecVideoDecoder::FlowControlOptions flow_control_options;
+    flow_control_options.initial_max_frames_in_decoder =
+        creation_parameters.video_initial_max_frames_in_decoder();
+    flow_control_options.max_pending_input_frames =
+        creation_parameters.video_max_pending_input_frames();
+    flow_control_options.video_decoder_poll_interval_ms =
+        creation_parameters.video_decoder_poll_interval_ms();
+
     auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
@@ -510,7 +522,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
-        enable_flush_during_seek, reset_delay_usec, flush_delay_usec);
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+        flow_control_options);
     if (!result) {
       return Failure(result.error());
     }
@@ -600,6 +613,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 };
 
+}  // namespace
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
   return std::make_unique<PlayerComponentsFactory>();

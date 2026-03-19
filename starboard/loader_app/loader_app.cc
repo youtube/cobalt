@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
+#include <string>
 #include <vector>
 
 #include "cobalt/version.h"
@@ -36,6 +38,7 @@
 #include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
+#include "starboard/loader_app/read_evergreen_version.h"
 #include "starboard/loader_app/record_loader_app_status.h"
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
@@ -51,6 +54,9 @@ const char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
 
 // Relative path to the compressed Cobalt's system image library.
 const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
+
+// Relative path to Cobalt's system image manifest.json.
+const char kSystemImageManifestPath[] = "app/cobalt/manifest.json";
 
 // Cobalt default URL.
 const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
@@ -89,6 +95,26 @@ bool GetContentDir(std::string* content) {
   return true;
 }
 
+void InsertVersionAnnotationFromManifest(const std::string& content_dir) {
+  std::vector<char> manifest_path(kSbFileMaxPath);
+  snprintf(manifest_path.data(), kSbFileMaxPath, "%s%s%s", content_dir.c_str(),
+           kSbFileSepString, kSystemImageManifestPath);
+
+  std::vector<char> version(loader_app::kMaxEgVersionLength);
+  if (!loader_app::ReadEvergreenVersion(manifest_path, version.data(),
+                                        loader_app::kMaxEgVersionLength)) {
+    SB_LOG(WARNING)
+        << "Failed to read the Evergreen version for the system image, not "
+        << "adding to Crashpad";
+    return;
+  }
+
+  if (!crashpad::InsertCrashpadAnnotation(crashpad::kCrashpadVersionKey,
+                                          version.data())) {
+    SB_LOG(WARNING) << "Failed to add ver annotation to Crashpad";
+  }
+}
+
 void LoadLibraryAndInitialize(const std::string& alternative_content_path,
                               bool use_memory_mapped_file) {
   std::string content_dir;
@@ -104,6 +130,9 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   } else {
     content_path = alternative_content_path.c_str();
   }
+
+  InsertVersionAnnotationFromManifest(content_dir);
+
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
 
