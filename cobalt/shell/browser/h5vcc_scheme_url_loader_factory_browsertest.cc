@@ -251,9 +251,10 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
 
   void VerifySplashVideoFromCache(const std::string& cache_name,
                                   const std::string& query_param) {
-    VerifySplashVideoFromCacheWithContent(cache_name, query_param, "aaabbbccc",
-                                          "aaabbbccc",
-                                          SplashScreenFetchedState::kOkCache);
+    VerifySplashVideoFromCacheWithContent(
+        /*cache_name=*/cache_name, /*query_param=*/query_param,
+        /*content=*/"aaabbbccc", /*expected_content=*/"aaabbbccc",
+        /*expected_uma_state=*/SplashScreenFetchedState::kOkCache);
   }
 
  protected:
@@ -319,22 +320,27 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoNoCache) {
-  VerifySplashVideoFromCacheWithContent("default", "", std::nullopt,
-                                        "BUILTIN_SPLASH",
-                                        SplashScreenFetchedState::kOkBuiltIn);
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"default", /*query_param=*/"", /*content=*/std::nullopt,
+      /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/SplashScreenFetchedState::kOkBuiltIn);
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        CacheExistsButResourceMissing) {
   VerifySplashVideoFromCacheWithContent(
-      "default", "", std::nullopt, "BUILTIN_SPLASH",
-      SplashScreenFetchedState::kOkBuiltIn, /*create_empty_cache=*/true);
+      /*cache_name=*/"default", /*query_param=*/"", /*content=*/std::nullopt,
+      /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/SplashScreenFetchedState::kOkBuiltIn,
+      /*create_empty_cache=*/true);
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        CacheExistsWithEmptyResource) {
   VerifySplashVideoFromCacheWithContent(
-      "default", "", "", "BUILTIN_SPLASH",
+      /*cache_name=*/"default", /*query_param=*/"", /*content=*/"",
+      /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/
       SplashScreenFetchedState::kErrorOnCacheEmptyContent);
 }
 
@@ -359,7 +365,9 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
   H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(150);
   std::string large_content(151, 'x');
   VerifySplashVideoFromCacheWithContent(
-      "default", "", large_content, "BUILTIN_SPLASH",
+      /*cache_name=*/"default", /*query_param=*/"", /*content=*/large_content,
+      /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/
       SplashScreenFetchedState::kErrorOnCacheFileOversize);
 }
 }  // namespace content
