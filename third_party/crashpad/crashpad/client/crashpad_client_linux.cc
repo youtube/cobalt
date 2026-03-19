@@ -115,8 +115,12 @@ std::vector<std::string> BuildArgsToLaunchWithLinker(
   } else {
     argv.push_back("/system/bin/linker");
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+  argv.push_back(handler_trampoline);
+#else
   argv.push_back(handler_trampoline);
   argv.push_back(handler_library);
+#endif
 
   std::vector<std::string> handler_argv = BuildHandlerArgvStrings(
       base::FilePath(), database, metrics_dir, url, annotations, arguments);

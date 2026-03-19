@@ -316,7 +316,13 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
 
   std::string local_handler_trampoline(local_handler_library, 0,
                                        libdir_end + 1);
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+  local_handler_trampoline += "libchrome_crashpad_handler.so";
+  local_handler_library = "";
+#else
   local_handler_trampoline += "libcrashpad_handler_trampoline.so";
+#endif
 
   handler_trampoline->swap(local_handler_trampoline);
   handler_library->swap(local_handler_library);
