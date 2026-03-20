@@ -99,7 +99,7 @@
   ],
   "yts_wpt_test_targets": [
     {
-      "target": "testing/container/wpt:wpt_yts_test",
+      "target": "testing/container/wpt:yts_wpt_test_android_arm_devices",
       "test_attempts": "3"
     }
   ],
