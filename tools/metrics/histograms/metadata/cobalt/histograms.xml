@@ -74,6 +74,16 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.FetchedFromCache"
+    enum="SplashScreenFetchedState" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records whether a splash screen resource was successfully retrieved from
+    cache and indicates the reason when on error. This is recorded for every
+    splash screen request handled by h5vcc scheme loader.
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
