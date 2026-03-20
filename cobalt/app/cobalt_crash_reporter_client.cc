@@ -16,10 +16,13 @@
 
 #include <string>
 
+#include "base/no_destructor.h"
+#include "build/buildflag.h"
+#include "components/crash/core/app/crash_reporter_client.h"
+
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/path_utils.h"  // Needed for GetCacheDirectory
 #endif                                // BUILDFLAG(IS_ANDROID)
-#include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
