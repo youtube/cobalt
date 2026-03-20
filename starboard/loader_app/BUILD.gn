@@ -278,6 +278,7 @@ if (current_toolchain == starboard_toolchain) {
       ":drain_file",
       ":installation_manager",
       ":installation_store_proto",
+      ":read_evergreen_version",
       ":slot_management",
       "//starboard:starboard_with_main",
       "//starboard/common",
