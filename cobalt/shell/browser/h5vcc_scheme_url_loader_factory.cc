@@ -308,6 +308,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void OnCacheMatched(const std::string& cache_name,
                       blink::mojom::MatchResultPtr result) {
     if (!result->is_response()) {
+<<<<<<< HEAD
       return DisconnectCacheAndSendFallback(base::StringPrintf(
           "Failed to match splash video from cache %s, error: %d",
           cache_name.c_str(), static_cast<int>(result->get_status())));
@@ -318,6 +319,32 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       return DisconnectCacheAndSendFallback(base::StringPrintf(
           "Splash video from %s is empty. Fallback to builtin.",
           cache_name.c_str()));
+=======
+      const auto status = result->get_status();
+      SplashScreenFetchedState state =
+          SplashScreenFetchedState::kErrorOnReadCache;
+      // If the cache entry is not found, or the splash cache is not found in
+      // the cache entry, it's not an error of reading cache, but just a cache
+      // miss.
+      if (status == blink::mojom::CacheStorageError::kErrorCacheNameNotFound ||
+          status == blink::mojom::CacheStorageError::kErrorNotFound) {
+        state = SplashScreenFetchedState::kOkBuiltIn;
+      }
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Failed to match splash video from cache %s, reason: %d",
+              cache_name.c_str(), static_cast<int>(status)),
+          state);
+    }
+    LOG(INFO) << "Found splash video in cache: " << cache_name;
+    auto& response = result->get_response();
+    if (!response->blob || response->blob->size == 0) {
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Splash video from %s is empty. Fallback to builtin.",
+              cache_name.c_str()),
+          SplashScreenFetchedState::kErrorOnCacheEmptyContent);
+>>>>>>> d57de445a9 (Add browsertest cases for Splash screen's UMA metrics (#9580))
     }
     if (response->blob->size > splash_content_size_limit_) {
       return DisconnectCacheAndSendFallback(base::StringPrintf(
