@@ -33,7 +33,7 @@
 #include "content/public/common/main_function_params.h"
 #include "content/public/gpu/content_gpu_client.h"
 #include "content/public/renderer/content_renderer_client.h"
-#include "content/public/utility/content_utility_client.h"
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 #endif
