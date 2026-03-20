@@ -101,6 +101,8 @@ constexpr char kCookiesCountHistogram[] =
 constexpr char kLocalStorageCountHistogram[] =
     "Cobalt.StorageMigration.LocalStorageCount";
 constexpr char kDurationHistogram[] = "Cobalt.StorageMigration.Duration";
+constexpr char kSentinelWriteResultHistogram[] =
+    "Cobalt.StorageMigration.SentinelWriteResult";
 
 // ============================================================================
 // General File / Cache Utilities
@@ -140,13 +142,21 @@ void WriteMigrationSentinelAsync(scoped_refptr<MigrationState> state) {
           base::BindOnce(
               [](scoped_refptr<MigrationState> state) {
                 base::FilePath sentinel_path = GetMigrationSentinelPath();
-                if (!sentinel_path.empty()) {
+                SentinelWriteResult result = SentinelWriteResult::kSuccess;
+                if (sentinel_path.empty()) {
+                  LOG(ERROR)
+                      << "Sentinel path is empty, cannot write sentinel file.";
+                  result = SentinelWriteResult::kEmptyPath;
+                } else {
                   if (!base::WriteFile(sentinel_path,
                                        state->GetStatusString())) {
                     LOG(ERROR) << "Failed to write migration sentinel file to "
                                << sentinel_path.value();
+                    result = SentinelWriteResult::kWriteFailed;
                   }
                 }
+                base::UmaHistogramEnumeration(kSentinelWriteResultHistogram,
+                                              result);
               },
               state));
 }

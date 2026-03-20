@@ -63,6 +63,15 @@ enum class MigrationOutcome {
   kMaxValue = kTimeout,
 };
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class SentinelWriteResult {
+  kSuccess = 0,
+  kEmptyPath = 1,
+  kWriteFailed = 2,
+  kMaxValue = kWriteFailed,
+};
+
 // Used to sequence tasks.
 using Task = base::OnceCallback<void(base::OnceClosure)>;
 

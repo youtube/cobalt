@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/check.h"
 #include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -153,7 +154,7 @@ void CobaltBrowserMainParts::StartStorageMigration() {
 }
 
 void CobaltBrowserMainParts::OnMigrationComplete() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
   migration_finished_ = true;
   if (pending_task_) {
@@ -163,10 +164,10 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
 
 void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
     base::OnceClosure task) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
   if (!migration_finished_) {
     LOG(INFO) << "Deferring launchShell until migration finishes.";
-    DCHECK(!pending_task_) << "Only one storage migration task is supported.";
+    CHECK(!pending_task_) << "Only one storage migration task is supported.";
     pending_task_ = std::move(task);
   } else {
     LOG(INFO) << "Migration already finished, running launchShell "

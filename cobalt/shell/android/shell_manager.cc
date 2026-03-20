@@ -80,7 +80,7 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
   // is created too early, the JS environment will start with empty data.
   auto create_window_task = base::BindOnce(
       [](GURL url, std::string deeplink_url) {
-        std::string status_param = cobalt::migrate_storage_record::
+        const std::string status_param = cobalt::migrate_storage_record::
             MigrationManager::GetMigrationStatusUrlParameter();
         if (!status_param.empty() && !deeplink_url.empty()) {
           // If a migration occurred on this launch, append its outcome directly

@@ -173,6 +173,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.StorageMigration.SentinelWriteResult"
+    enum="SentinelWriteResult" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the result of writing the migration sentinel file to disk.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>

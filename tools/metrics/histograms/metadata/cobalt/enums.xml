@@ -63,6 +63,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="4" label="Timeout"/>
 </enum>
 
+<enum name="SentinelWriteResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Empty Path"/>
+  <int value="2" label="Write Failed"/>
+</enum>
+
 <enum name="StorageReadResult">
   <int value="0" label="Success"/>
   <int value="1" label="Partition key not default"/>
