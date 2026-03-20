@@ -82,19 +82,17 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
       [](GURL url, std::string deeplink_url) {
         std::string status_param = cobalt::migrate_storage_record::
             MigrationManager::GetMigrationStatusUrlParameter();
-        if (!status_param.empty()) {
+        if (!status_param.empty() && !deeplink_url.empty()) {
           // If a migration occurred on this launch, append its outcome directly
           // to the URL's query parameters (e.g. "?migration_status=0-0-0").
           // This makes the migration telemetry accessible to the loaded web
           // app.
-          GURL::Replacements replacements;
-          std::string query = url.query();
-          if (!query.empty()) {
-            query += "&";
+          if (deeplink_url.find('?') == std::string::npos) {
+            deeplink_url += "?";
+          } else {
+            deeplink_url += "&";
           }
-          query += status_param;
-          replacements.SetQueryStr(query);
-          url = url.ReplaceComponents(replacements);
+          deeplink_url += status_param;
         }
         ShellBrowserContext* browserContext =
             ShellContentBrowserClient::Get()->browser_context();
