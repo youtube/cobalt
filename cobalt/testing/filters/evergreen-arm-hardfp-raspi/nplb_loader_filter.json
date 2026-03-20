@@ -3,6 +3,7 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+<<<<<<< HEAD
     "Posix/NlLanginfo*Test.AllItems/as_IN",
     "Posix/NlLanginfo*Test.AllItems/be_BY",
     "Posix/NlLanginfo*Test.AllItems/bs_BA",
@@ -11,6 +12,9 @@
     "Posix/*LocaleconvTest.AllItems/be_BY",
     "Posix/*LocaleconvTest.AllItems/bs_BA",
     "Posix/*LocaleconvTest.AllItems/or_IN",
+=======
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+>>>>>>> 1d8240a230 (3p: Disable instead of filter locale tests (#9655))
     "SbAudioSinkTest.*",
     "SbMediaSetAudioWriteDurationTests*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
@@ -20,16 +24,5 @@
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerWriteSampleTests*",
     "VerticalVideoTests/VerticalVideoTest*"
-  ],
-
-  "_filtered_b/467701409": [
-    "Posix/NlLanginfo*Test.AllItems/as_IN",
-    "Posix/NlLanginfo*Test.AllItems/be_BY",
-    "Posix/NlLanginfo*Test.AllItems/bs_BA",
-    "Posix/NlLanginfo*Test.AllItems/or_IN",
-    "Posix/*LocaleconvTest.AllItems/as_IN",
-    "Posix/*LocaleconvTest.AllItems/be_BY",
-    "Posix/*LocaleconvTest.AllItems/bs_BA",
-    "Posix/*LocaleconvTest.AllItems/or_IN"
   ]
 }

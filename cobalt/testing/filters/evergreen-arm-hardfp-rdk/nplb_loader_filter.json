@@ -38,6 +38,7 @@
     "SbTimeZoneGetNameTest.IsIANAFormat",
     "SbWindowGetSizeTest.SunnyDay",
     "VerticalVideoTests/VerticalVideoTest*"
+<<<<<<< HEAD
   ],
 
   "_filtered_b/467701409": [
@@ -49,5 +50,7 @@
     "Posix/*LocaleconvTest.AllItems/be_BY",
     "Posix/*LocaleconvTest.AllItems/bs_BA",
     "Posix/*LocaleconvTest.AllItems/or_IN"
+=======
+>>>>>>> 1d8240a230 (3p: Disable instead of filter locale tests (#9655))
   ]
 }
