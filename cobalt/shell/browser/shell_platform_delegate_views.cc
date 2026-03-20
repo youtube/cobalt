@@ -43,6 +43,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
+#include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -62,6 +63,7 @@ struct ShellPlatformDelegate::ShellData {
   gfx::Size content_size;
   // Self-owned Widget, destroyed through CloseNow().
   raw_ptr<views::Widget> window_widget = nullptr;
+  gfx::Size initial_size_;
 };
 
 struct ShellPlatformDelegate::PlatformData {
@@ -86,6 +88,8 @@ class ShellView : public views::BoxLayoutView,
   ShellView(const ShellView&) = delete;
   ShellView& operator=(const ShellView&) = delete;
   ~ShellView() override = default;
+
+  Shell* ReleaseShell() { return shell_.release(); }
 
   // Update the state of UI controls
   void SetAddressBarURL(const GURL& url) {
@@ -308,14 +312,17 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 
 }  // namespace
 
-ShellPlatformDelegate::ShellPlatformDelegate() = default;
-
 std::unique_ptr<views::ViewsDelegate>
 ShellPlatformDelegate::CreateViewsDelegate() {
   return std::make_unique<views::CobaltViewsDelegate>();
 }
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+ShellPlatformDelegate::ShellPlatformDelegate() = default;
+ShellPlatformDelegate::~ShellPlatformDelegate() = default;
+
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   platform_ = std::make_unique<PlatformData>();
 
   platform_->wm_state = std::make_unique<wm::WMState>();
@@ -327,8 +334,6 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
   platform_->views_delegate = CreateViewsDelegate();
 }
 
-ShellPlatformDelegate::~ShellPlatformDelegate() = default;
-
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
@@ -336,6 +341,19 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.content_size = initial_size;
+  shell_data.initial_size_ = initial_size;
+
+  if (IsVisible()) {
+    CreatePlatformWindowInternal(shell, initial_size);
+  } else {
+    shell_data.window_widget = nullptr;
+  }
+}
+
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {
+  ShellData& shell_data = shell_data_map_.at(shell);
 
   auto delegate = std::make_unique<views::WidgetDelegate>();
   delegate->SetContentsView(std::make_unique<ShellView>(shell));
@@ -370,10 +388,55 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  ShellViewForWidget(shell_data.window_widget)
-      ->SetWebContents(shell->web_contents(), shell_data.content_size);
-  shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
-  shell_data.window_widget->Show();
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)
+        ->SetWebContents(shell->web_contents(), shell_data.content_size);
+
+    SkColor bg_color = shell_data.window_widget->GetColorProvider()->GetColor(
+        ui::kColorWindowBackground);
+    views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+        shell->web_contents(), bg_color);
+
+    shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+    shell_data.window_widget->Show();
+  }
+}
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (!shell_data.window_widget) {
+    CreatePlatformWindowInternal(shell, shell_data.initial_size_);
+  }
+
+  if (IsVisible()) {
+    SetContents(shell);
+  }
+}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)->ReleaseShell();
+    shell_data.window_widget->CloseNow();
+    shell_data.window_widget = nullptr;
+  }
+}
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)
+        ->SetWebContents(shell->splash_screen_web_contents(),
+                         shell_data.content_size);
+    shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+    shell_data.window_widget->Show();
+  }
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  SetContents(shell);
 }
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
@@ -391,13 +454,15 @@ void ShellPlatformDelegate::EnableUIControl(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  auto* view = ShellViewForWidget(shell_data.window_widget);
-  if (control == BACK_BUTTON) {
-    view->EnableUIControl(ShellView::BACK_BUTTON, is_enabled);
-  } else if (control == FORWARD_BUTTON) {
-    view->EnableUIControl(ShellView::FORWARD_BUTTON, is_enabled);
-  } else if (control == STOP_BUTTON) {
-    view->EnableUIControl(ShellView::STOP_BUTTON, is_enabled);
+  if (shell_data.window_widget) {
+    auto* view = ShellViewForWidget(shell_data.window_widget);
+    if (control == BACK_BUTTON) {
+      view->EnableUIControl(ShellView::BACK_BUTTON, is_enabled);
+    } else if (control == FORWARD_BUTTON) {
+      view->EnableUIControl(ShellView::FORWARD_BUTTON, is_enabled);
+    } else if (control == STOP_BUTTON) {
+      view->EnableUIControl(ShellView::STOP_BUTTON, is_enabled);
+    }
   }
 }
 
@@ -409,7 +474,9 @@ void ShellPlatformDelegate::SetAddressBarURL(Shell* shell, const GURL& url) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  ShellViewForWidget(shell_data.window_widget)->SetAddressBarURL(url);
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)->SetAddressBarURL(url);
+  }
 }
 
 void ShellPlatformDelegate::SetIsLoading(Shell* shell, bool loading) {}
@@ -419,7 +486,9 @@ void ShellPlatformDelegate::SetTitle(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  shell_data.window_widget->widget_delegate()->SetTitle(title);
+  if (shell_data.window_widget) {
+    shell_data.window_widget->widget_delegate()->SetTitle(title);
+  }
 }
 
 void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {}
@@ -428,8 +497,12 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  shell_data.window_widget->CloseNow();
-  return true;  // The CloseNow() will do the destruction of Shell.
+  if (shell_data.window_widget) {
+    shell_data.window_widget->CloseNow();
+    return true;  // The CloseNow() will do the destruction of Shell.
+  }
+
+  return false;
 }
 
 }  // namespace content

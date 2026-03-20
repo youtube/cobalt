@@ -116,11 +116,11 @@ struct musl_stat {
 // Special file descriptor for utimensat
 #define MUSL_AT_FDCWD (-100)
 
+namespace starboard {
+mode_t musl_mode_to_platform_mode(musl_mode_t musl_mode);
+}
+
 SB_EXPORT int __abi_wrap_fstat(int fildes, struct musl_stat* info);
-
-SB_EXPORT int __abi_wrap_lstat(const char* path, struct musl_stat* info);
-
-SB_EXPORT int __abi_wrap_stat(const char* path, struct musl_stat* info);
 
 SB_EXPORT int __abi_wrap_chmod(const char* path, musl_mode_t mode);
 
@@ -130,6 +130,11 @@ SB_EXPORT int __abi_wrap_utimensat(int fildes,
                                    const char* path,
                                    const struct musl_timespec times[2],
                                    int musl_flag);
+
+SB_EXPORT int __abi_wrap_fstatat(int filedes,
+                                 const char* path,
+                                 struct musl_stat* musl_info,
+                                 int musl_flag);
 
 #ifdef __cplusplus
 }  // extern "C"

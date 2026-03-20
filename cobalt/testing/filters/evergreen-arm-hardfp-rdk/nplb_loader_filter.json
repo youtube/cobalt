@@ -1,5 +1,4 @@
 {
-  "_comment": "TODO(b/403007005): Disabled new locale tests.",
   "failing_tests": [
     "CrashpadConfigTest.VerifyUploadCert",
     "MadviseTest.BadSizeValue",
@@ -15,28 +14,22 @@
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerWriteSampleTests*",
-
-    "PosixLocaleSetTest.LocaleConvC",
-    "PosixLocaleSetTest.NewUseFreeLocale",
-    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
-    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
-    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
-    "PosixLocaleThreadTest.DupLocaleNonDefault",
-    "PosixLocaleThreadTest.DupLocaleGlobal",
-    "PosixLocaleThreadTest.UseLocale",
-    "PosixLocaleThreadTest.SetLocaleThenUseLocale",
-    "PosixLocaleThreadTest.SetLocaleThenUseLocaleThenUseGlobal",
-    "PosixLocaleThreadTest.UseLocaleThenSetLocale",
-    "PosixLocaleThreadTest.UseLocaleThenSetLocaleThenUseGlobal",
-    "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
+    "PosixThreadAttrTest.StackAddrAndSizeAttr",
+    "Posix/NlLanginfo*Test.AllItems/as_IN",
+    "Posix/NlLanginfo*Test.AllItems/be_BY",
+    "Posix/NlLanginfo*Test.AllItems/bs_BA",
+    "Posix/NlLanginfo*Test.AllItems/or_IN",
+    "Posix/*LocaleconvTest.AllItems/as_IN",
+    "Posix/*LocaleconvTest.AllItems/be_BY",
+    "Posix/*LocaleconvTest.AllItems/bs_BA",
+    "Posix/*LocaleconvTest.AllItems/or_IN",
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
     "PosixUtimensatTest.OmitBothTimestamps",
     "PosixUtimensatTest.SymlinkNoFollow",
     "SbSystemGetLocaleIdTest.SunnyDay",
+    "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.SunnyDayStackDirection",
     "SbSystemGetStackTest.SunnyDay",
@@ -45,5 +38,16 @@
     "SbTimeZoneGetNameTest.IsIANAFormat",
     "SbWindowGetSizeTest.SunnyDay",
     "VerticalVideoTests/VerticalVideoTest*"
+  ],
+
+  "_filtered_b/467701409": [
+    "Posix/NlLanginfo*Test.AllItems/as_IN",
+    "Posix/NlLanginfo*Test.AllItems/be_BY",
+    "Posix/NlLanginfo*Test.AllItems/bs_BA",
+    "Posix/NlLanginfo*Test.AllItems/or_IN",
+    "Posix/*LocaleconvTest.AllItems/as_IN",
+    "Posix/*LocaleconvTest.AllItems/be_BY",
+    "Posix/*LocaleconvTest.AllItems/bs_BA",
+    "Posix/*LocaleconvTest.AllItems/or_IN"
   ]
 }

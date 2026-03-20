@@ -135,7 +135,7 @@ static_library("usb") {
     deps += [ "//third_party/libusb" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_starboard || is_chromeos) {
     sources += [
       "usb_device_linux.cc",
       "usb_device_linux.h",

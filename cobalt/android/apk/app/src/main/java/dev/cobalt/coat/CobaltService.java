@@ -112,14 +112,7 @@ public abstract class CobaltService {
     // are registered within the Kabuki app's iframe, which needs to be the
     // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
     String jsCodeTemplate =
-      "((w) => {\n"
-      + "  let targetWindow = w;\n"
-      + "  const appIframe = document.getElementById('anchor');\n"
-      + "  if (appIframe?.contentWindow) {\n"
-      + "    targetWindow = appIframe.contentWindow;\n"
-      + "  }\n"
-      + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
-      + "})(window)";
+        "window.H5vccPlatformService.callbackFromAndroid(%d, '%s');";
 
     String jsCode = String.format(jsCodeTemplate, nativeService, base64Data);
     this.cobaltActivity.evaluateJavaScript(jsCode);

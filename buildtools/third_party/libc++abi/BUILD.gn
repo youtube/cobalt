@@ -10,6 +10,9 @@ source_set("libc++abi") {
       "//build/config:executable_deps",
       "//build/config:rust_bin_deps",
     ]
+    if (is_cobalt_hermetic_build) {
+      visibility += [ "//buildtools/third_party/libc++" ]
+    }
   } else {
     visibility = [ "//buildtools/third_party/libc++" ]
   }

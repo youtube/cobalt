@@ -230,7 +230,8 @@ void CrxDownloader::HandleDownloadError(
 
 #if BUILDFLAG(IS_STARBOARD)
   // TODO(b/448186580): Replace LOG with D(V)LOG
-  LOG(INFO) << "CrxDownloader::HandleDownloadError";
+  LOG(INFO) << "CrxDownloader::HandleDownloadError, result.error="
+    << result.error;
 #endif
 
   download_metrics_.push_back(download_metrics);

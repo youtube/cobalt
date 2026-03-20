@@ -31,7 +31,7 @@ namespace content {
 
 TestShell::TestShell(std::unique_ptr<WebContents> web_contents,
                      bool should_set_delegate)
-    : Shell(std::move(web_contents), should_set_delegate) {}
+    : Shell(std::move(web_contents), nullptr, should_set_delegate) {}
 
 TestShell::~TestShell() {}
 

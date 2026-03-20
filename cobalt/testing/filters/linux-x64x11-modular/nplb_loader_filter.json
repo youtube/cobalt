@@ -1,22 +1,41 @@
 {
-  "_comment": "TODO(b/403007005): Disabled new locale tests.",
   "failing_tests": [
     "PosixTimeClockTests.ClockIncreasesOverTime",
+    "Posix/NlLanginfo*Test.AllItems/as_IN",
+    "Posix/NlLanginfo*Test.AllItems/be_BY",
+    "Posix/NlLanginfo*Test.AllItems/bs_BA",
+    "Posix/NlLanginfo*Test.AllItems/or_IN",
+    "Posix/*LocaleconvTest.AllItems/as_IN",
+    "Posix/*LocaleconvTest.AllItems/be_BY",
+    "Posix/*LocaleconvTest.AllItems/bs_BA",
+    "Posix/*LocaleconvTest.AllItems/or_IN",
 
-    "PosixLocaleSetTest.LocaleConvC",
-    "PosixLocaleSetTest.NewUseFreeLocale",
-    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
-    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
-    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
-    "PosixLocaleThreadTest.DupLocaleNonDefault",
-    "PosixLocaleThreadTest.DupLocaleGlobal",
-    "PosixLocaleThreadTest.UseLocale",
-    "PosixLocaleThreadTest.SetLocaleThenUseLocale",
-    "PosixLocaleThreadTest.SetLocaleThenUseLocaleThenUseGlobal",
-    "PosixLocaleThreadTest.UseLocaleThenSetLocale",
-    "PosixLocaleThreadTest.UseLocaleThenSetLocaleThenUseGlobal",
-    "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
-    "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*"
+    "FileTempTest.MkdtempNonExistentPath",
+    "FileTempTest.MkostempNonExistentPath",
+    "FileTempTest.MkstempNonExistentPath",
+    "PosixInitStateTest.SetStateRestoresState",
+    "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "SbAudioSinkTest.UpdateStatusCalled",
+    "SbLogFlushTest.DontCrashMeBro"
+  ],
+  "_filtered_b/467135717": [
+    "FileTempTest.MkdtempNonExistentPath",
+    "FileTempTest.MkostempNonExistentPath",
+    "FileTempTest.MkstempNonExistentPath",
+    "PosixInitStateTest.SetStateRestoresState",
+    "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "SbAudioSinkTest.UpdateStatusCalled",
+    "SbLogFlushTest.DontCrashMeBro"
+  ],
+
+  "_filtered_b/467701409": [
+    "Posix/NlLanginfo*Test.AllItems/as_IN",
+    "Posix/NlLanginfo*Test.AllItems/be_BY",
+    "Posix/NlLanginfo*Test.AllItems/bs_BA",
+    "Posix/NlLanginfo*Test.AllItems/or_IN",
+    "Posix/*LocaleconvTest.AllItems/as_IN",
+    "Posix/*LocaleconvTest.AllItems/be_BY",
+    "Posix/*LocaleconvTest.AllItems/bs_BA",
+    "Posix/*LocaleconvTest.AllItems/or_IN"
   ]
 }

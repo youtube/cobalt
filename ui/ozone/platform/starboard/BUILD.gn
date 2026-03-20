@@ -18,7 +18,7 @@ assert(is_starboard)
 
 source_set("starboard") {
   visibility = [
-    "//cobalt:*",
+    "//cobalt/*",
     "//ui/ozone/*",
   ]
 
@@ -78,6 +78,7 @@ source_set("starboard_unittests") {
     "//ui/events:events_base",
     "//ui/events/types:headers",
     "//ui/gl",
+    "//ui/ozone:platform",
     "//ui/platform_window:platform_window",
   ]
 }

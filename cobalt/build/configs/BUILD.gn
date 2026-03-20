@@ -160,4 +160,11 @@ config("buildflag_defines") {
   if (build_base_with_cpp17) {
     defines += [ "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17" ]
   }
+
+  # Use BUILDFLAG(IS_STARBOARD_TOOLCHAIN) to guard customizations that should
+  # only be built for the starboard toolchain. Note that this is not the same
+  # thing as BUILDFLAG(IS_STARBOARD).
+  if (current_toolchain == starboard_toolchain) {
+    defines += [ "ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN" ]
+  }
 }

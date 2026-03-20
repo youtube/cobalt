@@ -3,13 +3,13 @@
 // META: script=resources/automation.js
 
 h5vcc_updater_tests(async (t, mockH5vccUpdater) => {
-  assert_implements(window.h5vcc, "window.h5vcc not supported");
-  assert_implements(window.h5vcc.updater, "window.h5vcc.updater not supported");
+  const test_url = "https://example.com/update";
+  mockH5vccUpdater.setMockUpdateServerUrl(test_url);
+  const result = await window.h5vcc.updater.getUpdateServerUrl();
+  assert_equals(result, test_url);
+}, 'exercises H5vccUpdater.getUpdateServerUrl()');
 
-  // currently stubbed out and not implemented, so test will fail.
-  // placeholder value here till the updater plumbing is done.
-  const expected = '1';
-  mockH5vccUpdater.stubGetUpdateServerUrl(expected);
-  let actual = window.h5vcc.updater.getUpdateServerUrl();
-  assert_equals(actual, expected);
-}, 'exercises H5vccUpdater.updateServerUrl()');
+h5vcc_updater_mojo_disconnection_tests(async (t) => {
+  return promise_rejects_exactly(
+    t, 'API not supported for this platform.', window.h5vcc.updater.getUpdateServerUrl());
+}, 'getUpdateServerUrl() rejects when unimplemented due to pipe closure');

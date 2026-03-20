@@ -12,11 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO(b/458483469): Conditionally add sideloading files to sources if
+# 'cobalt_is_release_build' and sideloading are enabled.
 source_set("h5vcc_updater") {
-  sources = [
-    "h5vcc_updater_impl.cc",
-    "h5vcc_updater_impl.h",
-  ]
+  if (use_evergreen) {
+    sources = [
+      "h5vcc_updater_impl.cc",
+      "h5vcc_updater_impl.h",
+      "h5vcc_updater_sideloading_impl.cc",
+      "h5vcc_updater_sideloading_impl.h",
+    ]
+  }
 
   deps = [
     "//base",
@@ -29,5 +35,9 @@ source_set("h5vcc_updater") {
 
   if (is_starboard) {
     deps += [ "//cobalt/configuration" ]
+  }
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater:updater" ]
   }
 }

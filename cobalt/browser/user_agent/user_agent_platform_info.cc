@@ -33,6 +33,11 @@
 #include "cobalt/version.h"
 #include "v8/include/v8-version-string.h"
 
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/util.h"  //nogncheck
+#include "starboard/extension/installation_manager.h"
+#endif
+
 namespace cobalt {
 
 void GetUserAgentInputMap(
@@ -185,7 +190,12 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
 }
 #elif BUILDFLAG(IS_STARBOARD)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
-  const std::string os_name = base::SysInfo::OperatingSystemName();
+  std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_friendly_name =
+      base::starboard::SbSysInfo::OSFriendlyName();
+  if (!os_friendly_name.empty()) {
+    os_name = os_friendly_name + "; " + os_name;
+  }
   const std::string os_version = base::SysInfo::OperatingSystemVersion();
   set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
@@ -193,15 +203,6 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
       starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
   // Rasterizer type is gles for both Linux and Android.
   set_rasterizer_type("gles");
-
-  // TODO(cobalt, b/374213479): Retrieve Evergreen
-  // #if BUILDFLAG(IS_EVERGREEN)
-  //   updater::EvergreenLibraryMetadata evergreen_library_metadata =
-  //       updater::GetCurrentEvergreenLibraryMetadata();
-  //   set_evergreen_version(evergreen_library_metadata.version);
-  //   set_evergreen_file_type(evergreen_library_metadata.file_type);
-  //   set_evergreen_type("Lite");
-  // #endif
 }
 
 #elif BUILDFLAG(IS_IOS_TVOS)
@@ -256,6 +257,19 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   set_javascript_engine_version(
       base::StringPrintf("v8/%s-jit", V8_VERSION_STRING));
 
+#if BUILDFLAG(USE_EVERGREEN)
+  updater::EvergreenLibraryMetadata evergreen_library_metadata =
+      updater::GetCurrentEvergreenLibraryMetadata();
+  set_evergreen_version(evergreen_library_metadata.version);
+  set_evergreen_file_type(evergreen_library_metadata.file_type);
+  if (!SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+    // If the installation manager is not initialized, the "evergreen_lite"
+    // command line parameter is specified and the system image is loaded.
+    set_evergreen_type("Lite");
+  } else {
+    set_evergreen_type("Full");
+  }
+#endif
   if (!avoid_access_to_starboard_for_testing_) {
     set_device_type(
         starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));

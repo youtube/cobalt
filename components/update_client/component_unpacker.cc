@@ -44,13 +44,23 @@ namespace update_client {
 ComponentUnpacker::Result::Result() = default;
 
 ComponentUnpacker::ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
+#if defined(IN_MEMORY_UPDATES)
+                                     const std::string* crx_str,
+                                     const base::FilePath& installation_dir,
+#else
                                      const base::FilePath& path,
+#endif
                                      scoped_refptr<CrxInstaller> installer,
                                      std::unique_ptr<Unzipper> unzipper,
                                      scoped_refptr<Patcher> patcher,
                                      crx_file::VerifierFormat crx_format)
     : pk_hash_(pk_hash),
+#if defined(IN_MEMORY_UPDATES)
+      crx_str_(*crx_str),
+      installation_dir_(installation_dir),
+#else
       path_(path),
+#endif
       is_delta_(false),
       installer_(installer),
       unzipper_(std::move(unzipper)),
@@ -68,16 +78,25 @@ void ComponentUnpacker::Unpack(Callback callback) {
 }
 
 bool ComponentUnpacker::Verify() {
+#if defined(IN_MEMORY_UPDATES)
+  VLOG(1) << "Verifying component";
+#else
   VLOG(1) << "Verifying component: " << path_.value();
   if (path_.empty()) {
     error_ = UnpackerError::kInvalidParams;
     return false;
   }
+#endif
   std::vector<std::vector<uint8_t>> required_keys;
   if (!pk_hash_.empty())
     required_keys.push_back(pk_hash_);
   const crx_file::VerifierResult result = crx_file::Verify(
-      path_, crx_format_, required_keys, std::vector<uint8_t>(), &public_key_,
+#if defined(IN_MEMORY_UPDATES)
+                       crx_str_,
+#else
+                       path_,
+#endif
+      crx_format_, required_keys, std::vector<uint8_t>(), &public_key_,
       nullptr, &compressed_verified_contents_);
   if (result != crx_file::VerifierResult::OK_FULL &&
       result != crx_file::VerifierResult::OK_DELTA) {
@@ -115,8 +134,13 @@ bool ComponentUnpacker::BeginUnzipping() {
 #endif  // !BUILDFLAG(IS_STARBOARD)
 
   VLOG(1) << "Unpacking in: " << destination.value();
+#if defined(IN_MEMORY_UPDATES)
+  unzipper_->Unzip(crx_str_, destination,
+                   base::BindOnce(&ComponentUnpacker::EndUnzipping, this));
+#else
   unzipper_->Unzip(path_, destination,
                    base::BindOnce(&ComponentUnpacker::EndUnzipping, this));
+#endif
   return true;
 }
 

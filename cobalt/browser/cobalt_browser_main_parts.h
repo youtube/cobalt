@@ -41,7 +41,8 @@ class GlobalFeatures;
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  CobaltBrowserMainParts() = default;
+  explicit CobaltBrowserMainParts(bool is_visible = true,
+                                  const std::string& deep_link = "");
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
@@ -51,7 +52,6 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override;
   int PreMainMessageLoopRun() override;
-  void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific

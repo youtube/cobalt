@@ -75,6 +75,12 @@ rtc_library("frame_generator_impl") {
     "../rtc_base/system:file_wrapper",
     "../system_wrappers",
   ]
+  if (is_starboard) {
+    deps -= [
+      "../modules/video_coding:webrtc_vp8",
+      "../modules/video_coding:webrtc_vp9"
+    ]
+  }
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
 
@@ -552,6 +558,12 @@ rtc_library("video_test_support") {
     "../rtc_base:stringutils",
     "../rtc_base/system:file_wrapper",
   ]
+  if (is_starboard) {
+    deps -= [
+      "../modules/video_coding:webrtc_vp8",
+      "../modules/video_coding:webrtc_vp9",
+    ]
+  }
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 
   if (!is_ios) {
@@ -762,6 +774,12 @@ if (rtc_include_tests) {
         "time_controller:time_controller",
         "time_controller:time_controller_unittests",
       ]
+      if (is_starboard) {
+        deps -= [ 
+          "../modules/video_coding:webrtc_vp8",
+          "../modules/video_coding:webrtc_vp9",
+        ]
+      }
       absl_deps = [
         "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/strings",

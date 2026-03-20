@@ -857,9 +857,11 @@ void ApplicationX11::Initialize() {
     static char to_put[] = "EGL_DRIVER=egl_gallium";
     SB_CHECK(!putenv(to_put));
   }
+  time_zone_monitor_ = starboard::shared::linux::TimeZoneMonitor::Create();
 }
 
 void ApplicationX11::Teardown() {
+  time_zone_monitor_ = nullptr;
   StopX();
 }
 
@@ -895,9 +897,9 @@ Application::Event* ApplicationX11::WaitForSystemEventWithTimeout(
 }
 
 void ApplicationX11::WakeSystemEventWait() {
-  SB_DCHECK(!windows_.empty());
+  SB_CHECK(!windows_.empty());
   XSendAtom((*windows_.begin())->window, wake_up_atom_);
-  SB_DCHECK(dev_input_);
+  SB_CHECK(dev_input_);
   dev_input_->WakeSystemEventWait();
 }
 

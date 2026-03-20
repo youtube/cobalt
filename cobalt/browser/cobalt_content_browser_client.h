@@ -17,11 +17,16 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
-#include "cobalt/browser/cobalt_web_contents_delegate.h"
-#include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "starboard/window.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 class PrefService;
 
@@ -43,10 +48,6 @@ class BinderMapWithContext;
 
 namespace cobalt {
 
-namespace media {
-class VideoGeometrySetterService;
-}  // namespace media
-
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
 
@@ -57,7 +58,9 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  CobaltContentBrowserClient();
+  explicit CobaltContentBrowserClient(absl::optional<int64_t> startup_timestamp,
+                                      bool is_visible = true,
+                                      const std::string& deep_link = "");
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
   CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
@@ -72,6 +75,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       bool is_integration_test) override;
   std::vector<std::unique_ptr<content::NavigationThrottle>>
   CreateThrottlesForNavigation(content::NavigationHandle* handle) override;
+  std::unique_ptr<content::DevToolsManagerDelegate>
+  CreateDevToolsManagerDelegate() override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
   std::string GetApplicationLocale() override;
@@ -96,11 +101,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
       override;
-  void ExposeInterfacesToRenderer(
-      service_manager::BinderRegistry* registry,
-      blink::AssociatedInterfaceRegistry* associated_registry,
-      content::RenderProcessHost* render_process_host) override;
-  void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
@@ -127,15 +127,32 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   void FlushCookiesAndLocalStorage(base::OnceClosure);
 
- private:
-  void CreateVideoGeometrySetterService();
+  void AddPendingWindowReceiver(
+      mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+          receiver);
+  uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
 
+#if !BUILDFLAG(IS_ANDROIDTV)
+  void SetUserAgentCrashAnnotation();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+ private:
+  void OnSbWindowCreated(SbWindow window);
+  void OnSbWindowDestroyed(SbWindow window);
+
+  const absl::optional<int64_t> startup_timestamp_;
+  bool is_visible_;
+  const std::string deep_link_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
-  std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
-  std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
-      video_geometry_setter_service_;
+
+  uint64_t cached_sb_window_ = 0;
+  std::vector<
+      mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
+      pending_window_receivers_;
 
   THREAD_CHECKER(thread_checker_);
+
+  base::WeakPtrFactory<CobaltContentBrowserClient> weak_factory_{this};
 };
 
 }  // namespace cobalt

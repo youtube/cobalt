@@ -18,6 +18,10 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/version.h"
+#endif
+
 // -----------------------------------------------------------------------------
 // Usage documentation
 // -----------------------------------------------------------------------------
@@ -217,6 +221,7 @@ class SystemReportComponent;
 namespace cobalt {
 namespace updater {
 class UpdaterModule;
+base::Version ReadEvergreenVersion(base::FilePath installation_dir);
 }  // namespace updater
 }  // namespace cobalt
 #endif  // BUILDFLAG(IS_STARBOARD)
@@ -680,6 +685,10 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBlocking {
   friend void chrome::SessionEnding();
   friend bool chromeos::system::IsCoreSchedulingAvailable();
   friend int chromeos::system::NumberOfPhysicalCores();
+#if BUILDFLAG(IS_STARBOARD)
+  friend base::Version cobalt::updater::ReadEvergreenVersion(
+    base::FilePath installation_dir);
+#endif  // BUILDFLAG(IS_STARBOARD)
   friend base::File content::CreateFileForDrop(
       base::FilePath* file_path);  // http://crbug.com/110709
   friend bool disk_cache::CleanupDirectorySync(const base::FilePath&);

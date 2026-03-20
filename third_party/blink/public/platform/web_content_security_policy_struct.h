@@ -69,6 +69,7 @@ struct WebCSPSourceList {
   bool report_sample;
 #if BUILDFLAG(IS_COBALT)
   bool cobalt_insecure_local_network;
+  bool cobalt_insecure_private_range;
 #endif
 };
 

@@ -532,9 +532,19 @@ struct ShellPlatformDelegate::PlatformData {};
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   screen_ = std::make_unique<display::ScopedNativeScreen>();
 }
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {}
 
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
@@ -576,6 +586,10 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   //  [((ContentShellWindowDelegate *)shell_data.window.rootViewController)
   //  setContents:web_contents_view];
 }
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {

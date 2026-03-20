@@ -43,4 +43,9 @@ static_library("symbolize") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   public_configs = [ ":symbolize_config" ]
+
+  if (is_starboard && use_evergreen &&
+      current_toolchain == starboard_toolchain) {
+    deps = [ "//starboard/elf_loader:evergreen_info" ]
+  }
 }

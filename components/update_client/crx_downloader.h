@@ -187,7 +187,6 @@ class CrxDownloader : public base::RefCountedThreadSafe<CrxDownloader> {
   std::vector<DownloadMetrics> download_metrics_;
 
 #if defined(IN_MEMORY_UPDATES)
-  // TODO(b/449250040): Replace naked pointers
   base::raw_ptr<std::string> dst_str_;  // not owned, can't be null
 #endif
 };

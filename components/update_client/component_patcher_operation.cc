@@ -102,9 +102,15 @@ void DeltaUpdateOp::DoneRunning(UnpackerError error, int extended_error) {
 // Uses the hash as a checksum to confirm that the file now residing in the
 // output directory probably has the contents it should.
 UnpackerError DeltaUpdateOp::CheckHash() {
+#if defined(IN_MEMORY_UPDATES)
+  CHECK(false) << "Delta updates not supported for in-memory updates, or "
+               << "for that matter Cobalt";
+  return UnpackerError::kDeltaUnsupportedCommand;
+#else
   return VerifyFileHash256(output_abs_path_, output_sha256_)
              ? UnpackerError::kNone
              : UnpackerError::kDeltaVerificationFailure;
+#endif
 }
 
 DeltaUpdateOpCopy::DeltaUpdateOpCopy() = default;

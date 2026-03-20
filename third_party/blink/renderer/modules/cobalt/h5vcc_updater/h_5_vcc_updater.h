@@ -15,7 +15,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_UPDATER_H_5_VCC_UPDATER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_UPDATER_H_5_VCC_UPDATER_H_
 
-#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom-blink.h"
+#include "build/build_config.h"
+
+#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom-blink.h"  // nogncheck
 
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -46,15 +48,48 @@ class MODULES_EXPORT H5vccUpdater final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
+  ScriptPromise getUpdaterChannel(ScriptState*, ExceptionState&);
+  ScriptPromise setUpdaterChannel(ScriptState*, const String&, ExceptionState&);
+  ScriptPromise getUpdateStatus(ScriptState*, ExceptionState&);
+  ScriptPromise resetInstallations(ScriptState*, ExceptionState&);
+  ScriptPromise getInstallationIndex(ScriptState*, ExceptionState&);
+  ScriptPromise getLibrarySha256(ScriptState*, unsigned short, ExceptionState&);
+  ScriptPromise getAllowSelfSignedPackages(ScriptState*, ExceptionState&);
+  ScriptPromise setAllowSelfSignedPackages(ScriptState*, bool, ExceptionState&);
   ScriptPromise getUpdateServerUrl(ScriptState*, ExceptionState&);
+  ScriptPromise setUpdateServerUrl(ScriptState*,
+                                   const String&,
+                                   ExceptionState&);
+  ScriptPromise getRequireNetworkEncryption(ScriptState*, ExceptionState&);
+  ScriptPromise setRequireNetworkEncryption(ScriptState*,
+                                            bool,
+                                            ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
+  void OnGetUpdaterChannel(ScriptPromiseResolver*, const String&);
+  void OnSetUpdaterChannel(ScriptPromiseResolver*);
+  void OnGetUpdateStatus(ScriptPromiseResolver*, const String&);
+  void OnResetInstallations(ScriptPromiseResolver*);
+  void OnGetInstallationIndex(ScriptPromiseResolver*, uint16_t);
+  void OnGetLibrarySha256(ScriptPromiseResolver*, const String&);
+  void OnGetAllowSelfSignedPackages(ScriptPromiseResolver*, bool);
+  void OnSetAllowSelfSignedPackages(ScriptPromiseResolver*);
   void OnGetUpdateServerUrl(ScriptPromiseResolver*, const String&);
+  void OnSetUpdateServerUrl(ScriptPromiseResolver*);
+  void OnGetRequireNetworkEncryption(ScriptPromiseResolver*, bool);
+  void OnSetRequireNetworkEncryption(ScriptPromiseResolver*);
+  void OnConnectionError();
+  void OnSideloadingConnectionError();
   void EnsureReceiverIsBound();
+  void EnsureSideloadingReceiverIsBound();
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_sideloading_requests_;
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
+  HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdaterSideloading>
+      remote_h5vcc_updater_sideloading_;
 };
 
 }  // namespace blink

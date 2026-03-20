@@ -81,6 +81,10 @@ declare_args() {
   # on-device decoding and bitstream passthrough as supported by device.
   enable_platform_dts_audio = false
 
+  # Enables IAMF audio handling in chromium. This includes demuxing,
+  # on-device decoding and bitstream passthrough as supported by device.
+  enable_platform_iamf_audio = false
+
   # Enable Dolby Vision demuxing. Enabled by default for Chromecast and Windows.
   # Actual decoding must be provided by the platform. Since most Dolby Vision
   # profiles use HEVC, `enable_platform_hevc` is required to enable this.
@@ -328,6 +332,9 @@ declare_args() {
   # ie. is_chromeos_device.
   chrome_wide_echo_cancellation_supported =
       is_win || is_mac || is_linux || is_chromeos_device
+  if (is_cobalt && use_starboard_media) {
+    chrome_wide_echo_cancellation_supported = false
+  }
 }
 
 # Do not expand this list without double-checking with OWNERS, this is a list of

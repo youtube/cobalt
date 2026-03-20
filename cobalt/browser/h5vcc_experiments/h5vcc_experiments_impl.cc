@@ -23,6 +23,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/version.h"
 #include "components/metrics/clean_exit_beacon.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -109,6 +110,8 @@ void H5vccExperimentsImpl::SetExperimentState(
       std::move(
           experiment_config.Find(cobalt::kExperimentConfigActiveConfigData)
               ->GetString()));
+  experiment_config_ptr->SetString(cobalt::kExperimentConfigMinVersion,
+                                   COBALT_VERSION);
   experiment_config_ptr->SetString(
       cobalt::kLatestConfigHash,
       std::move(
@@ -142,14 +145,6 @@ void H5vccExperimentsImpl::GetActiveExperimentConfigData(
 void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
                                       GetFeatureCallback callback) {
   std::move(callback).Run(GetFeatureInternal(feature_name));
-}
-
-void H5vccExperimentsImpl::GetFeatureParam(
-    const std::string& feature_param_name,
-    GetFeatureParamCallback callback) {
-  std::string param_value = base::GetFieldTrialParamValue(
-      cobalt::kCobaltExperimentName, feature_param_name);
-  std::move(callback).Run(param_value);
 }
 
 void H5vccExperimentsImpl::GetLatestExperimentConfigHashData(

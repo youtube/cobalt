@@ -17,20 +17,22 @@
 #include <memory>
 
 #include "base/path_service.h"
-#include "base/run_loop.h"
+#include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/storage_partition.h"
-#include "services/network/public/mojom/cookie_manager.mojom.h"
+#include "content/public/browser/resource_coordinator_service.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
+#else
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -40,8 +42,52 @@
 
 namespace cobalt {
 
+namespace {
+
+void InitializeBrowserMemoryInstrumentationClient() {
+  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+    return;
+  }
+
+  auto task_runner = base::trace_event::MemoryDumpManager::GetInstance()
+                         ->GetDumpThreadTaskRunner();
+  if (!task_runner->RunsTasksInCurrentSequence()) {
+    task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(&InitializeBrowserMemoryInstrumentationClient));
+    return;
+  }
+
+  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+    return;
+  }
+
+  // Register the browser process as a memory-instrumentation client.
+  // This replicates content::InitializeBrowserMemoryInstrumentationClient()
+  // while avoiding unauthorized header includes.
+  mojo::PendingRemote<memory_instrumentation::mojom::Coordinator> coordinator;
+  mojo::PendingRemote<memory_instrumentation::mojom::ClientProcess> process;
+  auto process_receiver = process.InitWithNewPipeAndPassReceiver();
+  content::GetMemoryInstrumentationRegistry()->RegisterClientProcess(
+      coordinator.InitWithNewPipeAndPassReceiver(), std::move(process),
+      memory_instrumentation::mojom::ProcessType::BROWSER,
+      base::GetCurrentProcId(), /*service_name=*/absl::nullopt);
+  memory_instrumentation::ClientProcessImpl::CreateInstance(
+      std::move(process_receiver), std::move(coordinator),
+      /*is_browser_process=*/true);
+}
+
+}  // namespace
+
+CobaltBrowserMainParts::CobaltBrowserMainParts(bool is_visible,
+                                               const std::string& deep_link)
+    : ShellBrowserMainParts(is_visible, deep_link) {}
+
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
+
+  InitializeBrowserMemoryInstrumentationClient();
+
 #if BUILDFLAG(IS_ANDROIDTV)
   base::android::MemoryPressureListenerAndroid::Initialize(
       base::android::AttachCurrentThread());
@@ -51,22 +97,16 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  return ShellBrowserMainParts::PreMainMessageLoopRun();
-}
 
-void CobaltBrowserMainParts::PostMainMessageLoopRun() {
-  if (browser_context()) {
-    content::StoragePartition* partition =
-        browser_context()->GetDefaultStoragePartition();
-    if (partition) {
-      base::RunLoop run_loop;
-      partition->GetCookieManagerForBrowserProcess()->FlushCookieStore(
-          run_loop.QuitClosure());
-      run_loop.Run();
-      partition->Flush();
-    }
-  }
-  ShellBrowserMainParts::PostMainMessageLoopRun();
+#if !BUILDFLAG(IS_ANDROIDTV)
+  auto* client = CobaltContentBrowserClient::Get();
+  CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
+                << "PreMainMessageLoopRun!";
+  client->SetUserAgentCrashAnnotation();
+
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+  return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {

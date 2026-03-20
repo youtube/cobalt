@@ -87,6 +87,7 @@ runs:
           --label repository-${GITHUB_REPO} \
           --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
+          --label branch:${GITHUB_REF_NAME} \
           --dimensions '${{ inputs.test_dimensions }}' \
           ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \

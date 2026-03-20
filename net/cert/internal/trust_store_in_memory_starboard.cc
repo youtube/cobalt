@@ -72,7 +72,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
   DIR* sb_certs_directory = opendir(GetCertificateDirPath().value().c_str());
   if (!sb_certs_directory) {
 // Unit tests, for example, do not use production certificates.
-#if defined(STARBOARD_BUILD_TYPE_QA) || defined(STARBOARD_BUILD_TYPE_GOLD)
+#if defined(OFFICIAL_BUILD)
     SB_CHECK(false);
 #else
     DLOG(WARNING) << "ssl/certs directory is not valid, no root certificates"

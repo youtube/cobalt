@@ -286,7 +286,6 @@ vars = {
   'skia_git': 'https://skia.googlesource.com',
   'swiftshader_git': 'https://swiftshader.googlesource.com',
   'webrtc_git': 'https://webrtc.googlesource.com',
-  'rdk_starboard_git': 'https://cobalt.googlesource.com',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
@@ -1790,8 +1789,9 @@ deps = {
   'src/third_party/ruy/src':
     Var('chromium_git') + '/external/github.com/google/ruy.git' + '@' + '363f252289fb7a1fba1703d99196524698cb884d',
 
-  'src/third_party/skia':
-    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
+# Cobalt: imported
+# 'src/third_party/skia':
+#   Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
 
   'src/third_party/smhasher/src':
     Var('chromium_git') + '/external/smhasher.git' + '@' + 'e87738e57558e0ec472b2fc3a643b838e5b6e88f',
@@ -3983,11 +3983,6 @@ deps = {
     'condition': 'checkout_mac',
   },
 
-  # Dependencies for RDK (starboard/contrib/rdk)
-  'src/starboard/contrib/rdk': {
-      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
-      'condition': 'checkout_linux',
-  },
 }
 
 

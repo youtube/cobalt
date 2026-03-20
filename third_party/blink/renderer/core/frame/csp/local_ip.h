@@ -6,4 +6,5 @@
 
 namespace blink {
 bool IsIPInLocalNetwork(const std::string& destination);
+bool IsIPInPrivateRange(const std::string& destination);
 }

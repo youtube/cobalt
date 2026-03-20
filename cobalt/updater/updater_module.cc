@@ -153,6 +153,32 @@ namespace updater {
 // The delay before the first update check.
 const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
 
+// static
+base::NoDestructor<UpdaterModule>* UpdaterModule::updater_module_ = nullptr;
+
+void UpdaterModule::CreateInstance(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
+    base::TimeDelta update_check_delay) {
+  if (updater_module_) {
+    LOG(WARNING)
+        << "UpdaterModule is already created. Use UpdaterModule::GetInstance() "
+           "to get the instance.";
+    return;
+  }
+  updater_module_ = new base::NoDestructor<UpdaterModule>(
+      std::move(url_loader_factory), user_agent, update_check_delay);
+}
+
+UpdaterModule* UpdaterModule::GetInstance() {
+  if (!updater_module_) {
+    LOG(WARNING) << "UpdaterModule is not created yet, and cannot be "
+                    "retrieved by UpdaterModule::GetInstance().";
+    return nullptr;
+  }
+  return updater_module_->get();
+}
+
 void Observer::OnEvent(Events event, const std::string& id) {
   std::string status;
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
@@ -196,9 +222,11 @@ void Observer::OnEvent(Events event, const std::string& id) {
 
 UpdaterModule::UpdaterModule(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent,
     base::TimeDelta update_check_delay)
     : url_loader_factory_(std::move(url_loader_factory)),
-      update_check_delay_(update_check_delay) {
+      update_check_delay_(update_check_delay),
+      user_agent_(user_agent) {
   LOG(INFO) << "UpdaterModule::UpdaterModule";
   // TODO(b/453693299): investigate using sequence to replace base::Thread
   updater_thread_.reset(new base::Thread("Updater"));
@@ -267,7 +295,8 @@ void UpdaterModule::Initialize(
   LOG(INFO) << "UpdaterModule::Initialize";
 
   updater_configurator_ = base::MakeRefCounted<Configurator>(
-      network::SharedURLLoaderFactory::Create(std::move(pending_factory)));
+      network::SharedURLLoaderFactory::Create(std::move(pending_factory)),
+      user_agent_);
   update_client_ = update_client::UpdateClientFactory(updater_configurator_);
 
   updater_observer_.reset(new Observer(update_client_, updater_configurator_));

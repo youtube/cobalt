@@ -63,17 +63,18 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                                void* context) {
   std::unique_lock lock(mutex_);
   if (active_clients_.empty()) {
-    SB_DCHECK_EQ(thread_, 0);
+    SB_DCHECK(!thread_);
     SB_DCHECK(!job_queue_);
 
     WaitEvent wait_event(mutex_);
     ThreadParam thread_param = {this, &wait_event};
-    pthread_create(&thread_, nullptr, &WidevineTimer::ThreadFunc,
-                   &thread_param);
+    pthread_t thread;
+    pthread_create(&thread, nullptr, &WidevineTimer::ThreadFunc, &thread_param);
+    thread_ = thread;
     wait_event.Wait(lock);
   }
 
-  SB_DCHECK_NE(thread_, 0);
+  SB_DCHECK(thread_);
   SB_DCHECK(job_queue_);
 
   auto iter = active_clients_.find(client);
@@ -103,8 +104,8 @@ void WidevineTimer::cancel(IClient* client) {
   if (active_clients_.empty()) {
     // Kill the thread on the last |client|.
     job_queue_->StopSoon();
-    pthread_join(thread_, NULL);
-    thread_ = 0;
+    pthread_join(*thread_, nullptr);
+    thread_ = std::nullopt;
     job_queue_ = NULL;
   }
 }
@@ -112,7 +113,11 @@ void WidevineTimer::cancel(IClient* client) {
 // static
 void* WidevineTimer::ThreadFunc(void* param) {
   SB_DCHECK(param);
+#if defined(__APPLE__)
+  pthread_setname_np("wv_timer");
+#else
   pthread_setname_np(pthread_self(), "wv_timer");
+#endif
   ThreadParam* thread_param = static_cast<ThreadParam*>(param);
   thread_param->timer->RunLoop(thread_param->wait_event);
   return NULL;

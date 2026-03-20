@@ -17,9 +17,9 @@
 
 #include <memory>
 
-#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "components/metrics/metrics_service_client.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -30,6 +30,10 @@ namespace mojom {
 class MetricsListener;
 }
 }  // namespace h5vcc_metrics
+
+namespace memory_instrumentation {
+class GlobalMemoryDump;
+}
 
 namespace metrics {
 class MetricsService;
@@ -56,7 +60,7 @@ constexpr base::TimeDelta kMinIdleRefreshInterval = base::Seconds(30);
 // much.
 class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
  public:
-  ~CobaltMetricsServiceClient() override = default;
+  ~CobaltMetricsServiceClient() override;
 
   CobaltMetricsServiceClient(const CobaltMetricsServiceClient&) = delete;
   CobaltMetricsServiceClient& operator=(const CobaltMetricsServiceClient&) =
@@ -82,6 +86,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   std::string GetVersionString() override;
   void CollectFinalMetricsForLog(base::OnceClosure done_callback) override;
   GURL GetMetricsServerUrl() override;
+  GURL GetInsecureMetricsServerUrl() override;
   std::unique_ptr<::metrics::MetricsLogUploader> CreateUploader(
       const GURL& server_url,
       const GURL& insecure_server_url,
@@ -96,6 +101,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
+  // Forces a memory metrics record for testing.
+  void ScheduleRecordForTesting(base::OnceClosure done_callback);
+
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
@@ -109,6 +117,11 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::RepeatingTimer idle_refresh_timer_;
 
  private:
+  struct State;
+
+  // Starts the periodic memory metrics logger.
+  void StartMemoryMetricsLogger();
+
   // Virtual to be overridden in tests.
   virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
       metrics::MetricsStateManager* state_manager,
@@ -117,6 +130,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
 
   // Virtual to be overridden in tests.
   virtual std::unique_ptr<CobaltMetricsLogUploader> CreateLogUploaderInternal();
+
+  // Virtual to be overridden in tests.
+  virtual scoped_refptr<CobaltMemoryMetricsEmitter>
+  CreateMemoryMetricsEmitter();
 
   // Virtual to be overridden in tests.
   virtual void OnApplicationNotIdleInternal();
@@ -137,6 +154,11 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   std::unique_ptr<metrics::MetricsService> metrics_service_;
 
   base::TimeDelta upload_interval_ = kStandardUploadIntervalMinutes;
+
+  base::TimeDelta min_idle_refresh_interval_ = kMinIdleRefreshInterval;
+
+  // State object for background memory metrics collection.
+  scoped_refptr<State> state_;
 
   // Usually `log_uploader_` would be created lazily in CreateUploader() (during
   // first metrics upload), however there's a race condition of many seconds

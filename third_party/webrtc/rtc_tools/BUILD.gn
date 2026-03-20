@@ -232,6 +232,14 @@ if (!is_component_build) {
       "//third_party/abseil-cpp/absl/flags:usage",
       "//third_party/abseil-cpp/absl/strings",
     ]
+    if (is_starboard) {
+      deps -= [
+        "..//api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",
+        "..//api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
+        "..//api/video_codecs:video_decoder_factory_template_libvpx_vp9_adapter",
+        "..//api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
+      ]
+    }
     if (build_with_chromium) {
       # When building from Chromium, WebRTC's metrics and field trial
       # implementations need to be replaced by the Chromium ones.

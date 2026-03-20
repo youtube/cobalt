@@ -1198,7 +1198,7 @@ void PartitionAllocSupport::ReconfigureAfterTaskRunnerInit(
 
   base::allocator::StartThreadCachePeriodicPurge();
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
   // Lower thread cache limits to avoid stranding too much memory in the caches.
   if (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled()) {
     ::partition_alloc::ThreadCacheRegistry::Instance().SetThreadCacheMultiplier(

@@ -199,6 +199,24 @@ typedef base::RepeatingCallback<std::unique_ptr<WriterDelegate>(
 
 typedef base::RepeatingCallback<bool(const base::FilePath&)> DirectoryCreator;
 
+#if defined(IN_MEMORY_UPDATES)
+// Unzips the contents of |zip_str|, using the writers provided by
+// |writer_factory|.
+bool Unzip(const std::string& zip_str,
+           WriterFactory writer_factory,
+           DirectoryCreator directory_creator,
+           UnzipOptions options = {});
+
+// Unzips the contents of |zip_str| into |dest_dir|.
+// This function does not overwrite any existing file.
+// A filename collision will result in an error.
+// |dest_dir| is purged by CobaltSlotManagement::ConfirmSlot(),
+// except for the newly created drain file.
+bool Unzip(const std::string& zip_str,
+           const base::FilePath& dest_dir,
+           UnzipOptions options = {});
+#endif
+
 // Unzips the contents of |zip_file|, using the writers provided by
 // |writer_factory|.
 bool Unzip(const base::PlatformFile& zip_file,

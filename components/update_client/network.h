@@ -32,8 +32,13 @@ class NetworkFetcher {
                               const std::string& header_etag,
                               const std::string& header_x_cup_server_proof,
                               int64_t xheader_retry_after_sec)>;
-  using DownloadToFileCompleteCallback =
-      base::OnceCallback<void(int net_error, int64_t content_size)>;
+#if defined(IN_MEMORY_UPDATES)
+  using DownloadToStringCompleteCallback = base::OnceCallback<
+      void(std::string* dst, int net_error, int64_t content_size)>;
+#else
+  using DownloadToFileCompleteCallback = base::OnceCallback<
+      void(int net_error, int64_t content_size)>;
+#endif
 
   // `content_length` is -1 if the value is not known.
   using ResponseStartedCallback =
@@ -69,12 +74,23 @@ class NetworkFetcher {
       ResponseStartedCallback response_started_callback,
       ProgressCallback progress_callback,
       PostRequestCompleteCallback post_request_complete_callback) = 0;
+#if defined(IN_MEMORY_UPDATES)
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  virtual void DownloadToString(
+      const GURL& url,
+      std::string* dst,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToStringCompleteCallback download_to_string_complete_callback) = 0;
+#else
   virtual void DownloadToFile(
       const GURL& url,
       const base::FilePath& file_path,
       ResponseStartedCallback response_started_callback,
       ProgressCallback progress_callback,
       DownloadToFileCompleteCallback download_to_file_complete_callback) = 0;
+#endif
 
 #if BUILDFLAG(IS_STARBOARD)
   virtual void Cancel() = 0;

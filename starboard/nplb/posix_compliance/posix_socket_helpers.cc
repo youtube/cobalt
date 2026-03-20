@@ -17,7 +17,13 @@
 #include <sched.h>
 #include <sys/socket.h>
 
+#include <string>
+#include <tuple>
+#include <utility>
+
+#include "build/build_config.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/thread.h"
@@ -250,6 +256,65 @@ int PosixGetPortNumberForTests() {
   SB_DLOG(INFO) << "PosixGetPortNumberForTests port_number_for_tests : "
                 << port_number_for_tests;
   return port_number_for_tests;
+}
+
+namespace {
+const char* PosixAddressFamilyName(int family) {
+  const char* name = "unknown";
+  switch (family) {
+    case AF_UNSPEC:
+      name = "unspecified";
+      break;
+    case AF_INET:
+      name = "inet";
+      break;
+    case AF_INET6:
+      name = "inet6";
+      break;
+  }
+  return name;
+}
+
+const char* PosixSocketTypeName(int socktype) {
+  const char* name = "unknown";
+  switch (socktype) {
+    case 0:
+      name = "unspecified";
+      break;
+    case SOCK_STREAM:
+      name = "stream";
+      break;
+    case SOCK_DGRAM:
+      name = "dgram";
+      break;
+  }
+  return name;
+}
+
+const char* PosixProtocolName(int protocol) {
+  const char* name = "unknown";
+  switch (protocol) {
+    case 0:
+      name = "unspecified";
+      break;
+    case IPPROTO_UDP:
+      name = "udp";
+      break;
+    case IPPROTO_TCP:
+      name = "tcp";
+      break;
+  }
+  return name;
+}
+}  // namespace
+
+std::string GetPosixSocketHintsName(
+    ::testing::TestParamInfo<std::tuple<int, std::pair<int, int>>> info) {
+  return starboard::FormatString(
+      "family_%s_socktype_%s_protocol_%s",
+      PosixAddressFamilyName(std::get<0>(info.param)),
+      PosixSocketTypeName(std::get<1>(info.param).first),
+      PosixProtocolName(std::get<1>(info.param).second));
 }
 
 }  // namespace nplb

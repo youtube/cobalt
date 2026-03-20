@@ -35,7 +35,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
  public:
   MP4StreamParser(const std::set<int>& audio_object_types,
                   bool has_sbr,
-                  bool has_flac);
+                  bool has_flac,
+                  bool has_iamf);
 
   MP4StreamParser(const MP4StreamParser&) = delete;
   MP4StreamParser& operator=(const MP4StreamParser&) = delete;
@@ -99,6 +100,11 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
                         std::vector<uint8_t>* frame_buf,
                         std::vector<SubsampleEntry>* subsamples) const;
 #endif
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+  bool PrependIADescriptors(const IamfSpecificBox& iacb,
+                            std::vector<uint8_t>* frame_buf,
+                            std::vector<SubsampleEntry>* subsamples) const;
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
   ParseResult EnqueueSample(BufferQueueMap* buffers);
   bool SendAndFlushSamples(BufferQueueMap* buffers);
 
@@ -164,6 +170,7 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   const std::set<int> audio_object_types_;
   const bool has_sbr_;
   const bool has_flac_;
+  const bool has_iamf_;
 
   // Tracks the number of MEDIA_LOGS for skipping empty trun samples.
   int num_empty_samples_skipped_;

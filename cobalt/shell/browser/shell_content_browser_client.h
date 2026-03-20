@@ -22,6 +22,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
 #include "content/public/browser/content_browser_client.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
@@ -172,6 +173,21 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;
+  void RegisterNonNetworkNavigationURLLoaderFactories(
+      int frame_tree_node_id,
+      ukm::SourceIdObj ukm_source_id,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+  void RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
+      BrowserContext* browser_context,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+  void RegisterNonNetworkServiceWorkerUpdateURLLoaderFactories(
+      BrowserContext* browser_context,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+  void RegisterNonNetworkSubresourceURLLoaderFactories(
+      int render_process_id,
+      int render_frame_id,
+      const absl::optional<url::Origin>& request_initiator_origin,
+      NonNetworkURLLoaderFactoryMap* factories) override;
 
   // Turns on features via permissions policy for Isolated App
   // Web Platform Tests.
@@ -242,6 +258,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   // Needed so that content_shell can use fieldtrial_testing_config.
   virtual void SetUpFieldTrials();
 
+  // Helper function to register the H5vccSchemeURLLoaderFactory for the
+  // custom scheme kH5vccEmbeddedScheme.
+  void RegisterH5vccScheme(NonNetworkURLLoaderFactoryMap* factories);
+
   // Returns the list of ShellContentBrowserClients ordered by time created.
   // If a test overrides ContentBrowserClient, this list will have more than
   // one item.
@@ -264,6 +284,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
 #if BUILDFLAG(IS_IOS)
   std::unique_ptr<permissions::BluetoothDelegateImpl> bluetooth_delegate_;
 #endif
+  std::unique_ptr<H5vccSchemeURLLoaderFactory> h5vcc_scheme_url_loader_factory_;
 
   // NOTE: Tests may install a second ShellContentBrowserClient that becomes
   // the ContentBrowserClient used by content. This has subtle implications

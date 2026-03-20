@@ -23,6 +23,16 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/update_client/activity_data_service.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+namespace {
+void FlushPrefs(PrefService* pref_service) {
+  if (pref_service) {
+    pref_service->CommitPendingWrite(base::DoNothing());
+  }
+}
+}  // namespace
+#endif
+
 namespace update_client {
 
 const char kPersistedDataPreference[] = "updateclientdata";
@@ -102,6 +112,8 @@ std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
   return GetString(id, "updaterchannel");
 }
 std::string PersistedData::GetLatestChannel() const {
+  if (!pref_service_)
+    return std::string();
   const base::Value::Dict* dict =
       &pref_service_->GetDict(kPersistedDataPreference);
   if (!dict)
@@ -114,17 +126,22 @@ void PersistedData::SetLastInstalledEgAndSbVersion(const std::string& id,
                                                    const std::string& sb_version) {
   SetString(id, "version", eg_version);
   SetString(id, "sbversion", sb_version);
+  FlushPrefs(pref_service_);
 }
 void PersistedData::SetUpdaterChannel(const std::string& id,
                                       const std::string& channel) {
   SetString(id, "updaterchannel", channel);
+  FlushPrefs(pref_service_);
 }
 void PersistedData::SetLatestChannel(const std::string& channel) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!pref_service_)
     return;
-  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
-  update->Set("latestchannel", channel);
+  {
+    ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
+    update->Set("latestchannel", channel);
+  }
+  FlushPrefs(pref_service_);
 }
 #endif
 

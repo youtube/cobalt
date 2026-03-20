@@ -59,6 +59,7 @@ _FILTERED_TESTS = {
         # This test is failing because localhost is not defined for IPv6 in
         # /etc/hosts.
         'SbSocketAddressTypes/SbSocketResolveTest.Localhost/filter_ipv6_type_ipv6',
+        'PosixSocketHints/PosixSocketResolveTest.Localhost/family_inet6_*',
 
         # SbDirectory has problems with empty Asset dirs.
         'SbDirectoryCanOpenTest.SunnyDayStaticContent',

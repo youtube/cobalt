@@ -42,6 +42,8 @@ public class ShellManager {
 
     private Context mContext;
 
+    private boolean mIsActivityVisible;
+
     /**
      * Constructor for inflating via XML.
      */
@@ -51,6 +53,13 @@ public class ShellManager {
             sNatives = ShellManagerJni.get();
         }
         sNatives.init(this);
+    }
+
+    public void onActivityVisible(boolean visible) {
+        mIsActivityVisible = visible;
+        if (mActiveShell != null) {
+            mActiveShell.onActivityVisible(visible);
+        }
     }
 
     public Context getContext() {
@@ -101,19 +110,20 @@ public class ShellManager {
      */
     public void launchShell(String url) {
         // Calls the overloaded method with a null listener.
-        launchShell(url, null);
+        launchShell(url, /* deepLinkUrl= */ "", /* listener= */ null);
     }
 
     /**
      * Creates a new shell pointing to the specified URL.
      * @param url The URL the shell should load upon creation.
+     * @param deepLinkUrl The URL from the DeepLink URL.
      * @param listener The listener to be notified when WebContents is ready.
      */
-    public void launchShell(String url, Shell.OnWebContentsReadyListener listener) {
+    public void launchShell(String url, String deepLinkUrl, Shell.OnWebContentsReadyListener listener) {
         ThreadUtils.assertOnUiThread();
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
-        sNatives.launchShell(url);
+        sNatives.launchShell(url, deepLinkUrl);
         if (previousShell != null) previousShell.close();
     }
 
@@ -126,6 +136,7 @@ public class ShellManager {
 
         Shell shellView = new Shell(getContext());
         shellView.initialize(nativeShellPtr, mWindow);
+        shellView.onActivityVisible(mIsActivityVisible);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
 
@@ -145,7 +156,9 @@ public class ShellManager {
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
             mContentViewRenderView.setCurrentWebContents(webContents);
-            webContents.onShow();
+            if (mIsActivityVisible) {
+                webContents.onShow();
+            }
         }
     }
 
@@ -191,7 +204,8 @@ public class ShellManager {
         /**
          * Creates a new shell pointing to the specified URL.
          * @param url The URL the shell should load upon creation.
+         * @param deepLinkUrl The topic URL from the DeepLink URL.
          */
-        void launchShell(String url);
+        void launchShell(String url, String deepLinkUrl);
     }
 }
