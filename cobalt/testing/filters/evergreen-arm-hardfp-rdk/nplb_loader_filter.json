@@ -4,9 +4,6 @@
     "MadviseTest.BadSizeValue",
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
-    "Posix/*LocaleconvTest.AllItems/*",
-    "Posix/NlLanginfoLTest.AllItems/*",
-    "Posix/NlLanginfoTest.AllItems/*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
     "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
     "PosixThreadAttrTest.StackAddrAndSizeAttr",
@@ -34,15 +31,5 @@
     "SbTimeZoneGetNameTest.IsIANAFormat",
     "SbWindowGetSizeTest.SunnyDay",
     "VerticalVideoTests/VerticalVideoTest*"
-  ],
-  "_filtered_b/467701409": [
-    "Posix/NlLanginfo*Test.AllItems/as_IN",
-    "Posix/NlLanginfo*Test.AllItems/be_BY",
-    "Posix/NlLanginfo*Test.AllItems/bs_BA",
-    "Posix/NlLanginfo*Test.AllItems/or_IN",
-    "Posix/*LocaleconvTest.AllItems/as_IN",
-    "Posix/*LocaleconvTest.AllItems/be_BY",
-    "Posix/*LocaleconvTest.AllItems/bs_BA",
-    "Posix/*LocaleconvTest.AllItems/or_IN"
   ]
 }
