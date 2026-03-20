@@ -42,6 +42,9 @@ cd "${CURRENT_WORKING_DIRECTORY}"
 
 echo "Updating the SDK..."
 
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+export JAVA_HOME="${SCRIPT_DIR}/../../../third_party/jdk/current"
+
 # Update the installation
 ${SDK_MANAGER_TOOL} --sdk_root=${ANDROID_SDK_ROOT} \
     "build-tools;31.0.0" \
