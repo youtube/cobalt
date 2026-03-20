@@ -9,14 +9,17 @@ It configures the environment and invokes the appropriate platform runner.
 
 import argparse
 import atexit
+import json
 import logging
 import os
 import shlex
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
-# TARGET_MAP will be injected by the collection script.
+# TARGET_MAP will be injected by the collection script, or loaded from
+# target_map.json if it exists.
 TARGET_MAP = {}
 SOCAT_CMD = ("socat tcp-listen:5037,bind=127.0.0.1,reuseaddr,fork "
              "tcp-connect:host.docker.internal:5037")
@@ -27,42 +30,64 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S")
 
 
+def ingest_artifacts(artifacts_path: Path, extract_dir: Path):
+  """Extracts the artifacts tarball into the specified directory."""
+  if not artifacts_path.is_file():
+    logging.error("Artifacts file not found: %s", artifacts_path)
+    sys.exit(1)
+
+  logging.info("Ingesting artifacts from: %s", artifacts_path)
+  # Extract tarball into the target directory.
+  # Artifacts tarball is expected to have 'src/' and 'target_map.json'
+  # at its root.
+  cmd = ["tar", "-xf", str(artifacts_path), "-C", str(extract_dir)]
+  try:
+    subprocess.check_call(cmd)
+  except subprocess.CalledProcessError as e:
+    logging.error("Failed to extract artifacts: %s", e)
+    sys.exit(1)
+
+
+def load_target_map(script_dir: Path):
+  """Loads TARGET_MAP from target_map.json if it exists."""
+  target_map_file = script_dir / "target_map.json"
+  if target_map_file.is_file():
+    logging.info("Loading TARGET_MAP from %s", target_map_file)
+    with target_map_file.open("r", encoding="utf-8") as f:
+      TARGET_MAP.update(json.load(f))
+
+
 def main():
   """Main entrypoint for the portable test runner.
 
   This function performs the following steps:
   1. Sets up the environment (PATH, CHROME_SRC).
-  2. Parses arguments and selects the target platform.
-  3. Executes an optional init-command.
-  4. Resolves paths for runtime dependencies and test runners.
-  5. Configures LD_LIBRARY_PATH for shared library resolution.
-  6. Executes the platform-specific test runner (Android or Linux).
+  2. Parses arguments and handles artifact ingestion.
+  3. Selects the target platform.
+  4. Executes an optional init-command.
+  5. Resolves paths for runtime dependencies and test runners.
+  6. Configures LD_LIBRARY_PATH for shared library resolution.
+  7. Executes the platform-specific test runner (Android or Linux).
 
   Returns:
     The exit code of the test runner process.
   """
-  script_dir = os.path.dirname(os.path.abspath(__file__))
+  script_dir = Path(__file__).resolve().parent
 
-  # 1. Setup Environment
-  logging.info("Configuring environment...")
-  depot_tools_path = os.path.join(script_dir, "depot_tools")
-  os.environ["PATH"] = depot_tools_path + os.pathsep + os.environ.get(
-      "PATH", "")
-  os.environ["DEPOT_TOOLS_UPDATE"] = "0"
-
-  src_dir = os.path.join(script_dir, "src")
-  os.environ["CHROME_SRC"] = src_dir
-
-  # 2. Argument Parsing and Target Selection
-  available_targets = list(TARGET_MAP.keys())
-
+  # 1. Argument Parsing and Artifact Ingestion
   parser = argparse.ArgumentParser(
       description="Portable test runner for Cobalt browser tests.",
       add_help=False)
   parser.add_argument(
       "--init-command", default=SOCAT_CMD, help="Command to run before tests.")
   parser.add_argument(
-      "--socat-timeout", default=5, help="Timeout for socat in seconds.")
+      "--socat-timeout",
+      default=5,
+      type=int,
+      help="Timeout for socat in seconds.")
+  parser.add_argument(
+      "--artifacts",
+      help="Path to a tarball with test artifacts to ingest at runtime.")
   parser.add_argument(
       "target", nargs="?", help="Target platform to run tests for.")
   parser.add_argument(
@@ -70,11 +95,28 @@ def main():
 
   args, runner_args = parser.parse_known_args()
 
+  if args.artifacts:
+    ingest_artifacts(Path(args.artifacts), script_dir)
+
+  load_target_map(script_dir)
+
+  available_targets = list(TARGET_MAP.keys())
+
   if args.help:
     parser.print_help()
     print("\nAvailable targets: " + ", ".join(available_targets))
     print("\nAll other arguments are passed to the underlying test runner.")
     sys.exit(0)
+
+  # 2. Setup Environment
+  logging.info("Configuring environment...")
+  depot_tools_path = script_dir / "depot_tools"
+  os.environ["PATH"] = str(depot_tools_path) + os.pathsep + os.environ.get(
+      "PATH", "")
+  os.environ["DEPOT_TOOLS_UPDATE"] = "0"
+
+  src_dir = script_dir / "src"
+  os.environ["CHROME_SRC"] = str(src_dir)
 
   if args.init_command:
     command_parts = shlex.split(args.init_command)
@@ -116,27 +158,27 @@ def main():
   logging.debug("Target config: %s", target_config)
 
   # 3. Resolve Paths
-  deps_path = os.path.join(src_dir, target_config["deps"])
-  test_runner = os.path.join(src_dir, target_config["runner"])
+  deps_path = src_dir / target_config["deps"]
+  test_runner = src_dir / target_config["runner"]
   logging.info("Resolved test runner to: %s", test_runner)
 
   # Resolve the specific build root for this target.
-  target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])
-  starboard_dir = os.path.join(target_build_root_abs, "starboard")
+  target_build_root_abs = src_dir / target_config["build_dir"]
+  starboard_dir = target_build_root_abs / "starboard"
 
-  if not os.path.isfile(deps_path):
+  if not deps_path.is_file():
     logging.error("runtime_deps file not found at %s", deps_path)
     sys.exit(1)
 
-  if not os.path.isfile(test_runner):
+  if not test_runner.is_file():
     logging.error("test runner not found at %s", test_runner)
     sys.exit(1)
 
   # Add build root and starboard dir to LD_LIBRARY_PATH so shared libraries can
   # be found
   os.environ["LD_LIBRARY_PATH"] = (
-      target_build_root_abs + os.pathsep + starboard_dir + os.pathsep +
-      os.environ.get("LD_LIBRARY_PATH", ""))
+      str(target_build_root_abs) + os.pathsep + str(starboard_dir) +
+      os.pathsep + os.environ.get("LD_LIBRARY_PATH", ""))
   logging.info("LD_LIBRARY_PATH set to: %s", os.environ.get("LD_LIBRARY_PATH"))
 
   # 5. Sanity Checks
@@ -150,10 +192,10 @@ def main():
   # 6. Execute
   logging.info("Executing test runner for '%s': %s", target_name, test_runner)
 
-  if test_runner.endswith(".py"):
-    cmd = [vpython_path, test_runner] + runner_args
+  if test_runner.suffix == ".py":
+    cmd = [vpython_path, str(test_runner)] + runner_args
   else:
-    cmd = [test_runner] + runner_args
+    cmd = [str(test_runner)] + runner_args
 
   try:
     return subprocess.call(cmd)

@@ -4,12 +4,14 @@
 # Tests for run_tests.template.py.
 """Tests for the portable test runner template script."""
 
-import os
-import sys
-import unittest
-from unittest import mock
-import tempfile
+import importlib
+import json
 import shutil
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
 
 
 # To test the template, we need to read it, substitute TARGET_MAP,
@@ -18,40 +20,43 @@ class TestRunTestsTemplate(unittest.TestCase):
   """Unit tests for the test runner template logic."""
 
   def setUp(self):
-    self.test_dir = tempfile.mkdtemp()
-    self.template_path = os.path.join(
-        os.path.dirname(__file__), 'run_tests.template.py')
-    self.run_tests_path = os.path.join(self.test_dir, 'run_tests.py')
+    self.test_dir = Path(tempfile.mkdtemp())
+    self.template_path = (Path(__file__).parent /
+                          'run_tests.template.py').resolve()
+    self.run_tests_path = self.test_dir / 'run_tests.py'
 
     # Create a dummy src directory to satisfy path checks
-    self.src_dir = os.path.join(self.test_dir, 'src')
-    os.makedirs(self.src_dir)
-    self.dummy_deps = os.path.join(self.src_dir, 'dummy.runtime_deps')
-    self.dummy_runner = os.path.join(self.src_dir, 'dummy_runner.py')
-    with open(self.dummy_deps, 'w', encoding='utf-8') as f:
-      f.write('# dummy deps')
-    with open(self.dummy_runner, 'w', encoding='utf-8') as f:
-      f.write('#!/usr/bin/env python3\nimport sys\nsys.exit(0)')
-    os.chmod(self.dummy_runner, 0o755)
+    self.src_dir = self.test_dir / 'src'
+    self.src_dir.mkdir()
+    self.dummy_deps = self.src_dir / 'dummy.runtime_deps'
+    self.dummy_runner = self.src_dir / 'dummy_runner.py'
+    self.dummy_deps.write_text('# dummy deps', encoding='utf-8')
+    self.dummy_runner.write_text(
+        '#!/usr/bin/env python3\nimport sys\nsys.exit(0)', encoding='utf-8')
+    self.dummy_runner.chmod(0o755)
 
     # Create a dummy depot_tools
-    self.depot_tools = os.path.join(self.test_dir, 'depot_tools')
-    os.makedirs(self.depot_tools)
-    with open(
-        os.path.join(self.depot_tools, 'vpython3'), 'w', encoding='utf-8') as f:
-      f.write('#!/bin/sh\nexit 0')
-    os.chmod(os.path.join(self.depot_tools, 'vpython3'), 0o755)
+    self.depot_tools = self.test_dir / 'depot_tools'
+    self.depot_tools.mkdir()
+    (self.depot_tools / 'vpython3').write_text(
+        '#!/bin/sh\nexit 0', encoding='utf-8')
+    (self.depot_tools / 'vpython3').chmod(0o755)
 
   def tearDown(self):
     shutil.rmtree(self.test_dir)
 
   def prepare_script(self, target_map):
-    with open(self.template_path, 'r', encoding='utf-8') as f:
-      content = f.read()
+    content = self.template_path.read_text(encoding='utf-8')
     content = content.replace('TARGET_MAP = {}',
                               f'TARGET_MAP = {repr(target_map)}')
-    with open(self.run_tests_path, 'w', encoding='utf-8') as f:
-      f.write(content)
+    self.run_tests_path.write_text(content, encoding='utf-8')
+
+  def load_run_tests(self):
+    if str(self.test_dir) not in sys.path:
+      sys.path.insert(0, str(self.test_dir))
+    if 'run_tests' in sys.modules:
+      return importlib.reload(sys.modules['run_tests'])
+    return importlib.import_module('run_tests')
 
   @mock.patch('subprocess.Popen')
   @mock.patch('subprocess.call', return_value=0)
@@ -66,14 +71,12 @@ class TestRunTestsTemplate(unittest.TestCase):
         }
     }
     self.prepare_script(target_map)
-    mock_which.return_value = os.path.join(self.depot_tools, 'vpython3')
+    mock_which.return_value = str(self.test_dir / 'depot_tools/vpython3')
 
-    # Import the generated script
-    sys.path.insert(0, self.test_dir)
-    if 'run_tests' in sys.modules:
-      del sys.modules['run_tests']
-    # pylint: disable=import-outside-toplevel
-    import run_tests
+    # Create dummy target_map.json to avoid FileNotFoundError
+    (self.test_dir / 'target_map.json').write_text('{}', encoding='utf-8')
+
+    run_tests = self.load_run_tests()
 
     test_args = [
         'run_tests.py', '--init-command', 'socat addr1 addr2',
@@ -89,6 +92,40 @@ class TestRunTestsTemplate(unittest.TestCase):
     mock_popen.assert_called_once()
     args = mock_popen.call_args[0][0]
     self.assertEqual(args, ['socat', '-t', '10', 'addr1', 'addr2'])
+
+  @mock.patch('subprocess.check_call')
+  def test_ingest_artifacts(self, mock_check_call):
+    artifacts_tar = self.test_dir / 'artifacts.tar'
+    artifacts_tar.write_text('fake tar content', encoding='utf-8')
+
+    self.prepare_script({})
+    run_tests = self.load_run_tests()
+    run_tests.ingest_artifacts(artifacts_tar, self.test_dir)
+
+    mock_check_call.assert_called_once()
+    args = mock_check_call.call_args[0][0]
+    self.assertIn('tar', args)
+    self.assertIn(str(artifacts_tar), args)
+    self.assertIn(str(self.test_dir), args)
+
+  def test_load_target_map(self):
+    target_map_data = {
+        'new_target': {
+            'deps': 'new.deps',
+            'runner': 'new_runner',
+            'build_dir': '.'
+        }
+    }
+    (self.test_dir / 'target_map.json').write_text(
+        json.dumps(target_map_data), encoding='utf-8')
+
+    self.prepare_script({})
+    run_tests = self.load_run_tests()
+    # Reset TARGET_MAP for test
+    run_tests.TARGET_MAP = {}
+    run_tests.load_target_map(self.test_dir)
+
+    self.assertEqual(run_tests.TARGET_MAP, target_map_data)
 
 
 if __name__ == '__main__':
