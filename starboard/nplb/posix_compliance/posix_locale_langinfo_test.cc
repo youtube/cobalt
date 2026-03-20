@@ -18,7 +18,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -109,14 +108,6 @@ struct LanginfoTestDataNameGenerator {
 
 #include "starboard/nplb/posix_compliance/posix_locale_langinfo_test_data.cc.inc"
 
-// TODO: b/467701409 - Investigate why ICU doesn't return correct data for these
-// locales. The implementation is currently at parity with C25.
-bool ShouldSkipLocale(const char* locale_name) {
-  static const std::set<std::string> disabled_locales = {"as_IN", "be_BY", "bs_BA",
-                                                  "or_IN"};
-  return disabled_locales.count(locale_name);
-}
-
 void CheckItem(nl_item item, const char* expected) {
   if (expected == nullptr) {
     return;
@@ -157,7 +148,7 @@ class NlLanginfoTest : public ::testing::TestWithParam<LanginfoTestData> {
  protected:
   void SetUp() override {
     const LanginfoTestData& data = GetParam();
-    if (ShouldSkipLocale(data.locale_name)) {
+    if (starboard::nplb::ShouldSkipLocale(data.locale_name)) {
       GTEST_SKIP() << "Skipping disabled locale: " << data.locale_name;
     }
 
@@ -245,7 +236,7 @@ class NlLanginfoLTest : public ::testing::TestWithParam<LanginfoTestData> {};
 // should always return UTF-8 for the |CODESET| item.
 TEST_P(NlLanginfoLTest, AllItems) {
   const LanginfoTestData& data = GetParam();
-  if (ShouldSkipLocale(data.locale_name)) {
+  if (starboard::nplb::ShouldSkipLocale(data.locale_name)) {
     GTEST_SKIP() << "Skipping disabled locale: " << data.locale_name;
   }
 
