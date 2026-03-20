@@ -32,6 +32,7 @@
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/loader_app/installation_store.pb.h"
+#include "starboard/loader_app/read_evergreen_version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -47,7 +48,6 @@ const char kTestEvergreenVersion2[] = "1.2.1";
 const char kTestEvergreenVersion3[] = "1.2.3";
 const char kTestEvergreenVersion4[] = "2.2.3";
 const int kTestSlotIndex = 0;
-const int kMaxEgVersionSize = 20;
 
 void SbEventFake(const SbEvent*) {}
 
