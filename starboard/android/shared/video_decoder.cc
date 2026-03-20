@@ -378,10 +378,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool enable_flush_during_seek,
                            int64_t reset_delay_usec,
                            int64_t flush_delay_usec,
-<<<<<<< HEAD
                            const ExperimentalFeatures& experimental_features,
-=======
->>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -389,10 +386,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-<<<<<<< HEAD
-      max_pending_inputs_size_(kDefaultMaxPendingInputsSize),
-=======
->>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -447,21 +440,12 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
     }
   }
 
-<<<<<<< HEAD
   SB_LOG(INFO) << "Created VideoDecoder for codec="
                << GetMediaVideoCodecName(video_codec_)
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
-               << ", max pending input size=" << max_pending_inputs_size_
                << ", max video capabilities=\"" << max_video_capabilities_
                << "\", and tunnel mode audio session id="
-=======
-  SB_LOG(INFO) << "Created VideoDecoder for codec "
-               << GetMediaVideoCodecName(video_codec_) << ", with output mode "
-               << GetPlayerOutputModeName(output_mode_)
-               << ", max video capabilities \"" << max_video_capabilities_
-               << "\", and tunnel mode audio session id "
->>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
                << tunnel_mode_audio_session_id_;
 }
 

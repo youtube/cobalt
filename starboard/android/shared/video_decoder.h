@@ -75,11 +75,8 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
-<<<<<<< HEAD
                const ::starboard::shared::starboard::ExperimentalFeatures&
                    experimental_features,
-=======
->>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
                std::string* error_message);
   ~VideoDecoder() override;
 

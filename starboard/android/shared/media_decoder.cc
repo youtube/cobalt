@@ -143,15 +143,10 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-<<<<<<< HEAD
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      condition_variable_(mutex_),
-      decoder_state_tracker_(nullptr) {
-=======
       condition_variable_(mutex_) {
->>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -392,15 +387,10 @@ void MediaDecoder::DecoderThreadFunc() {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
-<<<<<<< HEAD
-        if (!can_process_input() && dequeue_output_results.empty()) {
-          condition_variable_.WaitTimed(video_decoder_poll_interval_us_);
-=======
         can_process_input =
             !pending_inputs.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
-          condition_variable_.WaitTimed(1000);
->>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
+          condition_variable_.WaitTimed(video_decoder_poll_interval_us_);
         }
       }
     }
