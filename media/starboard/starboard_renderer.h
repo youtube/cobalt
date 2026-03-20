@@ -58,7 +58,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const std::string& max_video_capabilities,
                     const gfx::Size& viewport_size,
                     bool enable_flush_during_seek,
-                    bool enable_reset_audio_decoder
+                    bool enable_reset_audio_decoder,
+                    std::optional<int> initial_max_frames_in_decoder,
+                    std::optional<int> max_pending_input_frames,
+                    std::optional<int> video_decoder_poll_interval_ms
 #if BUILDFLAG(IS_ANDROID)
                     ,
                     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -193,6 +196,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const gfx::Size viewport_size_;
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
+  const std::optional<int> initial_max_frames_in_decoder_;
+  const std::optional<int> max_pending_input_frames_;
+  const std::optional<int> video_decoder_poll_interval_ms_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)

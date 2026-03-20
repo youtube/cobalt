@@ -209,6 +209,7 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   if args.test_attempts:
     # Must delete existing results when retries are enabled.
     params.append('gcs_delete_before_upload=true')
+
   return params
 
 
@@ -240,6 +241,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
+          '--single-process-tests',
       ])
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
