@@ -48,6 +48,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
+#include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -380,10 +381,36 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+<<<<<<< HEAD
   ShellViewForWidget(shell_data.window_widget)
       ->SetWebContents(shell->web_contents(), shell_data.content_size);
   shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
   shell_data.window_widget->Show();
+=======
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)
+        ->SetWebContents(shell->web_contents(), shell_data.content_size);
+
+    SkColor bg_color = shell_data.window_widget->GetColorProvider()->GetColor(
+        ui::kColorWindowBackground);
+    views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+        shell->web_contents(), bg_color);
+
+    shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+    shell_data.window_widget->Show();
+  }
+}
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (!shell_data.window_widget) {
+    CreatePlatformWindowInternal(shell, shell_data.initial_size_);
+  }
+
+  if (IsVisible()) {
+    SetContents(shell);
+  }
+>>>>>>> 7a59956e9b (Cherry pick PR #9628: Prevent white flash on startup (#9638))
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
