@@ -399,13 +399,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      initial_max_frames_in_decoder_(
-          experimental_features.video_initial_max_frames_in_decoder),
-      video_decoder_poll_interval_ms_(
-          experimental_features.video_decoder_poll_interval_ms),
-      max_pending_inputs_size_(
-          experimental_features.video_max_pending_input_frames.value_or(
-              kDefaultMaxPendingInputsSize)),
+      max_pending_inputs_size_(kDefaultMaxPendingInputsSize),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -800,10 +794,15 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
+<<<<<<< HEAD
       max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
       video_decoder_poll_interval_ms_);
   if (result) {
     media_decoder_ = std::move(result.value());
+=======
+      max_video_input_size_, flush_delay_usec_, error_message));
+  if (media_decoder_->is_valid()) {
+>>>>>>> 546035cdfc (starboard: Delete H5VCC plumbing for deprecated experiments (#9551))
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
