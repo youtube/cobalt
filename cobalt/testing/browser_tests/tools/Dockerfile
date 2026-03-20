@@ -7,14 +7,12 @@ RUN apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/cobalt_browsertests
 
-# Add and extract the artifacts tarball.
-# Expects the artifacts tarball to be in the build context.
-ADD cobalt/testing/browser_tests/tools/cobalt_browsertests_deps.tar* .
+# Add and extract the runner tarball.
+# Expects the runner tarball to be in the build context.
+ADD cobalt/testing/browser_tests/tools/cobalt_browsertests_runner.tar* .
 
-# Prune unstripped libraries and symbolication tools to keep the image light.
-# We keep the stripped versions which are already at the root of the build dir.
+# Prune symbolication tools to keep the image light.
 # These paths are relative to /opt/cobalt_browsertests/src/
-RUN find src/out/*/lib.unstripped -type f -delete || true
 RUN rm -rf src/third_party/llvm-build \
            src/third_party/android_platform/development/scripts \
            src/tools/python
