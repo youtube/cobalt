@@ -53,8 +53,7 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
-      const gfx::Size& viewport_size,
-      const std::map<std::string, H5vccSettingValue> h5vcc_settings
+      const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
       ,
       const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -67,7 +66,11 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_remote,
                           max_video_capabilities,
                           viewport_size,
-                          h5vcc_settings
+                          /*enable_flush_during_seek=*/false,
+                          /*enable_reset_audio_decoder=*/false,
+                          /*initial_max_frames_in_decoder=*/std::nullopt,
+                          /*max_pending_input_frames=*/std::nullopt,
+                          /*video_decoder_poll_interval_ms=*/std::nullopt
 #if BUILDFLAG(IS_ANDROID)
                           ,
                           android_overlay_factory_cb
@@ -152,8 +155,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
-            gfx::Size(),
-            std::map<std::string, H5vccSettingValue>()
+            gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
                 ,
             AndroidOverlayMojoFactoryCB()
@@ -175,7 +177,12 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), &video_geometry_setter_service_,
         base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
-        std::string(), gfx::Size(), std::map<std::string, H5vccSettingValue>(),
+        std::string(), gfx::Size(),
+        /*enable_flush_during_seek=*/false,
+        /*enable_reset_audio_decoder=*/false,
+        /*initial_max_frames_in_decoder=*/std::nullopt,
+        /*max_pending_input_frames=*/std::nullopt,
+        /*video_decoder_poll_interval_ms=*/std::nullopt,
         std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
