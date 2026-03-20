@@ -222,7 +222,7 @@ bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
 }
 
 void ShellMainDelegate::PreSandboxStartup() {
-  #if !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_ANDROIDTV)
   crash_reporter::InitializeCrashKeys();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
