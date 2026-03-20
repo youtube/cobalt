@@ -6,6 +6,7 @@
 assert(!is_fuchsia)
 
 import("//components/gwp_asan/buildflags/buildflags.gni")
+import("//starboard/build/buildflags.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
@@ -230,7 +231,7 @@ if (is_mac || is_android || is_linux || is_chromeos) {
       "//third_party/crashpad/crashpad/handler",
     ]
 
-    if (is_android) {
+    if (is_cobalt && is_androidtv) {
       ldflags = [ "-Wl,--export-dynamic" ]
     }
 

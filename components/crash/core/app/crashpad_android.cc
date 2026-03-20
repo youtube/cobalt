@@ -318,6 +318,9 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
                                        libdir_end + 1);
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+  // Cobalt on Android TV uses a standalone executable that is launched
+  // directly by the linker from within the APK.
+  // That's not a trampoline but the full crashpad handler itself.
   local_handler_trampoline += "libchrome_crashpad_handler.so";
   local_handler_library = "";
 #else
