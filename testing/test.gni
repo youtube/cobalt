@@ -1066,7 +1066,7 @@ template("test") {
       }
 
       executable_args = []
-      if (defined(invoker.custom_launcher)) {
+      if (is_cobalt && defined(invoker.custom_launcher)) {
         executable_args += [
           "@WrappedPath(" + rebase_path(invoker.custom_launcher, root_build_dir) +
           ")",
