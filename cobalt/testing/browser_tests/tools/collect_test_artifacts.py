@@ -231,11 +231,16 @@ def main():
 
       # Record target info
       target_name = build_dir.name
+      cwd_abs = Path.cwd().resolve()
       target_map[target_name] = {
-          'deps': str(runtime_deps_path.relative_to(build_dir)),
-          'runner': str(test_runner_rel),
-          'is_android': is_android,
-          'build_dir': str(build_dir)
+          'deps':
+              str(runtime_deps_path.resolve().relative_to(cwd_abs)),
+          'runner':
+              str((build_dir / test_runner_rel).resolve().relative_to(cwd_abs)),
+          'is_android':
+              is_android,
+          'build_dir':
+              str(build_dir.resolve().relative_to(cwd_abs))
       }
 
       logging.info('Copying files from %s...', runtime_deps_path)
