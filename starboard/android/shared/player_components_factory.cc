@@ -630,6 +630,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
+<<<<<<< HEAD
     if (experimental_features.media_codec_reset_delay_ms) {
       reset_delay_usec =
           static_cast<int64_t>(
@@ -638,6 +639,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
                    << " of " << reset_delay_usec << "us during Reset().";
     }
+=======
+>>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -647,8 +650,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         creation_parameters.surface_view(), enable_flush_during_seek,
+<<<<<<< HEAD
         reset_delay_usec, flush_delay_usec, experimental_features,
         error_message);
+=======
+        reset_delay_usec, flush_delay_usec, error_message);
+>>>>>>> parent of 0dfe55c5f74 (media: Implement flow control for MediaDecoder (#8185))
     if ((*error_message).empty() &&
         (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
          video_decoder->is_decoder_created())) {
