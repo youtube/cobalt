@@ -326,6 +326,12 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER && event.getRepeatCount() > 0)  {
+      // It's a repeat, consume it and do not propagate. We found this was
+      // flooding our main thread with key events during soft mic usage.
+      // https://b.corp.google.com/issues/483713292#comment46
+      return true;
+    }
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {

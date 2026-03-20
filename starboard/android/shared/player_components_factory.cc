@@ -234,6 +234,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       std::string* error_message) override {
     SB_CHECK(error_message);
 
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
+
+    if (experimental_features.enable_av1_startup_optimization) {
+      MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(true);
+      SB_LOG(INFO) << "`enable_av1_startup_optimization` is set to true.";
+    }
+    if (experimental_features.disable_low_performance_sw_decoder) {
+      MediaCapabilitiesCache::GetInstance()->SetSoftwareDecoderEnabled(false);
+      SB_LOG(INFO) << "`disable_low_performance_sw_decoder` is set to true.";
+    }
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
@@ -255,8 +267,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    const auto& experimental_features =
-        creation_parameters.experimental_features();
     bool enable_flush_during_seek =
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
@@ -489,9 +499,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
-          tunnel_mode_audio_session_id);
-      }
-      else {
+            tunnel_mode_audio_session_id);
+      } else {
         *audio_renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
             tunnel_mode_audio_session_id, pause_using_audio_track_state);
       }
