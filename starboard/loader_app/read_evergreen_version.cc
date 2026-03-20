@@ -61,8 +61,11 @@ bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
     return false;
   }
 
-  // TODO: b/485307186 - Add a check (and unit test) for truncation.
-  snprintf(version, version_length, "%s", obj[kVersionKey].asString().c_str());
+  if (snprintf(version, version_length, "%s",
+               obj[kVersionKey].asString().c_str()) >= version_length) {
+    SB_LOG(WARNING) << "Evergreen version was truncated.";
+    return false;
+  }
   return true;
 }
 
