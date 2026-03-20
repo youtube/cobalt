@@ -18,7 +18,7 @@ import html
 import datetime
 import pathlib
 import argparse
-from typing import Tuple
+from typing import Optional, Tuple
 
 RUN_MARKER = '[ RUN      ]'
 END_MARKERS = (
@@ -28,7 +28,7 @@ END_MARKERS = (
 )
 
 
-def _extract_crash(log_path: pathlib.Path) -> Tuple[str, str, str]:
+def _extract_crash(log_path: pathlib.Path) -> Optional[Tuple[str, str, str]]:
   """
   Identifies the crashed test and its log output from a gtest log file.
   A crashed test will have a run marker but no end marker.
