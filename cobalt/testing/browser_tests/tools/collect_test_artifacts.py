@@ -31,14 +31,12 @@ def find_runtime_deps(build_dir):
   # Try exact match first
   exact_deps_file = os.path.join(
       build_dir, 'gen.runtime/cobalt/testing/browser_tests/'
-      'cobalt_browsertests__test_runner_script.runtime_deps')
+      'cobalt_browsertests.runtime_deps')
   if os.path.isfile(exact_deps_file):
     return Path(exact_deps_file)
 
   # Fallback to rglob
-  results = list(
-      Path(build_dir).rglob(
-          'cobalt_browsertests__test_runner_script.runtime_deps'))
+  results = list(Path(build_dir).rglob('cobalt_browsertests.runtime_deps'))
   if results:
     return results[0]
   return None
