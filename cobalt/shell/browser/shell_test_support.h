@@ -42,14 +42,11 @@ namespace content {
 
 class MockShellPlatformDelegate : public ShellPlatformDelegate {
  public:
-  void Initialize(const gfx::Size& default_window_size,
-                  bool is_visible) override {
-    set_is_visible(is_visible);
-  }
   MOCK_METHOD(void,
               CreatePlatformWindow,
               (Shell * shell, const gfx::Size& initial_size),
               (override));
+  MOCK_METHOD(void, Initialize, (const gfx::Size&, bool), (override));
   MOCK_METHOD(void, SetContents, (Shell * shell), (override));
   MOCK_METHOD(void, LoadSplashScreenContents, (Shell * shell), (override));
   MOCK_METHOD(void, UpdateContents, (Shell * shell), (override));
@@ -101,11 +98,11 @@ class MojoInitializer {
   std::unique_ptr<aura::Env> aura_env_;
 };
 
-class CobaltShellTestBase : public ::testing::Test {
+class ShellTestBase : public ::testing::Test {
  public:
-  CobaltShellTestBase()
+  ShellTestBase()
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
-  ~CobaltShellTestBase() override = default;
+  ~ShellTestBase() override = default;
 
   void SetUp() override {
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -160,6 +157,8 @@ class CobaltShellTestBase : public ::testing::Test {
       platform_->ShellPlatformDelegate::DidCloseLastWindow();
     });
 
+    platform->is_visible_ = is_visible;
+
     Shell::Initialize(std::move(platform), is_visible);
   }
 
@@ -174,7 +173,7 @@ class CobaltShellTestBase : public ::testing::Test {
   std::unique_ptr<TestContentClientInitializer> content_initializer_;
   std::unique_ptr<TestBrowserAccessibilityState> browser_accessibility_state_;
   std::unique_ptr<RenderViewHostTestEnabler> rvh_enabler_;
-  raw_ptr<::testing::NiceMock<MockShellPlatformDelegate>> platform_ = nullptr;
+  raw_ptr<MockShellPlatformDelegate> platform_ = nullptr;
   std::unique_ptr<TestBrowserContext> browser_context_;
 };
 
