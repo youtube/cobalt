@@ -232,6 +232,8 @@ if (is_mac || is_android || is_linux || is_chromeos) {
     ]
 
     if (is_cobalt && is_androidtv) {
+      # This is change is for Cobalt on AndroidTV. It enables crashpad handler
+      # launch with android linker and with java crashpad handler.
       ldflags = [ "-Wl,--export-dynamic" ]
     }
 
