@@ -42,45 +42,38 @@ TEST(IamfBufferReaderTest, InitialStateEmpty) {
   EXPECT_EQ(reader.CurrentData(), nullptr);
 }
 
-TEST(IamfBufferReaderTest, Read1AndReadByte) {
-  const uint8_t kTestData[] = {0x11, 0x22, 0x33};
+TEST(IamfBufferReaderTest, Read1) {
+  const uint8_t kTestData[] = {0x11, 0x22};
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
-  uint8_t byte1;
-  ASSERT_TRUE(reader.Read1(&byte1));
-  EXPECT_EQ(byte1, 0x11U);
+  auto byte1_opt = reader.Read1();
+  ASSERT_TRUE(byte1_opt.has_value());
+  EXPECT_EQ(*byte1_opt, 0x11U);
   EXPECT_EQ(reader.pos(), 1U);
-  EXPECT_EQ(reader.BytesRemaining(), 2U);
+  EXPECT_EQ(reader.BytesRemaining(), 1U);
 
-  auto byte2_opt = reader.ReadByte();
+  auto byte2_opt = reader.Read1();
   ASSERT_TRUE(byte2_opt.has_value());
   EXPECT_EQ(*byte2_opt, 0x22U);
   EXPECT_EQ(reader.pos(), 2U);
 
-  uint8_t byte3;
-  ASSERT_TRUE(reader.Read1(&byte3));
-  EXPECT_EQ(byte3, 0x33U);
-  EXPECT_EQ(reader.pos(), 3U);
-
   // Read past the end.
-  uint8_t byte4;
-  EXPECT_FALSE(reader.Read1(&byte4));
-  EXPECT_FALSE(reader.ReadByte().has_value());
+  EXPECT_FALSE(reader.Read1().has_value());
 }
 
 TEST(IamfBufferReaderTest, Read4) {
   const uint8_t kTestData[] = {0x12, 0x34, 0x56, 0x78, 0x9A};
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
-  uint32_t value;
-  ASSERT_TRUE(reader.Read4(&value));
+  auto value_opt = reader.Read4();
+  ASSERT_TRUE(value_opt.has_value());
   // The IAMF stream uses big-endian (network byte order). The test data
   // {0x12, 0x34, 0x56, 0x78} correctly represents the value 0x12345678.
-  EXPECT_EQ(value, 0x12345678U);
+  EXPECT_EQ(*value_opt, 0x12345678U);
   EXPECT_EQ(reader.pos(), 4U);
 
   // Not enough bytes left.
-  EXPECT_FALSE(reader.Read4(&value));
+  EXPECT_FALSE(reader.Read4().has_value());
 }
 
 TEST(IamfBufferReaderTest, ReadLeb128) {
@@ -93,28 +86,28 @@ TEST(IamfBufferReaderTest, ReadLeb128) {
   };
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
-  uint32_t value;
-  ASSERT_TRUE(reader.ReadLeb128(&value));
-  EXPECT_EQ(value, 2U);
+  auto opt_value1 = reader.ReadLeb128();
+  ASSERT_TRUE(opt_value1.has_value());
+  EXPECT_EQ(*opt_value1, 2U);
 
-  auto opt_value = reader.ReadLeb128();
-  ASSERT_TRUE(opt_value.has_value());
-  EXPECT_EQ(*opt_value, 127U);
+  auto opt_value2 = reader.ReadLeb128();
+  ASSERT_TRUE(opt_value2.has_value());
+  EXPECT_EQ(*opt_value2, 127U);
 
-  ASSERT_TRUE(reader.ReadLeb128(&value));
-  EXPECT_EQ(value, 129U);
+  auto opt_value3 = reader.ReadLeb128();
+  ASSERT_TRUE(opt_value3.has_value());
+  EXPECT_EQ(*opt_value3, 129U);
 
-  ASSERT_TRUE(reader.ReadLeb128(&value));
-  EXPECT_EQ(value, 624485U);
+  auto opt_value4 = reader.ReadLeb128();
+  ASSERT_TRUE(opt_value4.has_value());
+  EXPECT_EQ(*opt_value4, 624485U);
 
-  EXPECT_FALSE(reader.ReadLeb128(&value));
+  EXPECT_FALSE(reader.ReadLeb128().has_value());
 }
 
 TEST(IamfBufferReaderTest, ReadLeb128FailsOnTruncatedData) {
   const uint8_t kTruncatedData[] = {0x81};  // Missing second byte.
   IamfBufferReader reader(kTruncatedData, sizeof(kTruncatedData));
-  uint32_t value;
-  EXPECT_FALSE(reader.ReadLeb128(&value));
   EXPECT_FALSE(reader.ReadLeb128().has_value());
 }
 
@@ -129,82 +122,81 @@ TEST(IamfBufferReaderTest, ReadString) {
                                'w', 'o', 'r', 'l', 'd', '\0'};
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
-  std::string str;
-  ASSERT_TRUE(reader.ReadString(&str));
-  EXPECT_EQ(str, "hello");
+  auto str1_opt = reader.ReadString();
+  ASSERT_TRUE(str1_opt.has_value());
+  EXPECT_EQ(*str1_opt, "hello");
   EXPECT_EQ(reader.pos(), 6U);
 
-  ASSERT_TRUE(reader.ReadString(&str));
-  EXPECT_EQ(str, "world");
+  auto str2_opt = reader.ReadString();
+  ASSERT_TRUE(str2_opt.has_value());
+  EXPECT_EQ(*str2_opt, "world");
   EXPECT_EQ(reader.pos(), 12U);
 
-  EXPECT_FALSE(reader.ReadString(&str));
+  EXPECT_FALSE(reader.ReadString().has_value());
 }
 
 TEST(IamfBufferReaderTest, ReadStringFailsOnMissingNullTerminator) {
   const uint8_t kTestData[] = {'h', 'e', 'l', 'l', 'o'};
   IamfBufferReader reader(kTestData, sizeof(kTestData));
-  std::string str;
-  EXPECT_FALSE(reader.ReadString(&str));
+  EXPECT_FALSE(reader.ReadString().has_value());
 }
 
-TEST(IamfBufferReaderTest, SkipBytesAndSkip) {
+TEST(IamfBufferReaderTest, Skip) {
   const uint8_t kTestData[] = {1, 2, 3, 4, 5, 6};
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
-  ASSERT_TRUE(reader.SkipBytes(2));
+  ASSERT_TRUE(reader.Skip(2));
   EXPECT_EQ(reader.pos(), 2U);
 
   ASSERT_TRUE(reader.Skip(3));
   EXPECT_EQ(reader.pos(), 5U);
 
   // Skip to the end.
-  ASSERT_TRUE(reader.SkipBytes(1));
+  ASSERT_TRUE(reader.Skip(1));
   EXPECT_EQ(reader.pos(), 6U);
 
   // Cannot skip past the end.
   EXPECT_FALSE(reader.Skip(1));
-  EXPECT_FALSE(reader.SkipBytes(1));
 }
 
-TEST(IamfBufferReaderTest, SkipLeb128AndSkipString) {
+TEST(IamfBufferReaderTest, SkipByReading) {
   const uint8_t kTestData[] = {0x81, 0x01, 'h', 'i', '\0'};
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
-  ASSERT_TRUE(reader.SkipLeb128());
+  ASSERT_TRUE(reader.ReadLeb128().has_value());
   EXPECT_EQ(reader.pos(), 2U);
 
-  ASSERT_TRUE(reader.SkipString());
+  ASSERT_TRUE(reader.ReadString().has_value());
   EXPECT_EQ(reader.pos(), 5U);
 }
 
 TEST(IamfBufferReaderTest, MixedOperations) {
   const uint8_t kTestData[] = {
-      0x12, 0x34, 0x56, 0x78,        // Read4
+      0x12, 0x34, 0x56, 0x78,        // Read32
       't',  'e',  's',  't',  '\0',  // ReadString
       0xDF, 0x02,                    // ReadLeb128 (351)
-      0xFF,                          // Read1
+      0xFF,                          // Read8
   };
   IamfBufferReader reader(kTestData, sizeof(kTestData));
 
-  uint32_t val4;
-  ASSERT_TRUE(reader.Read4(&val4));
-  EXPECT_EQ(val4, 0x12345678U);
+  auto val32 = reader.Read4();
+  ASSERT_TRUE(val32.has_value());
+  EXPECT_EQ(*val32, 0x12345678U);
   EXPECT_EQ(reader.pos(), 4U);
 
-  std::string str;
-  ASSERT_TRUE(reader.ReadString(&str));
-  EXPECT_EQ(str, "test");
+  auto str = reader.ReadString();
+  ASSERT_TRUE(str.has_value());
+  EXPECT_EQ(*str, "test");
   EXPECT_EQ(reader.pos(), 9U);
 
-  uint32_t val_leb;
-  ASSERT_TRUE(reader.ReadLeb128(&val_leb));
-  EXPECT_EQ(val_leb, 351U);
+  auto val_leb = reader.ReadLeb128();
+  ASSERT_TRUE(val_leb.has_value());
+  EXPECT_EQ(*val_leb, 351U);
   EXPECT_EQ(reader.pos(), 11U);
 
-  uint8_t val1;
-  ASSERT_TRUE(reader.Read1(&val1));
-  EXPECT_EQ(val1, 0xFFU);
+  auto val8 = reader.Read1();
+  ASSERT_TRUE(val8.has_value());
+  EXPECT_EQ(*val8, 0xFFU);
   EXPECT_EQ(reader.pos(), 12U);
 
   EXPECT_EQ(reader.BytesRemaining(), 0U);

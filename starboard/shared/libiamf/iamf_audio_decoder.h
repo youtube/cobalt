@@ -24,8 +24,8 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-// TODO: Add libiamf to //third_party.
-//  #include "third_party/libiamf/source/code/include/IAMF_decoder.h"
+// TODO (b/494691786): Add libiamf to //third_party.
+// #include "third_party/libiamf/source/code/include/IAMF_decoder.h"
 
 namespace starboard {
 

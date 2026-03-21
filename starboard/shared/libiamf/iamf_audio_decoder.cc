@@ -18,7 +18,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/libiamf/iamf_decoder_utils.h"
-// TODO: Add libiamf to //third_party.
+// TODO (b/494691786): Add libiamf to //third_party.
 // #include "third_party/libiamf/source/code/include/IAMF_defines.h"
 
 namespace starboard {

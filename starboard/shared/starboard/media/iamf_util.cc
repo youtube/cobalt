@@ -134,7 +134,7 @@ Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     const std::vector<uint8_t>& data) {
   BufferReader reader(data.data(), data.size());
 
-  auto header_byte_opt = reader.ReadByte();
+  auto header_byte_opt = reader.Read1();
   if (!header_byte_opt) {
     return Failure("Truncated OBU header.");
   }
@@ -167,8 +167,8 @@ Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     return Failure("Truncated OBU payload: missing ia_code.");
   }
 
-  auto primary_profile = obu_reader.ReadByte();
-  auto additional_profile = obu_reader.ReadByte();
+  auto primary_profile = obu_reader.Read1();
+  auto additional_profile = obu_reader.Read1();
 
   if (!primary_profile || !additional_profile) {
     return Failure("Truncated OBU payload: missing profile info.");

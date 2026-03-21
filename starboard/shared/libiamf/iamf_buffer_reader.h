@@ -22,47 +22,44 @@
 namespace starboard {
 
 // A lightweight, forward-only reader for a raw byte buffer. This class
-// provides a unified interface for parsing IAMF data, combining features
-// needed by both the decoder utilities and MIME parsing utilities.
+// provides a unified interface for parsing IAMF data. All `Read` methods
+// return an `std::optional` to indicate whether the read was successful.
 class IamfBufferReader {
  public:
   IamfBufferReader(const uint8_t* buf, size_t size);
 
-  // Methods for parsing IAMF OBUs (used in iamf_decoder_utils.cc).
-  bool Read1(uint8_t* ptr);
-  bool Read4(uint32_t* ptr);
-  bool ReadLeb128(uint32_t* ptr);
-  bool ReadString(std::string* str);
-  bool SkipLeb128();
-  bool SkipString();
-
-  // Methods for parsing IAMF MIME types and headers (used in iamf_util.cc).
-  std::optional<uint8_t> ReadByte();
+  // Reads a single byte.
+  std::optional<uint8_t> Read1();
+  // Reads a 4-byte big-endian integer.
+  std::optional<uint32_t> Read4();
+  // Reads a LEB128-encoded unsigned integer.
   std::optional<uint32_t> ReadLeb128();
+  // Reads a null-terminated string.
+  std::optional<std::string> ReadString();
+
+  // Skips a specified number of bytes. Returns false if there isn't enough
+  // data.
   bool Skip(size_t bytes_to_skip);
+
+  // Returns a pointer to the current read position in the buffer.
   const uint8_t* CurrentData() const;
+  // Returns the number of bytes remaining in the buffer.
   size_t BytesRemaining() const;
 
-  // Common utility methods.
-  bool SkipBytes(size_t size);
+  // Returns the total size of the buffer.
   size_t size() const;
+  // Returns the current read position.
   size_t pos() const;
+  // Returns a pointer to the start of the buffer.
   const uint8_t* buf() const;
 
  private:
   bool HasBytes(size_t size) const;
-  inline uint32_t ByteSwap(uint32_t x) const;
-
-  static int ReadLeb128Internal(const uint8_t* buf,
-                                uint32_t* value,
-                                int max_bytes_to_read);
-  static int ReadStringInternal(const uint8_t* buf,
-                                std::string* str,
-                                int max_bytes_to_read);
+  uint32_t ByteSwap(uint32_t x) const;
 
   const uint8_t* buf_;
   const size_t size_;
-  int pos_ = 0;
+  size_t pos_ = 0;
 };
 
 }  // namespace starboard

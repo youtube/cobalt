@@ -29,77 +29,27 @@ IamfBufferReader::IamfBufferReader(const uint8_t* buf, size_t size)
 #endif  // SB_IS_BIG_ENDIAN
 }
 
-bool IamfBufferReader::Read1(uint8_t* ptr) {
-  if (!HasBytes(sizeof(uint8_t)) || !ptr) {
-    return false;
-  }
-  *ptr = buf_[pos_++];
-  return true;
-}
-
-bool IamfBufferReader::Read4(uint32_t* ptr) {
-  if (!HasBytes(sizeof(uint32_t)) || !ptr) {
-    return false;
-  }
-  std::memcpy(ptr, &buf_[pos_], sizeof(uint32_t));
-  *ptr = ByteSwap(*ptr);
-  pos_ += sizeof(uint32_t);
-  return true;
-}
-
-bool IamfBufferReader::ReadLeb128(uint32_t* ptr) {
-  if (!HasBytes(1) || !ptr) {
-    return false;
-  }
-  int bytes_read = ReadLeb128Internal(
-      buf_ + pos_, ptr,
-      std::min(static_cast<uint64_t>(BytesRemaining()), sizeof(uint32_t)));
-  if (bytes_read < 0) {
-    return false;
-  }
-  pos_ += bytes_read;
-  return true;
-}
-
-bool IamfBufferReader::ReadString(std::string* str) {
-  if (!HasBytes(1) || !str) {
-    return false;
-  }
-
-  // The size of the string is capped to 128 bytes.
-  // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#convention-data-types
-  const size_t kMaxIamfStringSize = 128;
-  int bytes_read = ReadStringInternal(
-      buf_ + pos_, str, std::min(BytesRemaining(), kMaxIamfStringSize));
-  if (bytes_read < 0) {
-    return false;
-  }
-  pos_ += bytes_read;
-  return true;
-}
-
-bool IamfBufferReader::SkipLeb128() {
-  uint32_t val;
-  return ReadLeb128(&val);
-}
-
-bool IamfBufferReader::SkipString() {
-  std::string str;
-  return ReadString(&str);
-}
-
-std::optional<uint8_t> IamfBufferReader::ReadByte() {
-  uint8_t byte;
-  if (!Read1(&byte)) {
+std::optional<uint8_t> IamfBufferReader::Read1() {
+  if (!HasBytes(sizeof(uint8_t))) {
     return std::nullopt;
   }
-  return byte;
+  return buf_[pos_++];
+}
+
+std::optional<uint32_t> IamfBufferReader::Read4() {
+  if (!HasBytes(sizeof(uint32_t))) {
+    return std::nullopt;
+  }
+  uint32_t result;
+  std::memcpy(&result, &buf_[pos_], sizeof(uint32_t));
+  pos_ += sizeof(uint32_t);
+  return ByteSwap(result);
 }
 
 std::optional<uint32_t> IamfBufferReader::ReadLeb128() {
   uint32_t decoded_value = 0;
   for (size_t i = 0; i < 5; ++i) {
-    auto byte_opt = ReadByte();
+    auto byte_opt = Read1();
     if (!byte_opt.has_value()) {
       // Not enough data.
       return std::nullopt;
@@ -120,8 +70,38 @@ std::optional<uint32_t> IamfBufferReader::ReadLeb128() {
   return std::nullopt;  // Value exceeds 5 bytes
 }
 
+std::optional<std::string> IamfBufferReader::ReadString() {
+  if (!HasBytes(1)) {
+    return std::nullopt;
+  }
+
+  // The size of the string is capped to 128 bytes.
+  // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#convention-data-types
+  const size_t kMaxIamfStringSize = 128;
+  const size_t max_bytes_to_read =
+      std::min(BytesRemaining(), kMaxIamfStringSize);
+
+  const void* null_terminator = memchr(buf_ + pos_, '\0', max_bytes_to_read);
+  if (!null_terminator) {
+    // No null terminator found within the readable range.
+    return std::nullopt;
+  }
+
+  const int bytes_read =
+      static_cast<const uint8_t*>(null_terminator) - (buf_ + pos_);
+  std::string result(reinterpret_cast<const char*>(buf_ + pos_), bytes_read);
+
+  // Account for the null terminator itself in the total bytes read.
+  pos_ += bytes_read + 1;
+  return result;
+}
+
 bool IamfBufferReader::Skip(size_t bytes_to_skip) {
-  return SkipBytes(bytes_to_skip);
+  if (!HasBytes(bytes_to_skip)) {
+    return false;
+  }
+  pos_ += bytes_to_skip;
+  return true;
 }
 
 const uint8_t* IamfBufferReader::CurrentData() const {
@@ -130,14 +110,6 @@ const uint8_t* IamfBufferReader::CurrentData() const {
 
 size_t IamfBufferReader::BytesRemaining() const {
   return size_ - pos_;
-}
-
-bool IamfBufferReader::SkipBytes(size_t size) {
-  if (!HasBytes(size)) {
-    return false;
-  }
-  pos_ += size;
-  return true;
 }
 
 size_t IamfBufferReader::size() const {
@@ -156,56 +128,12 @@ bool IamfBufferReader::HasBytes(size_t size) const {
   return size + pos_ <= size_;
 }
 
-inline uint32_t IamfBufferReader::ByteSwap(uint32_t x) const {
+uint32_t IamfBufferReader::ByteSwap(uint32_t x) const {
 #if defined(COMPILER_MSVC)
   return _byteswap_ulong(x);
 #else
   return __builtin_bswap32(x);
 #endif
-}
-
-int IamfBufferReader::ReadLeb128Internal(const uint8_t* buf,
-                                         uint32_t* value,
-                                         const int max_bytes_to_read) {
-  SB_DCHECK(buf);
-  SB_DCHECK(value);
-
-  *value = 0;
-  bool error = true;
-  int i = 0;
-  for (; i < max_bytes_to_read; ++i) {
-    uint8_t byte = buf[i];
-    *value |= ((byte & 0x7f) << (i * 7));
-    if (!(byte & 0x80)) {
-      error = false;
-      break;
-    }
-  }
-
-  if (error) {
-    return -1;
-  }
-  return i + 1;
-}
-
-int IamfBufferReader::ReadStringInternal(const uint8_t* buf,
-                                         std::string* str,
-                                         int max_bytes_to_read) {
-  SB_DCHECK(buf);
-  SB_DCHECK(str);
-
-  // Find the null terminator safely within the buffer bounds.
-  const void* null_terminator = memchr(buf, '\0', max_bytes_to_read);
-  if (!null_terminator) {
-    // No null terminator found within the readable range.
-    return -1;
-  }
-
-  const int bytes_read = static_cast<const uint8_t*>(null_terminator) - buf;
-  str->assign(reinterpret_cast<const char*>(buf), bytes_read);
-
-  // Account for the null terminator itself in the total bytes read.
-  return bytes_read + 1;
 }
 
 }  // namespace starboard
