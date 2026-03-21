@@ -29,6 +29,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/perf/perf_test.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -227,12 +228,14 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     std::string fetch_script = base::StringPrintf(R"(
       (async () => {
         try {
+          const t0 = performance.now();
           const response = await fetch('%s');
           if (!response.ok) {
             return 'Fetch failed: ' + response.status;
           }
           const text = await response.text();
-          return text;
+          const t1 = performance.now();
+          return text + '|' + (t1 - t0);
         } catch (e) {
           return 'Exception: ' + e.toString();
         }
@@ -241,7 +244,21 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
                                                   fetch_url.c_str());
 
     std::string result = EvalJs(shell(), fetch_script).ExtractString();
-    EXPECT_EQ(expected_content, result);
+
+    size_t separator_pos = result.rfind('|');
+    if (separator_pos != std::string::npos) {
+      std::string fetched_text = result.substr(0, separator_pos);
+      double time_ms = std::stod(result.substr(separator_pos + 1));
+      EXPECT_EQ(expected_content, fetched_text);
+      testing::Test::RecordProperty("CacheReadTime_ms",
+                                    std::to_string(time_ms));
+      testing::Test::RecordProperty("CacheReadTime_Trace", cache_name);
+      // Keep printing to stdout for legacy perf parsers as well
+      perf_test::PrintResult("CacheReadTime", "", cache_name, time_ms, "ms",
+                             true);
+    } else {
+      EXPECT_EQ(expected_content, result);
+    }
 
     histogram_tester.ExpectUniqueSample("Cobalt.SplashScreen.FetchedFromCache",
                                         expected_uma_state, 1);
