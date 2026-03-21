@@ -28,15 +28,28 @@ logging.basicConfig(
 
 def find_runtime_deps(build_dir):
   """Finds the runtime_deps file for cobalt_browsertests in the build dir."""
+  deps_by_platform = {
+      'android': [
+          'gen.runtime/cobalt/testing/browser_tests/',
+          'cobalt_browsertests__test_runner_script.runtime_deps'
+      ],
+      'linux': ['', 'cobalt_browsertests.runtime_deps']
+  }
+  platform = None
+  if 'android' in build_dir:
+    platform = 'android'
+  elif 'linux' in build_dir:
+    platform = 'linux'
+  else:
+    return platform
+
   # Try exact match first
-  exact_deps_file = os.path.join(
-      build_dir, 'gen.runtime/cobalt/testing/browser_tests/'
-      'cobalt_browsertests.runtime_deps')
+  exact_deps_file = os.path.join(build_dir, *deps_by_platform[platform])
   if os.path.isfile(exact_deps_file):
     return Path(exact_deps_file)
 
   # Fallback to rglob
-  results = list(Path(build_dir).rglob('cobalt_browsertests.runtime_deps'))
+  results = list(Path(build_dir).rglob(deps_by_platform[platform][1]))
   if results:
     return results[0]
   return None
