@@ -248,14 +248,18 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     size_t separator_pos = result.rfind('|');
     if (separator_pos != std::string::npos) {
       std::string fetched_text = result.substr(0, separator_pos);
-      double time_ms = std::stod(result.substr(separator_pos + 1));
-      EXPECT_EQ(expected_content, fetched_text);
-      testing::Test::RecordProperty("CacheReadTime_ms",
-                                    std::to_string(time_ms));
-      testing::Test::RecordProperty("CacheReadTime_Trace", cache_name);
-      // Keep printing to stdout for legacy perf parsers as well
-      perf_test::PrintResult("CacheReadTime", "", cache_name, time_ms, "ms",
-                             true);
+      double time_ms;
+      if (base::StringToDouble(result.substr(separator_pos + 1), &time_ms)) {
+        EXPECT_EQ(expected_content, fetched_text);
+        testing::Test::RecordProperty("CacheReadTime_ms",
+                                      base::NumberToString(time_ms));
+        testing::Test::RecordProperty("CacheReadTime_Trace", cache_name);
+        // Keep printing to stdout for legacy perf parsers as well
+        perf_test::PrintResult("CacheReadTime", "", cache_name, time_ms, "ms",
+                               true);
+      } else {
+        ADD_FAILURE() << "Failed to parse time from result: " << result;
+      }
     } else {
       EXPECT_EQ(expected_content, result);
     }
