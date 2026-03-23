@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 
+#include <algorithm>
+
+#include "base/check_op.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/system/sys_info.h"
@@ -36,10 +39,14 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics(
   const double cpu_usage =
       process_metrics->GetPlatformIndependentCPUUsage().value_or(
           kInvalidCPUUsageValue);
+
+  const int num_processors = base::SysInfo::NumberOfProcessors();
+  DCHECK_GT(num_processors, 0)
+      << "Platform returned invalid number of processors.";
   // Divide by the number of processors to log average per core CPU usage.
   base::UmaHistogramPercentage(
       "CPU.Total.UsageInPercentage",
-      base::ClampRound<int>(cpu_usage / base::SysInfo::NumberOfProcessors()));
+      base::ClampRound<int>(cpu_usage / std::max(1, num_processors)));
 }
 
 }  // namespace cobalt
