@@ -36,13 +36,13 @@ runs:
         ls ../artifacts/
         tar -I 'zstd -T0' -xvf ../artifacts/cobalt_browsertests_deps.tar.zstd
 
-        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${PLATFORM}_${CONFIG}"
+        out_dir="${GITHUB_WORKSPACE}/unit_test/src/out/${PLATFORM}_${CONFIG}"
         LD_LIBRARY_PATH="${out_dir}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
         # Use the stable one-by-one runner script located in the out directory.
-        RUNNER_BINARY="./out/${PLATFORM}_${CONFIG}/bin/run_cobalt_browsertests"
+        RUNNER_BINARY="./src/out/${PLATFORM}_${CONFIG}/bin/run_cobalt_browsertests"
 
         # Apply test filter if exists
         TEST_FILTER_JSON="${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}/cobalt_browsertests_filter.json"
@@ -56,8 +56,8 @@ runs:
 
         mkdir -p "${GITHUB_WORKSPACE}/results"
 
-        ls -al .out/${PLATFORM}_${CONFIG}
-        ls -al .out/${PLATFORM}_${CONFIG}/bin
+        ls -al ./src/out/${PLATFORM}_${CONFIG}
+        ls -al ./src/out/${PLATFORM}_${CONFIG}/bin
 
         # Wrap the execution in xvfb-run for virtual display.
         # We pass --gtest_output to the runner script, which we should ensure it handles.
