@@ -90,6 +90,8 @@ class ShellView : public views::BoxLayoutView,
   ShellView& operator=(const ShellView&) = delete;
   ~ShellView() override = default;
 
+  Shell* ReleaseShell() { return shell_.release(); }
+
   // Update the state of UI controls
   void SetAddressBarURL(const GURL& url) {
     url_entry_->SetText(base::ASCIIToUTF16(url.spec()));
@@ -315,14 +317,21 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 
 }  // namespace
 
-ShellPlatformDelegate::ShellPlatformDelegate() = default;
-
 std::unique_ptr<views::ViewsDelegate>
 ShellPlatformDelegate::CreateViewsDelegate() {
   return std::make_unique<views::CobaltViewsDelegate>();
 }
 
+<<<<<<< HEAD
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+=======
+ShellPlatformDelegate::ShellPlatformDelegate() = default;
+ShellPlatformDelegate::~ShellPlatformDelegate() = default;
+
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
   platform_ = std::make_unique<PlatformData>();
 
   platform_->wm_state = std::make_unique<wm::WMState>();
@@ -333,8 +342,6 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
 
   platform_->views_delegate = CreateViewsDelegate();
 }
-
-ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
@@ -384,6 +391,15 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
       ->SetWebContents(shell->web_contents(), shell_data.content_size);
   shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
   shell_data.window_widget->Show();
+}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)->ReleaseShell();
+    shell_data.window_widget->CloseNow();
+    shell_data.window_widget = nullptr;
+  }
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
@@ -450,6 +466,7 @@ void ShellPlatformDelegate::SetTitle(Shell* shell,
 void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {}
 
 bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
+  VLOG(1) << "ShellPlatformDelegate::DestroyShell() called";
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 

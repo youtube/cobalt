@@ -91,6 +91,17 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static ShellPlatformDelegate* GetPlatform();
 
+<<<<<<< HEAD
+=======
+  static void OnBlur();
+  static void OnFocus();
+  static void OnConceal();
+  static void OnReveal();
+  static void OnFreeze();
+  static void OnUnfreeze();
+  static void OnStop();
+
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
   static Shell* CreateNewWindow(
       BrowserContext* browser_context,
       const GURL& url,

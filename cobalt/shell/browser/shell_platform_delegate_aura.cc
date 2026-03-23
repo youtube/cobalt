@@ -38,11 +38,17 @@ struct ShellPlatformDelegate::PlatformData {
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
+<<<<<<< HEAD
 ShellPlatformDataAura* ShellPlatformDelegate::GetShellPlatformDataAura() {
   return platform_->aura.get();
 }
 
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+=======
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
   platform_ = std::make_unique<PlatformData>();
   platform_->aura =
       std::make_unique<ShellPlatformDataAura>(default_window_size);
@@ -80,6 +86,23 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   content->Show();
 }
 
+<<<<<<< HEAD
+=======
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (!shell_data.window) {
+    CreatePlatformWindowInternal(shell, shell_data.initial_size_);
+    SetContents(shell);
+  }
+
+  platform_->aura->host()->Show();
+}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  platform_->aura->host()->Hide();
+}
+
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {}

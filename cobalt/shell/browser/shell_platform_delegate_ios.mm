@@ -576,6 +576,17 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
   screen_ = std::make_unique<display::ScopedNativeScreen>();
 }
 
+<<<<<<< HEAD
+=======
+void ShellPlatformDelegate::RevealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {}
+
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {

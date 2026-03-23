@@ -177,7 +177,7 @@ constexpr int kSplashTimeoutMs = 1500;
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
-ShellPlatformDelegate* g_platform;
+ShellPlatformDelegate* g_platform = nullptr;
 }  // namespace
 
 std::vector<Shell*> Shell::windows_;
@@ -240,6 +240,7 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
 }
 
 Shell::~Shell() {
+  CHECK(g_platform);
   g_platform->CleanUp(this);
 
   for (size_t i = 0; i < windows_.size(); ++i) {
@@ -262,6 +263,51 @@ ShellPlatformDelegate* Shell::GetPlatform() {
   return g_platform;
 }
 
+<<<<<<< HEAD
+=======
+// static
+void Shell::OnBlur() {
+  CHECK(g_platform);
+  g_platform->OnBlur();
+}
+
+// static
+void Shell::OnFocus() {
+  CHECK(g_platform);
+  g_platform->OnFocus();
+}
+
+// static
+void Shell::OnConceal() {
+  CHECK(g_platform);
+  g_platform->OnConceal();
+}
+
+// static
+void Shell::OnReveal() {
+  CHECK(g_platform);
+  g_platform->OnReveal();
+}
+
+// static
+void Shell::OnFreeze() {
+  CHECK(g_platform);
+  g_platform->OnFreeze();
+}
+
+// static
+void Shell::OnUnfreeze() {
+  CHECK(g_platform);
+  g_platform->OnUnfreeze();
+}
+
+// static
+void Shell::OnStop() {
+  CHECK(g_platform);
+  g_platform->OnStop();
+}
+
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
 void Shell::FinishShellInitialization(Shell* shell) {
   WebContents* raw_web_contents = shell->web_contents();
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -808,6 +854,7 @@ void Shell::RequestPointerLock(WebContents* web_contents,
 void Shell::Close() {
   // Shell is "self-owned" and destroys itself. The ShellPlatformDelegate
   // has the chance to co-opt this and do its own destruction.
+  CHECK(g_platform);
   if (!g_platform->DestroyShell(this)) {
     delete this;
   }
@@ -1066,6 +1113,7 @@ void Shell::SwitchToMainWebContents() {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
+      CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
       if (is_video_splash_screen_) {
         // Send shown event to WebApp if it's video-based splash screen.

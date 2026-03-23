@@ -51,7 +51,27 @@ class ShellPlatformDelegate {
   virtual ~ShellPlatformDelegate();
 
   // Helper for one time initialization of application.
+<<<<<<< HEAD
   virtual void Initialize(const gfx::Size& default_window_size);
+=======
+  virtual void Initialize(const gfx::Size& default_window_size,
+                          bool is_visible);
+
+  // Returns true if the application is in a visible state.
+  bool IsVisible() const;
+
+  // Lifecycle signals called from the application.
+  virtual void OnBlur();
+  virtual void OnFocus();
+  virtual void OnConceal();
+  virtual void OnReveal();
+  virtual void OnFreeze();
+  virtual void OnUnfreeze();
+  virtual void OnStop();
+
+  virtual void RevealShell(Shell* shell);
+  virtual void ConcealShell(Shell* shell);
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
 
   // Called after creating a Shell instance, with its initial size.
   virtual void CreatePlatformWindow(Shell* shell,
@@ -148,6 +168,14 @@ class ShellPlatformDelegate {
 #endif
 
  protected:
+<<<<<<< HEAD
+=======
+  void CreatePlatformWindowInternal(Shell* shell,
+                                    const gfx::Size& initial_size);
+
+  void set_is_visible(bool is_visible) { is_visible_ = is_visible; }
+
+>>>>>>> 0eb792fb97 (Cherry pick PR #9423: cobalt: Implement app lifecycle and window management (#9589))
 #if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
   // Allows the test subclasses to override the ViewsDelegate.
   virtual std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate();
