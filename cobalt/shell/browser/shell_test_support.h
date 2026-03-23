@@ -140,10 +140,10 @@ class ShellTestBase : public ::testing::Test {
   }
 
   void TearDown() override {
-    browser_context_.reset();
-    rvh_enabler_.reset();
     ClearPlatform();
     Shell::Shutdown();
+    browser_context_.reset();
+    rvh_enabler_.reset();
     SetBrowserClientForTesting(nullptr);
     SetContentClient(nullptr);
     browser_accessibility_state_.reset();
@@ -184,7 +184,8 @@ class ShellTestBase : public ::testing::Test {
       platform_->ShellPlatformDelegate::OnStop();
     });
     ON_CALL(*platform_, DidCloseLastWindow()).WillByDefault([this]() {
-      platform_->ShellPlatformDelegate::DidCloseLastWindow();
+      ClearPlatform();
+      Shell::Shutdown();
     });
 
     Shell::Initialize(std::move(platform), is_visible);
