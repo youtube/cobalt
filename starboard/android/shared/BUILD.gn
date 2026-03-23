@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//build/config/android/rules.gni")
-import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
