@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -49,6 +50,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 
  private:
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
+  base::OnceClosure pending_reload_callback_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
 #if BUILDFLAG(IS_ANDROIDTV)
   int platform_error_raised_count_ = 0;

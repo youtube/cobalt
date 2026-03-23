@@ -19,7 +19,9 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/timer/timer.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
 #include "starboard/system.h"
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -116,6 +118,14 @@ void CobaltWebContentsObserver::RaisePlatformError() {
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #else
+  pending_reload_callback_ = base::BindOnce(
+      [](base::WeakPtr<content::WebContents> weak_contents) {
+        if (weak_contents) {
+          weak_contents->GetController().Reload(content::ReloadType::NORMAL,
+                                                /*check_for_repost=*/true);
+        }
+      },
+      web_contents()->GetWeakPtr());
   SbSystemRaisePlatformError(kSbSystemPlatformErrorTypeConnectionError,
                              OnPlatformErrorResponse, this);
 #endif  // BUILDFLAG(IS_ANDROIDTV)
@@ -124,11 +134,9 @@ void CobaltWebContentsObserver::RaisePlatformError() {
 void CobaltWebContentsObserver::HandlePlatformErrorResponse(
     SbSystemPlatformErrorResponse response) {
   if (response == kSbSystemPlatformErrorResponsePositive) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&content::NavigationController::Reload,
-                       base::Unretained(&web_contents()->GetController()),
-                       content::ReloadType::NORMAL, true));
+    if (pending_reload_callback_) {
+      std::move(pending_reload_callback_).Run();
+    }
   } else {
     SbSystemRequestStop(0);
   }
