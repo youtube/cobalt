@@ -12,8 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_cobalt) {
+  declare_args() {
+    use_evergreen = false
+  }
+
+  declare_args() {
+    # Differentiates our 1P ATV platform from 3P AOSP.
+    is_androidtv = is_android && !use_evergreen
+  }
+}
+
 declare_args() {
-  is_starboard = is_cobalt && target_os != "android" && target_os != "ios" &&
+  is_starboard = is_cobalt && !is_androidtv && target_os != "ios" &&
                  current_toolchain == default_toolchain
 }
 
