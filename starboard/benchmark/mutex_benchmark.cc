@@ -23,7 +23,54 @@ namespace starboard::benchmark {
 
 namespace {
 
-// Benchmarks sequential locking of two absl::Mutexes.
+// --- Single Lock Benchmarks ---
+
+void BM_SingleAbslMutexLock(::benchmark::State& state) {
+  absl::Mutex m;
+  int i = 0;
+  for (auto _ : state) {
+    absl::MutexLock lock(&m);
+    i++;
+    ::benchmark::DoNotOptimize(i);
+  }
+}
+BENCHMARK(BM_SingleAbslMutexLock);
+
+void BM_SingleBaseLock(::benchmark::State& state) {
+  base::Lock m;
+  int i = 0;
+  for (auto _ : state) {
+    base::AutoLock lock(m);
+    i++;
+    ::benchmark::DoNotOptimize(i);
+  }
+}
+BENCHMARK(BM_SingleBaseLock);
+
+void BM_SingleStarboardMutexLock(::benchmark::State& state) {
+  Mutex m;
+  int i = 0;
+  for (auto _ : state) {
+    ScopedLock lock(m);
+    i++;
+    ::benchmark::DoNotOptimize(i);
+  }
+}
+BENCHMARK(BM_SingleStarboardMutexLock);
+
+void BM_SingleStdMutexLock(::benchmark::State& state) {
+  std::mutex m;
+  int i = 0;
+  for (auto _ : state) {
+    std::lock_guard lock(m);
+    i++;
+    ::benchmark::DoNotOptimize(i);
+  }
+}
+BENCHMARK(BM_SingleStdMutexLock);
+
+// --- Double Lock Benchmarks ---
+
 void BM_AbslMutexSequentialLock(::benchmark::State& state) {
   absl::Mutex m1, m2;
   int i = 0;
@@ -36,7 +83,6 @@ void BM_AbslMutexSequentialLock(::benchmark::State& state) {
 }
 BENCHMARK(BM_AbslMutexSequentialLock);
 
-// Benchmarks sequential locking of two base::Locks.
 void BM_BaseLockSequentialLock(::benchmark::State& state) {
   base::Lock m1, m2;
   int i = 0;
@@ -49,8 +95,6 @@ void BM_BaseLockSequentialLock(::benchmark::State& state) {
 }
 BENCHMARK(BM_BaseLockSequentialLock);
 
-// Benchmarks sequential locking of two starboard::Mutexes.
-// This is the "original implementation" style (risky for deadlocks).
 void BM_StarboardSequentialLock(::benchmark::State& state) {
   Mutex m1, m2;
   int i = 0;
@@ -63,8 +107,7 @@ void BM_StarboardSequentialLock(::benchmark::State& state) {
 }
 BENCHMARK(BM_StarboardSequentialLock);
 
-// Benchmarks sequential locking of two std::mutexes.
-// This is equivalent to BM_StarboardSequentialLock but using std:: primitives.
+// Sequential locking of two std::mutexes.
 void BM_StdSequentialLock(::benchmark::State& state) {
   std::mutex m1, m2;
   int i = 0;
@@ -77,8 +120,7 @@ void BM_StdSequentialLock(::benchmark::State& state) {
 }
 BENCHMARK(BM_StdSequentialLock);
 
-// Benchmarks locking of two std::mutexes using std::scoped_lock.
-// This uses the deadlock avoidance algorithm (std::lock).
+// Locking of two std::mutexes using std::scoped_lock (Deadlock Avoidance).
 void BM_StdScopedLock(::benchmark::State& state) {
   std::mutex m1, m2;
   int i = 0;
