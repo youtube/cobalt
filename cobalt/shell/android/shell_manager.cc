@@ -80,20 +80,6 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
   // is created too early, the JS environment will start with empty data.
   auto create_window_task = base::BindOnce(
       [](GURL url, std::string deeplink_url) {
-        const std::string status_param = cobalt::migrate_storage_record::
-            MigrationManager::GetMigrationStatusUrlParameter();
-        if (!status_param.empty() && !deeplink_url.empty()) {
-          // If a migration occurred on this launch, append its outcome directly
-          // to the URL's query parameters (e.g. "?migration_status=0-0-0").
-          // This makes the migration telemetry accessible to the loaded web
-          // app.
-          if (deeplink_url.find('?') == std::string::npos) {
-            deeplink_url += "?";
-          } else {
-            deeplink_url += "&";
-          }
-          deeplink_url += status_param;
-        }
         ShellBrowserContext* browserContext =
             ShellContentBrowserClient::Get()->browser_context();
         Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
@@ -115,6 +101,30 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
 void DestroyShellManager() {
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ShellManager_destroy(env, g_global_state.Get().j_shell_manager);
+}
+
+base::android::ScopedJavaLocalRef<jstring>
+JNI_ShellManager_AppendMigrationStatus(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jurl) {
+  GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
+  const std::string status_param = cobalt::migrate_storage_record::
+      MigrationManager::GetMigrationStatusUrlParameter();
+  if (!status_param.empty()) {
+    // If a migration occurred on this launch, append its outcome directly
+    // to the URL's query parameters (e.g. "?migration_status=0-0-0").
+    // This makes the migration telemetry accessible to the loaded web
+    // app.
+    GURL::Replacements replacements;
+    std::string query = url.query();
+    if (!query.empty()) {
+      query += "&";
+    }
+    query += status_param;
+    replacements.SetQueryStr(query);
+    url = url.ReplaceComponents(replacements);
+  }
+  return base::android::ConvertUTF8ToJavaString(env, url.spec());
 }
 
 }  // namespace content

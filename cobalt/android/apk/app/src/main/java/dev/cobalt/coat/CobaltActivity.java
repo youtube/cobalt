@@ -44,6 +44,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.shell.ShellManagerJni;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
@@ -294,6 +295,7 @@ public abstract class CobaltActivity extends Activity {
             getStarboardBridge().setWebContents(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
+            mStartupUrl = ShellManagerJni.get().appendMigrationStatus(mStartupUrl);
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
