@@ -43,7 +43,7 @@ class AppEventDelegate {
     kStopped
   };
 
-  explicit AppEventDelegate(std::unique_ptr<AppEventRunner> runner);
+  explicit AppEventDelegate(std::unique_ptr<AppEventRunner> runner = nullptr);
   ~AppEventDelegate();
 
   AppEventDelegate(const AppEventDelegate&) = delete;
