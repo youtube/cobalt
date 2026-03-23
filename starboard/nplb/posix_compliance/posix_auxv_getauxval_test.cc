@@ -48,6 +48,10 @@ TEST_P(PosixAuxvGetauxvalRequiredTest, RequiredValuesAreValid) {
 TEST_P(PosixAuxvGetauxvalOptionalTest, OptionalValuesAreValid) {
   unsigned long at_name = GetParam();
   getauxval(at_name);
+  if (errno == ENOENT) {
+    GTEST_SKIP()
+        << "Value not present in auxiliary vector, skipping optional test.";
+  }
   EXPECT_EQ(errno, 0) << "getauxval failed with error: " << strerror(errno);
 }
 
