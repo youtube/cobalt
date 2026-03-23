@@ -16,6 +16,9 @@
 
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/javascript_dialog_manager.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 
 namespace content {
@@ -24,16 +27,61 @@ bool ShellPlatformDelegate::IsVisible() const {
   return is_visible_;
 }
 
-void ShellPlatformDelegate::OnReveal() {
-  if (is_visible_) {
-    return;
+void ShellPlatformDelegate::OnBlur() {
+  CHECK(IsVisible());
+  for (auto* shell : Shell::windows()) {
+    if (shell->web_contents()) {
+      shell->web_contents()
+          ->GetPrimaryMainFrame()
+          ->GetRenderWidgetHost()
+          ->Blur();
+    }
   }
-  is_visible_ = true;
+}
+
+void ShellPlatformDelegate::OnFocus() {
+  CHECK(IsVisible());
+  for (auto* shell : Shell::windows()) {
+    if (shell->web_contents()) {
+      shell->web_contents()->Focus();
+    }
+  }
+}
+
+void ShellPlatformDelegate::OnConceal() {
+  CHECK(IsVisible());
+  set_is_visible(false);
+  for (auto* shell : Shell::windows()) {
+    ConcealShell(shell);
+    shell->web_contents()->WasHidden();
+  }
+}
+
+void ShellPlatformDelegate::OnReveal() {
+  CHECK(!IsVisible());
+  set_is_visible(true);
   for (auto* shell : Shell::windows()) {
     RevealShell(shell);
     shell->web_contents()->WasShown();
   }
 }
+
+void ShellPlatformDelegate::OnFreeze() {
+  CHECK(!IsVisible());
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->SetPageFrozen(true);
+  }
+}
+
+void ShellPlatformDelegate::OnUnfreeze() {
+  CHECK(!IsVisible());
+  for (auto* shell : Shell::windows()) {
+    shell->web_contents()->SetPageFrozen(false);
+  }
+}
+
+void ShellPlatformDelegate::OnStop() {}
+
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {}
