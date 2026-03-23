@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/sequence_checker.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
@@ -154,6 +155,7 @@ void CobaltBrowserMainParts::StartStorageMigration() {
 }
 
 void CobaltBrowserMainParts::OnMigrationComplete() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
   migration_finished_ = true;
@@ -164,6 +166,7 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
 
 void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
     base::OnceClosure task) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sequence_checker_.CalledOnValidSequence());
   if (!migration_finished_) {
     LOG(INFO) << "Deferring launchShell until migration finishes.";
