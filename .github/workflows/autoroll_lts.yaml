@@ -39,14 +39,16 @@ jobs:
         run: |
           set -x
 
-          # Ensure we have local branches for both
-          git fetch origin main:main || git fetch origin main
-          git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}" || git fetch origin "${TARGET_BRANCH}"
+          # Copy the script from the main branch before switching branches.
+          cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
+
+          # Ensure we have local branches for the target branch
+          git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
 
           # Run the Python script to perform cherry-picks and get PR links from stdout
-          PR_LINKS=$(python3 .github/scripts/autoroll_lts.py \
+          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
             --target-branch "${TARGET_BRANCH}" \
             --start-commit "${START_COMMIT}")
 
