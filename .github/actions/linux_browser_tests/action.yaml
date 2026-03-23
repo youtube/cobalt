@@ -56,7 +56,6 @@ runs:
 
         mkdir -p "${GITHUB_WORKSPACE}/results"
 
-        ls -al "${RUNNER_BINARY}"
         ls -al .out/${PLATFORM}_${CONFIG}
         ls -al .out/${PLATFORM}_${CONFIG}/bin
 
