@@ -23,8 +23,10 @@ target("executable", "benchmark") {
   ]
 
   public_deps = [
+    "//base",
     "//starboard:starboard_group",
     "//starboard/common:common",
+    "//third_party/abseil-cpp:absl",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
