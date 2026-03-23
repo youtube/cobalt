@@ -19,6 +19,7 @@
 #include <utility>
 #include <variant>
 
+#include "base/base_switches.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/process/current_process.h"
