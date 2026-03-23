@@ -388,8 +388,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       max_pending_inputs_size_(kDefaultMaxPendingInputsSize),
-      skip_flush_on_decoder_teardown_(
-          experimental_features.skip_flush_on_decoder_teardown),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -400,6 +398,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                                                             : 0),
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
                                                             : 0),
+      skip_flush_on_decoder_teardown_(
+          experimental_features.skip_flush_on_decoder_teardown),
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
@@ -637,6 +637,42 @@ void VideoDecoder::WriteEndOfStream() {
   }
 
   media_decoder_->WriteEndOfStream();
+}
+
+void VideoDecoder::ResetInternal(bool skip_flush) {
+  SB_CHECK(BelongsToCurrentThread());
+
+  // If fail to flush |media_decoder_| or |media_decoder_| is null, then
+  // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
+  // set video_fps_ to 0 will call InitializeCodec(),
+  // which we do not need if flush the codec.
+  if (!enable_flush_during_seek_ || skip_flush || !media_decoder_ ||
+      !media_decoder_->Flush()) {
+    TeardownCodec();
+    if (reset_delay_usec_ > 0) {
+      usleep(reset_delay_usec_);
+    }
+
+    input_buffer_written_ = 0;
+    video_fps_ = 0;
+  }
+  CancelPendingJobs();
+
+  // TODO(b/291959069): After flush |media_decoder_|, the output buffers
+  // may have invalid frames. Reset |output_format_| to null here to skip max
+  // output buffers check.
+  decoded_output_frames_ = 0;
+  output_format_ = std::nullopt;
+
+  tunnel_mode_prerolling_.store(true);
+  tunnel_mode_frame_rendered_.store(false);
+  end_of_stream_written_ = false;
+  pending_input_buffers_.clear();
+
+  // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
+  //       VideoRenderer::Seek() after calling VideoDecoder::Reset() to update
+  //       the seek status of |video_frame_tracker_|.  This is slightly flaky as
+  //       it depends on the behavior of the video renderer.
 }
 
 void VideoDecoder::Reset() {
@@ -1289,42 +1325,6 @@ void VideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
-}
-
-void VideoDecoder::ResetInternal(bool skip_flush) {
-  SB_CHECK(BelongsToCurrentThread());
-
-  // If fail to flush |media_decoder_| or |media_decoder_| is null, then
-  // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
-  // set video_fps_ to 0 will call InitializeCodec(),
-  // which we do not need if flush the codec.
-  if (!enable_flush_during_seek_ || !media_decoder_ || skip_flush ||
-      !media_decoder_->Flush()) {
-    TeardownCodec();
-    if (reset_delay_usec_ > 0) {
-      usleep(reset_delay_usec_);
-    }
-
-    input_buffer_written_ = 0;
-    video_fps_ = 0;
-  }
-  CancelPendingJobs();
-
-  // TODO(b/291959069): After flush |media_decoder_|, the output buffers
-  // may have invalid frames. Reset |output_format_| to null here to skip max
-  // output buffers check.
-  decoded_output_frames_ = 0;
-  output_format_ = std::nullopt;
-
-  tunnel_mode_prerolling_.store(true);
-  tunnel_mode_frame_rendered_.store(false);
-  end_of_stream_written_ = false;
-  pending_input_buffers_.clear();
-
-  // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
-  //       VideoRenderer::Seek() after calling VideoDecoder::Reset() to update
-  //       the seek status of |video_frame_tracker_|.  This is slightly flaky as
-  //       it depends on the behavior of the video renderer.
 }
 
 }  // namespace starboard::android::shared

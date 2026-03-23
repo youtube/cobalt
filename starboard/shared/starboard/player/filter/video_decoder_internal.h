@@ -105,6 +105,9 @@ class VideoDecoder {
   // being torn down. By default, this function will be equivalent to the
   // Reset() function, but platforms may redefine this function for use as they
   // see fit.
+  //
+  // TODO: b/492971394 - Refactor this to Flush() and Stop() if experiment is
+  // positive.
   virtual void ResetForTeardown() { Reset(); }
 
   // This function can only be called when the current SbPlayerOutputMode is
