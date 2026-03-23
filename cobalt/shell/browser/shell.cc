@@ -273,25 +273,33 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 // static
 void Shell::OnBlur() {
   CHECK(g_platform);
-  g_platform->OnBlur();
+  if (g_platform->IsVisible()) {
+    g_platform->OnBlur();
+  }
 }
 
 // static
 void Shell::OnFocus() {
   CHECK(g_platform);
-  g_platform->OnFocus();
+  if (g_platform->IsVisible()) {
+    g_platform->OnFocus();
+  }
 }
 
 // static
 void Shell::OnConceal() {
   CHECK(g_platform);
-  g_platform->OnConceal();
+  if (g_platform->IsVisible()) {
+    g_platform->OnConceal();
+  }
 }
 
 // static
 void Shell::OnReveal() {
   CHECK(g_platform);
-  g_platform->OnReveal();
+  if (!g_platform->IsVisible()) {
+    g_platform->OnReveal();
+  }
 }
 
 // static
