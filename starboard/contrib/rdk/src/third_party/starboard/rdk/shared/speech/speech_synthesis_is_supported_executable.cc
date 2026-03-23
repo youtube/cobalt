@@ -14,7 +14,7 @@
 
 #include "starboard/speech_synthesis.h"
 
-// TODO: (b/495477543) Fix speech synthesis for executable type.
+// TODO: b/495477543 - Fix speech synthesis for executable type loader_app cobalt launch.
 bool SbSpeechSynthesisIsSupported() {
   return false;
 }
