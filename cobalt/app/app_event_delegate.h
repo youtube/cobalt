@@ -34,13 +34,18 @@ namespace cobalt {
 // lifecycle actions and side effects is delegated to the AppEventRunner.
 class AppEventDelegate {
  public:
+  // ApplicationState defines the lifecycle states of the application.
+  // The order of these states is critical: TransitionToLifeCycleState relies on
+  // the invariant that states later in the enum are "further along" in the
+  // lifecycle towards being stopped. Any updates to this enum must preserve
+  // this monotonic ordering to ensure correct state machine transitions.
   enum class ApplicationState {
-    kInitial,
-    kStarted,
-    kBlurred,
-    kConcealed,
-    kFrozen,
-    kStopped
+    kInitial = 0,
+    kStarted = 1,
+    kBlurred = 2,
+    kConcealed = 3,
+    kFrozen = 4,
+    kStopped = 5
   };
 
   explicit AppEventDelegate(std::unique_ptr<AppEventRunner> runner = nullptr);

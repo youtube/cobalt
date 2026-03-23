@@ -47,7 +47,9 @@ AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     case kSbEventTypeStop:
       return AppEventDelegate::ApplicationState::kStopped;
     default:
-      NOTREACHED();
+      // This part of the code should only be reached if an unknown SbEventType
+      // is received.
+      NOTREACHED() << "Unexpected SbEventType: " << type;
       return AppEventDelegate::ApplicationState::kInitial;
   }
 }
@@ -98,6 +100,9 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
         application_state_ = SbEventToTargetApplicationState(event->type);
         return;
       default:
+        // Robustly handle events received before the application has started or
+        // preloaded. This ensures that any early events are preceded by a
+        // valid initial state transition.
         LOG(WARNING) << "Received event " << event->type
                      << " before start or preload. "
                      << "An implicit preload event was inserted.";
@@ -115,6 +120,9 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
     case kSbEventTypePreload:
     case kSbEventTypeStart: {
       // Redundant start/preload events are ignored, unless they contain a link.
+      // If they contain a link, they are treated as deep links. This avoids
+      // undefined behavior by providing defined transitions that maintain the
+      // lifecycle contract.
       const SbEventStartData* data =
           static_cast<const SbEventStartData*>(event->data);
       if (data && data->link && data->link[0] != '\0') {
@@ -170,6 +178,13 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
 }
 
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
+  // TransitionToLifeCycleState ensures that the application moves from its
+  // current state to the target |state| by traversing all intermediate states
+  // in strict linear order. Each state transition triggers its corresponding
+  // side effects via the runner. This logic guarantees that no lifecycle events
+  // are skipped and that side effects are executed in a consistent, predictable
+  // sequence, regardless of whether the system events were received out of
+  // order, duplicated, or missing.
   CHECK_GT(state, ApplicationState::kInitial);
   CHECK_LE(state, ApplicationState::kStopped);
   // Ensure all intermediate state changes are triggered.
