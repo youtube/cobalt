@@ -23,11 +23,12 @@
 
 namespace cobalt {
 
-// This class fetches CPU metrics for the current process and its threads,
-// and records an entry on UMA histogram. It's initialized once in
-// CobaltCpuMetricsEmitter to maintain stateful CPU usage tracking for the
-// current process to enable incremental delta reporting. This class is not
-// thread-safe and must be called from the same TaskRunner it was created on.
+// This class fetches CPU metrics for the current process and its threads and
+// records the average per-core CPU usage as a percentage in a UMA histogram.
+// It relies on a persistent base::ProcessMetrics object (tracked by
+// CobaltMetricsServiceClient::CpuPollingState) to maintain stateful CPU usage
+// tracking across multiple calls. This class is not thread-safe and must be
+// called from the same Sequence it was created on.
 class CobaltCpuMetricsEmitter
     : public base::RefCountedThreadSafe<CobaltCpuMetricsEmitter> {
  public:

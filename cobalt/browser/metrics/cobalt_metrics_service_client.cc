@@ -41,6 +41,8 @@
 
 namespace cobalt {
 
+// TODO(b/495528560): Fix ownership model in MetricsPollingState to separate CPU
+// and memory metrics polling
 class MetricsPollingState
     : public base::RefCountedThreadSafe<MetricsPollingState> {
  public:
