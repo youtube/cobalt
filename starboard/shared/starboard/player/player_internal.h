@@ -16,10 +16,10 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 
 #include <memory>
-#include <mutex>
 #include <utility>
 #include <vector>
 
+#include "starboard/common/mutex.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -111,7 +111,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
 
-  std::mutex mutex_;
+  Mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   int64_t media_time_ = 0;         // microseconds
   int64_t media_time_updated_at_;  // microseconds
@@ -128,7 +128,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
 
   std::unique_ptr<PlayerWorker> worker_;
 
-  std::mutex audio_configurations_mutex_;
+  Mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
 
   static int number_of_players_;

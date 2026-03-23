@@ -19,9 +19,9 @@
 #include <android/asset_manager.h>
 
 #include <map>
-#include <mutex>
 
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 
@@ -53,11 +53,11 @@ static int gen_fd() {
   return fd;
 }
 
-std::mutex mutex_;
+::starboard::Mutex mutex_;
 static std::map<int, AAssetDir*>* asset_map = nullptr;
 
 static int handle_db_put(AAssetDir* assetDir) {
-  std::lock_guard scoped_lock(mutex_);
+  ::starboard::ScopedLock scoped_lock(mutex_);
   if (asset_map == nullptr) {
     asset_map = new std::map<int, AAssetDir*>();
   }
@@ -74,7 +74,7 @@ static int handle_db_put(AAssetDir* assetDir) {
 }
 
 static AAssetDir* handle_db_get(int fd, bool erase) {
-  std::lock_guard scoped_lock(mutex_);
+  ::starboard::ScopedLock scoped_lock(mutex_);
   if (fd < 0) {
     return nullptr;
   }

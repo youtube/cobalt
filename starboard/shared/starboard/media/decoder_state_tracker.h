@@ -18,13 +18,13 @@
 #include <atomic>
 #include <iosfwd>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 #include "build/build_config.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
@@ -71,7 +71,7 @@ class DecoderStateTracker {
 
   std::atomic_bool disabled_ = false;
 
-  mutable std::mutex mutex_;
+  mutable Mutex mutex_;
   std::vector<std::pair<int64_t, FrameInfo>> frames_in_flight_;
   int max_frames_;                   // Guarded by |mutex_|.
   int pending_released_frames_ = 0;  // Guarded by |mutex_|.

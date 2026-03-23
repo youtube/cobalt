@@ -97,7 +97,7 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer) override;
   void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) override;
 
-  std::mutex mutex_;
+  starboard::Mutex mutex_;
   bool output_setting_changed_;
   std::vector<OMX_BUFFERHEADERTYPE*> input_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> free_input_buffers_;
@@ -114,3 +114,4 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_COMPONENT_H_
+COMPONENT_H_

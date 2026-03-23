@@ -20,7 +20,7 @@
 namespace starboard::shared::starboard::player::filter {
 
 void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   for (auto&& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
     SB_DCHECK_EQ(input_buffer->sample_type(), kSbMediaTypeAudio);
@@ -49,7 +49,7 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
 
   InputBufferInfo input_info;
   {
-    std::lock_guard lock(mutex_);
+    ScopedLock lock(mutex_);
     SB_DCHECK(!input_buffer_infos_.empty());
 
     if (input_buffer_infos_.empty()) {
@@ -85,7 +85,7 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
 }
 
 void AudioFrameDiscarder::OnDecodedAudioEndOfStream() {
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   // |input_buffer_infos_| can have extra elements when the decoder skip outputs
   // due to errors (like invalid inputs).
   SB_LOG_IF(INFO, !input_buffer_infos_.empty())
@@ -94,7 +94,7 @@ void AudioFrameDiscarder::OnDecodedAudioEndOfStream() {
 }
 
 void AudioFrameDiscarder::Reset() {
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   input_buffer_infos_ = std::queue<InputBufferInfo>();
 }
 

@@ -45,7 +45,7 @@ class VideoRendererSinkImpl
   SbPlayer player_;
   RenderCB render_cb_;
 
-  std::mutex mutex_;
+  starboard::Mutex mutex_;
   int z_index_;
   int x_;
   int y_;
@@ -58,3 +58,4 @@ class VideoRendererSinkImpl
 }  // namespace starboard
 
 #endif  // STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
+INK_IMPL_H_

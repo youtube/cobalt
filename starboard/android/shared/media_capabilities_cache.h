@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include <mutex>
+#include "starboard/common/mutex.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/media.h"
@@ -176,7 +176,7 @@ class MediaCapabilitiesCache {
   void LoadAudioConfigurations_Locked();
   void LoadIsAv18kCappedAt30_Locked();
 
-  std::mutex mutex_;
+  Mutex mutex_;
 
   std::set<SbMediaTransferId> supported_transfer_ids_;
   std::map<SbMediaAudioCodec, bool> passthrough_supportabilities_;

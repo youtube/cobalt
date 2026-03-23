@@ -13,9 +13,43 @@
 // limitations under the License.
 
 #include "starboard/common/mutex.h"
+
+#include <pthread.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <atomic>
+
 #include "starboard/common/log.h"
 
 namespace starboard {
+
+namespace {
+std::atomic<int64_t> g_scoped_lock_count{0};
+pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
+
+void* LockReporterThread(void*) {
+  SB_LOG(ERROR) << "LockReporterThread started.";
+  while (true) {
+    sleep(1);
+    int64_t count = g_scoped_lock_count.exchange(0, std::memory_order_relaxed);
+    if (count > 0) {
+      SB_LOG(ERROR) << ">>> SCOPED_LOCK RATE: " << count << " locks/sec";
+    }
+  }
+  return nullptr;
+}
+
+void StartLockReporterInternal() {
+  pthread_t thread;
+  if (pthread_create(&thread, nullptr, LockReporterThread, nullptr) == 0) {
+    pthread_detach(thread);
+  }
+}
+
+__attribute__((constructor)) void StartLockReporter() {
+  pthread_once(&g_once_control, StartLockReporterInternal);
+}
+}  // namespace
 
 Mutex::Mutex() : mutex_() {
   pthread_mutex_init(&mutex_, nullptr);
@@ -26,10 +60,14 @@ Mutex::~Mutex() {
 }
 
 void Mutex::Acquire() const {
+  pthread_once(&g_once_control, StartLockReporterInternal);
+  g_scoped_lock_count.fetch_add(1, std::memory_order_relaxed);
   pthread_mutex_lock(&mutex_);
 }
 
 bool Mutex::AcquireTry() const {
+  pthread_once(&g_once_control, StartLockReporterInternal);
+  g_scoped_lock_count.fetch_add(1, std::memory_order_relaxed);
   return pthread_mutex_trylock(&mutex_) == 0;
 }
 

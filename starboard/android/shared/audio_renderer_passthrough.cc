@@ -173,7 +173,7 @@ void AudioRendererPassthrough::SetVolume(double volume) {
 
   SB_LOG(INFO) << "Set volume to " << volume;
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   volume_ = volume;
 }
 
@@ -192,7 +192,7 @@ bool AudioRendererPassthrough::IsEndOfStreamPlayed() const {
 bool AudioRendererPassthrough::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   return can_accept_more_data_.load() &&
          decoded_audios_.size() < kMaxDecodedAudios;
 }
@@ -207,7 +207,7 @@ void AudioRendererPassthrough::Play() {
 
   SB_LOG(INFO) << "Play.";
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   paused_ = false;
 }
 
@@ -221,7 +221,7 @@ void AudioRendererPassthrough::Pause() {
 
   SB_LOG(INFO) << "Pause.";
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   paused_ = true;
 }
 
@@ -243,7 +243,7 @@ void AudioRendererPassthrough::SetPlaybackRate(double playback_rate) {
   SB_LOG(INFO) << "Change playback rate from " << playback_rate_ << " to "
                << playback_rate << ".";
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -268,7 +268,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 
   CancelPendingJobs();
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
 
   can_accept_more_data_.store(true);
   prerolled_.store(false);
@@ -301,7 +301,7 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   SB_DCHECK(is_underflow);
   SB_DCHECK(playback_rate);
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   *is_playing = !paused_;
   *is_eos_played = end_of_stream_played_.load();
   *is_underflow = false;  // TODO: Support underflow
@@ -408,7 +408,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
   }
 
   {
-    std::lock_guard scoped_lock(mutex_);
+    ScopedLock scoped_lock(mutex_);
     audio_track_bridge_ = std::move(audio_track_bridge);
   }
 
@@ -429,7 +429,7 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
   // Flushing of |audio_track_bridge_| and updating of |seek_to_time_| have to
   // be done together under lock to avoid |seek_to_time_| being added to a stale
   // playback head or vice versa in GetCurrentMediaTime().
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
 
   // We have to reuse |audio_track_bridge_| instead of creating a new one, to
   // reduce output mode switching between PCM and e/ac3.  Otherwise a noticeable
@@ -466,7 +466,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   AudioTrackState current_state;
 
   {
-    std::lock_guard scoped_lock(mutex_);
+    ScopedLock scoped_lock(mutex_);
     current_state.volume = volume_;
     current_state.paused = paused_;
     current_state.playback_rate = playback_rate_;
@@ -486,7 +486,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       audio_track_bridge_->Play();
       audio_track_paused_ = false;
       SB_LOG(INFO) << "Played on AudioTrack thread.";
-      std::lock_guard scoped_lock(mutex_);
+      starboard::ScopedLock scoped_lock(mutex_);
       stop_called_ = false;
     } else {
       audio_track_bridge_->Pause();
@@ -502,7 +502,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         SB_LOG(INFO) << "Prerolled due to end of stream.";
         prerolled_cb_();
       }
-      std::lock_guard scoped_lock(mutex_);
+      ScopedLock scoped_lock(mutex_);
       if (current_state.playing() && !stop_called_) {
         // TODO: Check if we can apply the same stop logic to non-passthrough.
         audio_track_bridge_->Stop();
@@ -623,7 +623,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
     }
   }
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   decoded_audios_.push(decoded_audio);
 }
 

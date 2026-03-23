@@ -23,8 +23,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <mutex>
-
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -86,7 +84,7 @@ AssetManager::AssetManager() {
 }
 
 uint64_t AssetManager::AcquireInternalFd() {
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   do {
     ++internal_fd_;
   } while (in_use_internal_fd_set_.count(internal_fd_) == 1);
@@ -146,7 +144,7 @@ int AssetManager::Open(const char* path, int oflag) {
 }
 
 bool AssetManager::IsAssetFd(int fd) const {
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   return fd_to_internal_fd_map_.count(fd) == 1;
 }
 
