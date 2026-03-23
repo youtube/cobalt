@@ -321,10 +321,6 @@ if (is_cobalt) {
   }
 }
 
-# This include has been deliberately added after setting the default toolchain above.
-# as is_starboard depends on the _default_toolchain variable being set.
-import("//cobalt/build/configs/starboard.gni")
-
 # =============================================================================
 # OS DEFINITIONS
 # =============================================================================
@@ -373,6 +369,10 @@ is_posix = !is_win && !is_fuchsia
 # by removing it. This is how targets opt-out of flags. If you don't have that
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
+
+# This include has been deliberately added after setting the default toolchain
+# and is_* definitions above.
+import("//cobalt/build/configs/starboard.gni")
 
 # TODO: b/374301613 - Consolidate these imports and remove variables where possible.
 if (is_cobalt) {
