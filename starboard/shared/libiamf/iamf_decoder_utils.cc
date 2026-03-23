@@ -105,7 +105,7 @@ bool ParseParamDefinitions(IamfBufferReader* reader) {
   uint32_t num_parameters;
   ASSIGN_OR_RETURN_FALSE(num_parameters, reader->ReadLeb128());
 
-  for (int i = 0; i < num_parameters; ++i) {
+  for (uint32_t i = 0; i < num_parameters; ++i) {
     uint32_t param_definition_type;
     ASSIGN_OR_RETURN_FALSE(param_definition_type, reader->ReadLeb128());
 
@@ -439,7 +439,9 @@ bool ParseMixPresentationOBU(
 bool ParseDescriptorOBU(IamfBufferReader* reader,
                         IamfBufferInfo* info,
                         const bool prefer_binaural_audio,
-                        const bool prefer_surround_audio) {
+                        const bool prefer_surround_audio,
+                        std::optional<uint32_t>* binaural_audio_element_id,
+                        std::optional<uint32_t>* surround_audio_element_id) {
   SB_DCHECK(reader);
   uint8_t obu_type = 0;
   uint32_t obu_size = 0;
@@ -451,22 +453,20 @@ bool ParseDescriptorOBU(IamfBufferReader* reader,
   const size_t next_obu_pos = reader->pos() + obu_size;
   RCHECK(next_obu_pos <= reader->size());
 
-  std::optional<uint32_t> binaural_audio_element_id;
-  std::optional<uint32_t> surround_audio_element_id;
   switch (static_cast<int>(obu_type)) {
     case kObuTypeCodecConfig:
       RCHECK(ParseCodecConfigOBU(reader, info));
       break;
     case kObuTypeAudioElement:
       RCHECK(ParseAudioElementOBU(
-          reader, &binaural_audio_element_id, &surround_audio_element_id,
+          reader, binaural_audio_element_id, surround_audio_element_id,
           prefer_binaural_audio, prefer_surround_audio));
       break;
     case kObuTypeSequenceHeader:
       break;
     case kObuTypeMixPresentation:
       RCHECK(ParseMixPresentationOBU(
-          reader, info, &binaural_audio_element_id, &surround_audio_element_id,
+          reader, info, binaural_audio_element_id, surround_audio_element_id,
           prefer_binaural_audio, prefer_surround_audio));
       break;
     default:
@@ -501,9 +501,12 @@ bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
   IamfBufferReader reader(input_buffer->data(), input_buffer->size());
   info->input_buffer = input_buffer;
 
+  std::optional<uint32_t> binaural_audio_element_id;
+  std::optional<uint32_t> surround_audio_element_id;
   while (!info->is_valid() && reader.pos() < reader.size()) {
     RCHECK(ParseDescriptorOBU(&reader, info, prefer_binaural_audio,
-                              prefer_surround_audio));
+                              prefer_surround_audio, &binaural_audio_element_id,
+                              &surround_audio_element_id));
   }
   RCHECK(info->is_valid());
 

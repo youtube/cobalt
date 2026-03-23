@@ -53,8 +53,8 @@ const char* ErrorCodeToString(int code) {
 IamfAudioDecoder::IamfAudioDecoder(JobQueue* job_queue,
                                    const AudioStreamInfo& audio_stream_info)
     : JobOwner(job_queue), audio_stream_info_(audio_stream_info) {
-  SB_DCHECK(audio_stream_info_.number_of_channels <=
-            SbAudioSinkGetMaxChannels());
+  SB_CHECK_LE(audio_stream_info_.number_of_channels,
+              SbAudioSinkGetMaxChannels());
   decoder_ = IAMF_decoder_open();
   if (!decoder_) {
     SB_LOG(ERROR) << "Error creating libiamf decoder";
@@ -71,11 +71,11 @@ bool IamfAudioDecoder::is_valid() const {
 
 void IamfAudioDecoder::Initialize(const OutputCB& output_cb,
                                   const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb);
-  SB_DCHECK(!output_cb_);
-  SB_DCHECK(error_cb);
-  SB_DCHECK(!error_cb_);
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(output_cb);
+  SB_CHECK(!output_cb_);
+  SB_CHECK(error_cb);
+  SB_CHECK(!error_cb_);
 
   output_cb_ = output_cb;
   error_cb_ = error_cb;
@@ -83,10 +83,10 @@ void IamfAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void IamfAudioDecoder::Decode(const InputBuffers& input_buffers,
                               const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(output_cb_);
-  SB_DCHECK(consumed_cb);
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(!input_buffers.empty());
+  SB_CHECK(output_cb_);
+  SB_CHECK(consumed_cb);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
@@ -103,11 +103,11 @@ void IamfAudioDecoder::Decode(const InputBuffers& input_buffers,
 
 bool IamfAudioDecoder::DecodeInternal(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
-  SB_DCHECK(output_cb_);
-  SB_DCHECK(!stream_ended_);
-  SB_DCHECK(is_valid());
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(input_buffer);
+  SB_CHECK(output_cb_);
+  SB_CHECK(!stream_ended_);
+  SB_CHECK(is_valid());
 
   if (input_buffer->size() == 0) {
     ReportError("Empty input buffer written to IamfAudioDecoder");
@@ -120,7 +120,7 @@ bool IamfAudioDecoder::DecodeInternal(
     ReportError("Failed to parse IA Descriptors");
     return false;
   }
-  SB_DCHECK(info.is_valid());
+  SB_CHECK(info.is_valid());
 
   if (!decoder_is_configured_) {
     std::string error_message;
@@ -164,7 +164,8 @@ bool IamfAudioDecoder::DecodeInternal(
     samples_per_second_ = info.sample_rate;
   }
 
-  // TODO: Enable partial audio once float32 pcm output is available.
+  // TODO (b/495484901): Enable partial audio once float32 pcm output is
+  // available.
   decoded_audios_.push(decoded_audio);
 
   Schedule(output_cb_);
@@ -173,8 +174,8 @@ bool IamfAudioDecoder::DecodeInternal(
 }
 
 void IamfAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(output_cb_);
 
   stream_ended_ = true;
 
@@ -187,10 +188,10 @@ void IamfAudioDecoder::WriteEndOfStream() {
 bool IamfAudioDecoder::ConfigureDecoder(const IamfBufferInfo* info,
                                         int64_t timestamp,
                                         std::string* error_message) const {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(is_valid());
-  SB_DCHECK(info->is_valid());
-  SB_DCHECK(!decoder_is_configured_);
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(is_valid());
+  SB_CHECK(info->is_valid());
+  SB_CHECK(!decoder_is_configured_);
 
   auto iamf_call = [&](const char* name, auto&& func) {
     int error = func();
@@ -202,8 +203,8 @@ bool IamfAudioDecoder::ConfigureDecoder(const IamfBufferInfo* info,
     return true;
   };
 
-  // TODO: libiamf has an issue outputting 32 bit float samples, set to 16 bit
-  // integer for now.
+  // TODO (b/495484901): libiamf has an issue outputting 32 bit float samples,
+  // set to 16 bit integer for now.
   if (!iamf_call("IAMF_decoder_set_bit_depth",
                  [&] { return IAMF_decoder_set_bit_depth(decoder_, 16); })) {
     return false;
@@ -215,7 +216,7 @@ bool IamfAudioDecoder::ConfigureDecoder(const IamfBufferInfo* info,
     return false;
   }
 
-  if (kForceBinauralAudio) {
+  if constexpr (kForceBinauralAudio) {
     SB_LOG(INFO) << "Configuring IamfAudioDecoder for binaural output";
     if (!iamf_call("IAMF_decoder_output_layout_set_binaural", [&] {
           return IAMF_decoder_output_layout_set_binaural(decoder_);
@@ -296,10 +297,10 @@ void IamfAudioDecoder::TeardownDecoder() {
 }
 
 scoped_refptr<DecodedAudio> IamfAudioDecoder::Read(int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
-  SB_DCHECK(!decoded_audios_.empty());
-  SB_DCHECK(samples_per_second_ > 0);
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(output_cb_);
+  SB_CHECK(!decoded_audios_.empty());
+  SB_CHECK_GT(samples_per_second_, 0);
 
   scoped_refptr<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
@@ -311,8 +312,8 @@ scoped_refptr<DecodedAudio> IamfAudioDecoder::Read(int* samples_per_second) {
 }
 
 void IamfAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(is_valid());
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(is_valid());
 
   TeardownDecoder();
   decoder_ = IAMF_decoder_open();
@@ -323,7 +324,7 @@ void IamfAudioDecoder::Reset() {
 }
 
 SbMediaAudioSampleType IamfAudioDecoder::GetSampleType() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 #if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeInt16;
 #endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
@@ -331,7 +332,7 @@ SbMediaAudioSampleType IamfAudioDecoder::GetSampleType() const {
 }
 
 void IamfAudioDecoder::ReportError(const std::string& message) const {
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   SB_LOG(ERROR) << "IamfAudioDecoder error: " << message;
   error_cb_(kSbPlayerErrorDecode, message);
 }
