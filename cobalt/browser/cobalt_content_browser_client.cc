@@ -181,12 +181,16 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
   ui::PlatformWindowStarboard::SetWindowCreatedCallback(
       base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowCreated,
                           weak_factory_.GetWeakPtr()));
+  ui::PlatformWindowStarboard::SetWindowDestroyedCallback(
+      base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowDestroyed,
+                          weak_factory_.GetWeakPtr()));
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 #if BUILDFLAG(IS_STARBOARD)
-  ui::PlatformWindowStarboard::SetWindowCreatedCallback(base::NullCallback());
+  ui::PlatformWindowStarboard::ClearWindowCreatedCallback();
+  ui::PlatformWindowStarboard::ClearWindowDestroyedCallback();
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
@@ -454,6 +458,11 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
     BindPlatformWindowProviderService(cached_sb_window_, std::move(receiver));
   }
   pending_window_receivers_.clear();
+}
+
+void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
+  DCHECK_EQ(cached_sb_window_, reinterpret_cast<uint64_t>(window));
+  cached_sb_window_ = 0;
 }
 
 void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(

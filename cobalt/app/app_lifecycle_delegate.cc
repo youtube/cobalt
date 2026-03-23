@@ -33,11 +33,11 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/network_service_instance.h"
+#include "net/base/network_change_notifier_passive.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults.h"
-#include "content/public/browser/network_service_instance.h"
-#include "net/base/network_change_notifier_passive.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #endif
 
@@ -85,19 +85,31 @@ class DefaultAppLifecycleRunner : public cobalt::AppLifecycleRunner {
 
   void ShutDown() override {
     content::Shell::Shutdown();
+
+    if (content_main_delegate_) {
+      content_main_delegate_->Shutdown();
+    }
+
+    // Must be called after content_main_delegate_->Shutdown() to prevent
+    // unregistering the main thread from the SequenceManager which
+    // happens with the destruction of the BrowserTaskExecutor. If the order
+    // is reversed the SequenceManager complains (fails DCHECK) that the
+    // ContentMainRunnerImpl::Shutdown() is happening on the wrong thread as
+    // it no longer recognizes the main thread as a valid TaskEnvironment.
     if (main_runner_) {
       main_runner_->Shutdown();
     }
-    if (content_main_delegate_) {
-      content_main_delegate_->Shutdown();
-      content_main_delegate_.reset();
-    }
+
+    // Destroy only after main_runner_/ContentMainRunnerImpl is shutdown
+    // as the delegate is used internally.
+    content_main_delegate_.reset();
+
     // We intentionally do not null main_runner_ here to enforce the one-shot
     // rule: once stopped, the process cannot be re-started.
     exit_manager_.reset();
   }
 
-  bool IsRunning() const override { return content_main_delegate_ != nullptr; }
+  bool IsRunning() const override { return main_runner_ != nullptr; }
 
  private:
   std::unique_ptr<base::AtExitManager> exit_manager_;
@@ -133,35 +145,51 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
       OnStop(event);
       break;
     case kSbEventTypeBlur:
-    case kSbEventTypeFocus:
-#if BUILDFLAG(IS_STARBOARD)
-    {
-      auto* client = cobalt::CobaltContentBrowserClient::Get();
-      if (client) {
-        if (event->type == kSbEventTypeBlur) {
+      content::Shell::OnBlur();
+      {
+        auto* client = cobalt::CobaltContentBrowserClient::Get();
+        if (client) {
           client->DispatchBlur();
-        } else {
+        }
+      }
+#if BUILDFLAG(IS_STARBOARD)
+      if (platform_event_source_) {
+        platform_event_source_->HandleFocusEvent(event);
+      }
+#endif
+      break;
+    case kSbEventTypeFocus:
+      content::Shell::OnFocus();
+      {
+        auto* client = cobalt::CobaltContentBrowserClient::Get();
+        if (client) {
           client->DispatchFocus();
         }
       }
-    }
+#if BUILDFLAG(IS_STARBOARD)
       if (platform_event_source_) {
         platform_event_source_->HandleFocusEvent(event);
       }
 #endif
       break;
     case kSbEventTypeConceal:
+      content::Shell::OnConceal();
       break;
     case kSbEventTypeReveal:
       content::Shell::OnReveal();
       break;
-    case kSbEventTypeFreeze: {
-      auto* client = cobalt::CobaltContentBrowserClient::Get();
-      if (client) {
-        client->FlushCookiesAndLocalStorage();
+    case kSbEventTypeFreeze:
+      content::Shell::OnFreeze();
+      {
+        auto* client = cobalt::CobaltContentBrowserClient::Get();
+        if (client) {
+          client->FlushCookiesAndLocalStorage();
+        }
       }
-    } break;
+      break;
     case kSbEventTypeUnfreeze:
+      content::Shell::OnUnfreeze();
+      break;
     case kSbEventTypeInput:
 #if BUILDFLAG(IS_STARBOARD)
       if (platform_event_source_) {
@@ -187,7 +215,7 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
       // Chromium internally calls Reclaim/ReclaimNormal at regular interval
       // to claim free memory. Using ReclaimAll is more aggressive.
       // TODO: b/454095852 - Remove this when
-      // https://chromium-review.googlesource .com/c/chromium/src/+/7127962
+      // https://chromium-review.googlesource.com/c/chromium/src/+/7127962
       // lands on main
       ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
 
@@ -214,9 +242,8 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
 #endif
       break;
     case kSbEventTypeOsNetworkDisconnected:
-    case kSbEventTypeOsNetworkConnected:
+    case kSbEventTypeOsNetworkConnected: {
 #if BUILDFLAG(IS_STARBOARD)
-    {
       auto* notifier = content::GetNetworkChangeNotifier();
       if (notifier) {
         auto* passive_notifier =
@@ -232,9 +259,9 @@ void AppLifecycleDelegate::HandleEvent(const SbEvent* event) {
         passive_notifier->OnConnectionChanged(type);
         passive_notifier->OnConnectionSubtypeChanged(type, subtype);
       }
-    }
 #endif
-    break;
+      break;
+    }
     case kSbEventDateTimeConfigurationChanged:
 #if BUILDFLAG(IS_STARBOARD)
       device::NotifyTimeZoneChangeStarboard();
@@ -271,6 +298,7 @@ void AppLifecycleDelegate::OnStop(const SbEvent* event) {
   if (!runner_->IsRunning()) {
     return;
   }
+  content::Shell::OnStop();
   runner_->ShutDown();
 
 #if BUILDFLAG(IS_STARBOARD)
