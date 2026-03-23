@@ -5,10 +5,6 @@
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 # Generated sources for production
 
 generated_async_iterator_sources_in_modules = [
