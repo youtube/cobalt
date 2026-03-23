@@ -494,8 +494,10 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
-  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-      web_contents());
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->SetStartupMilestone(27);
+#endif
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
