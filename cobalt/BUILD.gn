@@ -354,6 +354,10 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
+
   if (is_android) {
     deps += [
       "//base:base_java_test_support",

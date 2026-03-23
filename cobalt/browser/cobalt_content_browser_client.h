@@ -146,6 +146,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  private:
   void DispatchEvent(const std::string&, base::OnceClosure);
   void OnSbWindowCreated(SbWindow window);
+  void OnSbWindowDestroyed(SbWindow window);
 
   const std::string deep_link_;
   bool is_visible_;
