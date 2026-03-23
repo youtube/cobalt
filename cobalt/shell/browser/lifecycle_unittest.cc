@@ -15,6 +15,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/test/test_web_contents.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::_;
@@ -27,58 +28,62 @@ class LifecycleTest : public ShellTestBase {
 
   Shell* CreateTestShell(bool is_visible) {
     InitializeShell(is_visible);
-    WebContents::CreateParams create_params(browser_context_.get());
+    WebContents::CreateParams create_params(browser_context());
     create_params.desired_renderer_state =
         WebContents::CreateParams::kNoRendererProcess;
     create_params.initially_hidden = !is_visible;
     std::unique_ptr<WebContents> web_contents(
         TestWebContents::Create(create_params));
 
+    if (is_visible) {
+      EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
+    }
+    EXPECT_CALL(*platform_, SetContents(_));
+
     Shell* shell =
         new Shell(std::move(web_contents), nullptr /* splash_contents */,
-                  /*should_set_delegate=*/true,
-                  /*topic*/ "",
+                  /*should_set_delegate=*/true, /*topic=*/"",
                   /*skip_for_testing=*/true);
+
     if (is_visible) {
-      EXPECT_CALL(*platform_, CreatePlatformWindow(shell, _));
-      Shell::GetPlatform()->CreatePlatformWindow(shell, gfx::Size());
+      platform_->CreatePlatformWindow(shell, gfx::Size(1920, 1080));
     }
-    EXPECT_CALL(*platform_, SetContents(shell));
+
     Shell::FinishShellInitialization(shell);
+
     return shell;
   }
 };
 
 TEST_F(LifecycleTest, StartupVisible) {
   Shell* shell = CreateTestShell(true /* is_visible */);
-
-  ASSERT_NE(shell->web_contents(), nullptr);
   EXPECT_TRUE(platform_->IsVisible());
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
+  task_environment()->RunUntilIdle();
 }
 
 TEST_F(LifecycleTest, StartupHidden) {
   Shell* shell = CreateTestShell(false /* is_visible */);
-
-  ASSERT_NE(shell->web_contents(), nullptr);
   EXPECT_FALSE(platform_->IsVisible());
-  // Preloading (starting hidden) should result in HIDDEN visibility.
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
+  task_environment()->RunUntilIdle();
 }
 
 TEST_F(LifecycleTest, Reveal) {
   Shell* shell = CreateTestShell(false /* is_visible */);
-
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
 
   // Trigger reveal.
+  EXPECT_CALL(*platform_, OnReveal());
   EXPECT_CALL(*platform_, RevealShell(shell));
   Shell::OnReveal();
 
@@ -86,25 +91,66 @@ TEST_F(LifecycleTest, Reveal) {
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
+  task_environment()->RunUntilIdle();
 }
 
-TEST_F(LifecycleTest, RedundantReveal) {
-  Shell* shell = CreateTestShell(false /* is_visible */);
-
-  // First reveal.
-  EXPECT_CALL(*platform_, RevealShell(shell)).Times(1);
-  Shell::OnReveal();
-
-  // Redundant reveal should do nothing.
-  EXPECT_CALL(*platform_, RevealShell(_)).Times(0);
-  Shell::OnReveal();
-
+TEST_F(LifecycleTest, Conceal) {
+  Shell* shell = CreateTestShell(true /* is_visible */);
   EXPECT_TRUE(platform_->IsVisible());
   EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
 
+  // Trigger conceal.
+  EXPECT_CALL(*platform_, OnConceal());
+  EXPECT_CALL(*platform_, ConcealShell(shell));
+  Shell::OnConceal();
+
+  EXPECT_FALSE(platform_->IsVisible());
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
+
   EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
+  task_environment()->RunUntilIdle();
+}
+
+TEST_F(LifecycleTest, FreezeUnfreeze) {
+  Shell* shell = CreateTestShell(false /* is_visible */);
+  TestWebContents* test_web_contents =
+      static_cast<TestWebContents*>(shell->web_contents());
+
+  // Trigger freeze.
+  EXPECT_CALL(*platform_, OnFreeze());
+  Shell::OnFreeze();
+  EXPECT_TRUE(test_web_contents->IsPageFrozen());
+
+  // Trigger unfreeze.
+  EXPECT_CALL(*platform_, OnUnfreeze());
+  Shell::OnUnfreeze();
+  EXPECT_FALSE(test_web_contents->IsPageFrozen());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+  task_environment()->RunUntilIdle();
+}
+
+TEST_F(LifecycleTest, BlurFocus) {
+  Shell* shell = CreateTestShell(true /* is_visible */);
+
+  // Trigger blur.
+  EXPECT_CALL(*platform_, OnBlur());
+  Shell::OnBlur();
+
+  // Trigger focus.
+  EXPECT_CALL(*platform_, OnFocus());
+  Shell::OnFocus();
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+  task_environment()->RunUntilIdle();
 }
 
 }  // namespace content
