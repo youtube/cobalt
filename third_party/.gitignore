@@ -254,7 +254,7 @@
 /siso/siso
 /siso/siso.exe
 /siso/.versions
-/skia
+# /skia Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /smhasher/src
 /snappy/src
 /soda

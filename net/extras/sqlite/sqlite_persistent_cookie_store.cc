@@ -1441,8 +1441,13 @@ void SQLitePersistentCookieStore::Backend::DeleteCookie(
 void SQLitePersistentCookieStore::Backend::BatchOperation(
     PendingOperation::OperationType op,
     const CanonicalCookie& cc) {
+#if BUILDFLAG(IS_COBALT)
+  // Commit every 1 second.
+  static const int kCommitIntervalMs = 1000;
+#else
   // Commit every 30 seconds.
   static const int kCommitIntervalMs = 30 * 1000;
+#endif
   // Commit right away if we have more than 512 outstanding operations.
   static const size_t kCommitAfterBatchSize = 512;
   DCHECK(!background_task_runner()->RunsTasksInCurrentSequence());

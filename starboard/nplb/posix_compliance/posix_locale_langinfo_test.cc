@@ -148,6 +148,10 @@ class NlLanginfoTest : public ::testing::TestWithParam<LanginfoTestData> {
  protected:
   void SetUp() override {
     const LanginfoTestData& data = GetParam();
+    if (starboard::nplb::ShouldSkipLocale(data.locale_name)) {
+      GTEST_SKIP() << "Skipping disabled locale: " << data.locale_name;
+    }
+
     // Save the current locale.
     char* old_locale_cstr = setlocale(LC_ALL, nullptr);
     ASSERT_NE(old_locale_cstr, nullptr);
@@ -232,6 +236,10 @@ class NlLanginfoLTest : public ::testing::TestWithParam<LanginfoTestData> {};
 // should always return UTF-8 for the |CODESET| item.
 TEST_P(NlLanginfoLTest, AllItems) {
   const LanginfoTestData& data = GetParam();
+  if (starboard::nplb::ShouldSkipLocale(data.locale_name)) {
+    GTEST_SKIP() << "Skipping disabled locale: " << data.locale_name;
+  }
+
   locale_t locale = newlocale(LC_ALL_MASK, data.locale_name, (locale_t)0);
   if (!locale) {
     GTEST_SKIP() << "Locale " << data.locale_name << " not supported.";
