@@ -14,12 +14,18 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include "base/base_switches.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/hang_watcher_delegate_impl.h"
+#endif
+#include "cobalt/app/cobalt_crash_reporter_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "components/crash/core/app/crashpad.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -28,11 +34,18 @@
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#include "v8/include/v8-wasm-trap-handler-posix.h"
+#endif
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link)
+CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link,
+                                       bool is_content_browsertests,
+                                       bool is_visible)
     : content::ShellMainDelegate(),
+      is_visible_(is_visible),
       deep_link_(initial_deep_link ? initial_deep_link : "") {
+  is_content_browsertests_ = is_content_browsertests;
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
@@ -51,7 +64,8 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  browser_client_ = std::make_unique<CobaltContentBrowserClient>(deep_link_);
+  browser_client_ =
+      std::make_unique<CobaltContentBrowserClient>(deep_link_, is_visible_);
   return browser_client_.get();
 }
 
@@ -87,6 +101,11 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
   }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  // This delegate is for reading the flag value.
+  cobalt::browser::CobaltHangWatcherDelegate::Initialize();
+#endif
 
   InitializeHangWatcher();
 
@@ -141,6 +160,33 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   // the system message loop for ContentShell, and we're already done thanks
   // to the |ui_task| for browser tests.
   return 0;
+}
+
+void CobaltMainDelegate::PreSandboxStartup() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  const bool initialize_crashpad = true;
+#else
+  const bool initialize_crashpad =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableCrashReporter);
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+
+  if (initialize_crashpad) {
+    const std::string process_type =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kProcessType);
+    CobaltCrashReporterClient::Create();
+    if (process_type != switches::kZygoteProcess) {
+      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+      crash_reporter::SetUploadConsent(true);
+#if BUILDFLAG(IS_LINUX)
+      crash_reporter::SetFirstChanceExceptionHandler(
+          v8::TryHandleWebAssemblyTrapPosix);
+#endif
+    }
+  }
+
+  ShellMainDelegate::PreSandboxStartup();
 }
 
 void CobaltMainDelegate::Shutdown() {

@@ -30,5 +30,9 @@ BASE_FEATURE(kTestFinchFeature,
 const base::FeatureParam<std::string> kTestFinchFeatureParam{
     &kTestFinchFeature, "TestFinchFeatureParam", ""};
 
+BASE_FEATURE(kHangReporting,
+             "HangReporting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt

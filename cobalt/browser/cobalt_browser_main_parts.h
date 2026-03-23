@@ -39,7 +39,8 @@ class GlobalFeatures;
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  explicit CobaltBrowserMainParts(const std::string& deep_link);
+  explicit CobaltBrowserMainParts(const std::string& deep_link,
+                                  bool is_visible);
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;

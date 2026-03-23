@@ -16,6 +16,7 @@
 #define COBALT_BROWSER_H5VCC_SYSTEM_H5VCC_SYSTEM_IMPL_BASE_H_
 
 #include "base/memory/weak_ptr.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "content/public/browser/document_service.h"
@@ -59,6 +60,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   ~H5vccSystemImpl();
 
   void PerformExitStrategy();
+  void OnFlushCookiesComplete(std::unique_ptr<base::ElapsedTimer> timer);
 
   COBALT_THREAD_CHECKER(thread_checker_);
 

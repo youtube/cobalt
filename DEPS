@@ -2802,8 +2802,9 @@ deps = {
     'condition': 'checkout_src_internal',
   },
 
-  'src/third_party/skia':
-    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
+# Cobalt: imported
+#  'src/third_party/skia':
+#    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
 
   'src/third_party/smhasher/src':
     Var('chromium_git') + '/external/smhasher.git' + '@' + '0ff96f7835817a27d0487325b6c16033e2992eb5',
@@ -5731,15 +5732,15 @@ hooks = [
                ],
   },
   # Configure Siso for developer builds.
-  # {
-  #   'name': 'configure_siso',
-  #   'pattern': '.',
-  #   'action': ['python3',
-  #              'src/build/config/siso/configure_siso.py',
-  #              '--rbe_instance',
-  #              Var('rbe_instance'),
-  #              ],
-  # },
+  {
+    'name': 'configure_siso',
+    'pattern': '.',
+    'action': ['python3',
+               'src/build/config/siso/configure_siso.py',
+               '--rbe_instance',
+               Var('rbe_instance'),
+               ],
+  },
   {
     'name': 'libaom_testdata',
     'pattern': '.',

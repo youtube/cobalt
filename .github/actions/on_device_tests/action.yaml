@@ -119,11 +119,12 @@ runs:
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
 
         # Check for missing result xml files.
+        exit_code=0
         readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           # Trim path prefix (before :).
           test_target=${test_target_with_path#*:}
-          xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_testoutput.xml)
+          xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"*.xml)
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
             # No matching XML results found. Check if the test target is filtered.
             test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
@@ -134,14 +135,15 @@ runs:
               log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
               xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
-              exit 1
+              exit_code=1
             fi
           elif grep -e '<failure' -e '<error' ${xml_files}; then
             # Double-check the result XML for failures. ODT service has been known to report incorrect status.
             echo "::error::Found failures in the test xml."
-            exit 1
+            exit_code=1
           fi
         done
+        exit ${exit_code}
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
@@ -149,15 +151,3 @@ runs:
       with:
         name: ${{ inputs.test_results_key }}
         path: ${{ env.test_output }}/*
-    - name: Get Deflake Max Attempts
-      id: deflake-attempts
-      if: inputs.nightly == 'true'
-      run: |
-        MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 1' ${GITHUB_WORKSPACE}/.github/config/infra/deflake.json)
-        echo "max_attempts=${MAX_ATTEMPTS}" >> $GITHUB_OUTPUT
-      shell: bash
-    - name: Run Nightly Deflake
-      # Deflake workflow retries MAX_ATTEMPTS times. Pass the last to keep dashboard green.
-      if: inputs.nightly == 'true' && github.run_attempt != steps.deflake-attempts.outputs.max_attempts
-      run: echo "::warning::Triggering deflaking run by failing." && exit 1
-      shell: bash

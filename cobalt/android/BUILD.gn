@@ -51,6 +51,7 @@ generate_jni("jni_headers") {
   if (!use_evergreen) {
     sources += [
       "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
 }
@@ -204,7 +205,9 @@ android_assets("coat_assets") {
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
   deps = [
+    "//cobalt:common",
     "//cobalt/browser",
+    "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/utility",
@@ -214,8 +217,12 @@ shared_library_with_jni("libchrobalt") {
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
+    "//components/crash/android:crash_android",
+    "//components/crash/android:jni_headers",
     "//components/crash/content/browser",
     "//components/memory_system",
+    "//components/minidump_uploader",
+    "//components/minidump_uploader:minidump_uploader_jni_headers",
     "//media",
     "//skia",
     "//third_party/blink/public/common",
@@ -229,11 +236,7 @@ shared_library_with_jni("libchrobalt") {
       "//media/midi",
     ]
   }
-  sources = [
-    "//cobalt/app/cobalt_main_delegate.cc",
-    "//cobalt/app/cobalt_main_delegate.h",
-    "cobalt_library_loader.cc",
-  ]
+  sources = [ "cobalt_library_loader.cc" ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
   if (is_official_build) {
@@ -251,6 +254,8 @@ android_apk("cobalt_apk") {
     ":cobalt_apk_java",
     "//cobalt/shell/android:cobalt_shell_assets",
     "//cobalt/shell/android:cobalt_shell_java",
+    "//components/crash/android:java",
+    "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
     "//components/metrics:metrics_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
@@ -258,6 +263,12 @@ android_apk("cobalt_apk") {
     "//third_party/mesa_headers",
     "//ui/android:ui_java",
   ]
+
+  # This is the packaging strategy used by Chrome on Android L through M. In a
+  # production implementation we should consider the N through P or Q+
+  # approaches described in docs/android_native_libraries.md.
+  loadable_modules = [ "$root_out_dir/libchrome_crashpad_handler.so" ]
+
   shared_libraries = [ ":libchrobalt" ]
   srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
