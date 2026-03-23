@@ -17,9 +17,11 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/base/net_errors.h"
+#include "starboard/system.h"
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
@@ -34,6 +36,12 @@ const int kNavigationTimeoutSeconds = 30;
 #if BUILDFLAG(IS_ANDROIDTV)
 const int kJniErrorTypeConnectionError = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response,
+                             void* user_data) {
+  auto* observer = static_cast<CobaltWebContentsObserver*>(user_data);
+  observer->HandlePlatformErrorResponse(response);
+}
 }  // namespace
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
@@ -108,8 +116,22 @@ void CobaltWebContentsObserver::RaisePlatformError() {
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #else
-  NOTIMPLEMENTED();
+  SbSystemRaisePlatformError(kSbSystemPlatformErrorTypeConnectionError,
+                             OnPlatformErrorResponse, this);
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+}
+
+void CobaltWebContentsObserver::HandlePlatformErrorResponse(
+    SbSystemPlatformErrorResponse response) {
+  if (response == kSbSystemPlatformErrorResponsePositive) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&content::NavigationController::Reload,
+                       base::Unretained(&web_contents()->GetController()),
+                       content::ReloadType::NORMAL, true));
+  } else {
+    SbSystemRequestStop(0);
+  }
 }
 
 }  // namespace cobalt

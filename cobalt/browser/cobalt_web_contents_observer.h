@@ -42,6 +42,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   virtual void RaisePlatformError();
+  void HandlePlatformErrorResponse(SbSystemPlatformErrorResponse response);
 
  protected:
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
