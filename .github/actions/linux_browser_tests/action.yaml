@@ -55,6 +55,10 @@ runs:
 
         mkdir -p "${GITHUB_WORKSPACE}/results"
 
+        ls -al "${RUNNER_BINARY}"
+        ls -al .out/${PLATFORM}_${CONFIG}
+        ls -al .out/${PLATFORM}_${CONFIG}/bin
+
         # Wrap the execution in xvfb-run for virtual display.
         # We pass --gtest_output to the runner script, which we should ensure it handles.
         # Note: Using a single line to avoid backslash continuation issues in GitHub Actions.
