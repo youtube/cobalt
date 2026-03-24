@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 declare_args() {
