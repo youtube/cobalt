@@ -14,12 +14,103 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
+#include "base/functional/bind.h"
+#include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/timer/timer.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
+#include "net/base/net_errors.h"
+#include "starboard/system.h"
+
 namespace cobalt {
+
+namespace {
+
+const int kNavigationTimeoutSeconds = 30;
+
+void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response,
+                             void* user_data) {
+  auto* observer = static_cast<CobaltWebContentsObserver*>(user_data);
+  observer->HandlePlatformErrorResponse(response);
+}
+}  // namespace
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents) {}
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+
+void CobaltWebContentsObserver::SetTimerForTestInternal(
+    std::unique_ptr<base::OneShotTimer> timer) {
+  timeout_timer_ = std::move(timer);
+}
+
+void CobaltWebContentsObserver::DidStartNavigation(
+    content::NavigationHandle* handle) {
+  if (!handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
+              << " not in primary mainframe, returning";
+    return;
+  }
+
+  // Start a navigation timer with a timeout callback to raise a
+  // network error dialog
+  timeout_timer_->Stop();
+  timeout_timer_->Start(
+      FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
+      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+                     weak_factory_.GetWeakPtr()));
+}
+
+// Opting for WebContentsObserver::DidFinishNavigation() over
+// WebContentsObserver::PrimaryPageChanged as the network check can't
+// assume HasCommitted() is true. Doing so would not catch network
+// errors that are thrown before a navigation commits such as
+// net::ERR_CONNECTION_TIMED_OUT and net::ERR_NAME_NOT_RESOLVED.
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+
+  timeout_timer_->Stop();
+  const auto net_error_code = navigation_handle->GetNetErrorCode();
+  if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", true);
+    LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
+              << net::ErrorToString(net_error_code);
+    RaisePlatformError();
+  } else if (net_error_code == net::OK) {
+    UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", false);
+  }
+}
+
+void CobaltWebContentsObserver::RaisePlatformError() {
+  pending_reload_callback_ = base::BindOnce(
+      [](base::WeakPtr<content::WebContents> weak_contents) {
+        if (weak_contents) {
+          weak_contents->GetController().Reload(content::ReloadType::NORMAL,
+                                                /*check_for_repost=*/true);
+        }
+      },
+      web_contents()->GetWeakPtr());
+  SbSystemRaisePlatformError(kSbSystemPlatformErrorTypeConnectionError,
+                             OnPlatformErrorResponse, this);
+}
+
+void CobaltWebContentsObserver::HandlePlatformErrorResponse(
+    SbSystemPlatformErrorResponse response) {
+  if (response == kSbSystemPlatformErrorResponsePositive) {
+    if (pending_reload_callback_) {
+      std::move(pending_reload_callback_).Run();
+    }
+  } else {
+    SbSystemRequestStop(0);
+  }
+}
 
 }  // namespace cobalt
