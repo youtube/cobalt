@@ -18,7 +18,9 @@
 #include <memory>
 
 #include "base/base64.h"
+#include "base/containers/contains.h"
 #include "base/containers/span.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -188,13 +190,12 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       const network::ResourceRequest& request,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       BrowserContext* browser_context,
-      const GeneratedResourceMap* resource_map_test,
+      const GeneratedResourceMap& resource_map,
       const std::string& splash_domain,
       uint64_t splash_content_size_limit)
       : client_(std::move(client)),
         url_(request.url),
         browser_context_(browser_context),
-        resource_map_test_(resource_map_test),
         splash_domain_(splash_domain),
         splash_content_size_limit_(splash_content_size_limit),
         mime_type_(kMimeTypeApplicationOctetStream) {
@@ -202,32 +203,10 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         base::BindOnce(&H5vccSchemeURLLoader::OnClientDisconnected,
                        weak_factory_.GetWeakPtr()));
     std::string key = url_.host();
+    // The key to query the resource map. It is usually the same as the host,
+    // but can be overridden by the "fallback" query param for png/webm
+    // resources, so that callers can specify a different file for fallback.
     std::string resource_key = key;
-
-    // Get the embedded header resource
-    GeneratedResourceMap resource_map;
-    if (resource_map_test_) {
-      resource_map = *resource_map_test_;
-    } else {
-      LoaderEmbeddedResources::GenerateMap(resource_map);
-    }
-
-    // Specify the built-in video if the cache is unavailable.
-    // Only for webm.
-    // TODO(458074360): Add fallback to static image if the device does
-    // not support VP9.
-    std::string fallback;
-    if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
-        (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE))) {
-      LOG(INFO) << "Fallback splash: " << fallback;
-      resource_key = std::move(fallback);
-    }
-
-    if (resource_map.find(resource_key) != resource_map.end()) {
-      FileContents file_contents = resource_map[resource_key];
-      content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
-                             file_contents.size);
-    }
 
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
@@ -238,16 +217,40 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       mime_type_ = kMimeTypeVideoWebM;
     }
 
-    bool is_cacheable_type =
-        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM);
-    if (is_cacheable_type && browser_context_) {
+    // Splash caching only serves the png and webm resources defined in
+    // the resource map.
+    const bool supports_splash_caching =
+        (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
+        base::Contains(resource_map, key);
+
+    // For png/webm, override resource_key with "fallback" query param.
+    // If requested key is not found in cache, loader returns the fallback
+    // resource.
+    std::string fallback;
+    if (supports_splash_caching &&
+        net::GetValueForKeyInQuery(url_, "fallback", &fallback)) {
+      LOG(INFO) << "Fallback splash: " << fallback;
+      resource_key = std::move(fallback);
+    }
+
+    if (base::Contains(resource_map, resource_key)) {
+      FileContents file_contents = resource_map.at(resource_key);
+      content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
+                             file_contents.size);
+    } else {
+      LOG(WARNING) << "Resource not found: " << resource_key;
+    }
+
+    if (supports_splash_caching && browser_context_) {
       ReadSplashCache(key);
       return;
     }
+
     if (content_.empty()) {
       SendNotFoundResponse(key);
       return;
     }
+
     SendResponse();
   }
   ~H5vccSchemeURLLoader() override = default;
@@ -308,21 +311,37 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void OnCacheMatched(const std::string& cache_name,
                       blink::mojom::MatchResultPtr result) {
     if (!result->is_response()) {
-      return DisconnectCacheAndSendFallback(base::StringPrintf(
-          "Failed to match splash video from cache %s, error: %d",
-          cache_name.c_str(), static_cast<int>(result->get_status())));
+      const auto status = result->get_status();
+      SplashScreenFetchedState state =
+          SplashScreenFetchedState::kErrorOnReadCache;
+      // If the cache entry is not found, or the splash cache is not found in
+      // the cache entry, it's not an error of reading cache, but just a cache
+      // miss.
+      if (status == blink::mojom::CacheStorageError::kErrorCacheNameNotFound ||
+          status == blink::mojom::CacheStorageError::kErrorNotFound) {
+        state = SplashScreenFetchedState::kOkBuiltIn;
+      }
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Failed to match splash video from cache %s, reason: %d",
+              cache_name.c_str(), static_cast<int>(status)),
+          state);
     }
     LOG(INFO) << "Found splash video in cache: " << cache_name;
     auto& response = result->get_response();
-    if (response->blob->size == 0) {
-      return DisconnectCacheAndSendFallback(base::StringPrintf(
-          "Splash video from %s is empty. Fallback to builtin.",
-          cache_name.c_str()));
+    if (!response->blob || response->blob->size == 0) {
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Splash video from %s is empty. Fallback to builtin.",
+              cache_name.c_str()),
+          SplashScreenFetchedState::kErrorOnCacheEmptyContent);
     }
     if (response->blob->size > splash_content_size_limit_) {
-      return DisconnectCacheAndSendFallback(base::StringPrintf(
-          "Splash video from %s is too large. Fallback to builtin.",
-          cache_name.c_str()));
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Splash video from %s is too large. Fallback to builtin.",
+              cache_name.c_str()),
+          SplashScreenFetchedState::kErrorOnCacheFileOversize);
     }
     mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
         std::move(response->blob->blob);
@@ -335,12 +354,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void SendBlobContent(uint64_t expected_size, std::vector<uint8_t> content) {
     if (content.size() != expected_size) {
       return DisconnectCacheAndSendFallback(
-          "Failed to read splash cache. Fallback to builtin.");
+          "Failed to read splash cache. Fallback to builtin.",
+          SplashScreenFetchedState::kErrorOnReadCache);
     }
     DisconnectCacheStorage();
     content_ = std::string(reinterpret_cast<const char*>(content.data()),
                            content.size());
-    SendResponse();
+    SendResponse(SplashScreenFetchedState::kOkCache);
   }
 
  private:
@@ -349,15 +369,23 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                  << " not found.";
     content_ = "Resource not found";
     mime_type_ = kMimeTypeTextPlain;
-    SendResponse(net::HTTP_NOT_FOUND);
+    SendResponse(SplashScreenFetchedState::kErrorOnResourceNotFound,
+                 net::HTTP_NOT_FOUND);
   }
 
   void DisconnectCacheStorage() { cache_storage_remote_.reset(); }
 
-  void DisconnectCacheAndSendFallback(const std::string& message) {
+  void DisconnectCacheAndSendFallback(const std::string& message,
+                                      SplashScreenFetchedState state) {
     LOG(ERROR) << message;
     DisconnectCacheStorage();
-    SendResponse();
+    SendResponse(state);
+  }
+
+  void SendResponse(SplashScreenFetchedState state,
+                    int http_status = net::HTTP_OK) {
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache", state);
+    SendResponse(http_status);
   }
 
   void SendResponse(int http_status = net::HTTP_OK) {
@@ -426,7 +454,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
   BrowserContext* browser_context_;
-  const GeneratedResourceMap* resource_map_test_ = nullptr;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
   std::string mime_type_;
@@ -451,7 +478,13 @@ H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
                          .spec()),
       splash_content_size_limit_(
           global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
-      browser_context_(browser_context) {}
+      browser_context_(browser_context) {
+  if (resource_map_test_) {
+    resource_map_ = *resource_map_test_;
+  } else {
+    LoaderEmbeddedResources::GenerateMap(resource_map_);
+  }
+}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
 
@@ -464,7 +497,7 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<H5vccSchemeURLLoader>(
-          url_request, std::move(client), browser_context_, resource_map_test_,
+          url_request, std::move(client), browser_context_, resource_map_,
           splash_domain_, splash_content_size_limit_),
       std::move(receiver));
 }

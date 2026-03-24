@@ -11,9 +11,9 @@
     "cobalt:gn_all",
     "dump_syms",
     "minidump_stackwalk",
-    "crash_sandbox",
-    "noop_sandbox",
-    "one_app_only_sandbox"
+    "crash_sandbox_loaded_content",
+    "noop_sandbox_loaded_content",
+    "one_app_only_sandbox_loaded_content"
   ],
   "build_configs": [
     "debug",

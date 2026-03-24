@@ -1,0 +1,69 @@
+load("//bazel:skia_rules.bzl", "exports_files_legacy", "skia_filegroup", "split_srcs_and_hdrs")
+load("//bazel:flags.bzl", "bool_flag")
+
+licenses(["notice"])
+
+exports_files_legacy()
+
+SHADER_FILES = [
+    "SkBitmapProcShader.cpp",
+    "SkBitmapProcShader.h",
+    "SkCoordClampShader.cpp",
+    "SkColorFilterShader.cpp",
+    "SkColorFilterShader.h",
+    "SkColorShader.cpp",
+    "SkComposeShader.cpp",
+    "SkEmptyShader.cpp",
+    "SkGainmapShader.cpp",
+    "SkImageShader.cpp",
+    "SkImageShader.h",
+    "SkLocalMatrixShader.cpp",
+    "SkLocalMatrixShader.h",
+    "SkPerlinNoiseShader.cpp",
+    "SkShader.cpp",
+    "SkShaderBase.h",
+    "SkTransformShader.cpp",
+    "SkTransformShader.h",
+]
+
+split_srcs_and_hdrs(
+    name = "shader",
+    files = SHADER_FILES,
+)
+
+# Maintain SkPicture files in separate skia_filegroups so that the legacy
+# skia_skpicture_sources GNI file list can be created.
+SKPICTURE_FILES = [
+    "SkPictureShader.cpp",
+    "SkPictureShader.h",
+]
+
+split_srcs_and_hdrs(
+    name = "skpicture",
+    files = SKPICTURE_FILES,
+)
+
+bool_flag(
+    name = "legacy_shader_context",
+    default = True,
+)
+
+skia_filegroup(
+    name = "srcs",
+    srcs = [
+        ":shader_srcs",
+        ":skpicture_srcs",
+        "//src/shaders/gradients:srcs",
+    ],
+    visibility = ["//src:__pkg__"],
+)
+
+skia_filegroup(
+    name = "private_hdrs",
+    srcs = [
+        ":shader_hdrs",
+        ":skpicture_hdrs",
+        "//src/shaders/gradients:private_hdrs",
+    ],
+    visibility = ["//src:__pkg__"],
+)

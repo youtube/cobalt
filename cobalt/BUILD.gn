@@ -79,12 +79,6 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
-      "//cobalt/browser/h5vcc_accessibility:manager",
-      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-      "//cobalt/shell:cobalt_shell_app",
-      "//cobalt/shell:cobalt_shell_lib",
-      "//content/public/app",
-      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
@@ -121,6 +115,10 @@ source_set("common") {
 
   if (is_starboard) {
     sources += [
+      "app/app_event_delegate.cc",
+      "app/app_event_delegate.h",
+      "app/app_event_runner.cc",
+      "app/app_event_runner.h",
       "app/cobalt_switch_defaults_starboard.cc",
       "app/cobalt_switch_defaults_starboard.h",
     ]
@@ -138,6 +136,8 @@ source_set("common") {
   deps = [
     "//base",
     "//cobalt/browser:switches",
+    "//cobalt/browser/h5vcc_accessibility:manager",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/shell:cobalt_shell_app",
@@ -149,6 +149,7 @@ source_set("common") {
     "//gpu/command_buffer/service",
     "//media",
     "//sandbox/policy",
+    "//services/device/time_zone_monitor",
     "//starboard:starboard_headers_only",
     "//third_party/blink/public/common",
     "//ui/gl",
@@ -199,13 +200,19 @@ test("cobalt_unittests") {
 
   if (is_starboard) {
     sources += [
+      "//cobalt/app/app_event_delegate_unittest.cc",
+      "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
 
   if (!is_android) {
-    sources += [ "//cobalt/shell/browser/splash_screen_unittest.cc" ]
+    sources += [
+      "//cobalt/shell/browser/lifecycle_unittest.cc",
+      "//cobalt/shell/browser/shell_test_support.h",
+      "//cobalt/shell/browser/splash_screen_unittest.cc",
+    ]
   }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]

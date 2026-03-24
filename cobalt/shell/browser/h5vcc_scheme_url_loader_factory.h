@@ -26,6 +26,17 @@
 
 namespace content {
 
+// An enum for UMA histogram to indicate the state of retrieving splash screen
+enum class SplashScreenFetchedState {
+  kOkBuiltIn = 0,
+  kOkCache = 1,
+  kErrorOnCacheEmptyContent = 2,
+  kErrorOnCacheFileOversize = 3,
+  kErrorOnReadCache = 4,
+  kErrorOnResourceNotFound = 5,
+  kMaxValue = kErrorOnResourceNotFound,
+};
+
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles
 // requests for the custom kH5vccEmbeddedScheme. It is designed to serve
 // embedded resources, such as splash screen videos or test HTML pages, directly
@@ -70,6 +81,7 @@ class H5vccSchemeURLLoaderFactory final
   static void SetSplashContentSizeForTesting(const std::optional<int>& size);
 
  private:
+  GeneratedResourceMap resource_map_;
   static const GeneratedResourceMap* resource_map_test_;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;

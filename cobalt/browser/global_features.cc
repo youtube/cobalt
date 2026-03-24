@@ -169,12 +169,14 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
                                std::string());
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
+  registry->RegisterStringPref(kExperimentConfigMinVersion, std::string());
   registry->RegisterDictionaryPref(kFinchParameters);
   registry->RegisterStringPref(kLatestConfigHash, std::string());
   registry->RegisterDictionaryPref(kSafeConfig);
   registry->RegisterStringPref(kSafeConfigActiveConfigData, std::string());
   registry->RegisterDictionaryPref(kSafeConfigFeatures);
   registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
+  registry->RegisterStringPref(kSafeConfigMinVersion, std::string());
   registry->RegisterTimePref(variations::prefs::kVariationsLastFetchTime,
                              base::Time(), PrefRegistry::LOSSY_PREF);
 }

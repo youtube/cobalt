@@ -1,5 +1,4 @@
 {
-  "_comment": "TODO: b/467701409 - Investigate failing langinfo tests.",
   "failing_tests": [
     "CrashpadConfigTest.VerifyUploadCert",
     "MadviseTest.BadSizeValue",
@@ -16,14 +15,6 @@
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerWriteSampleTests*",
     "PosixThreadAttrTest.StackAddrAndSizeAttr",
-    "Posix/NlLanginfoTest.AllItems/as_IN",
-    "Posix/NlLanginfoTest.AllItems/be_BY",
-    "Posix/NlLanginfoTest.AllItems/bs_BA",
-    "Posix/NlLanginfoTest.AllItems/or_IN",
-    "Posix/NlLanginfoLTest.AllItems/as_IN",
-    "Posix/NlLanginfoLTest.AllItems/be_BY",
-    "Posix/NlLanginfoLTest.AllItems/bs_BA",
-    "Posix/NlLanginfoLTest.AllItems/or_IN",
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
