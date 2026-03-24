@@ -163,13 +163,13 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 }
 
 void CobaltMainDelegate::PreSandboxStartup() {
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
   const bool initialize_crashpad = true;
 #else
   const bool initialize_crashpad =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter);
-#endif  // BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
 
   if (initialize_crashpad) {
     const std::string process_type =
