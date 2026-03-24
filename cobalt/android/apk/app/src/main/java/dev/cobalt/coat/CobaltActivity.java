@@ -84,7 +84,7 @@ public abstract class CobaltActivity extends Activity {
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   // How many seconds before the app exits if it fails to land YouTube home page.
-  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 60;
+  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
   public static final String SPLASH_ARGS_KEY = "disableNativeSplash";
   private boolean disableNativeSplash;
 
