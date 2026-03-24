@@ -34,7 +34,7 @@ HistogramFetcher::~HistogramFetcher() = default;
 std::string HistogramFetcher::FetchHistograms(
     metrics::MetricsStateManager* state_manager,
     metrics::MetricsServiceClient* service_client) {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   CHECK(state_manager);
   CHECK(service_client);
 
