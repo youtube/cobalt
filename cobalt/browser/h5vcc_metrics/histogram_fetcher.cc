@@ -80,8 +80,7 @@ std::string HistogramFetcher::FetchHistograms(
     }
   }
   std::string encoded_log;
-  log.FinalizeLog(false, service_client->GetVersionString(),
-                  &encoded_log);
+  log.FinalizeLog(false, service_client->GetVersionString(), &encoded_log);
   uma_proto.CopyFrom(*log.uma_proto());
 
   cobalt::browser::metrics::CobaltUMAEvent cobalt_proto;
