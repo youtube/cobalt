@@ -183,6 +183,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="CPU.Total.UsageInPercentage" units="%" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    The Percentage of total CPU resources utilized for Cobalt over an interval.
+    100% indicates all available cores are fully utilized. This metric is
+    recorded periodically (default 5 minutes for Android).
+  </summary>
+</histogram>
+
 <histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
     enum="BooleanHung" expires_after="never">
   <owner>antonlunev@google.com</owner>
