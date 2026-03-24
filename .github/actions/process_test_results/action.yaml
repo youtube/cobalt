@@ -62,7 +62,7 @@ runs:
           else
             msg="Some targets may have failed to run."
           fi
-          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS})."
+          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
           exit_code=1
         fi
 
