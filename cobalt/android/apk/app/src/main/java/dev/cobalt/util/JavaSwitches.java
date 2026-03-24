@@ -19,6 +19,4 @@ package dev.cobalt.util;
  */
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
-  /** flag to enable SkiaFontCache */
-  public static final String SKIA_FONT_CACHE = "SkiaFontCache";
 }
