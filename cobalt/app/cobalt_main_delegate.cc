@@ -19,7 +19,6 @@
 #include <utility>
 #include <variant>
 
-#include "base/base_switches.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/process/current_process.h"
@@ -50,6 +49,7 @@
 #include "gpu/command_buffer/service/gpu_switches.h"
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#include "base/base_switches.h"
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 namespace cobalt {
