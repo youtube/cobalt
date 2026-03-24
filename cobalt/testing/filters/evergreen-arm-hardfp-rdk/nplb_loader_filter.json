@@ -1,10 +1,7 @@
 {
   "failing_tests": [
-    "CrashpadConfigTest.VerifyUploadCert",
-    "MadviseTest.BadSizeValue",
-    "MaximumPlayerConfigurationExplorerTests*",
-    "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+<<<<<<< HEAD
     "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
     "PosixThreadAttrTest.StackAddrAndSizeAttr",
     "PosixTimeClockTests.ClockIncreasesOverTime",
@@ -28,8 +25,30 @@
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.*",
     "SbSystemSymbolizeTest.SunnyDay",
+=======
+>>>>>>> 0f809c3bb5 (nplb test: Fix hang with `SbAudioSinkCreateTest.MultiSink` (#9243))
     "SbTimeZoneGetNameTest.IsIANAFormat",
+    "SbLogFlushTest.DontCrashMeBro",
     "SbWindowGetSizeTest.SunnyDay",
-    "VerticalVideoTests/VerticalVideoTest*"
+    "SbSystemGetLocaleIdTest.SunnyDay",
+    "SbSystemGetPropertyTest.ReturnsRequired",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "MaximumPlayerConfigurationExplorerTests/MaximumPlayerConfigurationExplorerTest.SunnyDay/*",
+    "MultiplePlayerTest.SunnyDay",
+    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteLimitedInput/*",
+    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.WriteContinuedLimitedInput/*",
+    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.SunnyDay/*",
+    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*",
+    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/*",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/*",
+    "SbPlayerTest.SunnyDay",
+    "SbPlayerTest.MaxVideoCapabilities",
+    "SbPlayerTest.NullCallbacks",
+    "SbPlayerTest.Audioless",
+    "SbPlayerTest.AudioOnly",
+    "SbPlayerTest.MultiPlayer",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
+    "VerticalVideoTests/VerticalVideoTest.*"
   ]
 }
