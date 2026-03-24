@@ -223,17 +223,7 @@ jobs:
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
 
           # Also export just the target strings for the results matrix.
-          PLATFORM="${{ inputs.platform }}"
-          if [[ "$PLATFORM" == *linux* ]]; then
-             # For Linux host, the target is in the primary 'targets' list.
-             if cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -e '.targets[] | select(contains("cobalt_browsertests_runner"))' > /dev/null; then
-               browser_test_targets_json='["cobalt/testing/browser_tests:cobalt_browsertests_runner"]'
-             else
-               browser_test_targets_json='[]'
-             fi
-          else
-             browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
-          fi
+          browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
           echo "browser_test_targets_json=${browser_test_targets_json}" >> $GITHUB_OUTPUT
 
           # Centralize "should run browser tests" logic.
