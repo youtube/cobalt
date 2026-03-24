@@ -33,18 +33,20 @@ runs:
         set -euxo pipefail
         mkdir -p unit_test/
         cd unit_test/
-        tar -I 'zstd -T0' -xf ../artifacts/test_artifacts.tar.zstd
+        tar -I 'zstd -T0' -xf ../artifacts/cobalt_browsertests_deps.tar.zstd
 
-        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${PLATFORM}_${CONFIG}"
+        out_dir="${GITHUB_WORKSPACE}/unit_test/src/out/${PLATFORM}_${CONFIG}"
         LD_LIBRARY_PATH="${out_dir}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
+        export PATH="${GITHUB_WORKSPACE}/unit_test/depot_tools:${PATH}"
+
         # Use the stable one-by-one runner script located in the out directory.
-        RUNNER_BINARY="./out/${PLATFORM}_${CONFIG}/cobalt_browsertests_runner"
+        RUNNER_BINARY="./src/out/${PLATFORM}_${CONFIG}/bin/run_cobalt_browsertests"
 
         # Apply test filter if exists
-        TEST_FILTER_JSON="${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}/cobalt_browsertests_runner_filter.json"
+        TEST_FILTER_JSON="${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}/cobalt_browsertests_filter.json"
         TEST_FILTER="*"
         if [ -f "${TEST_FILTER_JSON}" ]; then
             FAILING_TESTS=$(jq -r '.failing_tests | join(":")' "${TEST_FILTER_JSON}")
@@ -58,7 +60,7 @@ runs:
         # Wrap the execution in xvfb-run for virtual display.
         # We pass --gtest_output to the runner script, which we should ensure it handles.
         # Note: Using a single line to avoid backslash continuation issues in GitHub Actions.
-        xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "${RUNNER_BINARY}" --gtest_filter="${TEST_FILTER}" --gtest_output="xml:${GITHUB_WORKSPACE}/results/cobalt_browsertests_runner_result.xml" 2>&1 | tee "${GITHUB_WORKSPACE}/results/cobalt_browsertests_runner_log.txt"
+        xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "${RUNNER_BINARY}" --no-xvfb --gtest_filter="${TEST_FILTER}" --gtest_output="xml:${GITHUB_WORKSPACE}/results/cobalt_browsertests_result.xml" 2>&1 | tee "${GITHUB_WORKSPACE}/results/cobalt_browsertests_log.txt"
 
     - name: Archive Browser Test Results
       if: always()
