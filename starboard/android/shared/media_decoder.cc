@@ -788,10 +788,15 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
   condition_variable_.notify_one();
 }
 
+<<<<<<< HEAD
 void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
   std::optional<FrameSize> frame_size = media_codec_bridge_->GetOutputSize();
   SB_LOG(INFO) << __func__ << " > resolution="
                << (frame_size ? ToString(frame_size->display_size) : "(n/a)");
+=======
+void MediaDecoder::OnMediaCodecOutputFormatChanged() {
+  SB_DCHECK(media_codec_bridge_);
+>>>>>>> e771967205 (android: Prevent use of media_codec_bridge_ in callbacks (#9691))
 
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
