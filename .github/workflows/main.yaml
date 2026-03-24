@@ -223,7 +223,6 @@ jobs:
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
 
           # Also export just the target strings for the results matrix.
-          PLATFORM="${{ inputs.platform }}"
           browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
           echo "browser_test_targets_json=${browser_test_targets_json}" >> $GITHUB_OUTPUT
 
