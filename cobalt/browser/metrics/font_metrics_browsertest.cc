@@ -87,7 +87,7 @@ IN_PROC_BROWSER_TEST_F(FontMetricsBrowserTest, RecordsFontHistograms) {
 
   EXPECT_GE(
       histogram_tester
-          .GetAllSamples("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache")
+          .GetAllSamples("Memory.Experimental.Browser2.Small.Skia.SkGlyphCache")
           .size(),
       1u);
 
