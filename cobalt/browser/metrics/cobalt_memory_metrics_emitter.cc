@@ -63,32 +63,44 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      kAllocatedObjectsSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
+    {"blink_gc",
+     "BlinkGC.Fragmentation",
+     CobaltMemoryMetricsEmitter::MetricSize::kPercentage,
+     "fragmentation",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"blink_gc/main",
+     "BlinkGC.Main.Heap.Fragmentation",
+     CobaltMemoryMetricsEmitter::MetricSize::kPercentage,
+     "fragmentation",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
     {"blink_objects/Document",
-     "Tiny.NumberOfDocuments",
+     "NumberOfDocuments",
      CobaltMemoryMetricsEmitter::MetricSize::kTiny,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"blink_objects/Frame",
-     "Tiny.NumberOfFrames",
+     "NumberOfFrames",
      CobaltMemoryMetricsEmitter::MetricSize::kTiny,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"blink_objects/LayoutObject",
-     "Tiny.NumberOfLayoutObjects",
+     "NumberOfLayoutObjects",
      CobaltMemoryMetricsEmitter::MetricSize::kTiny,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"blink_objects/Node",
-     "Small.NumberOfNodes",
+     "NumberOfNodes",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      MemoryAllocatorDump::kNameObjectCount,
      CobaltMemoryMetricsEmitter::EmitTo::kCountsInUkmAndSizeInUma,
      {}},
     {"font_caches/shape_caches",
-     "Small.FontCaches",
+     "FontCaches",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      "size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
@@ -100,7 +112,7 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"leveldatabase",
-     "Small.LevelDatabase",
+     "LevelDatabase",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
@@ -136,19 +148,19 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"skia/sk_glyph_cache",
-     "Skia.Small.SkGlyphCache",
+     "Skia.SkGlyphCache",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      "size",
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"sqlite",
-     "Small.Sqlite",
+     "Sqlite",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"ui",
-     "Small.UI",
+     "UI",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
      kEffectiveSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
@@ -177,8 +189,8 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
 
 constexpr char kExperimentalUmaPrefix[] = "Memory.Experimental.";
 constexpr char kVersionSuffixNormal[] = "2.";
-constexpr char kVersionSuffixSmall[] = "2.";
-constexpr char kVersionSuffixTiny[] = "2.";
+constexpr char kVersionSuffixSmall[] = "2.Small.";
+constexpr char kVersionSuffixTiny[] = "2.Tiny.";
 
 static const char* MetricSizeToVersionSuffix(
     CobaltMemoryMetricsEmitter::MetricSize size) {
@@ -311,6 +323,43 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_total_kb += pmd.os_dump().private_footprint_kb;
     shared_footprint_total_kb += pmd.os_dump().shared_footprint_kb;
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
+
+    // Manually calculate fragmentation for individual processes as it may not
+    // be present in the dump.
+    const uint64_t blink_gc_bytes =
+        pmd.GetMetric("blink_gc", kEffectiveSize).value_or(0);
+    const uint64_t blink_gc_allocated_objects_bytes =
+        pmd.GetMetric("blink_gc", kAllocatedObjectsSize).value_or(0);
+    if (blink_gc_bytes > 0) {
+      uint64_t fragmentation =
+          (blink_gc_bytes > blink_gc_allocated_objects_bytes)
+              ? blink_gc_bytes - blink_gc_allocated_objects_bytes
+              : 0;
+      int fragmentation_pct =
+          static_cast<int>(fragmentation * 100 / blink_gc_bytes);
+      static const Metric kBlinkGCFragMetric = {
+          "blink_gc",      "BlinkGC.Fragmentation", MetricSize::kPercentage,
+          "fragmentation", EmitTo::kSizeInUmaOnly,  {}};
+      EmitProcessUma(ptype, kBlinkGCFragMetric, fragmentation_pct);
+    }
+
+    const uint64_t blink_gc_main_bytes =
+        pmd.GetMetric("blink_gc/main", kEffectiveSize).value_or(0);
+    const uint64_t blink_gc_main_allocated_objects_bytes =
+        pmd.GetMetric("blink_gc/main", kAllocatedObjectsSize).value_or(0);
+    if (blink_gc_main_bytes > 0) {
+      uint64_t fragmentation =
+          (blink_gc_main_bytes > blink_gc_main_allocated_objects_bytes)
+              ? blink_gc_main_bytes - blink_gc_main_allocated_objects_bytes
+              : 0;
+      int fragmentation_pct =
+          static_cast<int>(fragmentation * 100 / blink_gc_main_bytes);
+      static const Metric kBlinkGCMainFragMetric = {
+          "blink_gc/main",         "BlinkGC.Main.Heap.Fragmentation",
+          MetricSize::kPercentage, "fragmentation",
+          EmitTo::kSizeInUmaOnly,  {}};
+      EmitProcessUma(ptype, kBlinkGCMainFragMetric, fragmentation_pct);
+    }
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
       std::optional<uint64_t> value =
