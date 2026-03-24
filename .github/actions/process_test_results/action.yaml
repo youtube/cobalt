@@ -54,12 +54,12 @@ runs:
         result_xmls=(${RESULTS_GLOB})
         result_logs=(${LOG_GLOB})
 
-        if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ] ; then
-          # If there are more log files than test results, test shards probably crashed.
-          # If both the logs and the results are missing the tests probably failed to run.
+        if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ]; then
           if [ ${#result_logs[@]} -gt ${#result_xmls[@]} ]; then
+            # If there are more log files than test results, test shards probably crashed.
             msg="Some targets likely crashed."
           else
+            # If both the logs and the results are missing the tests probably failed to run.
             msg="Some targets may have failed to run."
           fi
           echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
