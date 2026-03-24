@@ -122,7 +122,9 @@ scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
 
 }  // namespace
 
-ShellBrowserMainParts::ShellBrowserMainParts() = default;
+ShellBrowserMainParts::ShellBrowserMainParts(const std::string& deep_link,
+                                             bool is_visible)
+    : deep_link_(deep_link), is_visible_(is_visible) {}
 
 ShellBrowserMainParts::~ShellBrowserMainParts() = default;
 
@@ -149,24 +151,12 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
-#if !BUILDFLAG(IS_ANDROID)
-  // Handle deeplink from non-ATV devices.
-  std::string topic;
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kLink)) {
-    GURL link_url(command_line->GetSwitchValueASCII(switches::kLink));
-    if (link_url.is_valid()) {
-      net::GetValueForKeyInQuery(link_url, "topic", &topic);
-    }
-  }
-#endif  // !BUILDFLAG(IS_ANDROID)
-
   Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
                          gfx::Size(),
 #if BUILDFLAG(IS_ANDROID)
                          false /* create_splash_screen_web_contents */
 #else
-                         switches::ShouldCreateSplashScreen(), topic
+                         switches::ShouldCreateSplashScreen(), deep_link_
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 }
@@ -198,7 +188,7 @@ void ShellBrowserMainParts::PostCreateThreads() {
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
-  Shell::Initialize(CreateShellPlatformDelegate());
+  Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
   InitializeMessageLoopContext();

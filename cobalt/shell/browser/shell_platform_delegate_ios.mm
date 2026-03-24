@@ -572,9 +572,19 @@ struct ShellPlatformDelegate::PlatformData {};
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   screen_ = std::make_unique<display::ScopedNativeScreen>();
 }
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {}
 
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
@@ -706,7 +716,7 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   ShellData& shell_data = shell_data_map_[shell];
 
   [shell_data.window resignKeyWindow];
-  return true;  // The performClose() will do the destruction of Shell.
+  return false;  // We have not destroyed the shell here.
 }
 
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(

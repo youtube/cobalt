@@ -88,6 +88,10 @@ MEDIA_EXPORT extern const char kForceVideoOverlays[];
 MEDIA_EXPORT extern const char kMSEAudioBufferSizeLimitMb[];
 MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitMb[];
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+MEDIA_EXPORT extern const char kMSEVideoBufferSizeLimitClampMb[];
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 MEDIA_EXPORT extern const char kClearKeyCdmPathForTesting[];
 MEDIA_EXPORT extern const char kOverrideEnabledCdmInterfaceVersion[];
 MEDIA_EXPORT extern const char kOverrideHardwareSecureCodecsForTesting[];

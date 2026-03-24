@@ -30,7 +30,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
       run: |
-        set -eux
+        set -euxo pipefail
         mkdir -p unit_test/
         cd unit_test/
         tar -I 'zstd -T0' -xf ../artifacts/test_artifacts.tar.zstd

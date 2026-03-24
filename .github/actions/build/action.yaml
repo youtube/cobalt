@@ -35,7 +35,7 @@ runs:
           gn_flags=()
           if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
             # TvOS does not use RBE unless it's sccache
-            gn_flags+=(--no-rbe --no-check)
+            gn_flags+=(--no-rbe)
           fi
           if [[ $ENABLE_SCCACHE == "true" ]]; then
             gn_flags+=(--use-sccache)

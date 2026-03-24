@@ -76,32 +76,24 @@ class MEDIA_EXPORT DecoderBuffer
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   class Allocator {
    public:
-    static Allocator* GetInstance();
+    static void Set(Allocator* allocator);
 
     // The function should never return nullptr.  It may terminate the app on
     // allocation failure.
     virtual void* Allocate(DemuxerStream::Type type, size_t size, size_t alignment) = 0;
     virtual void Free(void* p, size_t size) = 0;
 
-    virtual int GetAudioBufferBudget() const = 0;
     virtual int GetBufferAlignment() const = 0;
     virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
-    virtual int GetProgressiveBufferBudget(VideoCodec codec,
-                                           int resolution_width,
-                                           int resolution_height,
-                                           int bits_per_pixel) const = 0;
-    virtual int GetVideoBufferBudget(VideoCodec codec,
-                                     int resolution_width,
-                                     int resolution_height,
-                                     int bits_per_pixel) const = 0;
+    virtual void SetAllocateOnDemand(bool enabled) = 0;
 
    protected:
     ~Allocator() {}
-
-    static void Set(Allocator* allocator);
   };
+
+  static void EnableAllocateOnDemand(bool enabled);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
@@ -209,12 +201,13 @@ class MEDIA_EXPORT DecoderBuffer
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return data_;
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return allocator_data_->data;
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (external_memory_)
       return external_memory_->Span().data();
     return data_.data();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // The number of bytes in the buffer.
@@ -232,23 +225,25 @@ class MEDIA_EXPORT DecoderBuffer
   // TODO(crbug.com/41383992): Remove writable_data().
   uint8_t* writable_data() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return data_;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return allocator_data_->data;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK(!end_of_stream());
     DCHECK(!external_memory_);
     return const_cast<uint8_t*>(data_.data());
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // TODO(crbug.com/41383992): Remove writable_span().
   base::span<uint8_t> writable_span() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    return UNSAFE_TODO(base::span(data_, size_));
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (allocator_data_) {
+      return UNSAFE_TODO(base::span(allocator_data_->data, size_));
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     // TODO(crbug.com/40284755): `data_` should be converted to HeapArray, then
     // it can give out a span safely.
     return UNSAFE_TODO(base::span(writable_data(), size()));
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   bool empty() const {
@@ -316,14 +311,12 @@ class MEDIA_EXPORT DecoderBuffer
   }
   
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool end_of_stream() const { return !data_; }
   void shrink_to(size_t size) {
     DCHECK_LE(size, size_);
     size_ = size;
   }
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool end_of_stream() const { return is_end_of_stream_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool end_of_stream() const { return is_end_of_stream_; }
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -394,14 +387,17 @@ class MEDIA_EXPORT DecoderBuffer
                 std::optional<ConfigVariant> next_config);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  struct AllocatorData {
+    uint8_t* data = nullptr;
+    size_t size = 0;
+  };
   // Encoded data, allocated from DecoderBuffer::Allocator.
-  uint8_t* data_ = nullptr;
-  size_t allocated_size_ = 0;
+  std::optional<AllocatorData> allocator_data_;
   size_t size_ = 0;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Encoded data, if it is stored on the heap.
-  const base::HeapArray<uint8_t> data_;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::HeapArray<uint8_t> data_;
 
  private:
   // ***************************************************************************
@@ -432,6 +428,7 @@ class MEDIA_EXPORT DecoderBuffer
   const bool is_end_of_stream_ : 1 = false;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void Initialize();
   void Initialize(DemuxerStream::Type type);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };

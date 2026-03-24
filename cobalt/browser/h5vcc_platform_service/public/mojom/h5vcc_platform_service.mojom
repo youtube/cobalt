@@ -14,6 +14,8 @@
 
 module h5vcc_platform_service.mojom;
 
+import "mojo/public/mojom/base/read_only_buffer.mojom";
+
 // Interface implemented in the browser process to manage H5vccPlatformService
 // instances.
 interface H5vccPlatformServiceManager {
@@ -42,12 +44,13 @@ interface PlatformService {
   // TODO: b/371419798 - consider using mojo_base.mojom.BigBuffer for more
   // efficient transport, as the data and response data could be large.
   [Sync]
-  Send(array<uint8> data) => (array<uint8>? response_data);
+  Send(mojo_base.mojom.ReadOnlyBuffer data)
+      => (mojo_base.mojom.ReadOnlyBuffer? response_data);
 };
 
 // Interface implemented by the renderer-side H5vccPlatformService to receive
 // data pushed from the browser service.
 interface PlatformServiceObserver {
   // Called when data is received from the browser service.
-  OnDataReceived(array<uint8> data);
+  OnDataReceived(mojo_base.mojom.ReadOnlyBuffer data);
 };
