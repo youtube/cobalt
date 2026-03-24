@@ -75,7 +75,6 @@ void H5vccMetricsImpl::SetMetricEventInterval(
 }
 
 void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
-
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto* manager_client =
       cobalt::GlobalFeatures::GetInstance()->metrics_services_manager_client();
