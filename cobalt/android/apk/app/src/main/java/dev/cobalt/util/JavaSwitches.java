@@ -21,14 +21,4 @@ public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
   /** flag to enable SkiaFontCache */
   public static final String SKIA_FONT_CACHE = "SkiaFontCache";
-
-  public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
-    List<String> extraCommandLineArgs = new ArrayList<>();
-
-    if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
-      extraCommandLineArgs.add("--enable-features=SkiaFontCache");
-    }
-
-    return extraCommandLineArgs;
-  }
 }
