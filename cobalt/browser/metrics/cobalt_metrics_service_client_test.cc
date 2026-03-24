@@ -173,13 +173,8 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     // Add V8 dump
     auto v8_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
     v8_dump->numeric_entries["effective_size"] = 12 * 1024 * 1024;
+    v8_dump->numeric_entries["allocated_objects_size"] = 10 * 1024 * 1024;
     browser_dump->chrome_allocator_dumps["v8"] = std::move(v8_dump);
-
-    auto v8_allocated_dump =
-        memory_instrumentation::mojom::AllocatorMemDump::New();
-    v8_allocated_dump->numeric_entries["allocated_objects_size"] =
-        10 * 1024 * 1024;
-    browser_dump->chrome_allocator_dumps["v8"] = std::move(v8_allocated_dump);
 
     dump_ptr->process_dumps.push_back(std::move(browser_dump));
 
