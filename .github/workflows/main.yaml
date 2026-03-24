@@ -425,8 +425,8 @@ jobs:
         uses: ./.github/actions/e2e_tests
         with:
           e2e_test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
-          test_attempts: '${{ needs.initialize.outputs.e2e_test_attempts }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
@@ -544,7 +544,7 @@ jobs:
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
@@ -594,7 +594,7 @@ jobs:
         with:
           name: ci-essentials-${{ inputs.platform }}
       - name: Download Test Results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/

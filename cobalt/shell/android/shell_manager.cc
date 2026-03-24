@@ -64,12 +64,15 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 }
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
-                                  const JavaParamRef<jstring>& jurl) {
+                                  const JavaParamRef<jstring>& jurl,
+                                  const JavaParamRef<jstring>& jdeeplink_url) {
   ShellBrowserContext* browserContext =
       ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
+  std::string deeplink_url =
+      base::android::ConvertJavaStringToUTF8(env, jdeeplink_url);
   Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size(),
-                         switches::ShouldCreateSplashScreen());
+                         switches::ShouldCreateSplashScreen(), deeplink_url);
 }
 
 void DestroyShellManager() {

@@ -28,10 +28,6 @@ class MediaLog;
 class RendererFactory;
 }  // namespace media
 
-namespace mojo {
-class GenericPendingReceiver;
-}  // namespace mojo
-
 namespace cobalt {
 // This class utilizes embedder API for participating in renderer logic.
 // It allows Cobalt to customize content Renderer module.
@@ -56,11 +52,6 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   void GetStarboardRendererFactoryTraits(
       ::media::RendererFactoryTraits* traits) override;
   void PostSandboxInitialized() override;
-
-  // Bind Host Receiver to VideoGeometryChangeSubscriber on Browser thread.
-  // This is called from StarboardRenderer with |BindPostTaskToCurrentDefault|
-  // on media thread to post the task on Renderer thread.
-  void BindHostReceiver(mojo::GenericPendingReceiver receiver);
 
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 

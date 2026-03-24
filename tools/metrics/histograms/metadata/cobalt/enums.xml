@@ -32,6 +32,17 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
+<enum name="SplashScreenFetchedState">
+  <int value="0" label="Success: Content from builtin"/>
+  <int value="1" label="Success: Content from cache"/>
+  <int value="2"
+      label="Error: content from cache is empty, fallback to builtin."/>
+  <int value="3"
+      label="Error: Content from cache is too large, fallback to builtin."/>
+  <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
+  <int value="5" label="Error: Builtin resource not found."/>
+</enum>
+
 <enum name="VariationsConfigState">
   <int value="0" label="Config is valid"/>
   <int value="1" label="Config is expired"/>

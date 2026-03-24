@@ -10,8 +10,8 @@ inputs:
   artifact_name:
     description: "The name of the artifact to be used for E2E tests (e.g., Cobalt.apk)."
     default: "Cobalt.apk"
-  test_attempts:
-    description: "Number of attempts for the tests."
+  test_device_family:
+    description: "The test device family (e.g., raspi, rdk)."
     default: ""
 
 runs:
@@ -36,7 +36,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ matrix.platform }}_qa/${{ inputs.artifact_name }}
+        GCS_ARTIFACTS_PATH: ${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ matrix.platform }}_qa
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -52,7 +52,6 @@ runs:
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
         TEST_TYPE: e2e_test
         TEST_RETRY_LEVEL: FAIL
       run: |
@@ -80,6 +79,8 @@ runs:
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
           --label branch:${GITHUB_REF_NAME} \
           --dimensions '${{ inputs.test_dimensions }}' \
+          --artifact_name '${{ inputs.artifact_name }}' \
+          --device_family '${{ inputs.test_device_family }}' \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
