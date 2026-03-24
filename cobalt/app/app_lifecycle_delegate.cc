@@ -37,9 +37,9 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
-#include "starboard/event.h"
 #include "content/public/browser/network_service_instance.h"
 #include "net/base/network_change_notifier_passive.h"
+#include "starboard/event.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults.h"
