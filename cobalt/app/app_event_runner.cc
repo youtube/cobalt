@@ -135,13 +135,13 @@ class AppEventRunnerImpl : public AppEventRunner {
 
   void DoBlur() override {
     content::Shell::OnBlur();
-#if BUILDFLAG(IS_STARBOARD)
     {
       auto* client = cobalt::CobaltContentBrowserClient::Get();
       if (client) {
         client->FlushCookiesAndLocalStorage(base::DoNothing());
       }
     }
+#if BUILDFLAG(IS_STARBOARD)
     if (platform_event_source_) {
       platform_event_source_->DispatchFocusEvent(false);
     }
@@ -172,14 +172,12 @@ class AppEventRunnerImpl : public AppEventRunner {
 
   void DoFreeze() override {
     content::Shell::OnFreeze();
-#if BUILDFLAG(IS_STARBOARD)
     {
       auto* client = cobalt::CobaltContentBrowserClient::Get();
       if (client) {
         client->FlushCookiesAndLocalStorage(base::DoNothing());
       }
     }
-#endif
   }
 
   void DoUnfreeze() override { content::Shell::OnUnfreeze(); }
