@@ -104,16 +104,6 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    For every navigation in the primary main frame, this boolean is recorded to
-    indicate whether the navigation resulted in a network error. This is used to
-    track the navigation success rate. Aborted navigations are not included.
-  </summary>
-</histogram>
-
 </histograms>
 
 </histogram-configuration>
