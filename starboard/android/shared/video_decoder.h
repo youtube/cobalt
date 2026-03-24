@@ -141,7 +141,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
   void OnFirstTunnelFrameReady();
-  void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
   void OnVideoFrameRelease(int64_t pts_us, int64_t release_at_us);
@@ -198,7 +197,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   std::atomic_bool tunnel_mode_prerolling_{true};
-  std::atomic_bool tunnel_mode_frame_rendered_{false};
+  std::atomic_bool tunnel_mode_first_frame_rendered_{false};
+  std::atomic_int tunnel_mode_prerolled_frames_{0};
 
   // Since GetCurrentDecodeTarget() needs to be called from an arbitrary thread
   // to obtain the current decode target (which ultimately ends up being a
