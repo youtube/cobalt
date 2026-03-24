@@ -20,12 +20,15 @@
 #include "base/android/path_utils.h"  // Needed for GetCacheDirectory
 #endif                                // BUILDFLAG(IS_ANDROID)
 #include "base/check.h"
-#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/version.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "base/command_line.h"
+#include "cobalt/shell/common/shell_switches.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace {
 #if BUILDFLAG(IS_ANDROIDTV)
