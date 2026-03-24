@@ -305,6 +305,12 @@ static_library("starboard_platform_sources") {
     "window/window_internal.cc",
   ]
 
+  # TODO: b/495477543 - Fix speech synthesis for executable type loader_app cobalt launch.
+  if (starboard_level_final_executable_type == "executable") {
+    sources -= ["speech/speech_synthesis_is_supported.cc",]
+    sources += [ "speech/speech_synthesis_is_supported_executable.cc", ]
+  }
+
   if (starboard_target_platform == "rdk-rpi") {
     sources -= [
       "//starboard/shared/gles/system_gles2.cc",
