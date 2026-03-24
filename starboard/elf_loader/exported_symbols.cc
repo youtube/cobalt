@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <malloc.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <poll.h>
 #include <sched.h>
@@ -245,6 +246,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
+  REGISTER_SYMBOL(if_indextoname);
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(link);
