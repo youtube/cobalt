@@ -361,7 +361,7 @@ static_library("starboard_platform") {
     deps += [ "//starboard/crashpad_wrapper" ]
   }
 
-  if (sb_evergreen_compatible_use_libunwind) {
+  if (is_starboard_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
 }

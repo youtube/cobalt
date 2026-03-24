@@ -42,8 +42,8 @@ declare_args() {
   # Directory path to static contents' data.
   sb_static_contents_output_data_dir = "$root_out_dir/content/data"
 
-  # Whether to use the libunwind library on Evergreen compatible platform.
-  sb_evergreen_compatible_use_libunwind = false
+  # Whether to use the libunwind library on starboard platforms.
+  is_starboard_use_libunwind = false
 
   # The target type for test targets. Allows changing the target type
   # on platforms where the native code may require an additional packaging step
