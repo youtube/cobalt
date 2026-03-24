@@ -97,6 +97,19 @@ class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {
   TestBrowserAccessibilityState() = default;
 };
 
+class MojoInitializer {
+ public:
+  MojoInitializer() {
+    if (!aura::Env::HasInstance()) {
+      aura_env_ = aura::Env::CreateInstance();
+    }
+    mojo::core::Init();
+  }
+
+ private:
+  std::unique_ptr<aura::Env> aura_env_;
+};
+
 class ShellTestBase : public ::testing::Test {
  public:
   ShellTestBase()

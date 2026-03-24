@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "base/allocator/partition_allocator/memory_reclaimer.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/logging.h"
@@ -37,7 +37,7 @@
 #include "net/base/network_change_notifier_passive.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "cobalt/app/cobalt_switch_defaults_starboard.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #endif
@@ -66,12 +66,10 @@ class AppEventRunnerImpl : public AppEventRunner {
     exit_manager_ = std::make_unique<base::AtExitManager>();
   }
 
-  void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
-                          bool is_visible,
+  void CreateMainDelegate(bool is_visible,
                           const char* initial_deep_link) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-        startup_timestamp, false /* is_content_browsertests */, is_visible,
-        initial_deep_link);
+        false /* is_content_browsertests */, is_visible, initial_deep_link);
   }
 
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
@@ -90,10 +88,10 @@ class AppEventRunnerImpl : public AppEventRunner {
 #endif
 
     if (data) {
-      Run(event->timestamp, is_visible(), data->argument_count,
+      Run(is_visible(), data->argument_count,
           const_cast<const char**>(data->argument_values), data->link);
     } else {
-      Run(event->timestamp, is_visible(), 0, nullptr, nullptr);
+      Run(is_visible(), 0, nullptr, nullptr);
     }
 
 #if BUILDFLAG(USE_EVERGREEN)
@@ -257,12 +255,11 @@ class AppEventRunnerImpl : public AppEventRunner {
   }
 
  private:
-  int Run(absl::optional<int64_t> startup_timestamp,
-          bool is_visible,
+  int Run(bool is_visible,
           int argc,
           const char** argv,
           const char* initial_deep_link) {
-    CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
+    CreateMainDelegate(is_visible, initial_deep_link);
 
     content::ContentMainParams params(GetMainDelegate());
 
