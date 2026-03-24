@@ -89,6 +89,29 @@ bool GetContentDir(std::string* content) {
   return true;
 }
 
+<<<<<<< HEAD
+=======
+void InsertVersionAnnotationFromManifest(const std::string& content_dir) {
+  std::vector<char> manifest_path(kSbFileMaxPath);
+  snprintf(manifest_path.data(), kSbFileMaxPath, "%s%s%s", content_dir.c_str(),
+           kSbFileSepString, kSystemImageManifestPath);
+
+  std::vector<char> version(loader_app::kMaxEgVersionSize);
+  if (!loader_app::ReadEvergreenVersion(manifest_path, version.data(),
+                                        loader_app::kMaxEgVersionSize)) {
+    SB_LOG(WARNING)
+        << "Failed to read the Evergreen version for the system image, not "
+        << "adding to Crashpad";
+    return;
+  }
+
+  if (!crashpad::InsertCrashpadAnnotation(crashpad::kCrashpadVersionKey,
+                                          version.data())) {
+    SB_LOG(WARNING) << "Failed to add ver annotation to Crashpad";
+  }
+}
+
+>>>>>>> e8e3fd41c7 (cleanup: Improve naming of buffer capacities (#9647))
 void LoadLibraryAndInitialize(const std::string& alternative_content_path,
                               bool use_memory_mapped_file) {
   std::string content_dir;
