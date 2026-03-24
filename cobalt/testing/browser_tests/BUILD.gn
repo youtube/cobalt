@@ -183,7 +183,6 @@ copy("cobalt_browsertests_runner_script") {
   testonly = true
   sources = [ "run_browser_tests.py" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
-  deps = [ ":cobalt_browsertests" ]
 }
 
 if (is_ios) {
@@ -202,15 +201,6 @@ if (is_ios) {
     testonly = true
     data = cobalt_test_bundle_data_files
   }
-}
-
-group("cobalt_browsertests_runner") {
-  testonly = true
-  data_deps = [
-    ":cobalt_browsertests",
-    ":cobalt_browsertests_runner_script",
-  ]
-  write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
 }
 
 # Note: Testing on official builds is not currently supported.
@@ -440,6 +430,12 @@ test("cobalt_browsertests") {
       "//content/test:test_support",
       "//starboard:starboard_headers_only",
     ]
+    data_deps += [ ":cobalt_browsertests_runner_script" ]
+
+    # Modular build does not call generate_wrapper().
+    if (!use_custom_libc) {
+      custom_launcher = "$root_out_dir/cobalt_browsertests_runner"
+    }
   }
 
   if (is_posix) {
