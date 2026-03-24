@@ -52,6 +52,21 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
 <enum name="StorageInjectionResult">
   <int value="0" label="Success"/>
   <int value="1" label="Error"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
+<enum name="MigrationOutcome">
+  <int value="0" label="FastPath"/>
+  <int value="1" label="Skipped"/>
+  <int value="2" label="Success"/>
+  <int value="3" label="Failed"/>
+  <int value="4" label="Timeout"/>
+</enum>
+
+<enum name="SentinelWriteResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Empty Path"/>
+  <int value="2" label="Write Failed"/>
 </enum>
 
 <enum name="StorageReadResult">
@@ -63,6 +78,14 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="5" label="Read mismatch"/>
   <int value="6" label="Header mismatch"/>
   <int value="7" label="Parse error"/>
+</enum>
+
+<enum name="LocalStorageDatabaseResetReason">
+  <int value="0" label="Failure to open the database"/>
+  <int value="1" label="Schema version mismatch"/>
+  <int value="2" label="Database corruption or read errors"/>
+  <int value="3" label="Excessive commit errors"/>
+  <int value="4" label="Unknown"/>
 </enum>
 
 </enums>
