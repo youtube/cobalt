@@ -36,9 +36,8 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics(
 
   // Total CPU utilization in percentage of all cores in between every call.
   constexpr double kInvalidCPUUsageValue = 0.0;
-  const double cpu_usage =
-      process_metrics->GetPlatformIndependentCPUUsage().value_or(
-          kInvalidCPUUsageValue);
+  const double cpu_usage = std::max(
+      kInvalidCPUUsageValue, process_metrics->GetPlatformIndependentCPUUsage());
 
   const int num_processors = base::SysInfo::NumberOfProcessors();
   DCHECK_GT(num_processors, 0)

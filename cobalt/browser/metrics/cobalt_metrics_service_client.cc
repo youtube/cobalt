@@ -150,7 +150,7 @@ void CobaltMetricsServiceClient::Initialize() {
 }
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   memory_state_ = base::MakeRefCounted<MemoryPollingState>(this);
   memory_state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   memory_state_->task_runner->PostTask(
@@ -159,7 +159,7 @@ void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
 }
 
 void CobaltMetricsServiceClient::StartCpuMetricsLogger() {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   cpu_state_ = base::MakeRefCounted<CpuPollingState>(this);
   cpu_state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
   cpu_state_->task_runner->PostTask(
