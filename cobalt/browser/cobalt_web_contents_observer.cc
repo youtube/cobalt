@@ -40,7 +40,8 @@ void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response,
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
-    : content::WebContentsObserver(web_contents) {}
+    : content::WebContentsObserver(web_contents),
+      timeout_timer_(std::make_unique<base::OneShotTimer>()) {}
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 
