@@ -377,7 +377,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void DisconnectCacheAndSendFallback(const std::string& message,
                                       SplashScreenFetchedState state) {
-    LOG(ERROR) << message;
+    if (state == SplashScreenFetchedState::kOkBuiltIn) {
+      LOG(INFO) << message;
+    } else {
+      LOG(ERROR) << message;
+    }
     DisconnectCacheStorage();
     SendResponse(state);
   }
