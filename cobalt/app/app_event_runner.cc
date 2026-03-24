@@ -23,11 +23,13 @@
 #include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_delegate.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
@@ -134,6 +136,12 @@ class AppEventRunnerImpl : public AppEventRunner {
   void DoBlur() override {
     content::Shell::OnBlur();
 #if BUILDFLAG(IS_STARBOARD)
+    {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->FlushCookiesAndLocalStorage(base::DoNothing());
+      }
+    }
     if (platform_event_source_) {
       platform_event_source_->DispatchFocusEvent(false);
     }
@@ -162,7 +170,17 @@ class AppEventRunnerImpl : public AppEventRunner {
 
   void DoReveal() override { content::Shell::OnReveal(); }
 
-  void DoFreeze() override { content::Shell::OnFreeze(); }
+  void DoFreeze() override {
+    content::Shell::OnFreeze();
+#if BUILDFLAG(IS_STARBOARD)
+    {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->FlushCookiesAndLocalStorage(base::DoNothing());
+      }
+    }
+#endif
+  }
 
   void DoUnfreeze() override { content::Shell::OnUnfreeze(); }
 
