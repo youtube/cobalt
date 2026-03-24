@@ -33,7 +33,7 @@ runs:
         set -euxo pipefail
         mkdir -p unit_test/
         cd unit_test/
-        tar -I 'zstd -T0' -xvf ../artifacts/cobalt_browsertests_deps.tar.zstd
+        tar -I 'zstd -T0' -xf ../artifacts/cobalt_browsertests_deps.tar.zstd
 
         out_dir="${GITHUB_WORKSPACE}/unit_test/src/out/${PLATFORM}_${CONFIG}"
         LD_LIBRARY_PATH="${out_dir}/starboard"
