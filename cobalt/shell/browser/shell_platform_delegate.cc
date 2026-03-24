@@ -34,10 +34,12 @@ void ShellPlatformDelegate::OnBlur() {
     return;
   }
   for (auto* shell : Shell::windows()) {
-    auto* rwh =
-        shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
-    if (rwh) {
-      rwh->Blur();
+    if (shell->web_contents()) {
+      auto* rwh =
+          shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
+      if (rwh) {
+        rwh->Blur();
+      }
     }
   }
 }
@@ -47,10 +49,12 @@ void ShellPlatformDelegate::OnFocus() {
     return;
   }
   for (auto* shell : Shell::windows()) {
-    auto* rwh =
-        shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
-    if (rwh) {
-      shell->web_contents()->Focus();
+    if (shell->web_contents()) {
+      auto* rwh =
+          shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
+      if (rwh) {
+        shell->web_contents()->Focus();
+      }
     }
   }
 }

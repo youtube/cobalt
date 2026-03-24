@@ -132,7 +132,6 @@ source_set("common") {
       "app/app_event_runner.cc",
       "app/app_event_runner.h",
       "app/cobalt_switch_defaults_starboard.cc",
-      "app/cobalt_switch_defaults_starboard.h",
     ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "app/cobalt_switch_defaults_tvos.cc" ]

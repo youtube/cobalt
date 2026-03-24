@@ -15,6 +15,8 @@
 // This is a test app for Evergreen that only works when it loads the
 // evergreen-cert-test.html page.
 
+#include <init_musl.h>
+
 #include <array>
 #include <sstream>
 #include <string>
@@ -35,8 +37,6 @@
 #include "starboard/event.h"
 #include "starboard/loader_app/app_key.h"
 #include "starboard/system.h"
-
-#include <init_musl.h>
 
 namespace {
 
