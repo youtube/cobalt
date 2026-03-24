@@ -53,11 +53,6 @@ void CobaltCrashReporterClient::GetProductInfo(ProductInfo* product_info) {
 
 bool CobaltCrashReporterClient::GetCrashDumpLocation(
     base::FilePath* crash_dir) {
-  const auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kCrashDumpsDir)) {
-    *crash_dir = command_line->GetSwitchValuePath(switches::kCrashDumpsDir);
-    return true;
-  }
 #if BUILDFLAG(IS_ANDROID)
   base::FilePath cache_dir;
   if (!base::android::GetCacheDirectory(&cache_dir)) {
@@ -67,6 +62,12 @@ bool CobaltCrashReporterClient::GetCrashDumpLocation(
   *crash_dir = cache_dir.Append("crashpad");
   return true;
 #elif BUILDFLAG(IS_IOS_TVOS)
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kCrashDumpsDir)) {
+    *crash_dir = command_line->GetSwitchValuePath(switches::kCrashDumpsDir);
+    return true;
+  }
+
   base::FilePath cache_dir;
   if (!base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
     LOG(ERROR) << "Failed to get cache directory for Crashpad";
