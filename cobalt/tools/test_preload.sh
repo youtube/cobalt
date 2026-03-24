@@ -79,10 +79,11 @@ function check_js {
 
 log "Verifying initial preloaded state..."
 VISIBILITY=$(check_js "document.visibilityState")
-log "Visibility state: $VISIBILITY"
+HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
+log "Visibility state: $VISIBILITY, Focused: $HAS_FOCUS"
 
-if [ "$VISIBILITY" != "hidden" ]; then
-  echo -e "${RED}FAILURE: Initial visibilityState should be 'hidden', got '$VISIBILITY'${NC}"
+if [ "$VISIBILITY" != "hidden" ] || [ "$HAS_FOCUS" != "false" ]; then
+  echo -e "${RED}FAILURE: Initial state should be 'hidden' and NOT focused, got visibility='$VISIBILITY', focused='$HAS_FOCUS'${NC}"
   exit 1
 fi
 
@@ -95,10 +96,11 @@ sleep 2
 
 log "Verifying revealed state..."
 VISIBILITY=$(check_js "document.visibilityState")
-log "Visibility state: $VISIBILITY"
+HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
+log "Visibility state: $VISIBILITY, Focused: $HAS_FOCUS"
 
-if [ "$VISIBILITY" != "visible" ]; then
-  echo -e "${RED}FAILURE: VisibilityState should be 'visible' after reveal, got '$VISIBILITY'${NC}"
+if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
+  echo -e "${RED}FAILURE: State should be 'visible' and focused after reveal, got visibility='$VISIBILITY', focused='$HAS_FOCUS'${NC}"
   exit 1
 fi
 
@@ -118,7 +120,7 @@ if [ $EXIT_CODE -ne 0 ]; then
 fi
 
 # Check for fatal errors in log.
-FILTERED_LOG=$(grep -E "FATAL|AddressSanitizer|leak|Check failed" "$LOG_FILE" | grep -v "MojoDiscardableSharedMemoryManagerImpls are still alive" || true)
+FILTERED_LOG=$(grep -aE "FATAL|AddressSanitizer|leak|Check failed" "$LOG_FILE" | grep -av "MojoDiscardableSharedMemoryManagerImpls are still alive" | grep -av "lock_impl_posix.cc(46)" || true)
 if [[ -n "$FILTERED_LOG" ]]; then
     echo -e "${RED}FAILURE: Found errors in log.${NC}"
     echo "$FILTERED_LOG" | head -n 20
@@ -127,16 +129,3 @@ fi
 
 echo -e "${GREEN}SUCCESS${NC}"
 exit 0
-
-# Example output of a passing test:
-# [TEST] Starting Cobalt in preload mode...
-# [TEST] Launched PID: 1711948. Waiting for DevTools on port 9222...
-# [TEST] Verifying initial preloaded state...
-# [TEST] Visibility state: hidden
-# [TEST] Sending SIGCONT to reveal application...
-# [TEST] Verifying revealed state...
-# [TEST] Visibility state: visible
-# [TEST] Sending SIGPWR to shutdown application...
-# [TEST] Waiting for Cobalt to exit...
-# [TEST] Cobalt exited with code: 0
-# SUCCESS

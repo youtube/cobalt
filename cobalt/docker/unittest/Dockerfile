@@ -5,6 +5,7 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    git \
     jq \
     libasound2 \
     libatomic1 \

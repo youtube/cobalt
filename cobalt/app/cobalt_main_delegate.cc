@@ -14,6 +14,7 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include "base/base_switches.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
@@ -21,8 +22,10 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 #endif
+#include "cobalt/app/cobalt_crash_reporter_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "components/crash/core/app/crashpad.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -31,11 +34,9 @@
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 
-#if BUILDFLAG(IS_ANDROIDTV)
-#include "cobalt/app/cobalt_crash_reporter_client.h"
-#include "components/crash/core/app/crashpad.h"
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
-
 namespace cobalt {
 
 CobaltMainDelegate::CobaltMainDelegate(const char* initial_deep_link,
@@ -161,18 +162,32 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   return 0;
 }
 
-#if BUILDFLAG(IS_ANDROIDTV)
 void CobaltMainDelegate::PreSandboxStartup() {
-  std::string process_type =
-      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kProcessType);
-  CobaltCrashReporterClient::Create();
-  crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-  crash_reporter::SetUploadConsent(true);
-
-  content::ShellMainDelegate::PreSandboxStartup();
-}
+#if BUILDFLAG(IS_ANDROIDTV)
+  const bool initialize_crashpad = true;
+#else
+  const bool initialize_crashpad =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableCrashReporter);
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+  if (initialize_crashpad) {
+    const std::string process_type =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kProcessType);
+    CobaltCrashReporterClient::Create();
+    if (process_type != switches::kZygoteProcess) {
+      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+      crash_reporter::SetUploadConsent(true);
+#if BUILDFLAG(IS_LINUX)
+      crash_reporter::SetFirstChanceExceptionHandler(
+          v8::TryHandleWebAssemblyTrapPosix);
+#endif
+    }
+  }
+
+  ShellMainDelegate::PreSandboxStartup();
+}
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);

@@ -1,5 +1,3 @@
-import("//starboard/build/buildflags.gni")
-
 source_set("client_hint_headers") {
   sources = [
     "cobalt_header_value_provider.cc",

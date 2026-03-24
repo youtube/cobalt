@@ -49,6 +49,22 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Config is missing timestamp"/>
 </enum>
 
+<enum name="StorageInjectionResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Error"/>
+</enum>
+
+<enum name="StorageReadResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Partition key not default"/>
+  <int value="2" label="Record invalid"/>
+  <int value="3" label="Size too small"/>
+  <int value="4" label="Delete failed"/>
+  <int value="5" label="Read mismatch"/>
+  <int value="6" label="Header mismatch"/>
+  <int value="7" label="Parse error"/>
+</enum>
+
 </enums>
 
 </histogram-configuration>
