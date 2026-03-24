@@ -9,12 +9,14 @@
     "net:net_unittests": "b/453909269 - Fails remotely",
     "media:media_unittests": "b/453909269 - Fails remotely"
   },
+  "browsertest_targets": [
+    "cobalt/testing/browser_tests:cobalt_browsertests"
+  ],
   "test_targets": [
     "base:base_perftests",
     "base:base_unittests",
     "cc:cc_perftests",
     "cc:cc_unittests",
-    "cobalt/testing/browser_tests:cobalt_browsertests",
     "components/viz:viz_perftests",
     "components/viz:viz_unittests",
     "crypto:crypto_unittests",
