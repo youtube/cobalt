@@ -150,14 +150,6 @@ void CobaltMetricsServiceClient::Initialize() {
 }
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
-<<<<<<< HEAD
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  state_ = base::MakeRefCounted<State>(this);
-  state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
-  state_->task_runner->PostTask(
-      FROM_HERE, base::BindOnce(&State::RecordMemoryMetricsAfterDelay,
-                                base::RetainedRef(state_)));
-=======
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   memory_state_ = base::MakeRefCounted<MemoryPollingState>(this);
   memory_state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
@@ -173,7 +165,6 @@ void CobaltMetricsServiceClient::StartCpuMetricsLogger() {
   cpu_state_->task_runner->PostTask(
       FROM_HERE, base::BindOnce(&CpuPollingState::RecordMetricsAfterDelay,
                                 base::RetainedRef(cpu_state_)));
->>>>>>> 661b733d4d (cobalt/metrics: Add UMA recording CPU usage (#9358))
 }
 
 void CobaltMetricsServiceClient::StartIdleRefreshTimer() {
