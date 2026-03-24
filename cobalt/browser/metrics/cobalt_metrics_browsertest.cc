@@ -36,7 +36,7 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
     // Set a short interval for memory metrics to verify periodic recording.
-    command_line->AppendSwitchASCII(switches::kMemoryMetricsInterval, "1");
+    command_line->AppendSwitchASCII(switches::kMetricsInterval, "1");
   }
 };
 
