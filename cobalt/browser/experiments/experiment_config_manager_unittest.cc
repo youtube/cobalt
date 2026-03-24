@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -515,7 +518,6 @@ TEST_F(ExperimentConfigManagerTest,
   // Recorded version is one minor version ahead of the current version.
   std::string future_version = GetModifiedVersionString(0, 1);
   pref_service_->SetString(kExperimentConfigMinVersion, future_version);
-
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
 }

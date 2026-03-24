@@ -30,7 +30,7 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
-#include "cobalt/app/app_lifecycle_delegate.h"
+#include "cobalt/app/app_event_delegate.h"
 #include "cobalt/browser/switches.h"
 #include "starboard/event.h"
 #include "starboard/loader_app/app_key.h"
@@ -73,9 +73,9 @@ void SbEventHandle(const SbEvent* event) {
 
   // This object's lifetime extends beyond the function's lifetime, until the
   // function is called with kSbEventTypeStop at some time in the future.
-  static cobalt::AppLifecycleDelegate* s_lifecycle_delegate = nullptr;
+  static cobalt::AppEventDelegate* s_lifecycle_delegate = nullptr;
   if (!s_lifecycle_delegate) {
-    s_lifecycle_delegate = new cobalt::AppLifecycleDelegate();
+    s_lifecycle_delegate = new cobalt::AppEventDelegate();
   }
   s_lifecycle_delegate->HandleEvent(event);
   if (event->type == kSbEventTypeStop) {
