@@ -14,10 +14,20 @@
 
 #include "cobalt/app/app_lifecycle_delegate.h"
 
-#include "base/functional/bind.h"
+#include <memory>
+#include <utility>
+
+#include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+<<<<<<< HEAD
+=======
+#include "content/public/app/content_main.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/visibility.h"
+>>>>>>> 7fca7daf1b (IWYU clean up for cobalt/app (#9652))
 #include "content/test/test_web_contents.h"
+#include "starboard/event.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
