@@ -365,6 +365,8 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
         current_type = RegionType::kLibChrobalt;
       } else if (strstr(line, ".so") || strstr(line, ".apk") ||
                  strstr(line, ".dex")) {
+        // Catch-all for other executable code and read-only data mappings
+        // from system libraries, GPU drivers, and the Android package.
         current_type = RegionType::kCodeOther;
       } else if (strstr(line, "partition_alloc")) {
         current_type = RegionType::kPartitionAlloc;

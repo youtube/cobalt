@@ -77,6 +77,10 @@ To get a logically sound accounting of Cobalt's memory footprint, we categorize 
 ### Top-Level Pillars (Independent)
 - **`Memory.Experimental.Browser2.Malloc`**: The main system heap (includes most application data).
 - **`Memory.Browser.LibChrobaltRss`**: The physical footprint of the core `libchrobalt.so` binary.
+- **`Memory.Experimental.Browser2.CodeOther`**: Physical footprint of all other binaries, including:
+    - **System Libraries**: `libc.so`, `libart.so`, etc.
+    - **GPU Drivers**: Graphics-specific shared objects (e.g., `libGLES_mali.so`).
+    - **Application Artifacts**: The primary `.apk` and Dalvik `.dex` bytecode files.
 - **`Memory.Experimental.Browser2.PartitionAlloc`**: (Overridden in Cobalt) The actual RSS of PartitionAlloc's anonymous mappings.
 - **`Memory.GPU.PeakMemoryUsage2.PageLoad`**: GPU-specific buffers.
 
