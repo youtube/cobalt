@@ -90,6 +90,8 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
   os_dump->libchrobalt_pss_kb = internal_os_dump.libchrobalt_pss_kb;
   os_dump->libchrobalt_rss_kb = internal_os_dump.libchrobalt_rss_kb;
   os_dump->partition_alloc_rss_kb = internal_os_dump.partition_alloc_rss_kb;
+  os_dump->v8_rss_kb = internal_os_dump.v8_rss_kb;
+  os_dump->malloc_rss_kb = internal_os_dump.malloc_rss_kb;
 #endif
 #endif
   return os_dump;
