@@ -667,6 +667,11 @@ void MediaCodecVideoDecoder::Reset() {
       usleep(reset_delay_usec_);
     }
 
+    // Note that |input_buffer_written_| may not be strictly accurate after
+    // Flush() since it counts all buffers written since codec initialization.
+    // This is acceptable because it is used to estimate pre-roll frames, and
+    // retaining its accumulated value correctly signals that we are past the
+    // initial pre-roll phase after a Flush().
     input_buffer_written_ = 0;
     video_fps_ = 0;
   }
