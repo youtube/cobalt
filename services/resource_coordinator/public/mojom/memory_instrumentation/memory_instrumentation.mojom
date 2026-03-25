@@ -170,6 +170,7 @@ struct RawOSMemDump {
   // is mapped and resident in memory.
   array<uint8> native_library_pages_bitmap;
 
+<<<<<<< HEAD
   // How many memory mappings exist in the process. 0 is an invalid value, ie
   // that collection failed.
   [EnableIf=is_android|is_chromeos|is_linux]
@@ -183,6 +184,8 @@ struct RawOSMemDump {
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
 
+=======
+>>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
   // PSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_pss_kb = 0;
@@ -194,6 +197,7 @@ struct RawOSMemDump {
   // RSS for partition_alloc anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 partition_alloc_rss_kb = 0;
+<<<<<<< HEAD
 
   // RSS for V8 anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
@@ -230,6 +234,8 @@ struct RawOSMemDump {
 
   // Timestamp of the last successful detailed memory dump.
   mojo_base.mojom.TimeTicks last_detailed_dump_time;
+=======
+>>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
 };
 
 // These structs are public:
@@ -260,6 +266,7 @@ struct OSMemDump {
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 private_footprint_swap_kb = 0;
 
+<<<<<<< HEAD
   // How many memory mappings exist in the process. 0 is an invalid value
   // (collection failed)
   //
@@ -278,6 +285,8 @@ struct OSMemDump {
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
 
+=======
+>>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
   // PSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_pss_kb = 0;
@@ -289,6 +298,7 @@ struct OSMemDump {
   // RSS for partition_alloc anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 partition_alloc_rss_kb = 0;
+<<<<<<< HEAD
 
   // RSS for V8 anonymous mappings.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
@@ -325,6 +335,8 @@ struct OSMemDump {
 
   // Timestamp of the last successful detailed memory dump.
   mojo_base.mojom.TimeTicks last_detailed_dump_time;
+=======
+>>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
 };
 
 // This struct contains information about a particular allocator dump
