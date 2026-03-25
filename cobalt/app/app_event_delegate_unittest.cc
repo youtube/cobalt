@@ -31,9 +31,7 @@ class MockAppEventRunner : public AppEventRunner {
   MOCK_METHOD(void, InitializeSystem, (), (override));
   MOCK_METHOD(void,
               CreateMainDelegate,
-              (absl::optional<int64_t> startup_timestamp,
-               bool is_visible,
-               const char* initial_deep_link),
+              (bool is_visible, const char* initial_deep_link),
               (override));
   MOCK_METHOD(cobalt::CobaltMainDelegate*, GetMainDelegate, (), (override));
   MOCK_METHOD(void, OnInput, (const SbEvent* event), (override));
