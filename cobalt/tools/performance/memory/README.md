@@ -35,6 +35,21 @@ This script provides a Cumulative Distribution Function (CDF) style analysis acr
 python3 analyze_cumulative_memory.py
 ```
 
+### 3. `compare_accuracy.py`
+This tool provides a bridge between UMA histograms and low-level OS `smaps` snapshots. It synchronizes both data sources by timestamp and calculates the "Ground Truth" accuracy of Cobalt's reported metrics.
+
+**Key Features:**
+- **Automated Pipeline:** Runs the `smaps` processing pipeline on a directory of raw logs.
+- **Timestamp Alignment:** Automatically matches UMA reports with the nearest `smaps` snapshot within a 30-second window.
+- **Snapshot Deltas:** Calculates instantaneous metric values by taking the delta between consecutive UMA reports.
+- **Accuracy Report:** Generates a detailed table showing UMA values, Smaps values, absolute delta (MB), and percentage error for each category.
+
+**Usage:**
+```bash
+# Compare UMA accuracy against a directory of raw smaps logs
+python3 compare_accuracy.py --uma_log uma_histos.txt --smaps_dir cobalt_smaps_logs --platform android
+```
+
 ## Metrics Breakdown
 
 To get a logically sound accounting of Cobalt's memory footprint, we categorize metrics into "Top-Level Pillars" and "Sub-Allocators":
