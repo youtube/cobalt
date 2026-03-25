@@ -184,6 +184,13 @@ use_epoll = is_linux || is_chromeos || is_android
 # base compilation units to be linked in where they wouldn't have otherwise.
 # This does not include test code (test support and anything in the test
 # directory) which should use source_set as is recommended for GN targets).
+
+# Builds using the starboard toolchain must use //copied_base/base instead.
+if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) {
+  group("base") {
+    visibility = [ "//base/*" ]
+  }
+} else {
 component("base") {
   sources = [
     "allocator/allocator_check.cc",
@@ -2643,6 +2650,7 @@ component("base") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+}
 }
 
 rust_bindgen("logging_log_severity_bindgen") {
