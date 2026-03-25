@@ -179,6 +179,14 @@ struct RawOSMemDump {
   // Swap PSS for the process. 0 indicates that collection failed.
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
+
+  // PSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_pss_kb = 0;
+
+  // RSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_rss_kb = 0;
 };
 
 // These structs are public:
@@ -224,6 +232,14 @@ struct OSMemDump {
   // Swap PSS for the process. 0 is recorded when collection fails.
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
+
+  // PSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_pss_kb = 0;
+
+  // RSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_rss_kb = 0;
 };
 
 // This struct contains information about a particular allocator dump
