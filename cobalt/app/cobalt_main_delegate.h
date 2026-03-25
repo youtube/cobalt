@@ -15,7 +15,10 @@
 #ifndef COBALT_APP_COBALT_MAIN_DELEGATE_H_
 #define COBALT_APP_COBALT_MAIN_DELEGATE_H_
 
+#include <memory>
 #include <optional>
+#include <string>
+#include <variant>
 
 #include "build/build_config.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -25,6 +28,13 @@
 #include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
 #include "content/public/browser/browser_main_runner.h"
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/gpu/content_gpu_client.h"
+#include "content/public/renderer/content_renderer_client.h"
+
+namespace content {
+class ContentUtilityClient;
+}  // namespace content
 
 namespace cobalt {
 

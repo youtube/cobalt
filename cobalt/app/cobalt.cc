@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "build/buildflag.h"
 #include "cobalt/app/app_lifecycle_delegate.h"
 #include "starboard/event.h"
 
