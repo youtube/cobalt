@@ -32,6 +32,7 @@
 #if COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
 #include "cobalt/media/base/format_support_query_metrics.h"
 #endif  // COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS
+#include "media/base/media_switches.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/common/once.h"
@@ -39,6 +40,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/experimental_features.h"
+#include "starboard/extension/player_get_render_status.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -144,6 +146,22 @@ void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
   CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
 
   player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error, message);
+}
+
+void SbPlayerBridge::CallbackHelper::OnRenderStatus(void* player,
+                                                    bool is_audio_playing,
+                                                    bool has_video_renderer,
+                                                    int number_of_frames,
+                                                    bool is_video_eos_received,
+                                                    bool has_enough_video_data,
+                                                    bool has_audio_renderer,
+                                                    bool is_audio_underflow) {
+  if (player_bridge_) {
+    player_bridge_->OnRenderStatus(
+        static_cast<SbPlayer>(player), is_audio_playing, has_video_renderer,
+        number_of_frames, is_video_eos_received, has_enough_video_data,
+        has_audio_renderer, is_audio_underflow);
+  }
 }
 
 void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
@@ -857,6 +875,22 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetVideoSurfaceViewForCurrentThread(surface_view_);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltPausePlaybackWhenUnderflow)) {
+    LOG(INFO) << "Enable Pausing Playback When Underflow.";
+    const StarboardExtensionPlayerGetRenderStatusApi*
+        player_get_render_status_extension =
+            static_cast<const StarboardExtensionPlayerGetRenderStatusApi*>(
+                SbSystemGetExtension(
+                    kStarboardExtensionPlayerGetRenderStatusName));
+    if (player_get_render_status_extension &&
+        strcmp(player_get_render_status_extension->name,
+               kStarboardExtensionPlayerGetRenderStatusName) == 0 &&
+        player_get_render_status_extension->version >= 1) {
+      player_get_render_status_extension->SetRenderStatusCBForCurrentThread(
+          &SbPlayerBridge::RenderStatusCB);
+    }
+  }
+
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
@@ -1245,6 +1279,24 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 }
 
+void SbPlayerBridge::OnRenderStatus(SbPlayer player,
+                                    bool is_audio_playing,
+                                    bool has_video_renderer,
+                                    int number_of_frames,
+                                    bool is_video_eos_received,
+                                    bool has_enough_video_data,
+                                    bool has_audio_renderer,
+                                    bool is_audio_underflow) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (player_ != player) {
+    return;
+  }
+  host_->OnRenderStatus(is_audio_playing, has_video_renderer, number_of_frames,
+                        is_video_eos_received, has_enough_video_data,
+                        has_audio_renderer, is_audio_underflow);
+}
+
 bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
     const std::string& message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -1313,6 +1365,26 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
                      helper->callback_helper_, sample_buffer));
+}
+
+// static
+void SbPlayerBridge::RenderStatusCB(SbPlayer player,
+                                    void* context,
+                                    bool is_audio_playing,
+                                    bool has_video_renderer,
+                                    int number_of_frames,
+                                    bool is_video_eos_received,
+                                    bool has_enough_video_data,
+                                    bool has_audio_renderer,
+                                    bool is_audio_underflow) {
+  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  helper->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnRenderStatus,
+                     helper->callback_helper_, static_cast<void*>(player),
+                     is_audio_playing, has_video_renderer, number_of_frames,
+                     is_video_eos_received, has_enough_video_data,
+                     has_audio_renderer, is_audio_underflow));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
