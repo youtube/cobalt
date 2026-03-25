@@ -66,7 +66,7 @@ def main():
       sha, title, num = match.groups()
       if any(
           skip_sha.startswith(sha)
-          for skip_sha in _SKIP_LIST[args.target_branch]):
+          for skip_sha in _SKIP_LIST.get(args.target_branch, [])):
         continue
 
       # Skip if the PR is already in the target branch.
