@@ -31,6 +31,11 @@ UMA_MAP = {
     'Memory.Experimental.Browser2.PartitionAlloc': ('partition_alloc', True),
     'Memory.Experimental.Browser2.Malloc': ('malloc', True),
     'Memory.Experimental.Browser2.V8': ('v8', True),
+    'Memory.Experimental.Browser2.CodeOther': ('code_other', True),
+    'Memory.Experimental.Browser2.Fonts': ('fonts', True),
+    'Memory.Experimental.Browser2.AshmemJit': ('ashmem_jit', True),
+    'Memory.Experimental.Browser2.AndroidRuntime': ('android_runtime', True),
+    'Memory.Experimental.Browser2.Stacks': ('stacks', True),
     'Memory.Browser.PartitionAllocRss': ('partition_alloc', False),
     'Memory.Browser.MallocRss': ('malloc', False),
     'Memory.Browser.LibChrobaltRss': ('libchrobalt', False),
@@ -102,7 +107,12 @@ def aggregate_smaps(snapshot):
       'partition_alloc': 0,
       'v8': 0,
       'malloc': 0,
-      'libchrobalt': 0
+      'libchrobalt': 0,
+      'code_other': 0,
+      'fonts': 0,
+      'ashmem_jit': 0,
+      'android_runtime': 0,
+      'stacks': 0
   }
 
   for region in snapshot['regions']:
@@ -110,15 +120,28 @@ def aggregate_smaps(snapshot):
     rss = region['rss']
     if 'libchrobalt.so' in name:
       res['libchrobalt'] += rss
+    elif '.so' in name or '.apk' in name or '.dex' in name:
+      res['code_other'] += rss
     elif 'partition_alloc' in name:
       res['partition_alloc'] += rss
     elif 'v8' in name:
       res['v8'] += rss
     elif 'scudo' in name or '[heap]' in name:
       res['malloc'] += rss
+    elif '.ttf' in name or '.ttc' in name or 'fonts/' in name:
+      res['fonts'] += rss
+    elif '/dev/ashmem/' in name or 'memfd:jit' in name:
+      res['ashmem_jit'] += rss
+    elif '.art' in name or '.oat' in name or 'dalvik-' in name:
+      res['android_runtime'] += rss
+    elif 'stack_and_tls' in name or '[stack]' in name:
+      res['stacks'] += rss
 
   # Convert categories to MiB
-  for k in ['partition_alloc', 'v8', 'malloc', 'libchrobalt']:
+  for k in [
+      'partition_alloc', 'v8', 'malloc', 'libchrobalt', 'code_other', 'fonts',
+      'ashmem_jit', 'android_runtime', 'stacks'
+  ]:
     res[k] /= 1024.0
 
   return res

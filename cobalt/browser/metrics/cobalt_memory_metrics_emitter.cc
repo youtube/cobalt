@@ -299,6 +299,8 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   uint64_t private_footprint_total_kb = 0;
   uint64_t shared_footprint_total_kb = 0;
   uint64_t resident_set_total_kb = 0;
+  uint64_t private_footprint_swap_total_kb = 0;
+  uint64_t vm_size_total_kb = 0;
 
   for (const auto& pmd : global_dump_->process_dumps()) {
     HistogramProcessType ptype;
@@ -323,6 +325,8 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_total_kb += pmd.os_dump().private_footprint_kb;
     shared_footprint_total_kb += pmd.os_dump().shared_footprint_kb;
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
+    private_footprint_swap_total_kb += pmd.os_dump().private_footprint_swap_kb;
+    vm_size_total_kb += pmd.os_dump().vm_size_kb;
 
     // Manually calculate fragmentation for individual processes as it may not
     // be present in the dump.
@@ -405,6 +409,23 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
         std::string(kMemoryHistogramPrefix) + process_name + ".MallocRss",
         static_cast<int>(pmd.os_dump().malloc_rss_kb / kKiB));
 
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".CodeOtherRss",
+        static_cast<int>(pmd.os_dump().code_other_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".FontsRss",
+        static_cast<int>(pmd.os_dump().fonts_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".AshmemJitRss",
+        static_cast<int>(pmd.os_dump().ashmem_jit_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name +
+            ".AndroidRuntimeRss",
+        static_cast<int>(pmd.os_dump().android_runtime_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".StacksRss",
+        static_cast<int>(pmd.os_dump().stacks_rss_kb / kKiB));
+
     // Override the Experimental PartitionAlloc histogram with the more accurate
     // RSS value from smaps.
     std::string pa_uma_name =
@@ -426,6 +447,28 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
         {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "Malloc"});
     base::UmaHistogramMemoryLargeMB(
         malloc_uma_name, static_cast<int>(pmd.os_dump().malloc_rss_kb / kKiB));
+
+    // Emit new categories to Experimental names for a clean CDF breakdown.
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "CodeOther"}),
+        static_cast<int>(pmd.os_dump().code_other_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "Fonts"}),
+        static_cast<int>(pmd.os_dump().fonts_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "AshmemJit"}),
+        static_cast<int>(pmd.os_dump().ashmem_jit_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "AndroidRuntime"}),
+        static_cast<int>(pmd.os_dump().android_runtime_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "Stacks"}),
+        static_cast<int>(pmd.os_dump().stacks_rss_kb / kKiB));
 #endif
   }
 
@@ -438,6 +481,13 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   base::UmaHistogramMemoryLargeMB(
       "Memory.Total.SharedMemoryFootprint",
       static_cast<int>(shared_footprint_total_kb / kKiB));
+
+  // VM specific metrics
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Total.PrivateFootprintSwap",
+      static_cast<int>(private_footprint_swap_total_kb / kKiB));
+  base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
+                                  static_cast<int>(vm_size_total_kb / kKiB));
 
   global_dump_ = nullptr;
 
