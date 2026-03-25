@@ -101,6 +101,7 @@ class PlayerWorker {
     virtual void SetVolume(double volume) = 0;
 
     virtual HandlerResult SetBounds(const Bounds& bounds) = 0;
+    virtual bool IsChangingCodec() const = 0;
 
     // Once this function returns, all processing on the Handler and related
     // objects has to be stopped.  The JobQueue will be destroyed immediately

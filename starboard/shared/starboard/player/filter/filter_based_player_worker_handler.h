@@ -119,6 +119,21 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   media::VideoStreamInfo video_stream_info_;
+
+  // Called when both audio and video renderers have ended, to complete the
+  // codec change process.
+  void CompleteCodecChange();
+
+  // True when a codec change is in progress.
+  bool is_changing_codec_ = false;
+  // The target video codec for the current codec change.
+  SbMediaVideoCodec pending_video_codec_ = kSbMediaVideoCodecNone;
+  // The media time to seek to after the codec change is complete.
+  int64_t media_time_during_codec_change_ = 0;
+  // A queue for holding video samples that arrive during a codec change.
+  InputBuffers pending_video_buffers_;
+
+  bool IsChangingCodec() const override;
 };
 
 }  // namespace starboard::shared::starboard::player::filter

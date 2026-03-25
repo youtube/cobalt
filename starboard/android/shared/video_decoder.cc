@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "starboard/android/shared/video_decoder.h"
+
+#include "starboard/android/shared/video_window.h"
 #include "starboard/common/check_op.h"
 
 #include <android/api-level.h>

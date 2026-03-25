@@ -301,8 +301,11 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     SB_DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
     SB_DCHECK(pending_video_buffers_.empty());
 
-    if (input_buffers.front()->video_stream_info().codec != video_codec_) {
+    if (input_buffers.front()->video_stream_info().codec != video_codec_ &&
+        !handler_->IsChangingCodec()) {
       // Perform codec switch
+
+      video_codec_ = input_buffers.front()->video_stream_info().codec;
 
       HandlerResult result = handler_->ChangeVideoCodec(
           input_buffers.front()->video_stream_info().codec);
