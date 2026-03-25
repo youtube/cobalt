@@ -21,6 +21,7 @@ import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -165,7 +166,7 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           mDialog.dismiss();
-          reloadWebContents(cobaltActivity);
+          loadUrlWithRetryParam(cobaltActivity);
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
@@ -191,14 +192,26 @@ public class PlatformError
     void sendResponse(@PlatformError.Response int response, long data);
   }
 
-  /** Reloads the web contents if available */
-  private void reloadWebContents(CobaltActivity cobaltActivity) {
+  /** Reloads the URL and adds a retry param */
+  private void loadUrlWithRetryParam(CobaltActivity cobaltActivity) {
     if (cobaltActivity != null) {
       WebContents webContents = cobaltActivity.getActiveWebContents();
       if (webContents != null) {
-        webContents.getNavigationController().reload(true);
+        String currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+
+        String newUrl = currentUrl;
+        if (!currentUrl.isEmpty()) {
+          Uri parsedUri = Uri.parse(currentUrl);
+          if (parsedUri.getQueryParameter("netdialog_retry") == null) {
+            Uri.Builder uriBuilder = parsedUri.buildUpon();
+            uriBuilder.appendQueryParameter("netdialog_retry", "1");
+            newUrl = uriBuilder.build().toString();
+          }
+        }
+
+        cobaltActivity.getActiveShell().loadUrl(newUrl);
       } else {
-        Log.e(TAG, "WebContents is null and not available to reload the application.");
+        Log.e(TAG, "WebContents is null and not available to reload the URL.");
       }
     }
   }
