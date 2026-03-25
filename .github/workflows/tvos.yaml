@@ -10,11 +10,16 @@ on:
         type: boolean
         default: false
   pull_request:
+    types: [opened, reopened, synchronize, labeled, ready_for_review]
     branches:
       - main
+      - experimental/*
+      - feature/*
   push:
     branches:
       - main
+      - experimental/*
+      - feature/*
 
 jobs:
   # This is default Chromium build config
