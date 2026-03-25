@@ -29,6 +29,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/perf/perf_test.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -50,6 +51,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     if (shell()) {
       EXPECT_TRUE(NavigateToURL(shell(), GURL("about:blank")));
     }
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
     ContentBrowserTest::TearDownOnMainThread();
   }
 
@@ -134,8 +136,10 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
                               is_4k_supported ? "true" : "false");
   }
 
+ protected:
+  std::unique_ptr<GeneratedResourceMap> test_resource_map_;
+
  private:
-  std::unique_ptr<GeneratedResourceMap> test_resource_map;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -171,12 +175,12 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
 
     // Use a plain html to simplify the test. This verifies the cache,
     // hence bypass the MediaSource in the splash.html.
-    auto test_resource_map = std::make_unique<GeneratedResourceMap>();
-    LoaderEmbeddedResources::GenerateMap(*test_resource_map);
-    (*test_resource_map)["splash.html"] = safe_contents_;
-    (*test_resource_map)["splash.webm"] = builtin_contents_;
+    test_resource_map_ = std::make_unique<GeneratedResourceMap>();
+    LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
+    (*test_resource_map_)["splash.html"] = safe_contents_;
+    (*test_resource_map_)["splash.webm"] = builtin_contents_;
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
-        test_resource_map.get());
+        test_resource_map_.get());
 
     // 1. Populate the cache.
     // We navigate to the "splash domain" (test server) to access its cache.
@@ -227,12 +231,14 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     std::string fetch_script = base::StringPrintf(R"(
       (async () => {
         try {
+          const t0 = performance.now();
           const response = await fetch('%s');
           if (!response.ok) {
             return 'Fetch failed: ' + response.status;
           }
           const text = await response.text();
-          return text;
+          const t1 = performance.now();
+          return text + '|' + (t1 - t0);
         } catch (e) {
           return 'Exception: ' + e.toString();
         }
@@ -241,7 +247,24 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
                                                   fetch_url.c_str());
 
     std::string result = EvalJs(shell(), fetch_script).ExtractString();
-    EXPECT_EQ(expected_content, result);
+
+    size_t separator_pos = result.rfind('|');
+    // CHECK this separator_pos.
+    CHECK(separator_pos != std::string::npos)
+        << "Failed to get cache read time from result: " << result;
+    std::string fetched_text = result.substr(0, separator_pos);
+    double time_ms;
+    if (base::StringToDouble(result.substr(separator_pos + 1), &time_ms)) {
+      EXPECT_EQ(expected_content, fetched_text);
+      testing::Test::RecordProperty("CacheReadTime_ms",
+                                    base::NumberToString(time_ms));
+      testing::Test::RecordProperty("CacheReadTime_Trace", cache_name);
+      // Keep printing to stdout for legacy perf parsers as well
+      perf_test::PrintResult("CacheReadTime", "", cache_name, time_ms, "ms",
+                             true);
+    } else {
+      ADD_FAILURE() << "Failed to parse time from result: " << result;
+    }
 
     histogram_tester.ExpectUniqueSample("Cobalt.SplashScreen.FetchedFromCache",
                                         expected_uma_state, 1);
