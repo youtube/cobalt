@@ -44,6 +44,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.shell.ShellManagerJni;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
@@ -85,7 +86,7 @@ public abstract class CobaltActivity extends Activity {
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   // How many seconds before the app exits if it fails to land YouTube home page.
-  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 60;
+  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
 
   // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
   // logic will be activated for a given session.
@@ -294,6 +295,7 @@ public abstract class CobaltActivity extends Activity {
             getStarboardBridge().setWebContents(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
+            mStartupUrl = ShellManagerJni.get().appendMigrationStatus(mStartupUrl);
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 

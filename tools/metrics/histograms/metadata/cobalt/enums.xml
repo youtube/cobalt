@@ -52,6 +52,21 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
 <enum name="StorageInjectionResult">
   <int value="0" label="Success"/>
   <int value="1" label="Error"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
+<enum name="MigrationOutcome">
+  <int value="0" label="FastPath"/>
+  <int value="1" label="Skipped"/>
+  <int value="2" label="Success"/>
+  <int value="3" label="Failed"/>
+  <int value="4" label="Timeout"/>
+</enum>
+
+<enum name="SentinelWriteResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Empty Path"/>
+  <int value="2" label="Write Failed"/>
 </enum>
 
 <enum name="StorageReadResult">

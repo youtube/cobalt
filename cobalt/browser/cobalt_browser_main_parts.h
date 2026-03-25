@@ -17,6 +17,9 @@
 
 #include <memory>
 
+#include "base/sequence_checker_impl.h"
+#include "base/thread_annotations.h"
+
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
@@ -74,6 +77,20 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Configures Async DNS and DoH using the Network Service.
   void ConfigureAsyncDnsAndDoH();
+
+  // C25 Storage Migration
+  void StartStorageMigration();
+  void OnMigrationComplete();
+  void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override;
+
+ protected:
+  void InitializeMessageLoopContext() override;
+
+ private:
+  base::SequenceCheckerImpl sequence_checker_;
+
+  bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
+  base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
 };
 
 }  // namespace cobalt

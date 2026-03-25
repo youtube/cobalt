@@ -207,5 +207,11 @@ public class ShellManager {
          * @param deepLinkUrl The topic URL from the DeepLink URL.
          */
         void launchShell(String url, String deepLinkUrl);
+        /**
+         * Appends the migration status parameter to the given URL.
+         * @param url The URL to append the migration status to.
+         * @return The updated URL.
+         */
+        String appendMigrationStatus(String url);
     }
 }

@@ -159,6 +159,18 @@ struct RawOSMemDump {
   // Each bit corresponds to a page. The bit is set if the page
   // is mapped and resident in memory.
   array<uint8> native_library_pages_bitmap;
+
+  // PSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_pss_kb = 0;
+
+  // RSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_rss_kb = 0;
+
+  // RSS for partition_alloc anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 partition_alloc_rss_kb = 0;
 };
 
 // These structs are public:
@@ -189,6 +201,18 @@ struct OSMemDump {
   // only.
   [EnableIf=private_swap_info]
   uint32 private_footprint_swap_kb = 0;
+
+  // PSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_pss_kb = 0;
+
+  // RSS for libchrobalt.so specifically.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 libchrobalt_rss_kb = 0;
+
+  // RSS for partition_alloc anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 partition_alloc_rss_kb = 0;
 };
 
 // This struct contains information about a particular allocator dump

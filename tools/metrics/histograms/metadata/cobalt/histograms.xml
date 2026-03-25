@@ -113,6 +113,25 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.StorageMigration.FastPathDuration" units="ms"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the total time taken to check for the migration fast path during
+    startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.Outcome" enum="MigrationOutcome"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the final outcome of the storage migration process. Tracks whether
+    the migration took the fast path, skipped due to no data, fully succeeded,
+    or failed during read/injection.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.StorageMigration.Duration" units="ms"
     expires_after="never">
   <owner>haozheng@google.com</owner>
@@ -151,6 +170,14 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records the outcome of attempting to read and parse the legacy Starboard
     storage record during migration.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StorageMigration.SentinelWriteResult"
+    enum="SentinelWriteResult" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the result of writing the migration sentinel file to disk.
   </summary>
 </histogram>
 
@@ -238,6 +265,15 @@ Always run the pretty print utility on this file after editing:
     For every navigation in the primary main frame, this boolean is recorded to
     indicate whether the navigation resulted in a network error. This is used to
     track the navigation success rate. Aborted navigations are not included.
+  </summary>
+</histogram>
+
+<histogram name="CPU.Total.UsageInPercentage" units="%" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    The Percentage of total CPU resources utilized for Cobalt over an interval.
+    100% indicates all available cores are fully utilized. This metric is
+    recorded periodically (default 5 minutes for Android).
   </summary>
 </histogram>
 

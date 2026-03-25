@@ -38,8 +38,8 @@ constexpr char kEnforceHTTPS[] = "https-enforcement";
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";
 
-// Sets the interval for memory metrics collection in seconds.
-constexpr char kMemoryMetricsInterval[] = "memory-metrics-interval";
+// Sets the interval for memory and CPU metrics collection in seconds.
+constexpr char kMetricsInterval[] = "metrics-interval";
 
 // If this switch is present, the storage migration will be disabled.
 constexpr char kDisableStorageMigration[] = "disable-storage-migration";
