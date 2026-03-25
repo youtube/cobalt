@@ -166,6 +166,7 @@ void AudioManagerAndroid::GetAudioOutputDeviceNames(
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
+  LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters";
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   // Use mono as preferred number of input channels on Android to save
@@ -306,6 +307,7 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream";
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());

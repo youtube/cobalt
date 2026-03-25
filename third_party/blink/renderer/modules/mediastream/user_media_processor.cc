@@ -1748,6 +1748,7 @@ void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
     int32_t request_id,
     MediaStreamDescriptorVector* components,
     UserMediaRequest* user_media_request) {
+  LOG(INFO) << "KJ: DelayedGetUserMediaRequestSucceeded";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SendLogMessage(base::StringPrintf(
       "DelayedGetUserMediaRequestSucceeded({request_id=%d}, {result=%s})",

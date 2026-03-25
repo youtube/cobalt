@@ -76,6 +76,7 @@ AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
 }
 
 void OpenSLESInputStream::Start(AudioInputCallback* callback) {
+  LOG(INFO) << "KJ: OpenSLESInputStream::Start";
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(callback);
@@ -119,6 +120,7 @@ void OpenSLESInputStream::Start(AudioInputCallback* callback) {
 }
 
 void OpenSLESInputStream::Stop() {
+  LOG(INFO) << "KJ: OpenSLESInputStream::Stop";
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!started_)

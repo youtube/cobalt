@@ -328,6 +328,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    Log.i(TAG, "KJ: onKeyDown keyCode=" + keyCode);
     if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER && event.getRepeatCount() > 0)  {
       // It's a repeat, consume it and do not propagate. We found this was
       // flooding our main thread with key events during soft mic usage.
@@ -344,6 +345,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
+    Log.i(TAG, "KJ: onKeyUp keyCode=" + keyCode);
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyUp(keyCode, event);
     }
