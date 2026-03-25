@@ -180,7 +180,9 @@ struct RawOSMemDump {
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 malloc_rss_kb = 0;
 
-  // RSS for other code binaries (.so, .apk, .dex).
+  // RSS for other code binaries (.so, .apk, .dex). This includes system
+  // libraries, GPU drivers, and the Android application package, but
+  // excludes the main libchrobalt.so.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 code_other_rss_kb = 0;
 
@@ -250,7 +252,9 @@ struct OSMemDump {
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 malloc_rss_kb = 0;
 
-  // RSS for other code binaries (.so, .apk, .dex).
+  // RSS for other code binaries (.so, .apk, .dex). This includes system
+  // libraries, GPU drivers, and the Android application package, but
+  // excludes the main libchrobalt.so.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 code_other_rss_kb = 0;
 
