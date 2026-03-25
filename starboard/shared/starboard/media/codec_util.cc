@@ -22,6 +22,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/shared/starboard/media/iamf_util.h"
 
 namespace starboard {
 
@@ -100,7 +101,7 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
   if (is_wav && strcmp(codec, "1") == 0) {
     return kSbMediaAudioCodecPcm;
   }
-  if (strcmp(codec, "iamf") == 0 || strncmp(codec, "iamf.", 5) == 0) {
+  if (strcmp(codec, "iamf") == 0 || IamfMimeUtil(codec).is_valid()) {
     return kSbMediaAudioCodecIamf;
   }
   return kSbMediaAudioCodecNone;

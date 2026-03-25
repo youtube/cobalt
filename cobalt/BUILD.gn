@@ -115,8 +115,10 @@ source_set("common") {
 
   if (is_starboard) {
     sources += [
-      "app/app_lifecycle_delegate.cc",
-      "app/app_lifecycle_delegate.h",
+      "app/app_event_delegate.cc",
+      "app/app_event_delegate.h",
+      "app/app_event_runner.cc",
+      "app/app_event_runner.h",
       "app/cobalt_switch_defaults_starboard.cc",
       "app/cobalt_switch_defaults_starboard.h",
     ]
@@ -198,7 +200,8 @@ test("cobalt_unittests") {
 
   if (is_starboard) {
     sources += [
-      "//cobalt/app/app_lifecycle_delegate_unittest.cc",
+      "//cobalt/app/app_event_delegate_unittest.cc",
+      "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
