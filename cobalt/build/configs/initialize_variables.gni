@@ -31,6 +31,7 @@ declare_args() {
 
   build_with_separate_cobalt_toolchain = !is_androidtv && target_os != "ios"
 
+  enable_iamf_decode = false
   use_tsan = false
 }
 

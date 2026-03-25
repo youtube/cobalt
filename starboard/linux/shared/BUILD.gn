@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/shared/libiamf/buildfiles.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
@@ -316,6 +317,11 @@ static_library("starboard_platform_sources") {
   if (is_debug || is_devel) {
     defines += [ "SB_PLAYER_ENABLE_VIDEO_DUMPER" ]
   }
+
+  if (enable_iamf_decode) {
+    sources += iamf_decoder_sources
+    defines += [ "ENABLE_IAMF_DECODE" ]
+  }
 }
 
 if (current_toolchain == starboard_toolchain) {
@@ -334,5 +340,10 @@ if (current_toolchain == starboard_toolchain) {
       "//testing/gmock",
       "//testing/gtest",
     ]
+
+    if (enable_iamf_decode) {
+      sources += [ "//starboard/shared/libiamf/iamf_buffer_reader_test.cc" ]
+      deps += [ "//starboard/shared/libiamf:iamf_utils" ]
+    }
   }
 }

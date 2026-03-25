@@ -18,73 +18,17 @@
 #include <cstdlib>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "starboard/common/string.h"
+#include "starboard/shared/libiamf/iamf_buffer_reader.h"
 
 namespace starboard {
 namespace {
 
+using BufferReader = ::starboard::IamfBufferReader;
+
 constexpr uint8_t kIamfSequenceHeaderObu = 31;
-
-// A lightweight, forward-only reader for a raw byte buffer.
-class BufferReader {
- public:
-  explicit BufferReader(const uint8_t* data, size_t size)
-      : view_(reinterpret_cast<const char*>(data), size) {}
-
-  std::optional<uint8_t> ReadByte() {
-    if (view_.empty()) {
-      return std::nullopt;
-    }
-    const uint8_t byte = static_cast<const uint8_t>(view_.front());
-    view_.remove_prefix(1);
-    return byte;
-  }
-
-  // Reads a LEB128-encoded unsigned integer.
-  std::optional<uint32_t> ReadLeb128() {
-    uint32_t decoded_value = 0;
-    for (size_t i = 0; i < 5; ++i) {
-      auto byte_opt = ReadByte();
-      if (!byte_opt.has_value()) {
-        // Not enough data.
-        return std::nullopt;
-      }
-      uint8_t byte = *byte_opt;
-
-      if (i == 4 && (byte & 0x7f) > 0x0f) {
-        // Invalid 5-byte encoding.
-        return std::nullopt;
-      }
-
-      decoded_value |= (uint32_t)(byte & 0x7f) << (i * 7);
-
-      if (!(byte & 0x80)) {
-        return decoded_value;
-      }
-    }
-    return std::nullopt;  // Value exceeds 5 bytes
-  }
-
-  bool Skip(size_t bytes_to_skip) {
-    if (BytesRemaining() < bytes_to_skip) {
-      return false;
-    }
-    view_.remove_prefix(bytes_to_skip);
-    return true;
-  }
-
-  const uint8_t* CurrentData() const {
-    return reinterpret_cast<const uint8_t*>(view_.data());
-  }
-
-  size_t BytesRemaining() const { return view_.size(); }
-
- private:
-  std::string_view view_;
-};
 
 // Checks if |input| is a valid IAMF profile value, and stores the converted
 // value in |*profile| if so.
@@ -190,7 +134,7 @@ Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     const std::vector<uint8_t>& data) {
   BufferReader reader(data.data(), data.size());
 
-  auto header_byte_opt = reader.ReadByte();
+  auto header_byte_opt = reader.Read1();
   if (!header_byte_opt) {
     return Failure("Truncated OBU header.");
   }
@@ -223,8 +167,8 @@ Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     return Failure("Truncated OBU payload: missing ia_code.");
   }
 
-  auto primary_profile = obu_reader.ReadByte();
-  auto additional_profile = obu_reader.ReadByte();
+  auto primary_profile = obu_reader.Read1();
+  auto additional_profile = obu_reader.Read1();
 
   if (!primary_profile || !additional_profile) {
     return Failure("Truncated OBU payload: missing profile info.");

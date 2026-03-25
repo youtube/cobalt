@@ -42,4 +42,5 @@ static_library("media_util") {
 
   public_deps = [ "//starboard/common" ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
+  deps = [ "//starboard/shared/libiamf:iamf_utils" ]
 }

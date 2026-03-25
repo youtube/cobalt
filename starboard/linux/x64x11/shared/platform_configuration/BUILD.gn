@@ -34,6 +34,10 @@ config("platform_configuration") {
 
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
+  # TODO (b/494691786): Add libiamf to //third_party.
+  # if (enable_iamf_decode) {
+  #   libs = [ "//third_party/libiamf/source/code/include/libiamf.a" ]
+  # }
 }
 
 config("linker_flags") {
