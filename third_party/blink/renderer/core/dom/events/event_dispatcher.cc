@@ -174,6 +174,10 @@ void EventDispatcher::DispatchSimulatedEnterEvent(
 
 // https://dom.spec.whatwg.org/#dispatching-events
 DispatchEventResult EventDispatcher::Dispatch() {
+  if (event_->type() == event_type_names::kKeydown ||
+      event_->type() == event_type_names::kKeyup) {
+    LOG(INFO) << "KJ: EventDispatcher::Dispatch type=" << event_->type().Utf8();
+  }
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("blink.debug"),
                "EventDispatcher::dispatch");
 

@@ -328,7 +328,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    Log.i(TAG, "KJ: onKeyDown keyCode=" + keyCode);
+    if (keyCode == 23) {
+      Log.i(TAG, "KJ: onKeyDown keyCode=Select(23)" + keyCode);
+    }
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
@@ -339,7 +341,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    Log.i(TAG, "KJ: onKeyUp keyCode=" + keyCode);
+    if (keyCode == 23) {
+      Log.i(TAG, "KJ: onKeyUp keyCode=Select(23)" + keyCode);
+    }
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyUp(keyCode, event);
     }
