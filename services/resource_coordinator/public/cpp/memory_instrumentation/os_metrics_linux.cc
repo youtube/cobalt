@@ -274,6 +274,76 @@ class ScopedProcessSetDumpable {
 };
 
 #if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+namespace {
+constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
+constexpr char kPartitionAllocPattern[] = "partition_alloc";
+constexpr char kV8Pattern[] = "v8";
+constexpr char kScudoPattern[] = "scudo";
+constexpr char kHeapPattern[] = "[heap]";
+constexpr char kSoExtension[] = ".so";
+constexpr char kApkExtension[] = ".apk";
+constexpr char kDexExtension[] = ".dex";
+constexpr char kTtfExtension[] = ".ttf";
+constexpr char kTtcExtension[] = ".ttc";
+constexpr char kFontsPath[] = "fonts/";
+constexpr char kAshmemPath[] = "/dev/ashmem/";
+constexpr char kMemfdJitPattern[] = "memfd:jit";
+constexpr char kArtExtension[] = ".art";
+constexpr char kOatExtension[] = ".oat";
+constexpr char kDalvikPrefix[] = "dalvik-";
+constexpr char kStackAndTlsPattern[] = "stack_and_tls";
+constexpr char kStackPattern[] = "[stack]";
+
+enum class RegionType {
+  kNone,
+  kLibChrobalt,
+  kPartitionAlloc,
+  kV8,
+  kMalloc,
+  kCodeOther,
+  kFonts,
+  kAshmemJit,
+  kAndroidRuntime,
+  kStacks
+};
+
+RegionType GetRegionType(const char* line) {
+  if (strstr(line, kLibChrobaltPattern)) {
+    return RegionType::kLibChrobalt;
+  }
+  if (strstr(line, kSoExtension) || strstr(line, kApkExtension) ||
+      strstr(line, kDexExtension)) {
+    // Catch-all for other executable code and read-only data mappings
+    // from system libraries, GPU drivers, and the Android package.
+    return RegionType::kCodeOther;
+  }
+  if (strstr(line, kPartitionAllocPattern)) {
+    return RegionType::kPartitionAlloc;
+  }
+  if (strstr(line, kV8Pattern)) {
+    return RegionType::kV8;
+  }
+  if (strstr(line, kScudoPattern) || strstr(line, kHeapPattern)) {
+    return RegionType::kMalloc;
+  }
+  if (strstr(line, kTtfExtension) || strstr(line, kTtcExtension) ||
+      strstr(line, kFontsPath)) {
+    return RegionType::kFonts;
+  }
+  if (strstr(line, kAshmemPath) || strstr(line, kMemfdJitPattern)) {
+    return RegionType::kAshmemJit;
+  }
+  if (strstr(line, kArtExtension) || strstr(line, kOatExtension) ||
+      strstr(line, kDalvikPrefix)) {
+    return RegionType::kAndroidRuntime;
+  }
+  if (strstr(line, kStackAndTlsPattern) || strstr(line, kStackPattern)) {
+    return RegionType::kStacks;
+  }
+  return RegionType::kNone;
+}
+}  // namespace
+
 void PopulateCobaltSmapsMetrics(base::ProcessId pid,
                                 mojom::RawOSMemDump* dump) {
   std::string file_name =
@@ -297,93 +367,62 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
   uint64_t android_runtime_rss_kb = 0;
   uint64_t stacks_rss_kb = 0;
 
-  enum class RegionType {
-    kNone,
-    kLibChrobalt,
-    kPartitionAlloc,
-    kV8,
-    kMalloc,
-    kCodeOther,
-    kFonts,
-    kAshmemJit,
-    kAndroidRuntime,
-    kStacks
-  };
   RegionType current_type = RegionType::kNone;
 
   while (fgets(line, kMaxLineSize, smaps_file.get())) {
     if (base::IsHexDigit(static_cast<unsigned char>(line[0]))) {
-      if (strstr(line, "libchrobalt.so")) {
-        current_type = RegionType::kLibChrobalt;
-      } else if (strstr(line, ".so") || strstr(line, ".apk") ||
-                 strstr(line, ".dex")) {
-        // Catch-all for other executable code and read-only data mappings
-        // from system libraries, GPU drivers, and the Android package.
-        current_type = RegionType::kCodeOther;
-      } else if (strstr(line, "partition_alloc")) {
-        current_type = RegionType::kPartitionAlloc;
-      } else if (strstr(line, "v8")) {
-        current_type = RegionType::kV8;
-      } else if (strstr(line, "scudo") || strstr(line, "[heap]")) {
-        current_type = RegionType::kMalloc;
-      } else if (strstr(line, ".ttf") || strstr(line, ".ttc") ||
-                 strstr(line, "fonts/")) {
-        current_type = RegionType::kFonts;
-      } else if (strstr(line, "/dev/ashmem/") || strstr(line, "memfd:jit")) {
-        current_type = RegionType::kAshmemJit;
-      } else if (strstr(line, ".art") || strstr(line, ".oat") ||
-                 strstr(line, "dalvik-")) {
-        current_type = RegionType::kAndroidRuntime;
-      } else if (strstr(line, "stack_and_tls") || strstr(line, "[stack]")) {
-        current_type = RegionType::kStacks;
-      } else {
-        current_type = RegionType::kNone;
-      }
-    } else if (current_type != RegionType::kNone) {
-      uint64_t value_kb = 0;
-      if (strncmp(line, "Pss:", 4) == 0) {
-        if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
-          if (current_type == RegionType::kLibChrobalt) {
-            libchrobalt_pss_kb += value_kb;
-          }
+      current_type = GetRegionType(line);
+      continue;
+    }
+
+    if (current_type == RegionType::kNone) {
+      continue;
+    }
+
+    uint64_t value_kb = 0;
+    if (strncmp(line, "Pss:", 4) == 0) {
+      if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
+        if (current_type == RegionType::kLibChrobalt) {
+          libchrobalt_pss_kb += value_kb;
         }
-      } else if (strncmp(line, "Rss:", 4) == 0) {
-        if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
-          switch (current_type) {
-            case RegionType::kLibChrobalt:
-              libchrobalt_rss_kb += value_kb;
-              break;
-            case RegionType::kPartitionAlloc:
-              pa_rss_kb += value_kb;
-              break;
-            case RegionType::kV8:
-              v8_rss_kb += value_kb;
-              break;
-            case RegionType::kMalloc:
-              malloc_rss_kb += value_kb;
-              break;
-            case RegionType::kCodeOther:
-              code_other_rss_kb += value_kb;
-              break;
-            case RegionType::kFonts:
-              fonts_rss_kb += value_kb;
-              break;
-            case RegionType::kAshmemJit:
-              ashmem_jit_rss_kb += value_kb;
-              break;
-            case RegionType::kAndroidRuntime:
-              android_runtime_rss_kb += value_kb;
-              break;
-            case RegionType::kStacks:
-              stacks_rss_kb += value_kb;
-              break;
-            default:
-              break;
-          }
+      }
+    } else if (strncmp(line, "Rss:", 4) == 0) {
+      if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
+        switch (current_type) {
+          case RegionType::kLibChrobalt:
+            libchrobalt_rss_kb += value_kb;
+            break;
+          case RegionType::kPartitionAlloc:
+            pa_rss_kb += value_kb;
+            break;
+          case RegionType::kV8:
+            v8_rss_kb += value_kb;
+            break;
+          case RegionType::kMalloc:
+            malloc_rss_kb += value_kb;
+            break;
+          case RegionType::kCodeOther:
+            code_other_rss_kb += value_kb;
+            break;
+          case RegionType::kFonts:
+            fonts_rss_kb += value_kb;
+            break;
+          case RegionType::kAshmemJit:
+            ashmem_jit_rss_kb += value_kb;
+            break;
+          case RegionType::kAndroidRuntime:
+            android_runtime_rss_kb += value_kb;
+            break;
+          case RegionType::kStacks:
+            stacks_rss_kb += value_kb;
+            break;
+          default:
+            break;
         }
       }
     }
   }
+
   dump->libchrobalt_pss_kb = base::saturated_cast<uint32_t>(libchrobalt_pss_kb);
   dump->libchrobalt_rss_kb = base::saturated_cast<uint32_t>(libchrobalt_rss_kb);
   dump->partition_alloc_rss_kb = base::saturated_cast<uint32_t>(pa_rss_kb);

@@ -42,7 +42,7 @@ SUB_ALLOCATORS = [
 METRICS_TO_TRACK = PILLARS + SUB_ALLOCATORS
 
 
-def analyze_reports():
+def analyze_reports() -> None:
   """Analyzes memory reports in the histogram_reports directory."""
   report_dir = 'histogram_reports'
   if not os.path.exists(report_dir):
