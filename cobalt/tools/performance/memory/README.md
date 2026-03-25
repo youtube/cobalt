@@ -50,6 +50,26 @@ This tool provides a bridge between UMA histograms and low-level OS `smaps` snap
 python3 compare_accuracy.py --uma_log uma_histos.txt --smaps_dir cobalt_smaps_logs --platform android
 ```
 
+## Interpreting Results & Gotchas
+
+When using `compare_accuracy.py`, you may see significant differences in the "Max Error" column (e.g., >20%) even when the "Median Error" is very low (<5%). Here is how to interpret these results:
+
+### 1. Focus on the Median, Not the Max
+*   **Median Error:** This is your "Ground Truth" accuracy. If the median error is low, it means the C++ metrics are correctly identifying and reporting memory regions in the steady state.
+*   **Max Error:** This is often **noise caused by timing jitter**. Because UMA and Smaps are captured by independent processes, one tool might capture a memory spike (e.g., during a large allocation or GC cycle) that the other misses by just a few seconds.
+
+### 2. The Asynchronous Sampling Problem
+*   **Smaps** is an "instantaneous" snapshot (a point-in-time dump of `/proc/pid/smaps`).
+*   **UMA** reports are "periodic" (averages over a 60s interval).
+*   Even if both tools are set to a 60s interval, their "clocks" are not synchronized. A 10-15 second offset between the two can result in a large transient delta if memory is fluctuating.
+
+### 3. Resolution & Rounding
+*   UMA histograms like `MemoryLargeMB` have a **1 MiB resolution**. For smaller metrics (like a 10MB Malloc heap), a 1MB rounding difference combined with a slight timing offset can manifest as a ~10% error in a single snapshot, which is statistically insignificant.
+
+### 4. Tips for Cleaner Data
+*   **Synchronize Intervals:** For the most accurate comparison, set both `smaps_capture.py` and `compare_histograms.py` to the same interval (e.g., `--interval 60`).
+*   **Ignore the First Snapshot:** The first UMA snapshot often contains cumulative data from the process start, which may not align well with the first Smaps snapshot.
+
 ## Metrics Breakdown
 
 To get a logically sound accounting of Cobalt's memory footprint, we categorize metrics into "Top-Level Pillars" and "Sub-Allocators":
