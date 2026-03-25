@@ -16,6 +16,13 @@ is_default_toolchain = current_toolchain == default_toolchain
 is_starboard_toolchain = current_toolchain == starboard_toolchain
 is_cobalt_toolchain = current_toolchain == cobalt_toolchain
 is_host_toolchain = current_toolchain == host_toolchain
+is_native_target = current_toolchain == native_target
 
 # Toolchains using Starboard tools, not native tools.
 is_starboardized_toolchain = is_starboard_toolchain || is_default_toolchain
+
+# The partner toolchains are the ones used to build libstarboard.so, as opposed
+# to libcobalt.so, in Evergreen-compatible platforms, i.e. the "starboard" and
+# "native_target" toolchains.
+is_partner_toolchain =
+    (is_cobalt_hermetic_build && is_starboard_toolchain) || is_native_target
