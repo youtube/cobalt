@@ -187,6 +187,18 @@ struct RawOSMemDump {
   // RSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_rss_kb = 0;
+
+  // RSS for partition_alloc anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 partition_alloc_rss_kb = 0;
+
+  // RSS for V8 anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 v8_rss_kb = 0;
+
+  // RSS for system malloc (e.g. scudo) anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 malloc_rss_kb = 0;
 };
 
 // These structs are public:
@@ -240,6 +252,18 @@ struct OSMemDump {
   // RSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_rss_kb = 0;
+
+  // RSS for partition_alloc anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 partition_alloc_rss_kb = 0;
+
+  // RSS for V8 anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 v8_rss_kb = 0;
+
+  // RSS for system malloc (e.g. scudo) anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 malloc_rss_kb = 0;
 };
 
 // This struct contains information about a particular allocator dump

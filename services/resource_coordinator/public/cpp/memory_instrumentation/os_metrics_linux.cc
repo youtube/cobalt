@@ -321,57 +321,76 @@ void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
 }
 
 #if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
-struct LibChrobaltMem {
-  uint32_t pss_kb = 0;
-  uint32_t rss_kb = 0;
-};
-
-LibChrobaltMem GetLibChrobaltMem(base::ProcessId pid) {
+void PopulateCobaltSmapsMetrics(base::ProcessId pid,
+                                mojom::RawOSMemDump* dump) {
   std::string file_name =
       "/proc/" +
       (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
   if (!smaps_file) {
-    return {};
+    return;
   }
 
   char line[kMaxLineSize];
-  uint64_t total_pss_kb = 0;
-  uint64_t total_rss_kb = 0;
-  bool is_libchrobalt_region = false;
+  uint64_t libchrobalt_pss_kb = 0;
+  uint64_t libchrobalt_rss_kb = 0;
+  uint64_t pa_rss_kb = 0;
+  uint64_t v8_rss_kb = 0;
+  uint64_t malloc_rss_kb = 0;
+
+  enum class RegionType { kNone, kLibChrobalt, kPartitionAlloc, kV8, kMalloc };
+  RegionType current_type = RegionType::kNone;
+
   while (fgets(line, kMaxLineSize, smaps_file.get())) {
     if (absl::ascii_isxdigit(static_cast<unsigned char>(line[0])) &&
         !absl::ascii_isupper(static_cast<unsigned char>(line[0]))) {
-      const char kLibName[] = "libchrobalt.so";
-      const char* found = strstr(line, kLibName);
-      if (found) {
-        bool prefix_matches = (found == line || *(found - 1) == '/');
-        char next_char = found[strlen(kLibName)];
-        bool suffix_matches =
-            (next_char == '\0' || next_char == '\n' || next_char == '\r' ||
-             absl::ascii_isspace(static_cast<unsigned char>(next_char)));
-        is_libchrobalt_region = prefix_matches && suffix_matches;
+      if (strstr(line, "libchrobalt.so")) {
+        current_type = RegionType::kLibChrobalt;
+      } else if (strstr(line, "partition_alloc")) {
+        current_type = RegionType::kPartitionAlloc;
+      } else if (strstr(line, "v8")) {
+        current_type = RegionType::kV8;
+      } else if (strstr(line, "scudo") || strstr(line, "[heap]")) {
+        current_type = RegionType::kMalloc;
       } else {
-        is_libchrobalt_region = false;
+        current_type = RegionType::kNone;
       }
-    } else if (is_libchrobalt_region) {
+    } else if (current_type != RegionType::kNone) {
       uint64_t value_kb = 0;
       if (strncmp(line, "Pss:", 4) == 0) {
         if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
-          total_pss_kb += value_kb;
+          if (current_type == RegionType::kLibChrobalt) {
+            libchrobalt_pss_kb += value_kb;
+          }
         }
       } else if (strncmp(line, "Rss:", 4) == 0) {
         if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
-          total_rss_kb += value_kb;
+          switch (current_type) {
+            case RegionType::kLibChrobalt:
+              libchrobalt_rss_kb += value_kb;
+              break;
+            case RegionType::kPartitionAlloc:
+              pa_rss_kb += value_kb;
+              break;
+            case RegionType::kV8:
+              v8_rss_kb += value_kb;
+              break;
+            case RegionType::kMalloc:
+              malloc_rss_kb += value_kb;
+              break;
+            default:
+              break;
+          }
         }
       }
     }
   }
-  LibChrobaltMem result;
-  result.pss_kb = base::saturated_cast<uint32_t>(total_pss_kb);
-  result.rss_kb = base::saturated_cast<uint32_t>(total_rss_kb);
-  return result;
+  dump->libchrobalt_pss_kb = base::saturated_cast<uint32_t>(libchrobalt_pss_kb);
+  dump->libchrobalt_rss_kb = base::saturated_cast<uint32_t>(libchrobalt_rss_kb);
+  dump->partition_alloc_rss_kb = base::saturated_cast<uint32_t>(pa_rss_kb);
+  dump->v8_rss_kb = base::saturated_cast<uint32_t>(v8_rss_kb);
+  dump->malloc_rss_kb = base::saturated_cast<uint32_t>(malloc_rss_kb);
 }
 #endif
 
@@ -401,9 +420,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
 #if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
-  LibChrobaltMem lib_mem = GetLibChrobaltMem(handle);
-  dump->libchrobalt_pss_kb = lib_mem.pss_kb;
-  dump->libchrobalt_rss_kb = lib_mem.rss_kb;
+  PopulateCobaltSmapsMetrics(handle, dump);
 #endif
 
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {

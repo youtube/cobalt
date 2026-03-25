@@ -362,7 +362,14 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     }
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
-      std::optional<uint64_t> value =
+      // Skip the standard metrics if we are overriding them with
+      // the more accurate RSS values below.
+      if (std::string_view(item.uma_name) == "PartitionAlloc" ||
+          std::string_view(item.uma_name) == "V8" ||
+          std::string_view(item.uma_name) == "Malloc") {
+        continue;
+      }
+      absl::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
         EmitProcessUma(ptype, item, value.value());
@@ -388,6 +395,37 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     base::UmaHistogramMemoryLargeMB(
         std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltRss",
         static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name +
+            ".PartitionAllocRss",
+        static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
+
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".MallocRss",
+        static_cast<int>(pmd.os_dump().malloc_rss_kb / kKiB));
+
+    // Override the Experimental PartitionAlloc histogram with the more accurate
+    // RSS value from smaps.
+    std::string pa_uma_name =
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "PartitionAlloc"});
+    base::UmaHistogramMemoryLargeMB(
+        pa_uma_name,
+        static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
+
+    // Override V8 with accurate RSS.
+    std::string v8_uma_name = base::StrCat(
+        {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "V8"});
+    base::UmaHistogramMemoryLargeMB(
+        v8_uma_name, static_cast<int>(pmd.os_dump().v8_rss_kb / kKiB));
+
+    // Override Malloc with accurate RSS (system allocator like scudo or
+    // [heap]).
+    std::string malloc_uma_name = base::StrCat(
+        {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "Malloc"});
+    base::UmaHistogramMemoryLargeMB(
+        malloc_uma_name, static_cast<int>(pmd.os_dump().malloc_rss_kb / kKiB));
 #endif
   }
 

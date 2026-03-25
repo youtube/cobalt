@@ -121,6 +121,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+  check_histogram("Memory.Browser.MallocRss");
 #endif
 }
 
@@ -193,6 +195,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+  check_histogram("Memory.Browser.MallocRss");
 #endif
 }
 
