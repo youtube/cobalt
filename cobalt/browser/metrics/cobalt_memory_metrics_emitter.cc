@@ -313,7 +313,16 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
+<<<<<<< HEAD
       std::optional<uint64_t> value =
+=======
+      // Skip the standard PartitionAlloc metric if we are overriding it with
+      // the more accurate RSS value below.
+      if (std::string_view(item.uma_name) == "PartitionAlloc") {
+        continue;
+      }
+      absl::optional<uint64_t> value =
+>>>>>>> 151d4851a8 (cobalt: Accurate memory metrics and performance analysis tools (#9733))
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
         EmitProcessUma(ptype, item, value.value());
@@ -331,6 +340,27 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
         std::string(kMemoryHistogramPrefix) + process_name +
             ".SharedMemoryFootprint",
         static_cast<int>(pmd.os_dump().shared_footprint_kb / kKiB));
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltPss",
+        static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltRss",
+        static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".PartitionAllocRss",
+        static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
+
+    // Override the Experimental PartitionAlloc histogram with the more accurate
+    // RSS value from smaps.
+    std::string pa_uma_name = base::StrCat(
+        {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "PartitionAlloc"});
+    base::UmaHistogramMemoryLargeMB(
+        pa_uma_name,
+        static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
+#endif
   }
 
   base::UmaHistogramMemoryLargeMB(

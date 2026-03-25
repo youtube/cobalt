@@ -117,6 +117,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfFrames");
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  check_histogram("Memory.Browser.LibChrobaltPss");
+  check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+#endif
 }
 
 // TODO: b/489836051 - Investigate periodic memory metrics recording failures on
@@ -184,6 +190,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  check_histogram("Memory.Browser.LibChrobaltPss");
+  check_histogram("Memory.Browser.LibChrobaltRss");
+  check_histogram("Memory.Browser.PartitionAllocRss");
+#endif
 }
 
 }  // namespace cobalt
