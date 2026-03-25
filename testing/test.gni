@@ -1065,7 +1065,15 @@ template("test") {
         data += [ "//testing/location_tags.json" ]
       }
 
-      executable_args = [
+      executable_args = []
+      if (is_cobalt && defined(invoker.custom_launcher)) {
+        executable_args += [
+          "@WrappedPath(" + rebase_path(invoker.custom_launcher, root_build_dir) +
+          ")",
+        ]
+        data += [ invoker.custom_launcher ]
+      }
+      executable_args += [
         "@WrappedPath(./${_executable})",
         "--test-launcher-bot-mode",
       ]
