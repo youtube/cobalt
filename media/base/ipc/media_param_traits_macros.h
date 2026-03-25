@@ -200,6 +200,13 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
   IPC_STRUCT_TRAITS_MEMBER(enable_av1_startup_optimization)
   IPC_STRUCT_TRAITS_MEMBER(enable_flush_during_seek)
   IPC_STRUCT_TRAITS_MEMBER(enable_reset_audio_decoder)
+<<<<<<< HEAD
+=======
+  IPC_STRUCT_TRAITS_MEMBER(disable_low_performance_sw_decoder)
+  IPC_STRUCT_TRAITS_MEMBER(pause_using_audio_track_state)
+  IPC_STRUCT_TRAITS_MEMBER(report_buffering_state_during_flush)
+  IPC_STRUCT_TRAITS_MEMBER(skip_flush_on_decoder_teardown)
+>>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
   IPC_STRUCT_TRAITS_MEMBER(max_samples_per_write)
   IPC_STRUCT_TRAITS_MEMBER(video_decoder_initial_preroll_count)
   IPC_STRUCT_TRAITS_MEMBER(video_renderer_min_input_buffers)

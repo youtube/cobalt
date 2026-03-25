@@ -410,6 +410,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                                                             : 0),
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
                                                             : 0),
+      skip_flush_on_decoder_teardown_(
+          experimental_features.skip_flush_on_decoder_teardown),
       force_reset_surface_(force_reset_surface),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
@@ -654,14 +656,18 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
   media_decoder_->WriteEndOfStream();
 }
 
+<<<<<<< HEAD
 void MediaCodecVideoDecoder::Reset() {
+=======
+void VideoDecoder::ResetInternal(bool skip_flush) {
+>>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
   SB_CHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
   // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
   // set video_fps_ to 0 will call InitializeCodec(),
   // which we do not need if flush the codec.
-  if (!enable_flush_during_seek_ || !media_decoder_ ||
+  if (!enable_flush_during_seek_ || skip_flush || !media_decoder_ ||
       !media_decoder_->Flush()) {
     TeardownCodec();
     if (reset_delay_usec_ > 0) {
@@ -695,8 +701,21 @@ void MediaCodecVideoDecoder::Reset() {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
+<<<<<<< HEAD
 Result<void> MediaCodecVideoDecoder::InitializeCodec(
     const VideoStreamInfo& video_stream_info) {
+=======
+void VideoDecoder::Reset() {
+  ResetInternal(/*skip_flush=*/false);
+}
+
+void VideoDecoder::ResetForTeardown() {
+  ResetInternal(skip_flush_on_decoder_teardown_);
+}
+
+bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
+                                   std::string* error_message) {
+>>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
   SB_CHECK(BelongsToCurrentThread());
 
   if (needs_fps_to_initialize_codec_) {

@@ -86,7 +86,7 @@ VideoRendererImpl::~VideoRendererImpl() {
   // Be sure to release anything created by the decoder_ before releasing the
   // decoder_ itself.
   if (first_input_written_) {
-    decoder_->Reset();
+    decoder_->ResetForTeardown();
   }
 
   // Now both the decoder thread and the sink thread should have been shutdown.

@@ -63,6 +63,17 @@ const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
     "Media.VideoRendererMinDecodedFrames";
 const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
     "Media.MaxSamplesPerWrite";
+<<<<<<< HEAD
+=======
+const char kH5vccSettingsKeyMediaMediaCodecResetDelayMs[] =
+    "Media.MediaCodecResetDelayMs";
+const char kH5vccSettingsKeyMediaPauseUsingAudioTrackState[] =
+    "Media.PauseUsingAudioTrackState";
+const char kH5vccSettingsKeyMediaReportBufferingStateDuringFlush[] =
+    "Media.ReportBufferingStateDuringFlush";
+const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
+    "Media.SkipFlushOnDecoderTeardown";
+>>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -247,6 +258,26 @@ ExperimentalFeatures ProcessH5vccSettings(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
   }
+<<<<<<< HEAD
+=======
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
+    parsed.disable_low_performance_sw_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaPauseUsingAudioTrackState)) {
+    parsed.pause_using_audio_track_state = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaReportBufferingStateDuringFlush)) {
+    parsed.report_buffering_state_during_flush = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {
+    parsed.skip_flush_on_decoder_teardown = *val != 0;
+  }
+>>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount,

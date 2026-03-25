@@ -33,6 +33,13 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     bool enable_av1_startup_optimization = false;
     bool enable_flush_during_seek = false;
     bool enable_reset_audio_decoder = false;
+<<<<<<< HEAD
+=======
+    bool disable_low_performance_sw_decoder = false;
+    bool pause_using_audio_track_state = false;
+    bool report_buffering_state_during_flush = false;
+    bool skip_flush_on_decoder_teardown = false;
+>>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
     std::optional<int> max_samples_per_write;
     std::optional<int> video_decoder_initial_preroll_count;
     std::optional<int> video_renderer_min_input_buffers;

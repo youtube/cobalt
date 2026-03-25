@@ -50,6 +50,17 @@ std::ostream& operator<<(
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
+<<<<<<< HEAD
+=======
+            << ", disable_low_performance_sw_decoder="
+            << ToString(features.disable_low_performance_sw_decoder)
+            << ", pause_using_audio_track_state="
+            << ToString(features.pause_using_audio_track_state)
+            << ", report_buffering_state_during_flush="
+            << ToString(features.report_buffering_state_during_flush)
+            << ", skip_flush_on_decoder_teardown="
+            << ToString(features.skip_flush_on_decoder_teardown)
+>>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="
