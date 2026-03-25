@@ -7,8 +7,6 @@ on:
     inputs:
       start_commit:
         description: 'The commit to start rolling from, should point to the last release chore'
-        required: true
-        default: '7e6524981fdd6ab3c87bc55785343d40116a05e5'
         type: string
 
 permissions:
@@ -45,9 +43,14 @@ jobs:
           # Ensure we have local branches for the target branch
           git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
-          git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+          # Use existing branch from remote if it exists, otherwise start from the target branch.
+          if git fetch origin "autoroll-to-${TARGET_BRANCH}"; then
+            git checkout -B "autoroll-to-${TARGET_BRANCH}" FETCH_HEAD
+          else
+            git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+          fi
 
-          # Run the Python script to perform cherry-picks and get PR links from stdout
+          # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
             --target-branch "${TARGET_BRANCH}" \
             --start-commit "${START_COMMIT}")
@@ -60,7 +63,7 @@ jobs:
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::No new commits to cherry pick."
+            echo "::warning::No commits to roll found."
           fi
 
       - name: Push and Create PR
@@ -72,7 +75,7 @@ jobs:
         run: |
           set -x
 
-          git push origin "autoroll-to-${TARGET_BRANCH}" --force
+          git push origin "autoroll-to-${TARGET_BRANCH}"
 
           PR_BODY_FILE=$(mktemp)
           {
