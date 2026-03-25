@@ -401,17 +401,36 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
         static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
 
     base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".PartitionAllocRss",
+        std::string(kMemoryHistogramPrefix) + process_name +
+            ".PartitionAllocRss",
         static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
 
     base::UmaHistogramMemoryLargeMB(
         std::string(kMemoryHistogramPrefix) + process_name + ".MallocRss",
         static_cast<int>(pmd.os_dump().malloc_rss_kb / kKiB));
 
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".CodeOtherRss",
+        static_cast<int>(pmd.os_dump().code_other_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".FontsRss",
+        static_cast<int>(pmd.os_dump().fonts_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".AshmemJitRss",
+        static_cast<int>(pmd.os_dump().ashmem_jit_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name +
+            ".AndroidRuntimeRss",
+        static_cast<int>(pmd.os_dump().android_runtime_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        std::string(kMemoryHistogramPrefix) + process_name + ".StacksRss",
+        static_cast<int>(pmd.os_dump().stacks_rss_kb / kKiB));
+
     // Override the Experimental PartitionAlloc histogram with the more accurate
     // RSS value from smaps.
-    std::string pa_uma_name = base::StrCat(
-        {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "PartitionAlloc"});
+    std::string pa_uma_name =
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "PartitionAlloc"});
     base::UmaHistogramMemoryLargeMB(
         pa_uma_name,
         static_cast<int>(pmd.os_dump().partition_alloc_rss_kb / kKiB));
@@ -420,15 +439,36 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     std::string v8_uma_name = base::StrCat(
         {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "V8"});
     base::UmaHistogramMemoryLargeMB(
-        v8_uma_name,
-        static_cast<int>(pmd.os_dump().v8_rss_kb / kKiB));
+        v8_uma_name, static_cast<int>(pmd.os_dump().v8_rss_kb / kKiB));
 
-    // Override Malloc with accurate RSS (system allocator like scudo or [heap]).
+    // Override Malloc with accurate RSS (system allocator like scudo or
+    // [heap]).
     std::string malloc_uma_name = base::StrCat(
         {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal, "Malloc"});
     base::UmaHistogramMemoryLargeMB(
-        malloc_uma_name,
-        static_cast<int>(pmd.os_dump().malloc_rss_kb / kKiB));
+        malloc_uma_name, static_cast<int>(pmd.os_dump().malloc_rss_kb / kKiB));
+
+    // Emit new categories to Experimental names for a clean CDF breakdown.
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "CodeOther"}),
+        static_cast<int>(pmd.os_dump().code_other_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "Fonts"}),
+        static_cast<int>(pmd.os_dump().fonts_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "AshmemJit"}),
+        static_cast<int>(pmd.os_dump().ashmem_jit_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "AndroidRuntime"}),
+        static_cast<int>(pmd.os_dump().android_runtime_rss_kb / kKiB));
+    base::UmaHistogramMemoryLargeMB(
+        base::StrCat({kExperimentalUmaPrefix, process_name,
+                      kVersionSuffixNormal, "Stacks"}),
+        static_cast<int>(pmd.os_dump().stacks_rss_kb / kKiB));
 #endif
   }
 
@@ -445,9 +485,8 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   base::UmaHistogramMemoryLargeMB(
       "Memory.Total.PrivateFootprintSwap",
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
-  base::UmaHistogramMemoryLargeMB(
-      "Memory.Total.VmSize",
-      static_cast<int>(vm_size_total_kb / kKiB));
+  base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
+                                  static_cast<int>(vm_size_total_kb / kKiB));
 
   global_dump_ = nullptr;
 
