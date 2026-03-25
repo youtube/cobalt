@@ -323,7 +323,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       }
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(
-              "Failed to match splash video from cache %s, reason: %d",
+              "Did not find splash video from cache %s, reason: %d",
               cache_name.c_str(), static_cast<int>(status)),
           state);
     }
@@ -377,7 +377,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void DisconnectCacheAndSendFallback(const std::string& message,
                                       SplashScreenFetchedState state) {
-    LOG(ERROR) << message;
+    if (state == SplashScreenFetchedState::kOkBuiltIn) {
+      LOG(INFO) << message;
+    } else {
+      LOG(ERROR) << message;
+    }
     DisconnectCacheStorage();
     SendResponse(state);
   }
