@@ -46,7 +46,6 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.shell.ShellManagerJni;
-import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;

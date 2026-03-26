@@ -493,12 +493,7 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   }
 }
 
-void Shell::PrimaryMainDocumentElementAvailable() {
-#if BUILDFLAG(IS_ANDROIDTV)
-  starboard::android::shared::StarboardBridge::GetInstance()
-      ->SetStartupMilestone(27);
-#endif
-}
+void Shell::PrimaryMainDocumentElementAvailable() {}
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();

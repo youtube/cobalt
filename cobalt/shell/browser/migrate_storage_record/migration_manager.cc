@@ -323,6 +323,7 @@ ReadAndParseLegacyStorageRecord() {
       result = StorageReadResult::kRecordInvalid;
       return;
     }
+
     std::string partition_key = GetApplicationKey(initial_url);
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
@@ -340,7 +341,7 @@ ReadAndParseLegacyStorageRecord() {
       }
     }
 
-    if (record->GetSize() < (int64_t)kRecordHeaderSize) {
+    if (record->GetSize() < kRecordHeaderSize) {
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -349,13 +350,13 @@ ReadAndParseLegacyStorageRecord() {
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
-    if (read_result != (int)bytes.size()) {
+    if (read_result != bytes.size()) {
       result = StorageReadResult::kReadMismatch;
       return;
     }
 
-    const std::string_view version(reinterpret_cast<const char*>(bytes.data()),
-                                   kRecordHeaderSize);
+    std::string version(reinterpret_cast<const char*>(bytes.data()),
+                        kRecordHeaderSize);
     if (version != kRecordHeader) {
       result = StorageReadResult::kHeaderMismatch;
       return;
@@ -554,9 +555,8 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.last_access_time_us()),
         base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
-        net::CookieSourceType::kUnknown));
+        net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
+        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
   }
   return cookies;
 }

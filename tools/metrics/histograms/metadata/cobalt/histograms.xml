@@ -15,291 +15,79 @@ limitations under the License.
 -->
 
 <!--
-This file is used to generate a comprehensive list of Cobalt histograms
-along with a detailed description for each histogram. See go/cobalt-telemetry
-for details on how to modify this file.
 
-For best practices on writing histogram descriptions, see
-https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md
+This file describes the enumerations referenced by entries in histograms.xml for
+this directory.
 
-Always run the pretty print utility on this file after editing:
-
-  ./tools/metrics/histograms/pretty_print.py tools/metrics/histograms/metadata/cobalt/histograms.xml
+For best practices on writing enumerations descriptions, see
+https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md#Enum-Histograms
 -->
 
 <histogram-configuration>
 
-<histograms>
+<enums>
 
-<histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
-    expires_after="never">
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the age of the Finch configuration in days each time it is checked
-    at startup. This data is used to determine an appropriate expiration
-    threshold.
-  </summary>
-</histogram>
+<enum name="BooleanHung">
+  <int value="0" label="Is not hung"/>
+  <int value="1" label="Is hung"/>
+</enum>
 
-<histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
-    expires_after="never">
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the state of the Finch configuration at startup. This is used to
-    monitor the frequency of expired or invalid configurations.
-  </summary>
-</histogram>
+<enum name="SplashScreenFetchedState">
+  <int value="0" label="Success: Content from builtin"/>
+  <int value="1" label="Success: Content from cache"/>
+  <int value="2"
+      label="Error: content from cache is empty, fallback to builtin."/>
+  <int value="3"
+      label="Error: Content from cache is too large, fallback to builtin."/>
+  <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
+  <int value="5" label="Error: Builtin resource not found."/>
+</enum>
 
-<histogram name="Cobalt.Finch.RollbackDetected" enum="Boolean"
-    expires_after="never">
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records when a rollback is detected and prevented. This happens when the
-    cobalt version recorded for a previous Finch config is greater than the
-    current version of the Cobalt binary.
-  </summary>
-</histogram>
+<enum name="VariationsConfigState">
+  <int value="0" label="Config is valid"/>
+  <int value="1" label="Config is expired"/>
+  <int value="2" label="Config is missing timestamp"/>
+</enum>
 
-<histogram name="Cobalt.Finch.VersionComparisonIsValid" enum="Boolean"
-    expires_after="never">
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records whether the version strings in the Finch config are valid and can be
-    parsed correctly. A false value indicates a malformed version string was
-    received.
-  </summary>
-</histogram>
+<enum name="StorageInjectionResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Error"/>
+  <int value="2" label="Timeout"/>
+</enum>
 
-<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
-    expires_after="never">
-  <owner>hwarriner@google.com</owner>
-  <owner>cobalt-team@google.com</owner>
-  <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
-  </summary>
-</histogram>
+<enum name="MigrationOutcome">
+  <int value="0" label="FastPath"/>
+  <int value="1" label="Skipped"/>
+  <int value="2" label="Success"/>
+  <int value="3" label="Failed"/>
+  <int value="4" label="Timeout"/>
+</enum>
 
-<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
-    enum="LocalStorageDatabaseResetReason" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the reason why the Local Storage database was reset.
-  </summary>
-</histogram>
+<enum name="SentinelWriteResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Empty Path"/>
+  <int value="2" label="Write Failed"/>
+</enum>
 
-<histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the number of times a platform error was raised due to a navigation
-    timeout or other network error. This is logged every time RaisePlatformError
-    is called; each logged count is the cumulative number of times the error has
-    been raised. The actual number of sessions with a specific number of platform
-    errors raised can be raised by subtracting the values of counts larger than
-    said number. For example, sessions with 2 calls to RaisePlatformError would be
-    (count for 2 calls) - (count for 3 calls) - ... (count for max calls).
-    This value is reset to 0 on a successful navigation/app load.
-  </summary>
-</histogram>
+<enum name="StorageReadResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Partition key not default"/>
+  <int value="2" label="Record invalid"/>
+  <int value="3" label="Size too small"/>
+  <int value="4" label="Delete failed"/>
+  <int value="5" label="Read mismatch"/>
+  <int value="6" label="Header mismatch"/>
+  <int value="7" label="Parse error"/>
+</enum>
 
-<histogram name="Cobalt.StorageMigration.CookieInjectionResult"
-    enum="StorageInjectionResult" expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the outcome of attempting to inject a single cookie into the new
-    Chromium-based storage during migration from legacy Starboard storage.
-  </summary>
-</histogram>
+<enum name="LocalStorageDatabaseResetReason">
+  <int value="0" label="Failure to open the database"/>
+  <int value="1" label="Schema version mismatch"/>
+  <int value="2" label="Database corruption or read errors"/>
+  <int value="3" label="Excessive commit errors"/>
+  <int value="4" label="Unknown"/>
+</enum>
 
-<histogram name="Cobalt.StorageMigration.CookiesCount" units="cookies"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the total number of cookies found in the legacy Starboard storage
-    record during a migration attempt.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.FastPathDuration" units="ms"
-    expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the total time taken to check for the migration fast path during
-    startup.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.Outcome" enum="MigrationOutcome"
-    expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the final outcome of the storage migration process. Tracks whether
-    the migration took the fast path, skipped due to no data, fully succeeded,
-    or failed during read/injection.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.Duration" units="ms"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the total time taken to migrate data from the legacy Starboard
-    storage record to the new Chromium-based storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.LocalStorageCount" units="entries"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the total number of localStorage entries found in the legacy
-    Starboard storage record during a migration attempt.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.LocalStorageInjectionResult"
-    enum="StorageInjectionResult" expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the outcome of attempting to inject a single localStorage entry into
-    the new Chromium-based storage during migration from legacy Starboard
-    storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.ReadResult" enum="StorageReadResult"
-    expires_after="never">
-  <owner>haozheng@google.com</owner>
-  <owner>yijiazhang@google.com</owner>
-  <summary>
-    Records the outcome of attempting to read and parse the legacy Starboard
-    storage record during migration.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.StorageMigration.SentinelWriteResult"
-    enum="SentinelWriteResult" expires_after="never">
-  <owner>colinliang@google.com</owner>
-  <summary>
-    Records the result of writing the migration sentinel file to disk.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.SplashScreen.FetchedFromCache"
-    enum="SplashScreenFetchedState" expires_after="never">
-  <owner>tasunny@google.com</owner>
-  <summary>
-    Records whether a splash screen resource was successfully retrieved from
-    cache and indicates the reason when on error. This is recorded for every
-    splash screen request handled by h5vcc scheme loader.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Measures the average time spent per cookie operation during a batch commit
-    to the SQLite database. This provides a normalized view of commit
-    performance, helping to identify how efficiently the database handles
-    operations as the batch size changes.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.Cookie.LoadDuration" units="ms"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the total time it takes to load all cookies from the SQLite database
-    into memory when the application starts and makes its first network request.
-    This helps us understand the performance impact of cookie loading on
-    startup.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.Cookie.PendingOperationsAtCommit"
-    units="operations" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the number of pending cookie operations (add, update, delete) that
-    are being committed to the database in a single batch. This gives an
-    indication of the amount of data at risk of loss if a crash occurs between
-    commits (the &quot;crash gap&quot;).
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.Exit.CookieFlushDuration" units="ms"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the time it takes to flush cookies during a graceful application
-    exit (e.g., via window.h5vcc.system.exit()). This helps to understand the
-    performance of the operation and can serve as a health signal for the
-    storage backend.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration" units="ms"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the time it takes to initiate the flush of local storage during a
-    graceful application exit (e.g., via window.h5vcc.system.exit()). As
-    `Flush()` is an asynchronous operation, this metric captures the time until
-    the commit is scheduled, not the completion of the data write to persistent
-    storage.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the time it takes to flush both cookies and local storage during the
-    onPause event on Android. This helps to understand if the operation
-    completes within the short window granted by the OS before the app is
-    killed.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.WebContentsObserver.FailedNavigation" enum="Boolean"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    For every navigation in the primary main frame, this boolean is recorded to
-    indicate whether the navigation resulted in a network error. This is used to
-    track the navigation success rate. Aborted navigations are not included.
-  </summary>
-</histogram>
-
-<histogram name="CPU.Total.UsageInPercentage" units="%" expires_after="never">
-  <owner>tasunny@google.com</owner>
-  <summary>
-    The Percentage of total CPU resources utilized for Cobalt over an interval.
-    100% indicates all available cores are fully utilized. This metric is
-    recorded periodically (default 5 minutes for Android).
-  </summary>
-</histogram>
-
-<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
-    enum="BooleanHung" expires_after="never">
-  <owner>antonlunev@google.com</owner>
-  <summary>
-    Every 10 seconds, a boolean is recorded to this histogram to indicate
-    whether the RendererThread of a Browser process was hung. The thread is hung
-    if the current work unit started running more than 10 seconds ago. This is
-    emitted only in single process mode(when renderer is a thread inside
-    BrowserProcess).
-  </summary>
-</histogram>
-
-</histograms>
+</enums>
 
 </histogram-configuration>
