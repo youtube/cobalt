@@ -171,6 +171,7 @@ class VideoDecoder
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
   const bool skip_flush_on_decoder_teardown_;
+  const bool reinitialize_decoder_after_output_format_change_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
@@ -247,6 +248,13 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
+
+  int last_frame_width_after_seek_ = -1;
+  int last_frame_height_after_seek_ = -1;
+  int last_frame_width_ = -1;
+  int last_frame_height_ = -1;
+
+  bool should_check_output_format_change_after_seek_ = false;
 };
 
 }  // namespace starboard::android::shared

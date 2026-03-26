@@ -146,6 +146,14 @@ STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
                   false)
+
+// Set the following variable to true to force re-initialize video
+// decoder after output format change during seek when
+// |kForceFlushDecoderDuringReset| and |kForceResetAudioDecoder| is enabled.
+STARBOARD_FEATURE(kReinitializeDecoderAfterOutputFormatChange,
+                  "ReinitializeDecoderAfterOutputFormatChange",
+                  false)
+
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 

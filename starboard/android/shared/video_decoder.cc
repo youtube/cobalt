@@ -38,6 +38,7 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
@@ -412,6 +413,11 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                                                             : 0),
       skip_flush_on_decoder_teardown_(
           experimental_features.skip_flush_on_decoder_teardown),
+      // TODO: b/496313908 - Connect to experimental flag.
+      reinitialize_decoder_after_output_format_change_(
+          starboard::features::FeatureList::IsEnabled(
+              starboard::features::
+                  kReinitializeDecoderAfterOutputFormatChange)),
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
@@ -463,6 +469,9 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                << ", max video capabilities=\"" << max_video_capabilities_
                << "\", and tunnel mode audio session id="
                << tunnel_mode_audio_session_id_;
+  SB_LOG_IF(INFO, reinitialize_decoder_after_output_format_change_)
+      << "`kReinitializeDecoderAfterOutputFormatChange` is set to true, force "
+         "re-init video decoder after seek if output format changes.";
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -540,6 +549,37 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
+
+  if (should_check_output_format_change_after_seek_ &&
+      enable_flush_during_seek_ && last_frame_width_after_seek_ > 0 &&
+      last_frame_height_after_seek_ > 0 &&
+      (input_buffers.front()->video_stream_info().frame_width !=
+           last_frame_width_after_seek_ ||
+       input_buffers.front()->video_stream_info().frame_height !=
+           last_frame_height_after_seek_)) {
+    // Output format changes after flush, re-initialize Codec
+    SB_LOG(INFO) << "Output format changes from "
+                 << last_frame_width_after_seek_ << "x"
+                 << last_frame_height_after_seek_ << " to "
+                 << input_buffers.front()->video_stream_info().frame_width
+                 << "x"
+                 << input_buffers.front()->video_stream_info().frame_height
+                 << ", re-initialize MediaCodec.";
+    last_frame_width_after_seek_ =
+        input_buffers.front()->video_stream_info().frame_width;
+    last_frame_height_after_seek_ =
+        input_buffers.front()->video_stream_info().frame_height;
+    TeardownCodec();
+    if (reset_delay_usec_ > 0) {
+      usleep(reset_delay_usec_);
+    }
+
+    input_buffer_written_ = 0;
+    video_fps_ = 0;
+    should_check_output_format_change_after_seek_ = false;
+  }
+  last_frame_width_ = input_buffers.front()->video_stream_info().frame_width;
+  last_frame_height_ = input_buffers.front()->video_stream_info().frame_height;
 
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
@@ -665,6 +705,15 @@ void VideoDecoder::ResetInternal(bool skip_flush) {
 
     input_buffer_written_ = 0;
     video_fps_ = 0;
+
+    last_frame_width_after_seek_ = -1;
+    last_frame_height_after_seek_ = -1;
+  } else {
+    last_frame_width_after_seek_ = last_frame_width_;
+    last_frame_height_after_seek_ = last_frame_height_;
+
+    should_check_output_format_change_after_seek_ =
+        reinitialize_decoder_after_output_format_change_;
   }
   CancelPendingJobs();
 
