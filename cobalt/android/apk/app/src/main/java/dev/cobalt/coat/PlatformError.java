@@ -197,19 +197,22 @@ public class PlatformError
     if (cobaltActivity != null) {
       WebContents webContents = cobaltActivity.getActiveWebContents();
       if (webContents != null) {
-        String currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+        String newUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
 
-        String newUrl = currentUrl;
-        if (!currentUrl.isEmpty()) {
-          Uri parsedUri = Uri.parse(currentUrl);
+        if (newUrl.isEmpty() || newUrl == null) {
+          Log.e(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
+          webContents.getNavigationController().reload(true);
+          return;
+        }
+        else {
+          Uri parsedUri = Uri.parse(newUrl);
           if (parsedUri.getQueryParameter("netdialog_retry") == null) {
             Uri.Builder uriBuilder = parsedUri.buildUpon();
             uriBuilder.appendQueryParameter("netdialog_retry", "1");
             newUrl = uriBuilder.build().toString();
           }
+          cobaltActivity.getActiveShell().loadUrl(newUrl);
         }
-
-        cobaltActivity.getActiveShell().loadUrl(newUrl);
       } else {
         Log.e(TAG, "WebContents is null and not available to reload the URL.");
       }
