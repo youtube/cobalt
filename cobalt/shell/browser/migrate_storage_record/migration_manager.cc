@@ -328,7 +328,8 @@ ReadAndParseLegacyStorageRecord() {
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
     if (!record->IsValid()) {
-      bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
+      bool fallback =
+          partition_key == GetApplicationKey(GURL(::switches::kDefaultURL));
       if (!fallback) {
         result = StorageReadResult::kPartitionKeyNotDefault;
         return;
@@ -350,7 +351,7 @@ ReadAndParseLegacyStorageRecord() {
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
-    if (read_result != bytes.size()) {
+    if (read_result < 0 || static_cast<size_t>(read_result) != bytes.size()) {
       result = StorageReadResult::kReadMismatch;
       return;
     }
@@ -467,12 +468,13 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
                                     base::OnceClosure done_callback) {
   LOG(INFO) << "Starting Pre-MainLoop Migration.";
 
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
-    LOG(INFO) << "Storage migration disabled via switch.";
-    std::move(done_callback).Run();
-    return;
-  }
+  // TODO: re-enable this.
+  // base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  // if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
+  //   LOG(INFO) << "Storage migration disabled via switch.";
+  //   std::move(done_callback).Run();
+  //   return;
+  // }
 
   auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
 
@@ -530,9 +532,11 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
 
   // Build the pipeline of tasks to execute asynchronously.
   std::vector<Task> tasks;
-  tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage), state));
+  // Run LocalStorageTask first. In M138, there is no callback for the flush()
+  // API. It is not garanteed it will be finished before Kabuki loads.
   tasks.push_back(LocalStorageTask(
       partition, origin, ToLocalStorageItems(origin, *storage), state));
+  tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage), state));
   tasks.push_back(RecordMigrationDurationTask(std::move(elapsed_timer)));
   tasks.push_back(CleanupLegacyFilesTask(state));
 
@@ -555,8 +559,9 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.last_access_time_us()),
         base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
+        net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
+        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
+        net::CookieSourceType::kUnknown));
   }
   return cookies;
 }
@@ -715,15 +720,17 @@ Task MigrationManager::LocalStorageTask(
               auto shared_state = base::MakeRefCounted<SharedClosureState>();
               shared_state->cb = std::move(next_step);
 
-              partition->GetLocalStorageControl()->Flush(base::BindOnce(
-                  [](scoped_refptr<SharedClosureState> state) {
-                    if (state->cb) {
-                      LOG(INFO) << "LocalStorage Flush complete callback "
-                                   "executed successfully.";
-                      state->Run();
-                    }
-                  },
-                  shared_state));
+              // chromium removed the callback.
+              // https://source.chromium.org/chromium/chromium/src/+/f300a2af020de6cd216c9cb783c9b3109bd5dc2f
+              // Now, we have no way to wait for Flush() to be finished.
+              // Kabuki may run into the race condition that some Local Storage
+              // is missing.
+              partition->GetLocalStorageControl()->Flush();
+              if (shared_state->cb) {
+                LOG(INFO) << "LocalStorage Flush complete callback "
+                             "executed successfully.";
+                shared_state->Run();
+              }
 
               // Hard timeout fallback: if the disk IO hangs or the Storage
               // Service crashes during flush, resume app startup after 2
