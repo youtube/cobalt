@@ -96,6 +96,7 @@ assert(!is_win || is_clang,
 
 if (is_android || is_robolectric) {
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_fuchsia) {
@@ -1293,8 +1294,8 @@ component("base") {
     ]
 
     deps += [
-      "//third_party/android_ndk:cpu_features",
       "//third_party/ashmem",
+      "//third_party/cpu_features:ndk_compat",
     ]
 
     # Needs to be a public config so that dependent targets link against it as
@@ -4557,10 +4558,9 @@ if (is_android) {
       ":base_java",
       "//copied_base/base:jni_java",
       "//build/android:build_java",
-      "//third_party/accessibility_test_framework:accessibility_test_framework_java",
+      "//third_party/accessibility_test_framework:accessibility_core_java",
       "//third_party/android_deps:espresso_java",
       "//third_party/android_deps:guava_android_java",
-      "//third_party/android_sdk:android_test_base_java",
       "//third_party/android_sdk:android_test_mock_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_core_core_java",
