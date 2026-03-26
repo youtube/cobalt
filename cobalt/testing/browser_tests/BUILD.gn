@@ -47,6 +47,7 @@ if (is_android) {
 }
 
 if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
@@ -390,11 +391,12 @@ test("cobalt_browsertests") {
     "//third_party/mesa_headers",
   ]
 
-  if (is_ios) {
+  if (is_ios && target_platform == "tvos") {
     bundle_deps = [
       ":cobalt_shell_pak_bundle_data",
       ":cobalt_test_bundle_data",
     ]
+    deps += [ "//starboard/common:common" ]
   }
 
   if (is_android) {
