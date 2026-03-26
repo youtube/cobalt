@@ -65,6 +65,9 @@ public class PlatformError
   private static final int NETWORK_SETTINGS_BUTTON = 2;
   private static final int DISMISS_BUTTON = 3;
 
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final String RETRY_PARAM_VALUE = "1";
+
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
   private final long mData;
@@ -199,20 +202,18 @@ public class PlatformError
       if (webContents != null) {
         String newUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
 
-        if (newUrl.isEmpty() || newUrl == null) {
+        if (newUrl.isEmpty()) {
           Log.e(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
           webContents.getNavigationController().reload(true);
           return;
         }
-        else {
-          Uri parsedUri = Uri.parse(newUrl);
-          if (parsedUri.getQueryParameter("netdialog_retry") == null) {
-            Uri.Builder uriBuilder = parsedUri.buildUpon();
-            uriBuilder.appendQueryParameter("netdialog_retry", "1");
-            newUrl = uriBuilder.build().toString();
-          }
-          cobaltActivity.getActiveShell().loadUrl(newUrl);
+        Uri parsedUri = Uri.parse(newUrl);
+        if (parsedUri.getQueryParameter(RETRY_PARAM_KEY) == null) {
+          Uri.Builder uriBuilder = parsedUri.buildUpon();
+          uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, RETRY_PARAM_VALUE);
+          newUrl = uriBuilder.build().toString();
         }
+        cobaltActivity.getActiveShell().loadUrl(newUrl);
       } else {
         Log.e(TAG, "WebContents is null and not available to reload the URL.");
       }
