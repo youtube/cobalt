@@ -405,11 +405,19 @@ MediaTrackSupportedConstraints* MediaDevices::getSupportedConstraints() const {
   return MediaTrackSupportedConstraints::Create();
 }
 
+extern base::TimeTicks g_selet_keydown_time;
+
 ScriptPromise MediaDevices::getUserMedia(
     ScriptState* script_state,
     const UserMediaStreamConstraints* options,
     ExceptionState& exception_state) {
-  LOG(INFO) << "KJ: MediaDevices::getUserMedia";
+  if (!g_selet_keydown_time.is_null()) {
+    base::TimeDelta elapsed = base::TimeTicks::Now() - g_selet_keydown_time;
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia: latency(msec)="
+              << elapsed.InMilliseconds();
+  } else {
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia";
+  }
   // This timeout of base::Seconds(8) is an initial value and based on the data
   // in Media.MediaDevices.GetUserMedia.Latency, it should be iterated upon.
   auto* resolver = MakeGarbageCollected<

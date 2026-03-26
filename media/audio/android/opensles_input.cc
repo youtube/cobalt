@@ -5,6 +5,7 @@
 #include "media/audio/android/opensles_input.h"
 
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
@@ -17,6 +18,10 @@
       return __VA_ARGS__;                       \
     }                                           \
   } while (0)
+
+namespace blink {
+extern base::TimeTicks g_selet_keydown_time;
+}
 
 namespace media {
 
@@ -76,7 +81,12 @@ AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
 }
 
 void OpenSLESInputStream::Start(AudioInputCallback* callback) {
-  LOG(INFO) << "KJ: OpenSLESInputStream::Start";
+  if (!blink::g_selet_keydown_time.is_null()) {
+    base::TimeDelta elapsed =
+        base::TimeTicks::Now() - blink::g_selet_keydown_time;
+    LOG(INFO) << "KJ: OpenSLESInputStream::Start: latency(msec)="
+              << elapsed.InMilliseconds();
+  }
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(callback);
@@ -85,6 +95,7 @@ void OpenSLESInputStream::Start(AudioInputCallback* callback) {
   if (started_)
     return;
 
+  buffer_count_ = 0;
   base::AutoLock lock(lock_);
   DCHECK(!callback_ || callback_ == callback);
   callback_ = callback;
@@ -313,6 +324,14 @@ void OpenSLESInputStream::ReadBufferQueue() {
   base::AutoLock lock(lock_);
   if (!started_)
     return;
+
+  buffer_count_++;
+  if (buffer_count_ == 1 && !blink::g_selet_keydown_time.is_null()) {
+    base::TimeDelta total_elapsed =
+        base::TimeTicks::Now() - blink::g_selet_keydown_time;
+    LOG(INFO) << "KJ: First audio buffer received: total_latency(msec)="
+              << total_elapsed.InMilliseconds();
+  }
 
   TRACE_EVENT0("audio", "OpenSLESOutputStream::ReadBufferQueue");
 

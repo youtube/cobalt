@@ -109,6 +109,8 @@ class OpenSLESInputStream : public AudioInputStream {
 
   std::unique_ptr<media::AudioBus> audio_bus_;
 
+  int buffer_count_ = 0;
+
   // Set to true at construction if user wants to disable all audio effects.
   const bool no_effects_ = false;
 };

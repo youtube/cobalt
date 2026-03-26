@@ -235,6 +235,7 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private boolean setDevice(String deviceId) {
+        Log.i(TAG, "KJ: AudioManagerAndroid.setDevice: " + deviceId);
         if (DEBUG) logd("setDevice: " + deviceId);
         if (!mIsInitialized) return false;
 
@@ -258,6 +259,7 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private AudioDeviceName[] getAudioInputDeviceNames() {
+        Log.i(TAG, "KJ: AudioManagerAndroid.getAudioInputDeviceNames");
         if (DEBUG) logd("getAudioInputDeviceNames");
         if (!mIsInitialized) return null;
 

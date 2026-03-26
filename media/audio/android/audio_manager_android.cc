@@ -14,6 +14,11 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/time/time.h"
+
+namespace blink {
+extern base::TimeTicks g_selet_keydown_time;
+}
 #include "media/audio/android/aaudio_output.h"
 #include "media/audio/android/aaudio_stubs.h"
 #include "media/audio/android/audio_track_output_stream.h"
@@ -166,7 +171,13 @@ void AudioManagerAndroid::GetAudioOutputDeviceNames(
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
-  LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters";
+  if (!blink::g_selet_keydown_time.is_null()) {
+    base::TimeDelta elapsed =
+        base::TimeTicks::Now() - blink::g_selet_keydown_time;
+    LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: "
+                 "latency(msec)="
+              << elapsed.InMilliseconds();
+  }
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   // Use mono as preferred number of input channels on Android to save
@@ -307,7 +318,13 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
-  LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream";
+  if (!blink::g_selet_keydown_time.is_null()) {
+    base::TimeDelta elapsed =
+        base::TimeTicks::Now() - blink::g_selet_keydown_time;
+    LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream: "
+                 "latency(msec)="
+              << elapsed.InMilliseconds();
+  }
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
@@ -434,6 +451,12 @@ void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
 }
 
 bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
+  if (!blink::g_selet_keydown_time.is_null()) {
+    base::TimeDelta elapsed =
+        base::TimeTicks::Now() - blink::g_selet_keydown_time;
+    LOG(INFO) << "KJ: AudioManagerAndroid::SetAudioDevice: " << device_id
+              << " latency(msec)=" << elapsed.InMilliseconds();
+  }
   DVLOG(1) << __FUNCTION__ << ": " << device_id;
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
