@@ -63,6 +63,8 @@ const char kH5vccSettingsKeyMediaPauseUsingAudioTrackState[] =
     "Media.PauseUsingAudioTrackState";
 const char kH5vccSettingsKeyMediaReportBufferingStateDuringFlush[] =
     "Media.ReportBufferingStateDuringFlush";
+const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
+    "Media.SkipFlushOnDecoderTeardown";
 const char kH5vccSettingsKeyMediaUseDualThreadsForVideo[] =
     "Media.UseDualThreadsForVideo";
 
@@ -248,6 +250,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaReportBufferingStateDuringFlush)) {
     parsed.report_buffering_state_during_flush = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {
+    parsed.skip_flush_on_decoder_teardown = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaUseDualThreadsForVideo)) {

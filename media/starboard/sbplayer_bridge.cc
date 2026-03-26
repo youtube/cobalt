@@ -834,6 +834,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.pause_using_audio_track_state;
     extension_features.reset_audio_decoder =
         experimental_features_.enable_reset_audio_decoder;
+    extension_features.skip_flush_on_decoder_teardown =
+        experimental_features_.skip_flush_on_decoder_teardown;
     extension_features.use_dual_threads_for_video =
         ToBoolPointer(experimental_features_.use_dual_threads_for_video);
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
