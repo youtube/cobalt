@@ -142,7 +142,7 @@
 <translation id="1508263560970797965">Continua en mode d'incògnit</translation>
 <translation id="1509486075633541495">Inicia la sessió al lloc web</translation>
 <translation id="1513858653616922153">Suprimeix la contrasenya</translation>
-<translation id="1517166097004694782">Amaga l'opció Continua amb aquesta pestanya</translation>
+<translation id="1517166097004694782">Amaga l'opció Continua navegant des d'aquesta pestanya</translation>
 <translation id="1520027731907768768">Rep alertes de baixada de preu de productes que segueixes.</translation>
 <translation id="1521366073263497277">Ves a la quadrícula de pestanyes</translation>
 <translation id="1521774566618522728">Actiu avui</translation>
@@ -1450,7 +1450,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6435236283694032571">Afegeix a la llista de lectura</translation>
 <translation id="6435307030888827407">Continua sense iniciar la sessió</translation>
 <translation id="6436318499800111867">Compartit amb mi: <ph name="SHARED_WITH_ME_DATE" /></translation>
-<translation id="6442697326824312960">No fixis la pestanya</translation>
+<translation id="6442697326824312960">Deixa de fixar la pestanya</translation>
 <translation id="6443118737398455446">La data de caducitat no és vàlida</translation>
 <translation id="6444435711855078002">Més opcions</translation>
 <translation id="6445051938772793705">País</translation>

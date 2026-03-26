@@ -1040,7 +1040,7 @@ Usipoiruhusu, itazuiwa na mipangilio yako ya faragha. Hali hii itaruhusu maudhui
 <translation id="2658843814961855121">Sheria ya Ajira na Kazi</translation>
 <translation id="2660779039299703961">Tukio</translation>
 <translation id="2664887757054927933">{COUNT,plural, =0{Hamna}=1{Nenosiri 1 (la <ph name="DOMAIN_LIST" />)}=2{Manenosiri 2 (ya <ph name="DOMAIN_LIST" />)}other{Manenosiri # (ya <ph name="DOMAIN_LIST" />)}}</translation>
-<translation id="2666092431469916601">Ya Juu</translation>
+<translation id="2666092431469916601">Juu</translation>
 <translation id="2666117266261740852">Funga vichupo au programu nyingine</translation>
 <translation id="266935134738038806">Tembelea tovuti</translation>
 <translation id="2672201172023654893">Kivinjari chako hakidhibitiwi.</translation>
@@ -1694,7 +1694,7 @@ Usipoiruhusu, itazuiwa na mipangilio yako ya faragha. Hali hii itaruhusu maudhui
 <translation id="3714633008798122362">kalenda ya wavuti</translation>
 <translation id="3714780639079136834">Kuwasha data ya simu au Wi-Fi</translation>
 <translation id="3715016660240337709">{0,plural, =1{Faili imezuiwa ili isipakiwe}other{Faili <ph name="FILE_COUNT" /> zimezuiwa ili zisipakiwe}}</translation>
-<translation id="3715597595485130451">Unganisha kwenye Wi-Fi</translation>
+<translation id="3715597595485130451">Unganisha Wi-Fi</translation>
 <translation id="3717027428350673159"><ph name="BEGIN_LINK" />Kuangalia seva mbadala, kingamtandao na mipangilio ya DNS<ph name="END_LINK" /></translation>
 <translation id="3723316892512143176">Iban</translation>
 <translation id="3723663469265383848">Wakati wa kusasisha hutaweza kutumia kifaa chako kwa hadi dakika 10.</translation>
