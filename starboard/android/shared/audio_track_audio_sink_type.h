@@ -20,7 +20,6 @@
 #include <atomic>
 #include <functional>
 #include <map>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -30,6 +29,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -101,7 +101,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                                        SbMediaAudioSampleType sample_type,
                                        int sampling_frequency_hz);
 
-  std::mutex min_required_frames_map_mutex_;
+  Mutex min_required_frames_map_mutex_;
   // The minimum frames required to avoid underruns of different frequencies.
   std::map<int, int> min_required_frames_map_;
   MinRequiredFramesTester min_required_frames_tester_;
@@ -169,7 +169,7 @@ class AudioTrackAudioSink
   volatile bool quit_ = false;
   pthread_t audio_out_thread_ = 0;
 
-  std::mutex mutex_;
+  Mutex mutex_;
   double playback_rate_ = 1.0;
 };
 

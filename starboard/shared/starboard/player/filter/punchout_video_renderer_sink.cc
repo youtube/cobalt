@@ -61,7 +61,7 @@ void PunchoutVideoRendererSink::SetBounds(int z_index,
                                           int y,
                                           int width,
                                           int height) {
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
 
   z_index_ = z_index;
   x_ = x;
@@ -75,7 +75,7 @@ void PunchoutVideoRendererSink::RunLoop() {
     render_cb_(std::bind(&PunchoutVideoRendererSink::DrawFrame, this, _1, _2));
     usleep(render_interval_);
   }
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(
       player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
 }
@@ -85,7 +85,7 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
     int64_t release_time_in_nanoseconds) {
   SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(player_, frame, z_index_,
                                                      x_, y_, width_, height_);
   return kNotReleased;

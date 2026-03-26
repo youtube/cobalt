@@ -178,7 +178,7 @@ void OpenMaxComponent::DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer) {
   }
 
   {
-    std::lock_guard scoped_lock(mutex_);
+    starboard::ScopedLock scoped_lock(mutex_);
     if (output_buffers_.empty()) {
       SB_DCHECK_EQ(outstanding_output_buffers_, 0);
       return;
@@ -373,6 +373,13 @@ OMX_ERRORTYPE OpenMaxComponent::OnEmptyBufferDone(
 void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
   std::lock_guard scoped_lock(mutex_);
   filled_output_buffers_.push(buffer);
+}
+
+}  // namespace open_max
+}  // namespace shared
+}  // namespace raspi
+}  // namespace starboard
+e starboard sh(buffer);
 }
 
 }  // namespace open_max

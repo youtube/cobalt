@@ -18,13 +18,13 @@
 #include <unistd.h>
 
 #include <map>
-#include <mutex>
 #include <sstream>
 #include <string>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
@@ -43,26 +43,26 @@ class PlayerToWriterMap {
             "dump_video_data")) {}
   bool dump_video_data() const { return dump_video_data_; }
   void Register(SbPlayer player) {
-    std::lock_guard scoped_lock(mutex_);
+    ScopedLock scoped_lock(mutex_);
     SB_DCHECK(map_.find(player) == map_.end());
     map_[player] = new VideoDmpWriter;
   }
   void Unregister(SbPlayer player) {
-    std::lock_guard scoped_lock(mutex_);
+    ScopedLock scoped_lock(mutex_);
     auto iter = map_.find(player);
     SB_DCHECK(iter != map_.end());
     delete iter->second;
     map_.erase(iter);
   }
   VideoDmpWriter* Get(SbPlayer player) {
-    std::lock_guard scoped_lock(mutex_);
+    ScopedLock scoped_lock(mutex_);
     auto iter = map_.find(player);
     SB_DCHECK(iter != map_.end());
     return iter->second;
   }
 
  private:
-  std::mutex mutex_;
+  Mutex mutex_;
   bool dump_video_data_;
   std::map<SbPlayer, VideoDmpWriter*> map_;
 };

@@ -18,13 +18,13 @@
 #include <jni.h>
 
 #include <memory>
-#include <mutex>
 #include <queue>
 #include <string>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -93,7 +93,7 @@ class AudioDecoder
   ErrorCB error_cb_;
   ConsumedCB consumed_cb_;
 
-  std::mutex decoded_audios_mutex_;
+  Mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;

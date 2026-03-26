@@ -73,7 +73,7 @@ VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(
     int64_t release_time_in_nanoseconds) {
   SB_DCHECK_EQ(release_time_in_nanoseconds, 0);
 
-  std::lock_guard lock(mutex_);
+  starboard::ScopedLock lock(mutex_);
   ::starboard::shared::starboard::Application::Get()->HandleFrame(
       player_, frame, z_index_, x_, y_, width_, height_);
   return kNotReleased;

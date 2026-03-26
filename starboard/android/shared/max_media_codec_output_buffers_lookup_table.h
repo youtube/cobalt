@@ -17,8 +17,9 @@
 
 #include <functional>
 #include <map>
-#include <mutex>
 #include <string>
+
+#include "starboard/common/mutex.h"
 
 #include "starboard/media.h"
 
@@ -62,7 +63,7 @@ class MaxMediaCodecOutputBuffersLookupTable {
 
   bool enable_ = true;
 
-  mutable std::mutex mutex_;
+  mutable Mutex mutex_;
   std::map<VideoOutputFormat, int> lookup_table_;
 };
 

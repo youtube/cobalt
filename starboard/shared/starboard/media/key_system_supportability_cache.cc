@@ -16,10 +16,10 @@
 
 #include <cstring>
 #include <map>
-#include <mutex>
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/once.h"
@@ -36,7 +36,7 @@ class KeySystemSupportabilityContainer {
     SB_DCHECK(key_system);
     SB_DCHECK_GT(strlen(key_system), 0U);
 
-    std::lock_guard scoped_lock(mutex_);
+    ::starboard::ScopedLock scoped_lock(mutex_);
     auto map_iter = key_system_supportabilities_.find(codec);
     if (map_iter == key_system_supportabilities_.end()) {
       return kSupportabilityUnknown;
@@ -56,19 +56,19 @@ class KeySystemSupportabilityContainer {
     SB_DCHECK_GT(strlen(key_system), 0U);
     SB_DCHECK_NE(supportability, kSupportabilityUnknown);
 
-    std::lock_guard scoped_lock(mutex_);
+    ::starboard::ScopedLock scoped_lock(mutex_);
     key_system_supportabilities_[codec][key_system] = supportability;
   }
 
   void ClearContainer() {
-    std::lock_guard scoped_lock(mutex_);
+    ::starboard::ScopedLock scoped_lock(mutex_);
     key_system_supportabilities_.clear();
   }
 
  private:
   typedef std::map<std::string, Supportability> KeySystemToSupportabilityMap;
 
-  std::mutex mutex_;
+  ::starboard::Mutex mutex_;
   std::map<T, KeySystemToSupportabilityMap> key_system_supportabilities_;
 };
 

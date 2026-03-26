@@ -23,7 +23,6 @@
 
 #include <atomic>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -31,6 +30,7 @@
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
 #include "starboard/types.h"
 
@@ -120,7 +120,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;
 
-  std::mutex mutex_;
+  Mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};

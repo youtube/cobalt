@@ -402,7 +402,7 @@ bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
     return GetIsWidevineSupported();
   }
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return is_widevine_supported_;
 }
@@ -411,7 +411,7 @@ bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
   if (!is_enabled_) {
     return GetIsCbcsSupported();
   }
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return is_cbcs_supported_;
 }
@@ -423,7 +423,7 @@ bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
     return supported_transfer_ids.find(transfer_id) !=
            supported_transfer_ids.end();
   }
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return supported_transfer_ids_.find(transfer_id) !=
          supported_transfer_ids_.end();
@@ -435,7 +435,7 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   }
   // IsPassthroughSupported() caches the results of previous quiries, and does
   // not rely on LazyInitialize(), which is different from other functions.
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   auto iter = passthrough_supportabilities_.find(codec);
   if (iter != passthrough_supportabilities_.end()) {
     return iter->second;
@@ -470,7 +470,7 @@ bool MediaCapabilitiesCache::GetAudioConfiguration(
                                                                configuration);
   }
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   if (index < audio_configurations_.size()) {
     *configuration = audio_configurations_[index];
@@ -512,7 +512,7 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
     return env->GetStringStandardUTFOrAbort(j_decoder_name.Get());
   }
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
   for (auto& audio_capability : audio_codec_capabilities_map_[mime_type]) {
@@ -551,7 +551,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     return env->GetStringStandardUTFOrAbort(j_decoder_name.Get());
   }
 
-  std::lock_guard scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
   for (auto& video_capability : video_codec_capabilities_map_[mime_type]) {

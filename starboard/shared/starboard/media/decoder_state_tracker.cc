@@ -68,7 +68,7 @@ DecoderStateTracker::~DecoderStateTracker() {
   // is currently trying to acquire |mutex_|.
   std::unique_ptr<shared::starboard::player::JobThread> thread_to_destroy;
   {
-    std::lock_guard lock(mutex_);
+    ScopedLock lock(mutex_);
     thread_to_destroy = std::move(logging_thread_);
   }
   // |thread_to_destroy| will be destroyed when it goes out of the scope.
@@ -79,7 +79,7 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
   if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
-  std::unique_lock lock(mutex_);
+  ScopedLock lock(mutex_);
 
   if (disabled_.load(std::memory_order_relaxed) || eos_added_) {
     return;
@@ -127,7 +127,7 @@ void DecoderStateTracker::MarkEosReached() {
   if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
 
   if (disabled_.load(std::memory_order_relaxed)) {
     return;
@@ -140,7 +140,7 @@ void DecoderStateTracker::MarkFrameDecoded(int64_t presentation_us) {
   if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
 
   if (disabled_.load(std::memory_order_relaxed)) {
     return;
@@ -160,7 +160,7 @@ void DecoderStateTracker::MarkFrameReleased(int64_t presentation_us,
   if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
@@ -184,7 +184,7 @@ bool DecoderStateTracker::CanAcceptMore() {
   if (disabled_.load(std::memory_order_relaxed)) {
     return true;
   }
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   if (disabled_.load(std::memory_order_relaxed)) {
     return true;
   }
@@ -193,7 +193,7 @@ bool DecoderStateTracker::CanAcceptMore() {
 }
 
 void DecoderStateTracker::Reset() {
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   frames_in_flight_.clear();
   pending_released_frames_ = 0;
   eos_added_ = false;
@@ -211,7 +211,7 @@ DecoderStateTracker::State DecoderStateTracker::GetCurrentStateForTest() const {
   if (disabled_.load(std::memory_order_relaxed)) {
     return {};
   }
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   if (disabled_.load(std::memory_order_relaxed)) {
     return {};
   }
@@ -281,7 +281,7 @@ void DecoderStateTracker::PruneReleasedFrames_Locked() {
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 void DecoderStateTracker::StartPeriodicalLogging(int64_t log_interval_us) {
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   if (!logging_thread_) {
     return;
   }
@@ -298,7 +298,7 @@ void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
     return;
   }
 
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   if (disabled_.load(std::memory_order_relaxed)) {
     SB_LOG(INFO) << "DecoderStateTracker state: DISABLED";
     return;

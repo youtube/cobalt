@@ -12,17 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(final_executable_type, "benchmark") {
+target("executable", "benchmark") {
   testonly = true
 
   sources = [
     "//starboard/common/benchmark_main.cc",
     "memory_benchmark.cc",
+    "mutex_benchmark.cc",
     "thread_benchmark.cc",
   ]
 
   public_deps = [
+    "//base",
     "//starboard:starboard_group",
+    "//starboard/common:common",
+    "//third_party/abseil-cpp:absl",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies

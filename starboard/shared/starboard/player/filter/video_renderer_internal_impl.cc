@@ -189,7 +189,8 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
              preroll_timeout);
   }
 
-  std::scoped_lock lock(decoder_frames_mutex_, sink_frames_mutex_);
+  ScopedLock lock1(decoder_frames_mutex_);
+  ScopedLock lock2(sink_frames_mutex_);
   decoder_frames_.clear();
   sink_frames_.clear();
   number_of_frames_.store(0);
@@ -267,7 +268,8 @@ void VideoRendererImpl::OnDecoderStatus(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {
   if (status == VideoDecoder::kReleaseAllFrames) {
-    std::scoped_lock scoped_lock(decoder_frames_mutex_, sink_frames_mutex_);
+    ScopedLock lock1(decoder_frames_mutex_);
+    ScopedLock lock2(sink_frames_mutex_);
     decoder_frames_.clear();
     sink_frames_.clear();
     number_of_frames_.store(0);
@@ -297,7 +299,7 @@ void VideoRendererImpl::OnDecoderStatus(
         CheckForFrameLag(frame->timestamp());
       }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      std::lock_guard scoped_lock(decoder_frames_mutex_);
+      ScopedLock scoped_lock(decoder_frames_mutex_);
       if (decoder_frames_.empty() || frame->is_end_of_stream() ||
           frame->timestamp() > decoder_frames_.back()->timestamp()) {
         decoder_frames_.push_back(frame);
@@ -351,8 +353,8 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   {
-    std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
-    sink_frames_mutex_.lock();
+    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+    sink_frames_mutex_.Acquire();
     for (auto decoder_frame : decoder_frames_) {
       if (sink_frames_.empty()) {
         sink_frames_.push_back(decoder_frame);
@@ -377,7 +379,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
     ended_cb_called_.store(true);
     Schedule(ended_cb_);
   }
-  sink_frames_mutex_.unlock();
+  sink_frames_mutex_.Release();
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   // Update this at last to ensure that the delay of Render() call isn't caused
