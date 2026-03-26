@@ -122,8 +122,6 @@ def aggregate_smaps(snapshot: Dict[str, Any]) -> Dict[str, float]:
     rss = region['rss']
     if 'libchrobalt.so' in name:
       res['libchrobalt'] += rss
-    elif '.so' in name or '.apk' in name or '.dex' in name:
-      res['code_other'] += rss
     elif 'partition_alloc' in name:
       res['partition_alloc'] += rss
     elif 'v8' in name:
@@ -138,6 +136,8 @@ def aggregate_smaps(snapshot: Dict[str, Any]) -> Dict[str, float]:
       res['android_runtime'] += rss
     elif 'stack_and_tls' in name or '[stack]' in name:
       res['stacks'] += rss
+    elif '.so' in name or '.apk' in name or '.dex' in name:
+      res['code_other'] += rss
 
   # Convert categories to MiB
   for k in [
