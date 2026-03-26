@@ -154,7 +154,14 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
+<<<<<<< HEAD
       video_decoder_poll_interval_us_(kDefaultVideoDecoderPollIntervalUs) {
+=======
+      video_decoder_poll_interval_us_(kDefaultVideoDecoderPollIntervalUs),
+      condition_variable_(mutex_),
+      video_input_condition_variable_(mutex_),
+      video_output_condition_variable_(mutex_) {
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   SB_CHECK(host_);
   SB_CHECK(error_message);
 
@@ -197,6 +204,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
+    std::optional<bool> use_dual_threads,
     std::string* error_message)
     : JobOwner(job_queue),
 
@@ -209,7 +217,16 @@ MediaCodecDecoder::MediaCodecDecoder(
       flush_delay_usec_(flush_delay_usec),
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
+<<<<<<< HEAD
                                : kDefaultVideoDecoderPollIntervalUs) {
+=======
+                               : kDefaultVideoDecoderPollIntervalUs),
+      use_dual_threads_(use_dual_threads.value_or(false) &&
+                        !tunnel_mode_enabled_),
+      condition_variable_(mutex_),
+      video_input_condition_variable_(mutex_),
+      video_output_condition_variable_(mutex_) {
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -233,7 +250,8 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
                << ToString(tunnel_mode_enabled_)
                << ", video_decoder_poll_interval(msec)="
-               << video_decoder_poll_interval_us_ / 1'000;
+               << video_decoder_poll_interval_us_ / 1'000
+               << ", use_dual_threads=" << ToString(use_dual_threads_);
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
@@ -283,9 +301,28 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
+<<<<<<< HEAD
   if (!decoder_thread_) {
     decoder_thread_ = std::make_unique<DecoderThread>(this);
     decoder_thread_->Start();
+=======
+  if (use_dual_threads_) {
+    SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+    if (video_input_thread_ == 0) {
+      pthread_create(&video_input_thread_, nullptr,
+                     &MediaDecoder::InputThreadEntryPoint, this);
+      pthread_create(&video_output_thread_, nullptr,
+                     &MediaDecoder::OutputThreadEntryPoint, this);
+      SB_DCHECK_NE(video_input_thread_, 0);
+      SB_DCHECK_NE(video_output_thread_, 0);
+    }
+  } else {
+    if (decoder_thread_ == 0) {
+      pthread_create(&decoder_thread_, nullptr,
+                     &MediaDecoder::DecoderThreadEntryPoint, this);
+      SB_DCHECK_NE(decoder_thread_, 0);
+    }
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 
   std::lock_guard lock(mutex_);
@@ -295,7 +332,15 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     ++number_of_pending_inputs_;
   }
   if (need_signal) {
+<<<<<<< HEAD
     condition_variable_.notify_one();
+=======
+    if (use_dual_threads_) {
+      video_input_condition_variable_.Signal();
+    } else {
+      condition_variable_.Signal();
+    }
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 }
 
@@ -307,7 +352,15 @@ void MediaCodecDecoder::WriteEndOfStream() {
   pending_inputs_.emplace_back(PendingInput::kWriteEndOfStream);
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
+<<<<<<< HEAD
     condition_variable_.notify_one();
+=======
+    if (use_dual_threads_) {
+      video_input_condition_variable_.Signal();
+    } else {
+      condition_variable_.Signal();
+    }
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 }
 
@@ -316,7 +369,31 @@ void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
+<<<<<<< HEAD
 void MediaCodecDecoder::DecoderThreadFunc() {
+=======
+// TODO(b/329686979): Abstract common code of thread creation functions.
+// TODO(b/329686979): Implement thread logic using //starboard/common/thread.h.
+// static
+void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
+  SB_CHECK(context);
+  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
+  if (decoder->media_type_ == kSbMediaTypeAudio) {
+    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
+  } else {
+    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  }
+
+  decoder->DecoderThreadFunc();
+  JNIState::GetVM()->DetachCurrentThread();
+  return nullptr;
+}
+
+void MediaDecoder::DecoderThreadFunc() {
+  // Initialize() should be called before creating the thread, where `error_cb_`
+  // is set.  Check `error_cb_` here to ensure Initialize() has been called.
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   SB_DCHECK(error_cb_);
 
   if (media_type_ == kSbMediaTypeAudio) {
@@ -455,12 +532,119 @@ void MediaCodecDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
+<<<<<<< HEAD
 void MediaCodecDecoder::TerminateDecoderThread() {
+=======
+// static
+void* MediaDecoder::InputThreadEntryPoint(void* context) {
+  SB_CHECK(context);
+  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  pthread_setname_np(pthread_self(), "VidDecIn");
+
+  decoder->InputThreadFunc();
+  JNIState::GetVM()->DetachCurrentThread();
+  return nullptr;
+}
+
+void MediaDecoder::InputThreadFunc() {
+  // Initialize() should be called before creating the thread, where `error_cb_`
+  // is set.  Check `error_cb_` here to ensure Initialize() has been called.
+  SB_DCHECK(error_cb_);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+
+  std::deque<PendingInput> pending_inputs;
+  std::vector<int> input_buffer_indices;
+
+  auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
+    // TODO(b/455938352): This doesn't take `decoder_state_tracker_` into
+    // account.  We may need to revisit the implementation if we are going to
+    // launch `decoder_state_tracker_`.
+    return pending_input_to_retry_ ||
+           (!pending_inputs.empty() && !input_buffer_indices.empty());
+  };
+
+  while (!destroying_.load()) {
+    if (can_process_input()) {
+      if (!ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
+        // Sleep for 1 ms to avoid busy looping.
+        usleep(1'000);
+      }
+    } else {
+      ScopedLock scoped_lock(mutex_);
+      if (pending_inputs_.empty() && input_buffer_indices_.empty()) {
+        // Wait for up to one second.  Technically we can wait longer, picking
+        // a reasonably small duration to avoid potential deadlock.
+        //
+        // TODO(b/455938352): This doesn't take `decoder_state_tracker_` into
+        // account and may wait for too long when it's enabled.  We may need to
+        // revisit the implementation if we are going to launch
+        // `decoder_state_tracker_`.
+        video_input_condition_variable_.WaitTimed(1'000'000);
+      }
+      CollectPendingInputData_Locked(&pending_inputs, &input_buffer_indices);
+    }
+  }
+}
+
+// static
+void* MediaDecoder::OutputThreadEntryPoint(void* context) {
+  SB_CHECK(context);
+  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  pthread_setname_np(pthread_self(), "VidDecOut");
+  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+
+  decoder->OutputThreadFunc();
+  JNIState::GetVM()->DetachCurrentThread();
+  return nullptr;
+}
+
+void MediaDecoder::OutputThreadFunc() {
+  // Initialize() should be called before creating the thread, where `error_cb_`
+  // is set.  Check `error_cb_` here to ensure Initialize() has been called.
+  SB_DCHECK(error_cb_);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+
+  std::vector<DequeueOutputResult> dequeue_output_results;
+
+  while (!destroying_.load()) {
+    bool can_process_output = !dequeue_output_results.empty();
+
+    if (can_process_output) {
+      auto& dequeue_output_result = dequeue_output_results.front();
+      if (dequeue_output_result.index < 0) {
+        host_->RefreshOutputFormat(media_codec_bridge_.get());
+      } else {
+        host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                   dequeue_output_result);
+      }
+      dequeue_output_results.erase(dequeue_output_results.begin());
+    } else {
+      ScopedLock scoped_lock(mutex_);
+      CollectPendingOutputData_Locked(&dequeue_output_results);
+    }
+
+    bool ticked = host_->Tick(media_codec_bridge_.get());
+
+    if (!ticked && dequeue_output_results.empty()) {
+      ScopedLock scoped_lock(mutex_);
+      CollectPendingOutputData_Locked(&dequeue_output_results);
+      if (dequeue_output_results.empty()) {
+        // TODO(b/329686979): Allow Tick() to return the time to next frame
+        // release to dynamically adjust the wait duration.
+        video_output_condition_variable_.WaitTimed(8'000);
+      }
+    }
+  }
+}
+
+void MediaDecoder::TerminateDecoderThread() {
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
 
   {
+<<<<<<< HEAD
     std::lock_guard lock(mutex_);
     condition_variable_.notify_one();
   }
@@ -468,6 +652,33 @@ void MediaCodecDecoder::TerminateDecoderThread() {
   if (decoder_thread_) {
     decoder_thread_->Join();
     decoder_thread_.reset();
+=======
+    ScopedLock scoped_lock(mutex_);
+    if (use_dual_threads_) {
+      video_input_condition_variable_.Signal();
+      video_output_condition_variable_.Signal();
+    } else {
+      condition_variable_.Signal();
+    }
+  }
+
+  if (video_input_thread_ != 0) {
+    SB_DCHECK(use_dual_threads_);
+    SB_CHECK_EQ(pthread_join(video_input_thread_, nullptr), 0);
+    video_input_thread_ = 0;
+  }
+
+  if (video_output_thread_ != 0) {
+    SB_DCHECK(use_dual_threads_);
+    SB_CHECK_EQ(pthread_join(video_output_thread_, nullptr), 0);
+    video_output_thread_ = 0;
+  }
+
+  if (decoder_thread_ != 0) {
+    SB_DCHECK(!use_dual_threads_);
+    SB_CHECK_EQ(pthread_join(decoder_thread_, nullptr), 0);
+    decoder_thread_ = 0;
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 }
 
@@ -475,9 +686,15 @@ void MediaCodecDecoder::CollectPendingData_Locked(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices,
     std::vector<DequeueOutputResult>* dequeue_output_results) {
+  CollectPendingInputData_Locked(pending_inputs, input_buffer_indices);
+  CollectPendingOutputData_Locked(dequeue_output_results);
+}
+
+void MediaDecoder::CollectPendingInputData_Locked(
+    std::deque<PendingInput>* pending_inputs,
+    std::vector<int>* input_buffer_indices) {
   SB_DCHECK(pending_inputs);
   SB_DCHECK(input_buffer_indices);
-  SB_DCHECK(dequeue_output_results);
 
   pending_inputs->insert(pending_inputs->end(), pending_inputs_.begin(),
                          pending_inputs_.end());
@@ -487,6 +704,11 @@ void MediaCodecDecoder::CollectPendingData_Locked(
                                input_buffer_indices_.begin(),
                                input_buffer_indices_.end());
   input_buffer_indices_.clear();
+}
+
+void MediaDecoder::CollectPendingOutputData_Locked(
+    std::vector<DequeueOutputResult>* dequeue_output_results) {
+  SB_DCHECK(dequeue_output_results);
 
   dequeue_output_results->insert(dequeue_output_results->end(),
                                  dequeue_output_results_.begin(),
@@ -733,7 +955,15 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   std::lock_guard lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
+<<<<<<< HEAD
     condition_variable_.notify_one();
+=======
+    if (use_dual_threads_) {
+      video_input_condition_variable_.Signal();
+    } else {
+      condition_variable_.Signal();
+    }
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 }
 
@@ -745,9 +975,14 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     int size) {
   SB_DCHECK_GE(buffer_index, 0);
 
-  // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
+  // TODO(b/291959069): After the output thread is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
+<<<<<<< HEAD
   if (destroying_.load() || !decoder_thread_) {
+=======
+  if (destroying_.load() ||
+      (decoder_thread_ == 0 && video_output_thread_ == 0)) {
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
     return;
   }
 
@@ -761,7 +996,15 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 
   std::lock_guard lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
+<<<<<<< HEAD
   condition_variable_.notify_one();
+=======
+  if (use_dual_threads_) {
+    video_output_condition_variable_.Signal();
+  } else {
+    condition_variable_.Signal();
+  }
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
 }
 
 void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
@@ -770,7 +1013,15 @@ void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
 
   std::lock_guard lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
+<<<<<<< HEAD
   condition_variable_.notify_one();
+=======
+  if (use_dual_threads_) {
+    video_output_condition_variable_.Signal();
+  } else {
+    condition_variable_.Signal();
+  }
+>>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
 }
 
 void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
