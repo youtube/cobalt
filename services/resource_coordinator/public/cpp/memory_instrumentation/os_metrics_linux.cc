@@ -36,6 +36,12 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#include "third_party/abseil-cpp/absl/strings/match.h"
+#include "third_party/abseil-cpp/absl/strings/numbers.h"
+#include "third_party/abseil-cpp/absl/strings/string_view.h"
+#endif
+
 // Symbol with virtual address of the start of ELF header of the current binary.
 extern char __ehdr_start;
 
@@ -337,6 +343,10 @@ constexpr char kAshmemPath[] = "/dev/ashmem/";
 constexpr char kMemfdJitPattern[] = "memfd:jit";
 constexpr char kArtExtension[] = ".art";
 constexpr char kOatExtension[] = ".oat";
+constexpr char kVdexExtension[] = ".vdex";
+constexpr char kOdexExtension[] = ".odex";
+constexpr char kJarExtension[] = ".jar";
+constexpr char kHybExtension[] = ".hyb";
 constexpr char kDalvikPrefix[] = "dalvik-";
 constexpr char kStackAndTlsPattern[] = "stack_and_tls";
 constexpr char kStackPattern[] = "[stack]";
@@ -355,34 +365,44 @@ enum class RegionType {
 };
 
 RegionType GetRegionType(const char* line) {
-  if (strstr(line, kLibChrobaltPattern)) {
+  if (absl::StrContains(line, kLibChrobaltPattern)) {
     return RegionType::kLibChrobalt;
   }
-  if (strstr(line, kPartitionAllocPattern)) {
+  if (absl::StrContains(line, kPartitionAllocPattern)) {
     return RegionType::kPartitionAlloc;
   }
-  if (strstr(line, kV8Pattern)) {
+  if (absl::StrContains(line, kV8Pattern)) {
     return RegionType::kV8;
   }
-  if (strstr(line, kScudoPattern) || strstr(line, kHeapPattern)) {
+  if (absl::StrContains(line, kScudoPattern) ||
+      absl::StrContains(line, kHeapPattern)) {
     return RegionType::kMalloc;
   }
-  if (strstr(line, kTtfExtension) || strstr(line, kTtcExtension) ||
-      strstr(line, kFontsPath)) {
+  if (absl::StrContains(line, kTtfExtension) ||
+      absl::StrContains(line, kTtcExtension) ||
+      absl::StrContains(line, kFontsPath)) {
     return RegionType::kFonts;
   }
-  if (strstr(line, kAshmemPath) || strstr(line, kMemfdJitPattern)) {
+  if (absl::StrContains(line, kAshmemPath) ||
+      absl::StrContains(line, kMemfdJitPattern)) {
     return RegionType::kAshmemJit;
   }
-  if (strstr(line, kArtExtension) || strstr(line, kOatExtension) ||
-      strstr(line, kDalvikPrefix)) {
+  if (absl::StrContains(line, kArtExtension) ||
+      absl::StrContains(line, kOatExtension) ||
+      absl::StrContains(line, kVdexExtension) ||
+      absl::StrContains(line, kOdexExtension) ||
+      absl::StrContains(line, kJarExtension) ||
+      absl::StrContains(line, kHybExtension) ||
+      absl::StrContains(line, kDalvikPrefix)) {
     return RegionType::kAndroidRuntime;
   }
-  if (strstr(line, kStackAndTlsPattern) || strstr(line, kStackPattern)) {
+  if (absl::StrContains(line, kStackAndTlsPattern) ||
+      absl::StrContains(line, kStackPattern)) {
     return RegionType::kStacks;
   }
-  if (strstr(line, kSoExtension) || strstr(line, kApkExtension) ||
-      strstr(line, kDexExtension)) {
+  if (absl::StrContains(line, kSoExtension) ||
+      absl::StrContains(line, kApkExtension) ||
+      absl::StrContains(line, kDexExtension)) {
     // Catch-all for other executable code and read-only data mappings
     // from system libraries, GPU drivers, and the Android package.
     return RegionType::kCodeOther;
@@ -427,45 +447,60 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
       continue;
     }
 
+    absl::string_view line_sv(line);
     uint64_t value_kb = 0;
-    if (strncmp(line, "Pss:", 4) == 0) {
-      if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
-        if (current_type == RegionType::kLibChrobalt) {
-          libchrobalt_pss_kb += value_kb;
+    if (absl::StartsWith(line_sv, "Pss:")) {
+      size_t num_start = line_sv.find_first_not_of(' ', 4);
+      if (num_start != absl::string_view::npos) {
+        size_t num_end = line_sv.find(" kB", num_start);
+        if (num_end != absl::string_view::npos) {
+          if (absl::SimpleAtoi(line_sv.substr(num_start, num_end - num_start),
+                               &value_kb)) {
+            if (current_type == RegionType::kLibChrobalt) {
+              libchrobalt_pss_kb += value_kb;
+            }
+          }
         }
       }
-    } else if (strncmp(line, "Rss:", 4) == 0) {
-      if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
-        switch (current_type) {
-          case RegionType::kLibChrobalt:
-            libchrobalt_rss_kb += value_kb;
-            break;
-          case RegionType::kPartitionAlloc:
-            pa_rss_kb += value_kb;
-            break;
-          case RegionType::kV8:
-            v8_rss_kb += value_kb;
-            break;
-          case RegionType::kMalloc:
-            malloc_rss_kb += value_kb;
-            break;
-          case RegionType::kCodeOther:
-            code_other_rss_kb += value_kb;
-            break;
-          case RegionType::kFonts:
-            fonts_rss_kb += value_kb;
-            break;
-          case RegionType::kAshmemJit:
-            ashmem_jit_rss_kb += value_kb;
-            break;
-          case RegionType::kAndroidRuntime:
-            android_runtime_rss_kb += value_kb;
-            break;
-          case RegionType::kStacks:
-            stacks_rss_kb += value_kb;
-            break;
-          default:
-            break;
+    } else if (absl::StartsWith(line_sv, "Rss:")) {
+      size_t num_start = line_sv.find_first_not_of(' ', 4);
+      if (num_start != absl::string_view::npos) {
+        size_t num_end = line_sv.find(" kB", num_start);
+        if (num_end != absl::string_view::npos) {
+          if (absl::SimpleAtoi(line_sv.substr(num_start, num_end - num_start),
+                               &value_kb)) {
+            switch (current_type) {
+              case RegionType::kLibChrobalt:
+                libchrobalt_rss_kb += value_kb;
+                break;
+              case RegionType::kPartitionAlloc:
+                pa_rss_kb += value_kb;
+                break;
+              case RegionType::kV8:
+                v8_rss_kb += value_kb;
+                break;
+              case RegionType::kMalloc:
+                malloc_rss_kb += value_kb;
+                break;
+              case RegionType::kCodeOther:
+                code_other_rss_kb += value_kb;
+                break;
+              case RegionType::kFonts:
+                fonts_rss_kb += value_kb;
+                break;
+              case RegionType::kAshmemJit:
+                ashmem_jit_rss_kb += value_kb;
+                break;
+              case RegionType::kAndroidRuntime:
+                android_runtime_rss_kb += value_kb;
+                break;
+              case RegionType::kStacks:
+                stacks_rss_kb += value_kb;
+                break;
+              default:
+                break;
+            }
+          }
         }
       }
     }

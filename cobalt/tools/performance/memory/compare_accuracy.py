@@ -132,11 +132,12 @@ def aggregate_smaps(snapshot: Dict[str, Any]) -> Dict[str, float]:
       res['fonts'] += rss
     elif '/dev/ashmem/' in name or 'memfd:jit' in name:
       res['ashmem_jit'] += rss
-    elif '.art' in name or '.oat' in name or 'dalvik-' in name:
+    elif any(x in name for x in ['art', 'oat', 'vdex', 'odex', 'jar', 'hyb']
+            ) or 'dalvik-' in name:
       res['android_runtime'] += rss
     elif 'stack_and_tls' in name or '[stack]' in name:
       res['stacks'] += rss
-    elif '.so' in name or '.apk' in name or '.dex' in name:
+    elif any(x in name for x in ['.so', '.apk', '.dex']):
       res['code_other'] += rss
 
   # Convert categories to MiB
