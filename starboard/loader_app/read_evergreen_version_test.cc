@@ -93,5 +93,27 @@ TEST_F(ReadEvergreenVersionTest,
   ASSERT_STREQ(kTestEvergreenVersion, current_version.data());
 }
 
+TEST_F(ReadEvergreenVersionTest, ReadEvergreenVersionReturnsFalseIfTruncated) {
+  const char kLongEvergreenVersion[] = "1.2.3.4.5.6.7.8.9.10.11.12";
+  ASSERT_GE(strlen(kLongEvergreenVersion), kMaxEgVersionLength);
+
+  std::vector<char> current_version(kMaxEgVersionLength);
+  Json::Value root;
+  root["manifest_version"] = 2;
+  root[kVersionKey] = kLongEvergreenVersion;
+
+  starboard::ScopedFile manifest_file(manifest_path_.data(), O_RDWR | O_CREAT,
+                                      S_IRWXU | S_IRWXG);
+  ASSERT_TRUE(manifest_file.IsValid());
+  Json::StreamWriterBuilder builder;
+  std::string manifest_file_str = Json::writeString(builder, root);
+  ASSERT_EQ(manifest_file.WriteAll(manifest_file_str.c_str(),
+                                   manifest_file_str.length()),
+            manifest_file_str.length());
+
+  ASSERT_FALSE(ReadEvergreenVersion(manifest_path_, current_version.data(),
+                                    kMaxEgVersionLength));
+}
+
 }  // namespace
 }  // namespace loader_app

@@ -16,6 +16,8 @@ source_set("h5vcc_metrics") {
   sources = [
     "h5vcc_metrics_impl.cc",
     "h5vcc_metrics_impl.h",
+    "histogram_fetcher.cc",
+    "histogram_fetcher.h",
   ]
 
   deps = [

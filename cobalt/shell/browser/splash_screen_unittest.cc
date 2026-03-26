@@ -22,12 +22,12 @@ using testing::_;
 
 namespace content {
 
-class SplashScreenTest : public CobaltShellTestBase {
+class SplashScreenTest : public ShellTestBase {
  public:
   SplashScreenTest() = default;
 
   void SetUp() override {
-    CobaltShellTestBase::SetUp();
+    ShellTestBase::SetUp();
     InitializeShell(true /* is_visible */);
   }
 

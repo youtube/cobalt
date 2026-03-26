@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/iamf_util.h"
 
 #include <string>
+#include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -246,7 +247,111 @@ TEST(IamfUtilTest, Profile) {
   EXPECT_TRUE(util.is_valid());
   ASSERT_NE(util.primary_profile(), kIamfProfileSimple);
   ASSERT_NE(util.primary_profile(), kIamfProfileBase);
-  ASSERT_EQ(util.primary_profile(), 2);
+  ASSERT_EQ(util.primary_profile(), 2U);
+}
+
+TEST(IamfUtilTest, ParsesSequenceHeaderObu) {
+  // From iamf_simple_profile_5_1.dmp.
+  const std::vector<uint8_t> kSimpleProfileSequenceHeaderObu = {
+      0xF8, 0x06, 0x69, 0x61, 0x6D, 0x66, 0x00, 0x00};
+
+  // From iamf_base_profile_stereo_ambisonics.dmp.
+  const std::vector<uint8_t> kBaseProfileSequenceHeaderObu = {
+      0xF8, 0x06, 0x69, 0x61, 0x6D, 0x66, 0x01, 0x01};
+
+  auto result =
+      IamfMimeUtil::ParseIamfSequenceHeaderObu(kSimpleProfileSequenceHeaderObu);
+
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->primary_profile, kIamfProfileSimple);
+  EXPECT_EQ(result->additional_profile, kIamfProfileSimple);
+
+  result =
+      IamfMimeUtil::ParseIamfSequenceHeaderObu(kBaseProfileSequenceHeaderObu);
+
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_EQ(result->primary_profile, kIamfProfileBase);
+  EXPECT_EQ(result->additional_profile, kIamfProfileBase);
+}
+
+TEST(IamfUtilTest, ParseSequenceHeaderFailsOnInvalidObuType) {
+  // First byte 0x08 means OBU type 1, not 31.
+  const uint8_t kInvalidObuType[] = {0x08, 0x06, 0x69, 0x61,
+                                     0x6D, 0x66, 0x00, 0x00};
+  std::vector<uint8_t> data(kInvalidObuType,
+                            kInvalidObuType + SB_ARRAY_SIZE(kInvalidObuType));
+  auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(data);
+  ASSERT_FALSE(result.has_value())
+      << "Parsed IA Sequence Header OBU when an error was expected. Primary "
+         "profile: "
+      << result->primary_profile
+      << " additional profile: " << result->additional_profile;
+}
+
+TEST(IamfUtilTest, ParseSequenceHeaderFailsOnTruncatedData) {
+  const uint8_t kTruncatedData[] = {0xF8, 0x06, 0x69, 0x61,
+                                    0x6D};  // Truncated ia_code.
+  std::vector<uint8_t> data(kTruncatedData,
+                            kTruncatedData + SB_ARRAY_SIZE(kTruncatedData));
+  auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(data);
+  ASSERT_FALSE(result.has_value())
+      << "Parsed IA Sequence Header OBU when an error was expected. Primary "
+         "profile: "
+      << result->primary_profile
+      << " additional profile: " << result->additional_profile;
+}
+
+TEST(IamfUtilTest, ParseSequenceHeaderFailsOnTruncatedLeb128) {
+  const uint8_t kTruncatedLeb128[] = {0xF8, 0x81};  // Incomplete LEB128 size.
+  std::vector<uint8_t> data(kTruncatedLeb128,
+                            kTruncatedLeb128 + SB_ARRAY_SIZE(kTruncatedLeb128));
+  auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(data);
+  ASSERT_FALSE(result.has_value())
+      << "Parsed IA Sequence Header OBU when an error was expected. Primary "
+         "profile: "
+      << result->primary_profile
+      << " additional profile: " << result->additional_profile;
+}
+
+TEST(IamfUtilTest, ParseSequenceHeaderFailsOnInvalid5ByteLeb128) {
+  // This is an invalid encoding for a 32-bit value.
+  const uint8_t kInvalidLeb128[] = {0xF8, 0x81, 0x81, 0x81, 0x81, 0x10};
+  std::vector<uint8_t> data(kInvalidLeb128,
+                            kInvalidLeb128 + SB_ARRAY_SIZE(kInvalidLeb128));
+  auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(data);
+  ASSERT_FALSE(result.has_value())
+      << "Parsed IA Sequence Header OBU when an error was expected. Primary "
+         "profile: "
+      << result->primary_profile
+      << " additional profile: " << result->additional_profile;
+}
+
+TEST(IamfUtilTest, ParseSequenceHeaderFailsWhenObuSizeExceedsBufferSize) {
+  // LEB128 size is 7, but only 6 bytes remain.
+  const uint8_t kObuSizeTooLarge[] = {0xF8, 0x07, 0x69, 0x61,
+                                      0x6D, 0x66, 0x00, 0x00};
+  std::vector<uint8_t> data(kObuSizeTooLarge,
+                            kObuSizeTooLarge + SB_ARRAY_SIZE(kObuSizeTooLarge));
+  auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(data);
+  ASSERT_FALSE(result.has_value())
+      << "Parsed IA Sequence Header OBU when an error was expected. Primary "
+         "profile: "
+      << result->primary_profile
+      << " additional profile: " << result->additional_profile;
+}
+
+TEST(IamfUtilTest, ParseSequenceHeaderFailsWhenObuSizeIsTooSmall) {
+  // LEB128 size is 5, but 6 bytes are needed for ia_code and profiles.
+  const uint8_t kObuSizeTooSmall[] = {0xF8, 0x05, 0x69, 0x61,
+                                      0x6D, 0x66, 0x00, 0x00};
+  std::vector<uint8_t> data(kObuSizeTooSmall,
+                            kObuSizeTooSmall + SB_ARRAY_SIZE(kObuSizeTooSmall));
+  auto result = IamfMimeUtil::ParseIamfSequenceHeaderObu(data);
+  ASSERT_FALSE(result.has_value())
+      << "Parsed IA Sequence Header OBU when an error was expected. Primary "
+         "profile: "
+      << result->primary_profile
+      << " additional profile: " << result->additional_profile;
 }
 
 }  // namespace
