@@ -25,7 +25,11 @@
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+<<<<<<< HEAD
 #include "starboard/thread.h"
+=======
+#include "starboard/shared/pthread/thread_create_priority.h"
+>>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
 
 namespace starboard {
 namespace {
@@ -210,7 +214,11 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
+<<<<<<< HEAD
       decoder_state_tracker_(nullptr) {
+=======
+      condition_variable_(mutex_) {
+>>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -383,14 +391,6 @@ void MediaCodecDecoder::DecoderThreadFunc() {
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
-    auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
-      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
-        return false;
-      }
-      return pending_input_to_retry_ ||
-             (!pending_inputs.empty() && !input_buffer_indices.empty());
-    };
-
     while (!destroying_.load()) {
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
@@ -431,7 +431,10 @@ void MediaCodecDecoder::DecoderThreadFunc() {
         host_->Tick(media_codec_bridge_.get());
       }
 
-      if (can_process_input()) {
+      bool can_process_input =
+          pending_input_to_retry_ ||
+          (!pending_inputs.empty() && !input_buffer_indices.empty());
+      if (can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -441,6 +444,7 @@ void MediaCodecDecoder::DecoderThreadFunc() {
         ticked = host_->Tick(media_codec_bridge_.get());
       }
 
+<<<<<<< HEAD
       if (!ticked && !can_process_input() && dequeue_output_results.empty()) {
         std::unique_lock lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
@@ -448,6 +452,19 @@ void MediaCodecDecoder::DecoderThreadFunc() {
         if (!can_process_input() && dequeue_output_results.empty()) {
           condition_variable_.wait_for(
               lock, std::chrono::microseconds(video_decoder_poll_interval_us_));
+=======
+      can_process_input =
+          pending_input_to_retry_ ||
+          (!pending_inputs.empty() && !input_buffer_indices.empty());
+      if (!ticked && !can_process_input && dequeue_output_results.empty()) {
+        ScopedLock scoped_lock(mutex_);
+        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
+                                  &dequeue_output_results);
+        can_process_input =
+            !pending_inputs.empty() && !input_buffer_indices.empty();
+        if (!can_process_input && dequeue_output_results.empty()) {
+          condition_variable_.WaitTimed(video_decoder_poll_interval_us_);
+>>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
         }
       }
     }
@@ -631,14 +648,6 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     return false;
   }
 
-  if (decoder_state_tracker_) {
-    if (pending_input.type == PendingInput::kWriteEndOfStream) {
-      decoder_state_tracker_->MarkEosReached();
-    } else {
-      decoder_state_tracker_->TrackNewFrame(input_buffer->timestamp());
-    }
-  }
-
   is_output_restricted_ = false;
   return true;
 }
@@ -760,10 +769,6 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
-  if (size > 0 && decoder_state_tracker_) {
-    decoder_state_tracker_->MarkFrameDecoded(presentation_time_us);
-  }
-
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
   dequeue_output_result.index = buffer_index;
@@ -825,6 +830,7 @@ bool MediaCodecDecoder::Flush() {
   dequeue_output_results_.clear();
   pending_input_to_retry_ = std::nullopt;
 
+<<<<<<< HEAD
   if (decoder_state_tracker_) {
     decoder_state_tracker_->Reset();
   }
@@ -833,6 +839,12 @@ bool MediaCodecDecoder::Flush() {
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
   dequeue_output_results_.push_back(dequeue_output_result);
+=======
+    // 2.3. Add OutputFormatChanged to get current output format after Flush().
+    DequeueOutputResult dequeue_output_result = {};
+    dequeue_output_result.index = -1;
+    dequeue_output_results_.push_back(dequeue_output_result);
+>>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
 
   // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
   if (flush_delay_usec_ > 0) {

@@ -31,7 +31,6 @@
 #include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/media/decoder_state_tracker.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -141,10 +140,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   bool Flush();
 
-  DecoderStateTracker* decoder_state_tracker() {
-    return decoder_state_tracker_.get();
-  }
-
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
@@ -241,8 +236,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
-
-  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
