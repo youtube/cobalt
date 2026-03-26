@@ -3,6 +3,7 @@
 import argparse
 import re
 import subprocess
+import sys
 
 _SKIP_LIST = {
     '27.lts': [
@@ -36,7 +37,7 @@ def cherry_pick(sha):
   cmd = ['git', 'cherry-pick', '--no-commit']
   if len(ps) > 1:
     cmd.append('--mainline=1')
-  subprocess.run(cmd + [sha], check=True)
+  subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
 
 
 def commit_pick(sha, num, title):
@@ -48,7 +49,7 @@ def commit_pick(sha, num, title):
       'git', 'commit', '--no-verify', f'--author={auth}', f'--date={date}',
       '-m', msg
   ]
-  subprocess.run(cmd, check=True)
+  subprocess.run(cmd, check=True, stdout=sys.stderr)
 
 
 def main():
