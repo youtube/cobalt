@@ -33,10 +33,7 @@ def get_commits(origin, target, start):
 
 
 def cherry_pick(sha):
-  ps = get_out(['git', 'show', '-s', '--format=%P', sha]).split()
   cmd = ['git', 'cherry-pick', '--no-commit']
-  if len(ps) > 1:
-    cmd.append('--mainline=1')
   subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
 
 

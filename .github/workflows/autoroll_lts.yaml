@@ -1,8 +1,9 @@
 name: Autoroll LTS
 
 on:
-  schedule:
-    - cron: '0 * * * *' # Hourly.
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       start_commit:
