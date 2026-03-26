@@ -4,6 +4,9 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+
+assert(!is_starboard, "components/plus_addresses should not be included for Cobalt")
+
 proto_library("proto") {
   proto_in_dir = "//"
   sources = [

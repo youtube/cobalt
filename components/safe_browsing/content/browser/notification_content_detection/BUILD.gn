@@ -5,6 +5,9 @@
 import("//build/config/features.gni")
 import("//third_party/protobuf/proto_library.gni")
 
+assert(!is_starboard, "components/safebrowsing should not be included for Cobalt")
+
+
 source_set("notification_content_detection") {
   sources = [
     "notification_content_detection_constants.cc",

@@ -17,7 +17,7 @@
 #include "base/task/thread_pool.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/uuid.h"
-#include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/optimization_guide/core/optimization_guide_features.h"  // nogncheck
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/on_device_model/fake/on_device_model_fake.h"
 #include "services/on_device_model/ml/gpu_blocklist.h"

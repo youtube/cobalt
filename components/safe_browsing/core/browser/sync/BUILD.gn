@@ -21,9 +21,13 @@ source_set("sync") {
     "//components/safe_browsing/core/browser:sync_observer",
     "//components/safe_browsing/core/browser:token_fetcher",
     "//components/signin/public/identity_manager",
-    "//components/sync/service",
     "//google_apis",
   ]
+  if(!is_cobalt) {
+    deps += [
+    "//components/sync/service",
+    ]
+  }
 }
 
 source_set("unittests") {

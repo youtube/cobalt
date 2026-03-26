@@ -99,6 +99,7 @@ static_library("observers") {
     "//components/metrics",
     "//components/sync/base",
     "//components/sync/service",
+    "//components/unified_consent",
     "//google_apis",
     "//services/metrics/public/cpp:metrics_cpp",
   ]
@@ -109,7 +110,9 @@ static_library("observers") {
     ]
   }
 
-  public_deps = [ "//components/unified_consent" ]
+  if (!is_cobalt) {
+    public_deps = [ "//components/unified_consent" ]
+  }
 }
 
 static_library("test_support") {
@@ -154,12 +157,7 @@ source_set("unit_tests") {
     "//components/sync:test_support",
     "//components/sync_preferences:test_support",
     "//components/variations",
-    "//net:test_support",
-    "//services/metrics",
-    "//services/metrics/public/cpp:ukm_builders",
-    "//testing/gtest",
-    "//third_party/zlib/google:compression_utils",
-    "//url",
+    "//services/metrics:metrics",
   ]
   if (is_chromeos) {
     deps += [

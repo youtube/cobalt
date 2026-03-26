@@ -4,6 +4,8 @@
 
 import("//build/buildflag_header.gni")
 
+assert(!is_starboard, "components/credential_management should not be included for Cobalt")
+
 source_set("browser") {
   sources = [
     "content_credential_manager.cc",

@@ -67,7 +67,7 @@ group("gn_all") {
       "//starboard/loader_app:loader_app($starboard_toolchain)",
     ]
   }
-  if (is_starboard && build_updater_sandbox) {
+  if (is_starboard && build_updater_sandbox && !is_cobalt) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
   if (use_crashpad) {

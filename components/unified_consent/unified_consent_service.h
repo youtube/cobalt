@@ -16,19 +16,25 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync/service/sync_service_observer.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "components/sync_preferences/pref_service_syncable_observer.h"
+#endif
 
 namespace user_prefs {
 class PrefRegistrySyncable;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 namespace sync_preferences {
 class PrefServiceSyncable;
 }
+#endif
 
 namespace syncer {
 class SyncService;
 }
+
+class PrefService;
 
 namespace unified_consent {
 
@@ -54,15 +60,25 @@ enum class MigrationState : int {
 class UnifiedConsentService
     : public KeyedService,
       public signin::IdentityManager::Observer,
-      public syncer::SyncServiceObserver,
-      public sync_preferences::PrefServiceSyncableObserver {
+      public syncer::SyncServiceObserver
+#if !BUILDFLAG(IS_COBALT)
+      , public sync_preferences::PrefServiceSyncableObserver
+#endif
+{
  public:
   // Initializes the service. The |service_pref_names| vector is used to track
   // pref changes during the first sync setup.
+#if !BUILDFLAG(IS_COBALT)
   UnifiedConsentService(sync_preferences::PrefServiceSyncable* pref_service,
                         signin::IdentityManager* identity_manager,
                         syncer::SyncService* sync_service,
                         const std::vector<std::string>& service_pref_names);
+#else
+  UnifiedConsentService(PrefService* pref_service,
+                        signin::IdentityManager* identity_manager,
+                        syncer::SyncService* sync_service,
+                        const std::vector<std::string>& service_pref_names);
+#endif
 
   UnifiedConsentService(const UnifiedConsentService&) = delete;
   UnifiedConsentService& operator=(const UnifiedConsentService&) = delete;
@@ -119,8 +135,10 @@ class UnifiedConsentService
   // syncer::SyncServiceObserver:
   void OnStateChanged(syncer::SyncService* sync) override;
 
+#if !BUILDFLAG(IS_COBALT)
   // sync_preferences::PrefServiceSyncableObserver:
   void OnIsSyncingChanged() override;
+#endif
 
   // Helpers for observing changes in the service prefs.
   void StartObservingServicePrefChanges();
@@ -139,7 +157,11 @@ class UnifiedConsentService
   void UpdateSettingsForMigration();
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   raw_ptr<sync_preferences::PrefServiceSyncable> pref_service_;
+#else
+  raw_ptr<PrefService> pref_service_;
+#endif
   raw_ptr<signin::IdentityManager> identity_manager_;
   raw_ptr<syncer::SyncService> sync_service_;
 

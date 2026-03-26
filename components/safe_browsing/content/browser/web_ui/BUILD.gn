@@ -4,6 +4,8 @@
 
 import("//third_party/protobuf/proto_library.gni")
 
+assert(!is_starboard, "components/plus_addresses should not be included for Cobalt")
+
 static_library("web_ui") {
   sources = [
     "safe_browsing_ui.cc",

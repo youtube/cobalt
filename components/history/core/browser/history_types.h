@@ -24,7 +24,9 @@
 #include "components/query_parser/query_parser.h"
 #include "components/query_parser/snippet.h"
 #include "components/sessions/core/session_id.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "components/sync_device_info/device_info.h"
+#endif
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
@@ -584,9 +586,13 @@ using OriginCountAndLastVisitMap = std::map<GURL, std::pair<int, base::Time>>;
 // Originator Cache GUID. Has the following shape:
 //
 // originator_cache_guid : { OsType, FormFactor }
+#if !BUILDFLAG(IS_COBALT)
 using SyncDeviceInfoMap = std::map<
     std::string,
     std::pair<syncer::DeviceInfo::OsType, syncer::DeviceInfo::FormFactor>>;
+#else
+using SyncDeviceInfoMap = std::map<std::string, std::pair<int, int>>;
+#endif
 
 // Statistics -----------------------------------------------------------------
 

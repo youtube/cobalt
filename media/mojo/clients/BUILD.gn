@@ -19,8 +19,6 @@ source_set("clients") {
     "//content/renderer:*",
 
     # TODO(xhwang): Only allow //media/mojo/services:unit_tests
-    "//chrome/browser:*",
-    "//chrome/browser/thumbnail/generator",
     "//content/browser:*",
     "//content/gpu:*",
     "//media/mojo:test_support",

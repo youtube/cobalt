@@ -5,6 +5,9 @@
 import("//components/optimization_guide/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 
+assert(!is_starboard, "components/page_content should not be included for Cobalt")
+
+
 component("features") {
   sources = [
     "page_content_annotations_enums.h",

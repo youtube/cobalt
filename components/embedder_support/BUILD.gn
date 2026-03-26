@@ -81,7 +81,6 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//build:branding_buildflags",
-    "//components/component_updater/installer_policies",
     "//components/embedder_support",
     "//components/embedder_support/origin_trials",
     "//components/embedder_support/origin_trials:test_support",
@@ -98,6 +97,11 @@ source_set("unit_tests") {
     "//third_party/blink/public/mojom:mojom_platform_headers",
     "//third_party/re2",
   ]
+  if(!is_cobalt) {
+    deps += [
+      "//components/component_updater/installer_policies",
+    ]
+  }
 
   if (is_android) {
     sources += [

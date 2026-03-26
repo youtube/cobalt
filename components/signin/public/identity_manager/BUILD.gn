@@ -59,7 +59,11 @@ source_set("identity_manager") {
 
   deps = [
     "//components/image_fetcher/core",
-    "//components/plus_addresses:features",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/plus_addresses:features" ]
+  }
+  deps += [
     "//components/prefs",
     "//components/signin/internal/identity_manager",
     "//components/signin/public/webdata",

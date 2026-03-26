@@ -4,6 +4,9 @@
 
 import("//build/config/features.gni")
 
+assert(!is_starboard, "components/webdata_services should not be included for Cobalt")
+
+
 static_library("webdata_services") {
   output_name = "webdata_services"
 

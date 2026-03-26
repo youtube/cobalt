@@ -121,7 +121,6 @@ source_set("unit_tests") {
     "//components/pref_registry:pref_registry",
     "//components/prefs",
     "//components/prefs:test_support",
-    "//components/sync_preferences:test_support",
     "//components/translate/core/common",
     "//components/ukm",
     "//components/ukm:test_support",
@@ -133,6 +132,7 @@ source_set("unit_tests") {
     "//services/network:test_support",
     "//services/network/public/cpp:cpp",
     "//ui/base",
+    "//components/sync_preferences:test_support",
   ]
 
   if (is_ios) {

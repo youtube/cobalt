@@ -10,6 +10,8 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+assert(!is_starboard, "components/plus_addresses should not be included for Cobalt")
+
 component("features") {
   output_name = "plus_addresses_features"
   defines = [ "IS_PLUS_ADDRESSES_FEATURES_IMPL" ]

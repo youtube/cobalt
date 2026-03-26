@@ -12,6 +12,8 @@ source_set("browser") {
   deps = [
     "//base",
     "//components/browsing_data/content",
+  ]
+  deps += [
     "//components/browsing_data/core:core",
     "//components/content_settings/common:mojom",
     "//components/content_settings/core/browser",
@@ -51,10 +53,10 @@ source_set("unit_tests") {
     "//components/content_settings/core/browser",
     "//components/security_state/core",
     "//components/services/storage/public/cpp",
-    "//components/sync_preferences:test_support",
     "//content/test:test_support",
     "//net",
     "//testing/gmock",
     "//testing/gtest",
+    "//components/sync_preferences:test_support",
   ]
 }

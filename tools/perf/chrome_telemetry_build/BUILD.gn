@@ -48,7 +48,7 @@ group("telemetry_chrome_test") {
     data_deps += [ "//third_party/perfetto/src/trace_processor:trace_processor_shell($default_toolchain)" ]
   }
 
-  if (!is_fuchsia && !is_android && !is_castos && !is_ios) {
+  if (!is_fuchsia && !is_android && !is_castos && !is_ios && !is_cobalt) {
     data_deps += [ "//chrome" ]
   }
 

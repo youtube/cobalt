@@ -366,10 +366,16 @@ if (enable_extensions) {
       "//base:i18n",
       "//base/test:test_support",
       "//build:chromeos_buildflags",
-      "//chrome/browser",
-      "//chrome/common/extensions/api",
-      "//chrome/renderer",
-      "//chrome/test:test_support",
+    ]
+    if (!is_cobalt) {
+      deps += [
+        "//chrome/browser",
+        "//chrome/common/extensions/api",
+        "//chrome/renderer",
+        "//chrome/test:test_support",
+      ]
+    }
+    deps += [
       "//components/autofill/content/browser:risk_proto",
       "//components/autofill/content/renderer:test_support",
       "//components/captive_portal/core:test_support",

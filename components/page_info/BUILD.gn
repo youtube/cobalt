@@ -1,5 +1,8 @@
 import("//build/config/features.gni")
 
+assert(!is_starboard, "components/page_info should not be included for Cobalt")
+
+
 static_library("page_info") {
   sources = [
     "page_info.cc",

@@ -645,7 +645,6 @@ if (!is_cronet_build) {
       "//components/network_time:network_time_test_support",
       "//components/prefs:test_support",
       "//components/sampling_profiler:profile_params",
-      "//components/sync:test_support",
       "//components/sync/base",
       "//components/variations",
       "//components/variations:test_support",
@@ -662,6 +661,12 @@ if (!is_cronet_build) {
       "//third_party/zlib/google:compression_utils",
       "//ui/gfx/geometry",
     ]
+    if(!is_cobalt) {
+      deps += [
+      "//components/sync:test_support",
+
+      ]
+    }
 
     if (is_win) {
       sources += [
@@ -729,9 +734,13 @@ if (!is_cronet_build) {
     sources = [ "//components/test/run_all_unittests.cc" ]
     deps = [
       ":unit_tests",
-      "//components/metrics/demographics:unit_tests",
       "//components/test:test_support",
     ]
+    if(!is_cobalt) {
+      deps += [
+      "//components/metrics/demographics:unit_tests",
+      ]
+    }
   }
 }
 

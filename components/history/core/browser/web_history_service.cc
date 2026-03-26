@@ -570,7 +570,7 @@ void WebHistoryService::QueryHistoryCompletionCallback(
     WebHistoryService::Request* request,
     bool success) {
   std::move(callback).Run(request,
-                          success ? ReadResponse(request) : std::nullopt);
+                          success ? WebHistoryService::ReadResponse(request) : std::nullopt);
 }
 
 void WebHistoryService::ExpireHistoryCompletionCallback(
@@ -586,7 +586,7 @@ void WebHistoryService::ExpireHistoryCompletionCallback(
     return;
   }
 
-  std::optional<base::Value::Dict> response = ReadResponse(request);
+  std::optional<base::Value::Dict> response = WebHistoryService::ReadResponse(request);
   if (!response) {
     std::move(callback).Run(/*success=*/false);
     return;
@@ -615,7 +615,7 @@ void WebHistoryService::AudioHistoryCompletionCallback(
     return;
   }
 
-  if (std::optional<base::Value::Dict> response = ReadResponse(request)) {
+  if (std::optional<base::Value::Dict> response = WebHistoryService::ReadResponse(request)) {
     bool enabled_value = false;
     if (std::optional<bool> enabled =
             response->FindBool("history_recording_enabled")) {
@@ -644,7 +644,7 @@ void WebHistoryService::QueryWebAndAppActivityCompletionCallback(
     return;
   }
 
-  if (std::optional<base::Value::Dict> response = ReadResponse(request)) {
+  if (std::optional<base::Value::Dict> response = WebHistoryService::ReadResponse(request)) {
     if (std::optional<bool> enabled =
             response->FindBool("history_recording_enabled")) {
       std::move(callback).Run(

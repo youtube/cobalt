@@ -4,6 +4,8 @@
 
 import("//build/config/ui.gni")
 
+assert(!is_starboard, "components/plus_addresses should not be included for Cobalt")
+
 static_library("passage_embeddings_types") {
   sources = [
     "passage_embeddings_types.cc",

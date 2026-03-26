@@ -103,8 +103,13 @@ namespace history {
 
 namespace {
 
+#if !BUILDFLAG(IS_COBALT)
 using OsType = syncer::DeviceInfo::OsType;
 using FormFactor = syncer::DeviceInfo::FormFactor;
+#else
+using OsType = int;
+using FormFactor = int;
+#endif
 
 #if DCHECK_IS_ON()
 // Use to keep track of paths used to host HistoryBackends. This class

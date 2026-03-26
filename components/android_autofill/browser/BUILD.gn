@@ -6,6 +6,9 @@ import("//build/config/android/rules.gni")
 import("//build/config/locales.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
+assert(!is_starboard, "components/anroid_autofill should not be included for Cobalt")
+
+
 android_aidl("autofill_aidl") {
   import_include = [ "java/src" ]
   sources = [

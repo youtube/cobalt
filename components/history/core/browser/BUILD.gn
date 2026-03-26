@@ -177,8 +177,6 @@ source_set("unit_tests") {
     "//components/prefs:test_support",
     "//components/search_engines",
     "//components/search_engines:test_support",
-    "//components/sync",
-    "//components/sync:test_support",
     "//components/visitedlink/core",
     "//net:test_support",
     "//services/network:test_support",
@@ -189,6 +187,8 @@ source_set("unit_tests") {
     "//ui/gfx",
     "//ui/gfx:test_support",
     "//url",
+    "//components/sync",
+    "//components/sync:test_support",
   ]
   if (is_ios) {
     deps += [ "//components/test:history_test_bundle_data" ]

@@ -72,7 +72,6 @@ static_library("service") {
     "//components/network_time",
     "//components/pref_registry",
     "//components/prefs",
-    "//components/sync/service",
     "//components/variations",
     "//components/variations/field_trial_config",
     "//components/variations/proto",
@@ -81,6 +80,7 @@ static_library("service") {
     "//net",
     "//services/network/public/cpp",
     "//ui/base",
+    "//components/sync/service",
   ]
 }
 

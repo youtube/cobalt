@@ -4,6 +4,9 @@
 
 import("//testing/test.gni")
 
+assert(!is_starboard, "components/metrics/demographics should not be included for Cobalt")
+
+
 static_library("demographics") {
   sources = [
     "demographic_metrics_provider.cc",

@@ -9,6 +9,8 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+assert(!is_starboard, "components/sharing_message should not be included for Cobalt")
+
 buildflag_header("buildflags") {
   header = "buildflags.h"
   flags = [
@@ -100,6 +102,9 @@ source_set("sharing_message") {
     "//third_party/re2",
     "//ui/base",
   ]
+  if(!is_cobalt) {
+
+  }
 }
 
 source_set("test_support") {

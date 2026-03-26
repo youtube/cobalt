@@ -601,7 +601,11 @@ source_set("browser_sources") {
     "//components/input",
     "//components/language_detection/content/browser",
     "//components/language_detection/content/common",
-    "//components/language_detection/core/browser:language_detection_model_service",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/language_detection/core/browser:language_detection_model_service" ]
+  }
+  deps += [
     "//components/services/storage/public/cpp",
     "//components/variations:variations",
     "//components/viz/host",

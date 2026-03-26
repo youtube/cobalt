@@ -113,6 +113,7 @@ bundle_data("unit_tests_bundle_data") {
               "{{source_root_relative_dir}}/{{source_file_part}}" ]
 }
 
+if (!is_starboard) {
 source_set("unit_tests") {
   testonly = true
   sources = [
@@ -147,6 +148,7 @@ source_set("unit_tests") {
     "//ui/base",
     "//url",
   ]
+}
 }
 
 if (is_android) {

@@ -19,13 +19,16 @@
 #include "base/values.h"
 #include "components/history/core/browser/history_backend.h"
 #include "components/history/core/browser/history_db_task.h"
-#include "components/sync/model/sync_change.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/history_delete_directive_specifics.pb.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/sync/model/sync_change.h"
 #include "components/sync/protocol/proto_value_conversions.h"
+#endif
 
 namespace {
 
+#if !BUILDFLAG(IS_COBALT)
 std::string RandASCIIString(size_t length) {
   std::string result;
   const int kMin = static_cast<int>(' ');
@@ -35,16 +38,24 @@ std::string RandASCIIString(size_t length) {
   }
   return result;
 }
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
 std::string DeleteDirectiveToString(
     const sync_pb::HistoryDeleteDirectiveSpecifics& delete_directive) {
+#if !BUILDFLAG(IS_COBALT)
   base::Value value =
       syncer::HistoryDeleteDirectiveSpecificsToValue(delete_directive);
   std::string str;
   base::JSONWriter::Write(value, &str);
   return str;
+#else
+  return "HIDDEN";
+#endif
 }
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
 // Compare time range directives first by start time, then by end time.
 bool TimeRangeLessThan(const syncer::SyncData& data1,
                        const syncer::SyncData& data2) {
@@ -52,15 +63,13 @@ bool TimeRangeLessThan(const syncer::SyncData& data1,
       data1.GetSpecifics().history_delete_directive().time_range_directive();
   const sync_pb::TimeRangeDirective& range2 =
       data2.GetSpecifics().history_delete_directive().time_range_directive();
-  if (range1.start_time_usec() < range2.start_time_usec()) {
-    return true;
-  }
-  if (range1.start_time_usec() > range2.start_time_usec()) {
-    return false;
-  }
+  if (range1.start_time_usec() != range2.start_time_usec())
+    return range1.start_time_usec() < range2.start_time_usec();
   return range1.end_time_usec() < range2.end_time_usec();
 }
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
 // Converts a Unix timestamp in microseconds to a base::Time value.
 base::Time UnixUsecToTime(int64_t usec) {
   return base::Time::UnixEpoch() + base::Microseconds(usec);
@@ -81,8 +90,9 @@ void GetTimesFromGlobalIds(
         base::Time::FromInternalValue(global_id_directive.global_id(i)));
   }
 }
+#endif
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !BUILDFLAG(IS_COBALT)
 // Checks that the given delete directive is properly formed.
 void CheckDeleteDirectiveValid(
     const sync_pb::HistoryDeleteDirectiveSpecifics& delete_directive) {
@@ -130,12 +140,13 @@ void CheckDeleteDirectiveValid(
         << "Delete directive has no time range, global ID or url directive";
   }
 }
-#endif  // !defined(NDEBUG)
+#endif
 
 }  // anonymous namespace
 
 namespace history {
 
+#if !BUILDFLAG(IS_COBALT)
 class DeleteDirectiveHandler::DeleteDirectiveTask : public HistoryDBTask {
  public:
   DeleteDirectiveTask(
@@ -377,6 +388,7 @@ void DeleteDirectiveHandler::DeleteDirectiveTask::ProcessUrlDeleteDirectives(
     history_backend->DeleteURLsUntil(deletions);
   }
 }
+#endif
 
 DeleteDirectiveHandler::DeleteDirectiveHandler(
     BackendTaskScheduler backend_task_scheduler)
@@ -394,6 +406,7 @@ void DeleteDirectiveHandler::OnBackendLoaded() {
 bool DeleteDirectiveHandler::CreateTimeRangeDeleteDirective(
     base::Time begin_time,
     base::Time end_time) {
+#if !BUILDFLAG(IS_COBALT)
   base::Time now = base::Time::Now();
   sync_pb::HistoryDeleteDirectiveSpecifics delete_directive;
 
@@ -415,9 +428,13 @@ bool DeleteDirectiveHandler::CreateTimeRangeDeleteDirective(
   std::optional<syncer::ModelError> error =
       ProcessLocalDeleteDirective(delete_directive);
   return !error.has_value();
+#else
+  return true;
+#endif
 }
 
 bool DeleteDirectiveHandler::CreateUrlDeleteDirective(const GURL& url) {
+#if !BUILDFLAG(IS_COBALT)
   DCHECK(url.is_valid());
   sync_pb::HistoryDeleteDirectiveSpecifics delete_directive;
 
@@ -429,8 +446,12 @@ bool DeleteDirectiveHandler::CreateUrlDeleteDirective(const GURL& url) {
   std::optional<syncer::ModelError> error =
       ProcessLocalDeleteDirective(delete_directive);
   return !error.has_value();
+#else
+  return true;
+#endif
 }
 
+#if !BUILDFLAG(IS_COBALT)
 std::optional<syncer::ModelError>
 DeleteDirectiveHandler::ProcessLocalDeleteDirective(
     const sync_pb::HistoryDeleteDirectiveSpecifics& delete_directive) {
@@ -439,7 +460,7 @@ DeleteDirectiveHandler::ProcessLocalDeleteDirective(
     return syncer::ModelError(FROM_HERE,
                               "Cannot send local delete directive to sync");
   }
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !BUILDFLAG(IS_COBALT)
   CheckDeleteDirectiveValid(delete_directive);
 #endif
 
@@ -457,6 +478,7 @@ DeleteDirectiveHandler::ProcessLocalDeleteDirective(
   return sync_processor_->ProcessSyncChanges(FROM_HERE, changes);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void DeleteDirectiveHandler::WaitUntilReadyToSync(base::OnceClosure done) {
   DCHECK(!wait_until_ready_to_sync_cb_);
   if (backend_loaded_) {
@@ -466,6 +488,7 @@ void DeleteDirectiveHandler::WaitUntilReadyToSync(base::OnceClosure done) {
     wait_until_ready_to_sync_cb_ = std::move(done);
   }
 }
+#endif
 
 std::optional<syncer::ModelError>
 DeleteDirectiveHandler::MergeDataAndStartSyncing(
@@ -531,10 +554,13 @@ std::optional<syncer::ModelError> DeleteDirectiveHandler::ProcessSyncChanges(
   return std::nullopt;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 base::WeakPtr<syncer::SyncableService> DeleteDirectiveHandler::AsWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
 void DeleteDirectiveHandler::FinishProcessing(
     PostProcessingAction post_processing_action,
     const syncer::SyncDataList& delete_directives) {
@@ -552,5 +578,42 @@ void DeleteDirectiveHandler::FinishProcessing(
     sync_processor_->ProcessSyncChanges(FROM_HERE, change_list);
   }
 }
+#endif
+#else
+std::optional<syncer::ModelError>
+DeleteDirectiveHandler::ProcessLocalDeleteDirective(
+    const sync_pb::HistoryDeleteDirectiveSpecifics& delete_directive) {
+  return std::nullopt;
+}
+
+void DeleteDirectiveHandler::WaitUntilReadyToSync(base::OnceClosure done) {
+  std::move(done).Run();
+}
+
+std::optional<syncer::ModelError>
+DeleteDirectiveHandler::MergeDataAndStartSyncing(
+    syncer::DataType type,
+    const syncer::SyncDataList& initial_sync_data,
+    std::unique_ptr<syncer::SyncChangeProcessor> sync_processor) {
+  return std::nullopt;
+}
+
+void DeleteDirectiveHandler::StopSyncing(syncer::DataType type) {}
+
+std::optional<syncer::ModelError> DeleteDirectiveHandler::ProcessSyncChanges(
+    const base::Location& from_here,
+    const syncer::SyncChangeList& change_list) {
+  return std::nullopt;
+}
+
+base::WeakPtr<syncer::SyncableService> DeleteDirectiveHandler::AsWeakPtr() {
+  return nullptr;
+}
+
+void DeleteDirectiveHandler::FinishProcessing(
+    PostProcessingAction post_processing_action,
+    const syncer::SyncDataList& delete_directives) {}
+#endif
 
 }  // namespace history
+

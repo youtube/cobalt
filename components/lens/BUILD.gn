@@ -6,6 +6,7 @@ import("//build/buildflag_header.gni")
 import("//components/lens/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
+
 # Generate a buildflag header for compile-time checking of Lens feature support.
 buildflag_header("buildflags") {
   header = "buildflags.h"

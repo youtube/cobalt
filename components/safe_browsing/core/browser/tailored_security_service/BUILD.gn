@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+assert(!is_starboard, "components/safe_browsing should not be included for Cobalt")
+
 source_set("tailored_security_service") {
   sources = [
     "tailored_security_notification_result.h",

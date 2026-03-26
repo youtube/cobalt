@@ -152,9 +152,13 @@ source_set("verdict_cache_manager_unittest") {
     "//components/safe_browsing/core/common/proto:csd_proto",
     "//components/safe_browsing/core/common/proto:realtimeapi_proto",
     "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
-    "//components/sync_preferences:test_support",
     "//testing/gtest",
   ]
+  if(!is_cobalt) {
+    deps += [
+    "//components/sync_preferences:test_support",
+    ]
+  }
 }
 source_set("referrer_chain_provider") {
   sources = [ "referrer_chain_provider.h" ]

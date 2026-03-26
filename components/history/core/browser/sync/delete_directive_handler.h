@@ -77,7 +77,7 @@ class DeleteDirectiveHandler final : public syncer::SyncableService {
   std::optional<syncer::ModelError> ProcessSyncChanges(
       const base::Location& from_here,
       const syncer::SyncChangeList& change_list) override;
-  base::WeakPtr<SyncableService> AsWeakPtr() override;
+  base::WeakPtr<syncer::SyncableService> AsWeakPtr() override;
 
  private:
   class DeleteDirectiveTask;
@@ -95,7 +95,9 @@ class DeleteDirectiveHandler final : public syncer::SyncableService {
   bool backend_loaded_ = false;
   base::OnceClosure wait_until_ready_to_sync_cb_;
   base::CancelableTaskTracker internal_tracker_;
+#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<syncer::SyncChangeProcessor> sync_processor_;
+#endif
   base::ThreadChecker thread_checker_;
   base::WeakPtrFactory<DeleteDirectiveHandler> weak_ptr_factory_{this};
 };

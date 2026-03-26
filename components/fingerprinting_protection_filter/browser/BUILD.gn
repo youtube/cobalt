@@ -4,6 +4,9 @@
 
 import("//build/config/features.gni")
 
+
+assert(!is_starboard, "components/fingerprinting should not be included for Cobalt")
+
 # For this component iOS is explicitly not supported.
 if (use_blink) {
   source_set("browser") {
@@ -61,13 +64,17 @@ if (use_blink) {
     public_deps = [
       ":browser",
       "//base",
-      "//components/sync_preferences:test_support",
     ]
     deps = [
       "//components/content_settings/core/browser",
       "//components/fingerprinting_protection_filter/common:prefs",
       "//components/privacy_sandbox:tracking_protection_settings",
     ]
+    if(!is_cobalt) {
+      deps += [
+        "//components/sync_preferences:test_support",
+      ]
+    }
   }
 
   source_set("unit_tests") {

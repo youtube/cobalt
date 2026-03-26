@@ -13,19 +13,29 @@
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/browsing_data/core/pref_names.h"
-#include "components/commerce/core/pref_names.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/commerce/core/pref_names.h"  // nogncheck
+#endif
 #include "components/content_settings/core/common/pref_names.h"
-#include "components/dom_distiller/core/pref_names.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/dom_distiller/core/pref_names.h"  // nogncheck
+#endif
 #include "components/language/core/browser/pref_names.h"
 #include "components/metrics/demographics/user_demographics.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/ntp_tiles/pref_names.h"
-#include "components/omnibox/browser/omnibox_prefs.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/omnibox/browser/omnibox_prefs.h"  // nogncheck
+#endif
 #include "components/password_manager/core/common/password_manager_pref_names.h"
-#include "components/payments/core/payment_prefs.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/payments/core/payment_prefs.h"  // nogncheck
+#endif
 #include "components/plus_addresses/plus_address_prefs.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
-#include "components/saved_tab_groups/public/pref_names.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "components/saved_tab_groups/public/pref_names.h"  // nogncheck
+#endif
 #include "components/search_engines/search_engines_pref_names.h"
 #include "components/sharing_message/pref_names.h"
 #include "components/sync/base/data_type.h"
@@ -173,6 +183,7 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {browsing_data::prefs::kLastClearBrowsingDataTime,
          {syncable_prefs_ids::kLastClearBrowsingDataTime, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+#if !BUILDFLAG(IS_COBALT)
         {commerce::kPriceEmailNotificationsEnabled,
          {syncable_prefs_ids::kPriceEmailNotificationsEnabled,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
@@ -185,6 +196,7 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {dom_distiller::prefs::kTheme,
          {syncable_prefs_ids::kTheme, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+#endif
         {language::prefs::kAcceptLanguages,
          {syncable_prefs_ids::kAcceptLanguages, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
@@ -201,12 +213,14 @@ constexpr auto kCommonSyncablePrefsAllowlist =
         {ntp_tiles::prefs::kCustomLinksList,
          {syncable_prefs_ids::kCustomLinksList, syncer::PREFERENCES,
           PrefSensitivity::kSensitiveRequiresHistory, MergeBehavior::kNone}},
+#if !BUILDFLAG(IS_COBALT)
         {omnibox::kKeywordSpaceTriggeringEnabled,
          {syncable_prefs_ids::kKeywordSpaceTriggeringEnabled,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
         {omnibox::kShowGoogleLensShortcut,
          {syncable_prefs_ids::kShowGoogleLensShortcut, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+#endif
         {password_manager::prefs::kCredentialsEnableAutosignin,
          {syncable_prefs_ids::kCredentialsEnableAutosignin,
           syncer::PRIORITY_PREFERENCES, PrefSensitivity::kNone,
@@ -229,9 +243,11 @@ constexpr auto kCommonSyncablePrefsAllowlist =
          {syncable_prefs_ids::kWasAutoSignInFirstRunExperienceShown,
           syncer::PRIORITY_PREFERENCES, PrefSensitivity::kNone,
           MergeBehavior::kNone}},
+#if !BUILDFLAG(IS_COBALT)
         {payments::kCanMakePaymentEnabled,
          {syncable_prefs_ids::kCanMakePaymentEnabled, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+#endif
         {prefs::kAccountTailoredSecurityUpdateTimestamp,
          {syncable_prefs_ids::kAccountTailoredSecurityUpdateTimestamp,
           syncer::PRIORITY_PREFERENCES, PrefSensitivity::kNone,
@@ -249,9 +265,11 @@ constexpr auto kCommonSyncablePrefsAllowlist =
          {syncable_prefs_ids::kSyncedDefaultSearchProviderGUID,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_COBALT)
         {tab_groups::prefs::kAutoPinNewTabGroups,
          {syncable_prefs_ids::kAutoPinNewTabGroups, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},
+#endif
         {translate::TranslatePrefs::kPrefForceTriggerTranslateCount,
          {syncable_prefs_ids::kPrefForceTriggerTranslateCount,
           syncer::PREFERENCES, PrefSensitivity::kNone, MergeBehavior::kNone}},
@@ -311,10 +329,12 @@ constexpr auto kCommonSyncablePrefsAllowlist =
          {syncable_prefs_ids::kSyncableHistorySensitiveListPrefForTesting,
           syncer::PREFERENCES, PrefSensitivity::kSensitiveRequiresHistory,
           MergeBehavior::kNone}},
+#if !BUILDFLAG(IS_COBALT)
         {tab_groups::prefs::kSyncableTabGroups,
          {syncable_prefs_ids::kSyncableTabGroups, syncer::PREFERENCES,
           sync_preferences::PrefSensitivity::kNone,
           sync_preferences::MergeBehavior::kNone}},
+#endif
         {autofill::prefs::kAutofillPaymentCardBenefits,
          {syncable_prefs_ids::kAutofillPaymentCardBenefits, syncer::PREFERENCES,
           PrefSensitivity::kNone, MergeBehavior::kNone}},

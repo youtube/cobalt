@@ -4,6 +4,8 @@
 
 import("//components/optimization_guide/features.gni")
 
+assert(!is_starboard, "components/history should not be included for Cobalt")
+
 static_library("history_embeddings") {
   sources = [
     "answerer.cc",

@@ -59,12 +59,20 @@ static_library("home_modules") {
   deps = [
     ":constants",
     "//base",
-    "//components/commerce/core:feature_list",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/commerce/core:feature_list" ]
+  }
+  deps += [
     "//components/prefs",
     "//components/segmentation_platform/embedder/home_modules/tips_manager:constants",
     "//components/segmentation_platform/embedder/home_modules/tips_manager:signal_constants",
     "//components/segmentation_platform/internal",
-    "//components/send_tab_to_self",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/send_tab_to_self" ]
+  }
+  deps += [
     "//components/signin/public/base:signin_switches",
   ]
 }
@@ -118,7 +126,11 @@ source_set("unit_tests") {
     ":home_modules",
     "//base",
     "//base/test:test_support",
-    "//components/commerce/core:feature_list",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/commerce/core:feature_list" ]
+  }
+  deps += [
     "//components/prefs:test_support",
     "//components/segmentation_platform/embedder/default_model:default_model_test_base",
     "//components/segmentation_platform/embedder/home_modules/tips_manager:constants",
@@ -126,7 +138,11 @@ source_set("unit_tests") {
     "//components/segmentation_platform/internal",
     "//components/segmentation_platform/public",
     "//components/segmentation_platform/public:test_support",
-    "//components/send_tab_to_self",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/send_tab_to_self" ]
+  }
+  deps += [
     "//components/signin/public/base:signin_switches",
     "//testing/gmock",
     "//testing/gtest",

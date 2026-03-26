@@ -31,9 +31,13 @@ source_set("prediction_service") {
   ]
   public_deps = [
     ":prediction_service_messages_proto",
+  ]
+  if(!is_cobalt) {
+    public_deps += [
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
-  ]
+    ]
+  }
 
   if (build_with_tflite_lib) {
     sources += [

@@ -11,6 +11,7 @@ if (is_android) {
   import("//build/config/android/config.gni")
 }
 
+
 config("password_reuse_detection_config") {
   defines = []
   if (!is_ios) {
@@ -564,6 +565,7 @@ source_set("unit_tests") {
     "//components/sync_preferences:test_support",
     "//components/ukm:test_support",
     "//components/url_formatter",
+    "//device/fido:fido",
     "//net:test_support",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/network:network_service",

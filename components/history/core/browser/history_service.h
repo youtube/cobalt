@@ -41,9 +41,11 @@
 #include "components/history/core/browser/url_row.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sync/service/sync_service.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/device_info_tracker.h"
 #include "components/sync_device_info/local_device_info_provider.h"
+#endif
 #include "sql/init_status.h"
 #include "ui/base/page_transition_types.h"
 
@@ -92,8 +94,11 @@ class WebHistoryService;
 
 // The history service records page titles, visit times, and favicons, as well
 // as information about downloads.
-class HistoryService : public KeyedService,
-                       public syncer::DeviceInfoTracker::Observer {
+class HistoryService : public KeyedService
+#if !BUILDFLAG(IS_COBALT)
+    , public syncer::DeviceInfoTracker::Observer
+#endif
+{
  public:
   // Must call Init after construction. The empty constructor provided only for
   // unit tests. When using the full constructor, `history_client` may only be
@@ -719,18 +724,22 @@ class HistoryService : public KeyedService,
 
   // Sets the history service's device info tracker and local device info
   // provider.
+#if !BUILDFLAG(IS_COBALT)
   void SetDeviceInfoServices(
       syncer::DeviceInfoTracker* device_info_tracker,
       syncer::LocalDeviceInfoProvider* local_device_info_provider);
+#endif
 
   // Tells the `HistoryBackend` whether or not foreign history should be
   // added to segments data.
   void SetCanAddForeignVisitsToSegmentsOnBackend(bool add_foreign_visits);
 
   // syncer::DeviceInfoTracker::Observer overrides.
+#if !BUILDFLAG(IS_COBALT)
   void OnDeviceInfoChange() override;
 
   void OnDeviceInfoShutdown() override;
+#endif
 
   // Schedules a HistoryDBTask for running on the history backend. See
   // HistoryDBTask for details on what this does. Takes ownership of `task`.
@@ -1176,6 +1185,7 @@ class HistoryService : public KeyedService,
 
   base::OnceClosure origin_queried_closure_for_testing_;
 
+#if !BUILDFLAG(IS_COBALT)
   raw_ptr<syncer::DeviceInfoTracker> device_info_tracker_ = nullptr;
 
   base::ScopedObservation<syncer::DeviceInfoTracker,
@@ -1188,9 +1198,15 @@ class HistoryService : public KeyedService,
 
   raw_ptr<syncer::LocalDeviceInfoProvider> local_device_info_provider_ =
       nullptr;
+#endif
 
   // All vended weak pointers are invalidated in Cleanup().
   base::WeakPtrFactory<HistoryService> weak_ptr_factory_{this};
+
+ private:
+#if !BUILDFLAG(IS_COBALT)
+  void SendLocalDeviceOriginatorCacheGuidToBackend();
+#endif
 };
 
 }  // namespace history

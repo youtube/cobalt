@@ -13,6 +13,7 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+
 grit("autofill_address_rewriter_resources") {
   source = "geo/autofill_address_rewriter_resources.grd"
   outputs = [
@@ -1200,7 +1201,9 @@ static_library("test_support") {
       "payments/test_internal_authenticator.h",
     ]
 
-    public_deps += [ "//components/autofill/content/browser" ]
+    if (!is_cobalt) {
+      public_deps += [ "//components/autofill/content/browser" ]
+    }
 
     deps += [
       "//components/webauthn/core/browser",
@@ -1566,7 +1569,11 @@ source_set("unit_tests") {
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/os_crypt/async/browser:test_support",
     "//components/password_manager/core/browser/features:password_features",
-    "//components/plus_addresses",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/plus_addresses" ]
+  }
+  deps += [
     "//components/policy/core/common",
     "//components/pref_registry",
     "//components/prefs",

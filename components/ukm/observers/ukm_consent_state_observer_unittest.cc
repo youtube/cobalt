@@ -11,8 +11,8 @@
 #include "components/sync/service/sync_token_status.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
-#include "components/unified_consent/pref_names.h"
-#include "components/unified_consent/unified_consent_service.h"
+#include "components/unified_consent/pref_names.h"  // nogncheck
+#include "components/unified_consent/unified_consent_service.h"  // nogncheck
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)

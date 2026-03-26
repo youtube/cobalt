@@ -4,6 +4,8 @@
 
 import("//third_party/protobuf/proto_library.gni")
 
+assert(!is_starboard, "components/commerce should not be included for Cobalt")
+
 if (is_android) {
   import("//build/config/android/rules.gni")
 }

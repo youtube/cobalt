@@ -4,6 +4,8 @@
 
 import("//build/config/features.gni")
 
+assert(!is_starboard, "components/sync should not be included for Cobalt")
+
 static_library("sync_bookmarks") {
   sources = [
     "bookmark_data_type_controller.cc",

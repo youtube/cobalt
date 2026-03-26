@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+assert(!is_starboard, "components/commerce should not be included for Cobalt")
+
 static_library("browser") {
   sources = [
     "commerce_internals_ui.cc",

@@ -26,6 +26,7 @@
 #include "components/history/core/browser/history_types.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/sync/protocol/history_delete_directive_specifics.pb.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 
 namespace history {
 

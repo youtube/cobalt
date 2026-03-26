@@ -17,12 +17,10 @@ source_set("ui") {
     "//components/content_settings/browser",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/browser:cookie_settings",
-    "//components/fingerprinting_protection_filter/browser",
     "//components/ip_protection/common:ip_protection_status",
     "//components/prefs",
     "//components/privacy_sandbox:features",
     "//components/privacy_sandbox:tracking_protection_settings",
-    "//components/site_engagement/content",
     "//components/strings",
     "//components/vector_icons",
     "//content/public/browser",
@@ -31,6 +29,12 @@ source_set("ui") {
     "//ui/base",
     "//ui/gfx",
   ]
+  if(!is_cobalt) {
+    deps += [
+      "//components/fingerprinting_protection_filter/browser",
+    "//components/site_engagement/content",
+    ]
+  }
 }
 
 source_set("unit_tests") {

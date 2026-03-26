@@ -63,10 +63,10 @@ source_set("unit_tests") {
     "//components/invalidation:test_support",
     "//components/invalidation/impl",
     "//components/signin/public/identity_manager:test_support",
-    "//components/sync_preferences:test_support",
     "//google_apis:test_support",
     "//google_apis/gcm:gcm",
     "//testing/gmock",
     "//testing/gtest",
+    "//components/sync_preferences:test_support",
   ]
 }

@@ -7,11 +7,14 @@
 #include "base/check_op.h"
 #include "build/build_config.h"
 #include "components/pref_registry/pref_registry_syncable.h"
+#include "components/prefs/pref_service.h"
 #include "components/sync/base/features.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "components/sync_preferences/pref_service_syncable.h"
+#endif
 #include "components/unified_consent/pref_names.h"
 
 namespace unified_consent {
@@ -151,11 +154,19 @@ bool UnifiedConsentService::ShouldDisableUrlKeyedAnonymizedDataCollection(
   }
 }
 
+#if !BUILDFLAG(IS_COBALT)
 UnifiedConsentService::UnifiedConsentService(
     sync_preferences::PrefServiceSyncable* pref_service,
     signin::IdentityManager* identity_manager,
     syncer::SyncService* sync_service,
     const std::vector<std::string>& service_pref_names)
+#else
+UnifiedConsentService::UnifiedConsentService(
+    PrefService* pref_service,
+    signin::IdentityManager* identity_manager,
+    syncer::SyncService* sync_service,
+    const std::vector<std::string>& service_pref_names)
+#endif
     : pref_service_(pref_service),
       identity_manager_(identity_manager),
       sync_service_(sync_service),
@@ -174,7 +185,9 @@ UnifiedConsentService::UnifiedConsentService(
     last_sync_state_ = GetSyncState(sync_service_);
   }
 
+#if !BUILDFLAG(IS_COBALT)
   pref_service_->AddObserver(this);
+#endif
   identity_manager_->AddObserver(this);
   sync_service_->AddObserver(this);
 }
@@ -205,7 +218,9 @@ void UnifiedConsentService::SetUrlKeyedAnonymizedDataCollectionEnabled(
 }
 
 void UnifiedConsentService::Shutdown() {
+#if !BUILDFLAG(IS_COBALT)
   pref_service_->RemoveObserver(this);
+#endif
   identity_manager_->RemoveObserver(this);
   sync_service_->RemoveObserver(this);
 }
@@ -257,7 +272,11 @@ void UnifiedConsentService::OnStateChanged(syncer::SyncService* sync) {
   // kReplaceSyncPromosWithSigninPromos is rolled out on all platforms, and thus
   // IsSetupInProgress() always returns false. See ConsentLevel::kSync
   // documentation for details.
-  if (sync->IsSetupInProgress() && !pref_service_->IsSyncing()) {
+  bool is_syncing = false;
+#if !BUILDFLAG(IS_COBALT)
+  is_syncing = pref_service_->IsSyncing();
+#endif
+  if (sync->IsSetupInProgress() && !is_syncing) {
     StartObservingServicePrefChanges();
   } else {
     StopObservingServicePrefChanges();
@@ -281,6 +300,7 @@ void UnifiedConsentService::OnStateChanged(syncer::SyncService* sync) {
 #endif
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void UnifiedConsentService::OnIsSyncingChanged() {
   if (pref_service_->IsSyncing() && !service_pref_changes_.empty()) {
     // Re-apply all observed service pref changes.
@@ -293,6 +313,7 @@ void UnifiedConsentService::OnIsSyncingChanged() {
     service_pref_changes_.clear();
   }
 }
+#endif
 
 void UnifiedConsentService::StartObservingServicePrefChanges() {
   if (!service_pref_change_registrar_.IsEmpty())

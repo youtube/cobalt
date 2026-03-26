@@ -19,11 +19,15 @@ source_set("session_proto_db") {
   deps = [
     ":core",
     "//base:base",
-    "//components/commerce/core:persisted_state_db_content_proto",
     "//components/keyed_service/core",
     "//components/leveldb_proto",
     "//third_party/leveldatabase",
   ]
+  if(!is_cobalt) {
+    deps += [
+    "//components/commerce/core:persisted_state_db_content_proto",
+    ]
+  }
 }
 
 # TODO(crbug.com/40250069) Make tests more general and run on iOS non-blink
@@ -39,7 +43,6 @@ if (use_blink) {
       ":session_proto_db_test_proto",
       "//base:base",
       "//base/test:test_support",
-      "//components/commerce/core:persisted_state_db_content_proto",
       "//components/leveldb_proto:test_support",
       "//content/test:test_support",
       "//testing/gmock",
@@ -47,6 +50,11 @@ if (use_blink) {
       "//third_party/leveldatabase",
       "//third_party/protobuf:protobuf_lite",
     ]
+    if(!is_cobalt) {
+      deps += [
+        "//components/commerce/core:persisted_state_db_content_proto",
+      ]
+    }
   }
 }
 

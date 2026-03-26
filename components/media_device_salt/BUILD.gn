@@ -33,10 +33,14 @@ source_set("unit_tests") {
     "//components/keyed_service/content",
     "//components/media_device_salt",
     "//components/prefs:test_support",
-    "//components/sync_preferences:test_support",
     "//components/user_prefs",
     "//content/test:test_support",
     "//sql:sql",
     "//testing/gtest/",
   ]
+  if(!is_cobalt) {
+    deps += [
+    "//components/sync_preferences:test_support",
+    ]
+  }
 }

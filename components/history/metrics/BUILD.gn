@@ -26,7 +26,11 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/history/core/browser",
     "//components/history/core/test",
-    "//components/sync_preferences:test_support",
     "//testing/gtest",
   ]
+  if(!is_cobalt) {
+    deps += [
+    "//components/sync_preferences:test_support",
+    ]
+  }
 }

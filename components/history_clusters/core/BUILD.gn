@@ -6,6 +6,9 @@ import("//build/buildflag_header.gni")
 import("//build/config/chrome_build.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
+assert(!is_starboard, "components/history_clusters should not be included for Cobalt")
+
+
 static_library("core") {
   sources = [
     "cluster_finalizer.h",

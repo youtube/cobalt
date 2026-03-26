@@ -463,6 +463,7 @@ void HistoryService::RemoveObserver(HistoryServiceObserver* observer) {
   observers_.RemoveObserver(observer);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void HistoryService::SetDeviceInfoServices(
     syncer::DeviceInfoTracker* device_info_tracker,
     syncer::LocalDeviceInfoProvider* local_device_info_provider) {
@@ -484,6 +485,7 @@ void HistoryService::SetDeviceInfoServices(
 
   SendLocalDeviceOriginatorCacheGuidToBackend();
 }
+#endif
 
 void HistoryService::SetCanAddForeignVisitsToSegmentsOnBackend(
     bool add_foreign_visits) {
@@ -495,6 +497,7 @@ void HistoryService::SetCanAddForeignVisitsToSegmentsOnBackend(
                      history_backend_, add_foreign_visits));
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void HistoryService::OnDeviceInfoChange() {
   TRACE_EVENT0("browser,startup", "HistoryService::OnDeviceInfoChange");
   CHECK(device_info_tracker_ != nullptr);
@@ -543,6 +546,7 @@ void HistoryService::SendLocalDeviceOriginatorCacheGuidToBackend() {
       base::BindOnce(&HistoryBackend::SetLocalDeviceOriginatorCacheGuid,
                      history_backend_, std::move(guid)));
 }
+#endif
 
 base::CancelableTaskTracker::TaskId HistoryService::ScheduleDBTask(
     const base::Location& from_here,
@@ -1483,11 +1487,13 @@ void HistoryService::Cleanup() {
   // Clear `backend_task_runner_` to make sure it's not used after Cleanup().
   backend_task_runner_ = nullptr;
 
+#if !BUILDFLAG(IS_COBALT)
   local_device_info_available_subscription_ = {};
   local_device_info_provider_ = nullptr;
 
   device_info_tracker_observation_.Reset();
   device_info_tracker_ = nullptr;
+#endif
 }
 
 bool HistoryService::Init(

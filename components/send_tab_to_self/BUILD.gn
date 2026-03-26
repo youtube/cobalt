@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+assert(!is_starboard, "components/send_tab should not be included for Cobalt")
+
 if (is_android) {
   import("//build/config/android/rules.gni")
 }

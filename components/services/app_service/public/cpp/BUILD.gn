@@ -354,8 +354,10 @@ source_set("unit_tests") {
 
     deps += [
       ":instance_update",
-      "//chrome/test:test_support",
       "//components/services/app_service/public/cpp/shortcut:unit_tests",
     ]
+    if (!is_cobalt) {
+      deps += [ "//chrome/test:test_support" ]
+    }
   }
 }

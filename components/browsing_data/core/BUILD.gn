@@ -6,6 +6,8 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+# assert(!is_starboard, "components/browsing_data should not be included for Cobalt")
+
 static_library("core") {
   sources = [
     "browsing_data_policies_utils.cc",

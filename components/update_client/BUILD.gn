@@ -242,14 +242,15 @@ if (is_mac) {
     defines = [ "IS_BACKGROUND_DOWNLOADER_DELEGATE_IMPL" ]
   }
 }
-
 source_set("test_support") {
   testonly = true
   visibility = [
     ":unit_tests",
-    "//chrome/test:test_support",
     "//components/component_updater:unit_tests",
   ]
+  if (!is_starboard) {
+    visibility += [ "//chrome/test:test_support" ]
+  }
   sources = [
     "net/url_loader_post_interceptor.cc",
     "net/url_loader_post_interceptor.h",
@@ -280,6 +281,9 @@ source_set("test_support") {
     "//testing/gtest",
     "//url",
   ]
+  if (!is_cobalt) {
+    deps += [ "//chrome/test:test_support" ]
+  }
 }
 
 bundle_data("unit_tests_bundle_data") {

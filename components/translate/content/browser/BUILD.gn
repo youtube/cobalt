@@ -28,9 +28,15 @@ static_library("browser") {
     "//components/keyed_service/core",
     "//components/language/core/browser",
     "//components/language_detection/core/browser:language_detection_model_service",
-    "//components/optimization_guide/content/browser",
-    "//components/optimization_guide/core",
-    "//components/optimization_guide/proto:optimization_guide_proto",
+  ]
+  if (!is_cobalt) {
+    deps += [
+      "//components/optimization_guide/content/browser",
+      "//components/optimization_guide/core",
+      "//components/optimization_guide/proto:optimization_guide_proto",
+    ]
+  }
+  deps += [
     "//components/search_engines",
     "//components/translate/core/language_detection:language_detection",
     "//components/ukm/content",

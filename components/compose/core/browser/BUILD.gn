@@ -42,7 +42,6 @@ static_library("browser") {
   deps = [
     ":mojo_bindings",
     "//base",
-    "//components/autofill/core/browser",
     "//components/autofill/core/common",
     "//components/keyed_service/core",
     "//components/segmentation_platform/public:public",
@@ -50,6 +49,11 @@ static_library("browser") {
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
   ]
+  if(!is_cobalt) {
+    deps += [
+    "//components/autofill/core/browser",
+    ]
+  }
 }
 
 mojom("mojo_bindings") {
@@ -69,8 +73,6 @@ source_set("unit_tests") {
     ":browser",
     "//base",
     "//base/test:test_support",
-    "//components/autofill/core/browser",
-    "//components/autofill/core/browser:test_support",
     "//components/autofill/core/common:test_support",
     "//components/strings",
     "//components/ukm:test_support",
@@ -78,4 +80,12 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  if(!is_cobalt) {
+    deps += [
+    "//components/autofill/core/browser",
+          "//components/autofill/core/browser:test_support",
+
+    ]
+
+  }
 }

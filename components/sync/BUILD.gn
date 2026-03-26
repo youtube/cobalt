@@ -5,6 +5,7 @@
 import("//build/config/features.gni")
 import("//testing/test.gni")
 
+
 group("sync") {
   public_deps = [
     "//components/sync/engine",

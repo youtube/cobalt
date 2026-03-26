@@ -26,7 +26,11 @@ static_library("sync_preferences") {
 
   deps = [
     "//base",
-    "//components/metrics/demographics",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/metrics/demographics" ]
+  }
+  deps += [
     "//components/policy/core/browser",
     "//components/pref_registry",
     "//components/prefs",
@@ -50,21 +54,37 @@ source_set("common_syncable_prefs_database") {
     "//components/autofill/core/common",
     "//components/bookmarks/common",
     "//components/browsing_data/core",
-    "//components/commerce/core:pref_names",
     "//components/content_settings/core/common",
-    "//components/dom_distiller/core",
     "//components/language/core/browser",
     "//components/metrics",
-    "//components/metrics/demographics",
-    "//components/ntp_tiles",
+  ]
+  if (!is_cobalt) {
+    deps += [
+      "//components/commerce/core:pref_names",
+      "//components/dom_distiller/core",
+    ]
+  }
+  if (!is_cobalt) {
+    deps += [ "//components/metrics/demographics" ]
+  }
+  if (!is_cobalt) {
+    deps += [ "//components/ntp_tiles" ]
+  }
+  deps += [
     "//components/omnibox/browser",
-    "//components/password_manager/core/common",
     "//components/payments/core",
-    "//components/plus_addresses:prefs",
+    "//components/password_manager/core/common",
+  ]
+  if (!is_cobalt) {
+    deps += [
+      "//components/plus_addresses:prefs",
+      "//components/saved_tab_groups/public",
+      "//components/sharing_message",
+    ]
+  }
+  deps += [
     "//components/safe_browsing/core/common:safe_browsing_prefs",
-    "//components/saved_tab_groups/public",
     "//components/search_engines",
-    "//components/sharing_message",
     "//components/translate/core/browser",
     "//components/variations/service",
   ]

@@ -25,14 +25,22 @@ source_set("embedder") {
 
   deps = [
     "//base",
-    "//components/commerce/core:shopping_service",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/commerce/core:shopping_service" ]
+  }
+  deps += [
     "//components/optimization_guide/core",
     "//components/optimization_guide/core:features",
     "//components/segmentation_platform/internal",
     "//components/segmentation_platform/internal/proto",
     "//components/segmentation_platform/public",
     "//components/sessions:session_id",
-    "//components/sync_sessions:sync_sessions",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/sync_sessions:sync_sessions" ]
+  }
+  deps += [
     "//url",
   ]
   public_deps = [ "//components/segmentation_platform/embedder/home_modules" ]
@@ -57,7 +65,11 @@ source_set("unit_tests") {
     ":embedder",
     "//base",
     "//base/test:test_support",
-    "//components/commerce/core:feature_list",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/commerce/core:feature_list" ]
+  }
+  deps += [
     "//components/optimization_guide/core",
     "//components/optimization_guide/core:test_support",
     "//components/segmentation_platform/embedder/home_modules:unit_tests",
@@ -66,7 +78,11 @@ source_set("unit_tests") {
     "//components/segmentation_platform/internal/proto",
     "//components/segmentation_platform/public",
     "//components/segmentation_platform/public:test_support",
-    "//components/sync_sessions:sync_sessions",
+  ]
+  if (!is_cobalt) {
+    deps += [ "//components/sync_sessions:sync_sessions" ]
+  }
+  deps += [
     "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",

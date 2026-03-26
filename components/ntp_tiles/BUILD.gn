@@ -5,6 +5,10 @@
 import("//components/supervised_user/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 
+
+assert(!is_starboard, "components/ntp_tiles should not be included for Cobalt")
+
+
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
