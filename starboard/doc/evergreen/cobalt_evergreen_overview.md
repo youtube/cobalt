@@ -112,13 +112,13 @@ First, partners should set `sb_is_evergreen_compatible = true` in the platform's
 platforms that are maintained by Google and used to build Cobalt core.)
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
-"target" toolchain to add a "native_target" toolchain that is identical except
-that it sets `is_starboard = false` and `is_native_target_build = true`.
+"starboard" toolchain to add a "native_target" toolchain that is identical
+except that it sets `is_starboard = false` and `is_native_target_build = true`.
 
 For example:
 
 ```none
-gcc_toolchain("target") {
+gcc_toolchain("starboard") {
   ...
 }
 
@@ -176,7 +176,7 @@ copy, targeted for a specific architecture, ABI, and Starboard version.
 Note: `sb_api_version` defaults to the latest supported Starboard version in the
 current branch.
 
-The partner port of Starboard is built with the partner's "target" toolchain and
+The partner port of Starboard is built with the partner's "starboard" toolchain and
 is linked into the `loader_app`, which knows how to dynamically load
 `libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
 "native_target" toolchain. For example:

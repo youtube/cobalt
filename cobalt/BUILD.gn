@@ -107,6 +107,7 @@ if (is_ios && target_platform == "tvos") {
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
+      "//components/crash/core/app",
       "//content/public/app",
       "//starboard:starboard_group",
     ]
@@ -353,6 +354,10 @@ test("cobalt_unittests") {
     "//sandbox/policy:policy",
     "//ui/events/devices",
   ]
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
 
   if (is_android) {
     deps += [

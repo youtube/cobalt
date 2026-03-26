@@ -1,0 +1,96 @@
+name: Autoroll LTS
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Hourly.
+  workflow_dispatch:
+    inputs:
+      start_commit:
+        description: 'The commit to start rolling from, should point to the last release chore'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  autoroll:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Cherry Pick merged PRs
+        id: autoroll
+        env:
+          TARGET_BRANCH: 27.lts
+          START_COMMIT: ${{ inputs.start_commit }}
+        run: |
+          set -x
+
+          # Copy the script from the main branch before switching branches.
+          cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
+
+          # Ensure we have local branches for the target branch
+          git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
+
+          # Use existing branch from remote if it exists, otherwise start from the target branch.
+          if git fetch origin "autoroll-to-${TARGET_BRANCH}"; then
+            git checkout -B "autoroll-to-${TARGET_BRANCH}" FETCH_HEAD
+          else
+            git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+          fi
+
+          # Run the Python script to perform cherry-picks and get all PR links.
+          PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
+            --target-branch "${TARGET_BRANCH}" \
+            --start-commit "${START_COMMIT}")
+
+          if [[ -n "${PR_LINKS}" ]]; then
+            echo "cherry_picked=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "pr_links<<EOF"
+              echo "${PR_LINKS}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No commits to roll found."
+          fi
+
+      - name: Push and Create PR
+        if: steps.autoroll.outputs.pr_links != ''
+        env:
+          TARGET_BRANCH: 27.lts
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_LINKS: ${{ steps.autoroll.outputs.pr_links }}
+        run: |
+          set -x
+
+          git push origin "autoroll-to-${TARGET_BRANCH}"
+
+          PR_BODY_FILE=$(mktemp)
+          {
+            echo "Automated cherry-pick roll to ${TARGET_BRANCH}."
+            echo ""
+            echo "Original pull requests:"
+            echo "${PR_LINKS}"
+          } > "${PR_BODY_FILE}"
+
+          PR_TITLE="Autoroll from main to ${TARGET_BRANCH}"
+
+          PR_STATE=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
+
+          if [[ "$PR_STATE" == "OPEN" ]]; then
+            gh pr edit "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
+          else
+            gh pr create --base "${TARGET_BRANCH}" --head "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
+          fi
