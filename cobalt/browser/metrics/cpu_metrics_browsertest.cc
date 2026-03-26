@@ -30,10 +30,10 @@
 
 namespace cobalt {
 
-class FontMetricsBrowserTest : public content::ContentBrowserTest {
+class CpuMetricsBrowserTest : public content::ContentBrowserTest {
  public:
-  FontMetricsBrowserTest() = default;
-  ~FontMetricsBrowserTest() override = default;
+  CpuMetricsBrowserTest() = default;
+  ~CpuMetricsBrowserTest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
@@ -42,57 +42,26 @@ class FontMetricsBrowserTest : public content::ContentBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(FontMetricsBrowserTest, RecordsFontHistograms) {
+IN_PROC_BROWSER_TEST_F(CpuMetricsBrowserTest, RecordsCpuHistograms) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
   auto* features = GlobalFeatures::GetInstance();
-
-  // Ensure metrics recording is started.
   features->metrics_services_manager()->UpdateUploadPermissions(true);
 
-  // Load a page with various characters to exercise font caches and fallback in
-  // Blink.
-  std::string html_content = R"(
-    <html>
-    <body>
-      <p>Standard Latin text.</p>
-      <p>Emoji: 😀 😃 😄 😁 😆 😅 😂 🤣 🦩 🦒 🦚 🦝</p>
-      <p>Rare CJK: 𠜎 𠜱 𠝹 𠱓 𠱸 𠲖 𠳏 𠳕</p>
-    </body>
-    </html>
-  )";
-
-  GURL url("data:text/html;charset=utf-8," + html_content);
-  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
-
-  // Trigger a memory dump manually for testing.
   auto* manager_client = features->metrics_services_manager_client();
   ASSERT_TRUE(manager_client);
-  auto* client = static_cast<CobaltMetricsServiceClient*>(
-      manager_client->metrics_service_client());
+  auto* client = manager_client->metrics_service_client();
   ASSERT_TRUE(client);
 
   base::RunLoop run_loop;
-  client->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
+  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleCpuRecordForTesting(
+      run_loop.QuitClosure());
   run_loop.Run();
 
   base::RunLoop().RunUntilIdle();
 
-  // Check for memory histograms (Skia Glyph Cache).
-  EXPECT_GE(
-      histogram_tester.GetAllSamples("Memory.Browser.PrivateMemoryFootprint")
-          .size(),
-      1u);
-
-  EXPECT_GE(
-      histogram_tester
-          .GetAllSamples("Memory.Experimental.Browser2.Small.Skia.SkGlyphCache")
-          .size(),
-      1u);
-
-  // TODO(b/491179673): Investigate why this metric is not firing:
-  // Memory.Experimental.Browser2.Small.FontCaches
+  EXPECT_GE(histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
 }
 
 }  // namespace cobalt

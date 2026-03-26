@@ -62,7 +62,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
 
   // Trigger a memory dump manually for testing and wait for it.
   base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleRecordForTesting(
+  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleMemoryRecordForTesting(
       run_loop.QuitClosure());
   run_loop.Run();
 
@@ -150,7 +150,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   // Trigger a memory dump manually for testing and wait for it.
   // This replaces the fixed delay and is more robust.
   base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleRecordForTesting(
+  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleMemoryRecordForTesting(
       run_loop.QuitClosure());
   run_loop.Run();
   base::StatisticsRecorder::ImportProvidedHistogramsSync();

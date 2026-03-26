@@ -340,12 +340,21 @@ void CobaltMetricsServiceClient::SetMetricsListener(
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
 
-void CobaltMetricsServiceClient::ScheduleRecordForTesting(
+void CobaltMetricsServiceClient::ScheduleMemoryRecordForTesting(
     base::OnceClosure done_callback) {
-  scoped_refptr<CobaltMemoryMetricsEmitter> emitter =
+  scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter =
       CreateMemoryMetricsEmitter();
-  emitter->set_callback_for_testing(std::move(done_callback));
-  emitter->FetchAndEmitProcessMemoryMetrics();
+  memory_emitter->set_callback_for_testing(std::move(done_callback));
+  memory_emitter->FetchAndEmitProcessMemoryMetrics();
+}
+
+void CobaltMetricsServiceClient::ScheduleCpuRecordForTesting(
+    base::OnceClosure done_callback) {
+  scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter = CreateCpuMetricsEmitter();
+  cpu_emitter->set_callback_for_testing(std::move(done_callback));
+  static std::unique_ptr<base::ProcessMetrics> process_metrics_for_testing =
+      base::ProcessMetrics::CreateCurrentProcessMetrics();
+  cpu_emitter->FetchAndEmitCpuMetrics(process_metrics_for_testing.get());
 }
 
 scoped_refptr<CobaltMemoryMetricsEmitter>

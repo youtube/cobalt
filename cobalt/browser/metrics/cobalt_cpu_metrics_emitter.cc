@@ -55,6 +55,10 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
   base::UmaHistogramPercentage(
       "CPU.Total.UsageInPercentage",
       base::ClampRound<int>(cpu_usage / std::max(1, num_processors)));
+
+  if (callback_for_testing_) {
+    std::move(callback_for_testing_).Run();
+  }
 }
 
 }  // namespace cobalt

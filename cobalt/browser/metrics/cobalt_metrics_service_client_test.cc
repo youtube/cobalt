@@ -475,12 +475,22 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   EXPECT_FALSE(client_->GetVersionString().empty());
 }
 
+TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
+  base::HistogramTester histogram_tester;
+  
+  // Trigger a memory dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+}
+
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   base::HistogramTester histogram_tester;
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.

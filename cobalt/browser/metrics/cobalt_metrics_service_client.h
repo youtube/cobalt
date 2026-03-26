@@ -109,7 +109,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
   // Forces a metrics record for testing.
-  void ScheduleRecordForTesting(base::OnceClosure done_callback);
+  void ScheduleMemoryRecordForTesting(base::OnceClosure done_callback);
+  void ScheduleCpuRecordForTesting(base::OnceClosure done_callback);
 
  protected:
   explicit CobaltMetricsServiceClient(
