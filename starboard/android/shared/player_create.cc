@@ -19,6 +19,8 @@
 #include <string>
 #include <utility>
 
+#include "starboard/android/shared/configurate_seek.h"
+#include "starboard/android/shared/video_decoder_configuration_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -27,6 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -204,6 +207,23 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
+  handler->SetFlushDecoderDuringReset(
+      starboard::GetForceFlushDecoderDuringResetForCurrentThread());
+  handler->SetResetAudioDecoder(
+      starboard::GetForceResetAudioDecoderForCurrentThread());
+  if (auto initial_max_frames_in_decoder =
+          starboard::GetVideoInitialMaxFramesInDecoderForCurrentThread()) {
+    handler->SetVideoInitialMaxFramesInDecoder(*initial_max_frames_in_decoder);
+  }
+  if (auto max_pending_input_frames =
+          starboard::GetVideoMaxPendingInputFramesForCurrentThread()) {
+    handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
+  }
+  if (auto video_decoder_poll_interval_ms =
+          starboard::GetVideoDecoderPollIntervalMsForCurrentThread()) {
+    handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
+  }
+
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));

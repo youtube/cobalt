@@ -103,6 +103,10 @@ class LocaleconvTest : public ::testing::TestWithParam<LocaleconvTestData> {
  protected:
   void SetUp() override {
     const LocaleconvTestData& data = GetParam();
+    if (starboard::nplb::ShouldSkipLocale(data.locale_name)) {
+      GTEST_SKIP() << "Skipping disabled locale: " << data.locale_name;
+    }
+
     // Save the current locale.
     char* old_locale_cstr = setlocale(LC_ALL, nullptr);
     ASSERT_NE(old_locale_cstr, nullptr);
@@ -140,6 +144,9 @@ class UselocaleLocaleconvTest
 
 TEST_P(UselocaleLocaleconvTest, AllItems) {
   const LocaleconvTestData& data = GetParam();
+  if (starboard::nplb::ShouldSkipLocale(data.locale_name)) {
+    GTEST_SKIP() << "Skipping disabled locale: " << data.locale_name;
+  }
 
   char* old_global_locale_cstr = setlocale(LC_ALL, nullptr);
   ASSERT_NE(old_global_locale_cstr, nullptr);
@@ -222,7 +229,8 @@ void DumpChar(FILE* file, const char* name, char value) {
 
 TEST(PosixLocaleLocaleconvDumperTest, DISABLED_DumpAllLocaleDataForConstexpr) {
   FILE* file = fopen(
-      "starboard/nplb/posix_compliance/posix_locale_localeconv_test_data.inc",
+      "starboard/nplb/posix_compliance/"
+      "posix_locale_localeconv_test_data.cc.inc",
       "w");
   ASSERT_NE(file, nullptr);
 

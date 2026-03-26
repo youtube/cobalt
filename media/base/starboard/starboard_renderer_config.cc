@@ -27,11 +27,21 @@ StarboardRendererConfig::StarboardRendererConfig(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-    const gfx::Size& viewport_size)
+    const gfx::Size& viewport_size,
+    const bool enable_flush_during_seek,
+    const bool enable_reset_audio_decoder,
+    std::optional<int> initial_max_frames_in_decoder,
+    std::optional<int> max_pending_input_frames,
+    std::optional<int> video_decoder_poll_interval_ms)
     : overlay_plane_id(overlay_plane_id),
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
-      viewport_size(viewport_size) {}
+      viewport_size(viewport_size),
+      enable_flush_during_seek(enable_flush_during_seek),
+      enable_reset_audio_decoder(enable_reset_audio_decoder),
+      initial_max_frames_in_decoder(initial_max_frames_in_decoder),
+      max_pending_input_frames(max_pending_input_frames),
+      video_decoder_poll_interval_ms(video_decoder_poll_interval_ms) {}
 
 }  // namespace media

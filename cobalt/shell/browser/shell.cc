@@ -54,7 +54,6 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -128,15 +127,6 @@ bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
     }
   }
 
-  // Check for nested deep link in "redirect" parameter.
-  for (net::QueryIterator it(link_url); !it.IsAtEnd(); it.Advance()) {
-    if (it.GetKey() == "redirect") {
-      if (IsDeepLinkTopic(GURL(it.GetUnescapedValue()), target_topic)) {
-        return true;
-      }
-    }
-  }
-
   return false;
 }
 
@@ -186,7 +176,7 @@ constexpr int kSplashTimeoutMs = 1500;
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
-ShellPlatformDelegate* g_platform;
+ShellPlatformDelegate* g_platform = nullptr;
 }  // namespace
 
 std::vector<Shell*> Shell::windows_;
@@ -202,7 +192,10 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_screen_web_contents_(std::move(splash_screen_web_contents)),
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
-      skip_for_testing_(skip_for_testing) {
+      skip_for_testing_(skip_for_testing),
+      is_video_splash_screen_(
+          !base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kForceImageSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -240,12 +233,19 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
         splash_screen_web_contents_delegate_.get());
   }
 
+  if (!GetPlatform()->IsVisible()) {
+    // Notify the WebContents that it is starting in a hidden state so that it
+    // can optimize resource usage (e.g. by lowering its process priority).
+    web_contents_->WasHidden();
+  }
+
   if (shell_created_callback_) {
     std::move(shell_created_callback_).Run(this);
   }
 }
 
 Shell::~Shell() {
+  CHECK(g_platform);
   g_platform->CleanUp(this);
 
   for (size_t i = 0; i < windows_.size(); ++i) {
@@ -266,6 +266,48 @@ Shell::~Shell() {
 // static
 ShellPlatformDelegate* Shell::GetPlatform() {
   return g_platform;
+}
+
+// static
+void Shell::OnBlur() {
+  CHECK(g_platform);
+  g_platform->OnBlur();
+}
+
+// static
+void Shell::OnFocus() {
+  CHECK(g_platform);
+  g_platform->OnFocus();
+}
+
+// static
+void Shell::OnConceal() {
+  CHECK(g_platform);
+  g_platform->OnConceal();
+}
+
+// static
+void Shell::OnReveal() {
+  CHECK(g_platform);
+  g_platform->OnReveal();
+}
+
+// static
+void Shell::OnFreeze() {
+  CHECK(g_platform);
+  g_platform->OnFreeze();
+}
+
+// static
+void Shell::OnUnfreeze() {
+  CHECK(g_platform);
+  g_platform->OnUnfreeze();
+}
+
+// static
+void Shell::OnStop() {
+  CHECK(g_platform);
+  g_platform->OnStop();
 }
 
 void Shell::FinishShellInitialization(Shell* shell) {
@@ -349,10 +391,11 @@ Shell* Shell::FromWebContents(WebContents* web_contents) {
 }
 
 // static
-void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform) {
+void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform,
+                       bool is_visible) {
   DCHECK(!g_platform);
   g_platform = platform.release();
-  g_platform->Initialize(GetShellDefaultSize());
+  g_platform->Initialize(GetShellDefaultSize(), is_visible);
 }
 
 // static
@@ -400,6 +443,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const bool create_splash_screen_web_contents,
                               const std::string& deep_link) {
   WebContents::CreateParams create_params(browser_context, site_instance);
+  bool is_visible = GetPlatform()->IsVisible();
+  create_params.initially_hidden = !is_visible;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
@@ -407,7 +452,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
   std::unique_ptr<WebContents> splash_screen_web_contents;
-  if (create_splash_screen_web_contents) {
+  if (create_splash_screen_web_contents && is_visible) {
     // Create splash screen WebContents. ATV creates splash screen WebContents
     // in JNI_ShellManager_LaunchShell(), whereas other platforms create it in
     // ShellBrowserMainParts::InitializeMessageLoopContext().
@@ -513,6 +558,10 @@ void Shell::LoadSplashScreenWebContents() {
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GURL(switches::kSplashScreenURL);
+    if (!is_video_splash_screen_) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    }
     if (!splash_topic_.empty()) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
@@ -810,6 +859,7 @@ void Shell::RequestPointerLock(WebContents* web_contents,
 void Shell::Close() {
   // Shell is "self-owned" and destroys itself. The ShellPlatformDelegate
   // has the chance to co-opt this and do its own destruction.
+  CHECK(g_platform);
   if (!g_platform->DestroyShell(this)) {
     delete this;
   }
@@ -1041,7 +1091,10 @@ void Shell::ScheduleSwitchToMainWebContents() {
           << "ms, remaining delay: " << remaining_delay.InMilliseconds()
           << "ms.";
   if (web_contents_) {
-    web_contents_->WasHidden();
+    if (is_video_splash_screen_) {
+      // Send hidden event to WebApp if it's video-based splash screen.
+      web_contents_->WasHidden();
+    }
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&Shell::SwitchToMainWebContents,
@@ -1065,8 +1118,11 @@ void Shell::SwitchToMainWebContents() {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
+      CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
-      web_contents_->WasShown();
+      if (GetPlatform()->IsVisible() || is_video_splash_screen_) {
+        web_contents_->WasShown();
+      }
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }
