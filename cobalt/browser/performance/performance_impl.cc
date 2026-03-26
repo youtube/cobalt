@@ -55,6 +55,24 @@ void PerformanceImpl::MeasureUsedCpuMemory(
   std::move(callback).Run(used_memory);
 }
 
+void PerformanceImpl::MeasureUsedSwapMemory(
+    MeasureUsedSwapMemoryCallback callback) {
+  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+      base::GetCurrentProcessHandle());
+  auto info = process_metrics->GetMemoryInfo();
+  auto used_swap_memory = info.has_value() ? info->vm_swap_bytes : 0;
+  std::move(callback).Run(used_swap_memory);
+}
+
+void PerformanceImpl::MeasureReservedVirtualMemory(
+    MeasureReservedVirtualMemoryCallback callback) {
+  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+      base::GetCurrentProcessHandle());
+  auto info = process_metrics->GetMemoryInfo();
+  auto virtual_memory_size = info.has_value() ? info->vm_size_bytes : 0;
+  std::move(callback).Run(virtual_memory_size);
+}
+
 void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
