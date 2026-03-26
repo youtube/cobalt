@@ -53,6 +53,8 @@ std::ostream& operator<<(
             << ToString(features.pause_using_audio_track_state)
             << ", report_buffering_state_during_flush="
             << ToString(features.report_buffering_state_during_flush)
+            << ", skip_flush_on_decoder_teardown="
+            << ToString(features.skip_flush_on_decoder_teardown)
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="

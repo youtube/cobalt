@@ -28,6 +28,7 @@ import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import dev.cobalt.shell.StartupGuard;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import org.chromium.content_public.browser.WebContents;
@@ -106,6 +107,7 @@ public class PlatformError
         Log.e(TAG, "Unknown platform error " + mErrorType);
         return;
     }
+    StartupGuard.getInstance().disarm();
     mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
 
     // When the user presses the back button, suspend the app without dismissing the dialog

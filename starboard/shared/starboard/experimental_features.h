@@ -33,6 +33,7 @@ struct ExperimentalFeatures {
   std::optional<int> media_codec_reset_delay_ms;
   bool pause_using_audio_track_state = false;
   bool reset_audio_decoder = false;
+  bool skip_flush_on_decoder_teardown = false;
   std::optional<int> video_decoder_initial_preroll_count;
   std::optional<int> video_renderer_min_decoded_frames;
   std::optional<int> video_renderer_min_input_buffers;

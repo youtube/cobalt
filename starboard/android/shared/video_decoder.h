@@ -97,6 +97,7 @@ class VideoDecoder
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
+  void ResetForTeardown() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
@@ -127,13 +128,14 @@ class VideoDecoder
   bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
   void OnFirstTunnelFrameReady();
-  void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
-  void OnVideoFrameRelease(int64_t pts_us, int64_t release_at_us);
+  void OnVideoFrameRelease();
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
+
+  void ResetInternal(bool skip_flush);
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
@@ -160,8 +162,6 @@ class VideoDecoder
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
 
-  const int max_pending_inputs_size_;
-
   const std::optional<bool> use_dual_threads_;
 
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
@@ -170,6 +170,7 @@ class VideoDecoder
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
+  const bool skip_flush_on_decoder_teardown_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
@@ -192,7 +193,8 @@ class VideoDecoder
 
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   std::atomic_bool tunnel_mode_prerolling_{true};
-  std::atomic_bool tunnel_mode_frame_rendered_{false};
+  std::atomic_bool tunnel_mode_first_frame_rendered_{false};
+  std::atomic_int tunnel_mode_prerolled_frames_{0};
 
   // Since GetCurrentDecodeTarget() needs to be called from an arbitrary thread
   // to obtain the current decode target (which ultimately ends up being a
