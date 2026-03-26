@@ -78,6 +78,8 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->os_dump->resident_set_kb = 20480;         // 20 MB
     browser_dump->os_dump->shared_footprint_kb = 5120;      // 5 MB
     browser_dump->os_dump->partition_alloc_rss_kb = 16384;  // 16 MB
+    browser_dump->os_dump->malloc_rss_kb = 10240;           // 10 MB
+    browser_dump->os_dump->v8_rss_kb = 12288;               // 12 MB
     browser_dump->os_dump->libchrobalt_rss_kb = 10240;      // 10 MB
     browser_dump->os_dump->libchrobalt_pss_kb = 8192;       // 8 MB
 
