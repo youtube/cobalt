@@ -223,18 +223,20 @@ jobs:
           echo "browser_test_targets=${browser_test_targets}" >> $GITHUB_OUTPUT
 
           # Also export just the target strings for the results matrix.
-          PLATFORM="${{ inputs.platform }}"
-          if [[ "$PLATFORM" == *linux* ]]; then
-             # For Linux host, the target is in the primary 'targets' list.
-             if cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -e '.targets[] | select(contains("cobalt_browsertests_runner"))' > /dev/null; then
-               browser_test_targets_json='["cobalt/testing/browser_tests:cobalt_browsertests_runner"]'
-             else
-               browser_test_targets_json='[]'
-             fi
-          else
-             browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
-          fi
+          browser_test_targets_json=$(echo "${browser_test_targets}" | jq -c 'map(.target)')
           echo "browser_test_targets_json=${browser_test_targets_json}" >> $GITHUB_OUTPUT
+
+          # Centralize "should run browser tests" logic.
+          # A platform "should run browser tests" only if the test_browser flag is
+          # true AND we have resolved valid targets. This prevents hangs on
+          # platforms that may have the flag enabled but no defined tests, or
+          # for host platforms (like Linux) where targets might be filtered out
+          # based on the primary target list.
+          if [[ "${{ steps.set-test-browser.outputs.test_browser }}" == "true" && "${browser_test_targets_json}" != "[]" ]]; then
+            echo "run_browser_tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_browser_tests=false" >> $GITHUB_OUTPUT
+          fi
       - name: Set YTS WPT test targets
         id: set-yts-wpt-test-targets
         shell: bash
@@ -311,6 +313,7 @@ jobs:
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
       yts_playback_test_targets: ${{ steps.set-yts-playback-test-targets.outputs.yts_playback_test_targets }}
       browser_test_targets: ${{ steps.set-browser-test-targets.outputs.browser_test_targets }}
+      run_browser_tests: ${{ steps.set-browser-test-targets.outputs.run_browser_tests }}
       yts_wpt_test_targets: ${{ steps.set-yts-wpt-test-targets.outputs.yts_wpt_test_targets }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
       browser_test_targets_json: ${{ steps.set-browser-test-targets.outputs.browser_test_targets_json }}
@@ -624,7 +627,7 @@ jobs:
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
     if: |
-      needs.initialize.outputs.test_browser == 'true' &&
+      needs.initialize.outputs.run_browser_tests == 'true' &&
       needs.initialize.outputs.test_on_host == 'true' &&
       (
         (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
@@ -669,6 +672,7 @@ jobs:
         )
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_wpt_tests
+    continue-on-error: true # Ignoring errors while we are working to productionize
     permissions: {}
     strategy:
       fail-fast: false
@@ -783,12 +787,14 @@ jobs:
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
   test-results:
-    needs: [initialize, build, on-device-test, on-host-test]
-    if: always() &&
-        (
-          needs.on-device-test.result != 'skipped' ||
-          needs.on-host-test.result != 'skipped'
-        )
+    needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
+    if: |
+      always() &&
+      (
+        needs.on-device-test.result != 'skipped' ||
+        needs.on-host-test.result != 'skipped' ||
+        needs.browser-test-on-host.result != 'skipped'
+      )
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -867,7 +873,7 @@ jobs:
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
-    if: always() && needs.browser-test-on-host.result != 'skipped'
+    if: always() && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result != 'skipped' && needs.browser-test-on-host.result != '')
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -923,7 +929,7 @@ jobs:
 
   validate-test-result:
     needs: [initialize, build, test-results, browser-test-results]
-    if: always()
+    if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
@@ -942,24 +948,22 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Unit Test Results
+        if: needs.test-results.result != 'skipped' && needs.test-results.result != ''
         uses: actions/download-artifact@v5
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: Download Browser Test Results
+        if: needs.initialize.outputs.run_browser_tests == 'true' && needs.browser-test-results.result != 'skipped' && needs.browser-test-results.result != ''
         uses: actions/download-artifact@v5
         continue-on-error: true
         with:
           pattern: ${{ matrix.platform }}_${{ matrix.name }}_browsertest_results
           path: results/
       - name: Failed Tests
-        if: needs.test-results.result == 'failure' || needs.browser-test-results.result == 'failure'
+        if: always() && (needs.test-results.result != 'skipped' || needs.browser-test-results.result != 'skipped')
         run: |
           # Print test result summary.
           shopt -s globstar nullglob
           python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
-
-          if [[ "${{ needs.test-results.result }}" == "failure" || "${{ needs.browser-test-results.result }}" == "failure" ]]; then
-            exit 1
-          fi
         shell: bash

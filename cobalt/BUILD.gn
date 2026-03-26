@@ -14,6 +14,7 @@
 
 import("//build/linux/strip_binary.gni")
 import("//build/toolchain/toolchain.gni")
+import("//cobalt/build/locales.gni")
 import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
@@ -69,11 +70,22 @@ group("gn_all") {
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
-  if (use_evergreen && use_crashpad) {
-    deps += [
-      "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
-      "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
-    ]
+  if (use_crashpad) {
+    # On Starboard platforms, build both the crashpad_handler binary and the
+    # crashpad_database_util tool. On other platforms (e.g. ATV, tvOS) it is
+    # still useful to build the crashpad_database_util binary to inspect crash
+    # databases on the host.
+    if (is_starboard) {
+      deps += [
+        "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
+        "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
+      ]
+    } else if (is_ios) {
+      deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
+    } else {
+      # This applies to e.g. ATV, where the default toolchain is the host one.
+      deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
+    }
   }
 }
 
@@ -95,6 +107,7 @@ if (is_ios && target_platform == "tvos") {
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
+      "//components/crash/core/app",
       "//content/public/app",
       "//starboard:starboard_group",
     ]
@@ -112,11 +125,24 @@ if (is_ios && target_platform == "tvos") {
     info_plist = cobalt_info_plist
   }
 
+  foreach(locale, cobalt_locales) {
+    bundle_data("cobalt_strings_${locale}_bundle_data") {
+      sources = [
+        "//cobalt/shell/app/tvos/strings/$locale.lproj/Localizable.strings",
+      ]
+      outputs =
+          [ "{{bundle_resources_dir}}/$locale.lproj/{{source_file_part}}" ]
+    }
+  }
+
   bundle_data("cobalt_shell_framework_resources") {
     testonly = true
     sources = [ "$root_out_dir/cobalt_shell.pak" ]
 
     public_deps = [ "//cobalt/shell:pak" ]
+    foreach(locale, cobalt_locales) {
+      public_deps += [ ":cobalt_strings_${locale}_bundle_data" ]
+    }
 
     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
   }
@@ -136,12 +162,6 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
-      "//cobalt/browser/h5vcc_accessibility:manager",
-      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-      "//cobalt/shell:cobalt_shell_app",
-      "//cobalt/shell:cobalt_shell_lib",
-      "//content/public/app",
-      "//services/device/time_zone_monitor",
       "//starboard:starboard_headers_only",
     ]
 
@@ -176,9 +196,11 @@ if (is_ios && target_platform == "tvos") {
 }
 
 source_set("common") {
-  testonly = true
-
   sources = [
+    "app/app_lifecycle_delegate.cc",
+    "app/app_lifecycle_delegate.h",
+    "app/cobalt_crash_reporter_client.cc",
+    "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
     "app/cobalt_switch_defaults.cc",
@@ -203,6 +225,8 @@ source_set("common") {
   deps = [
     "//base",
     "//cobalt/browser:switches",
+    "//cobalt/browser/h5vcc_accessibility:manager",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/shell:cobalt_shell_app",
@@ -214,6 +238,7 @@ source_set("common") {
     "//gpu/command_buffer/service",
     "//media",
     "//sandbox/policy",
+    "//services/device/time_zone_monitor",
     "//starboard:starboard_headers_only",
     "//third_party/blink/public/common",
     "//ui/gl",
@@ -251,6 +276,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/cobalt_crash_annotations_unittest.cc",
     "//cobalt/browser/cobalt_secure_navigation_throttle_unittest.cc",
     "//cobalt/browser/cobalt_web_contents_observer_unittest.cc",
     "//cobalt/browser/command_line_logger_unittest.cc",
@@ -268,13 +294,18 @@ test("cobalt_unittests") {
 
   if (is_starboard) {
     sources += [
+      "//cobalt/app/app_lifecycle_delegate_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
 
   if (!is_android) {
-    sources += [ "//cobalt/shell/browser/splash_screen_unittest.cc" ]
+    sources += [
+      "//cobalt/shell/browser/lifecycle_unittest.cc",
+      "//cobalt/shell/browser/shell_test_support.h",
+      "//cobalt/shell/browser/splash_screen_unittest.cc",
+    ]
   }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
@@ -283,6 +314,7 @@ test("cobalt_unittests") {
     ":common",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
+    "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser:command_line_logger",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
@@ -322,6 +354,10 @@ test("cobalt_unittests") {
     "//sandbox/policy:policy",
     "//ui/events/devices",
   ]
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
 
   if (is_android) {
     deps += [

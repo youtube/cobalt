@@ -39,7 +39,8 @@ runs:
         set -eux
         cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
+        mapfile -t targets < <(jq -r '.executables | .[]' "${TEST_TARGETS_JSON_FILE}")
+        for target in "${targets[@]}"; do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
@@ -49,6 +50,7 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
+        ARCHIVE_BROWSERTESTS: ${{ inputs.archive_browsertests }}
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
@@ -64,15 +66,12 @@ runs:
           FLAGS="--compression zstd --compression-level=9"
         fi
 
-        TARGETS=$(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")')
+        TARGETS=$(jq -cr '.test_targets | join(",")' "${TEST_TARGETS_JSON_FILE}")
 
         # Archive browser tests if requested.
-        if [[ "${{ inputs.archive_browsertests }}" == "true" ]]; then
+        if [[ "${ARCHIVE_BROWSERTESTS}" == "true" ]]; then
           # Determine the browser test target for this platform.
           BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests"
-          if [[ "${PLATFORM}" == *linux* ]]; then
-            BROWSERTEST_TARGET="cobalt/testing/browser_tests:cobalt_browsertests_runner"
-          fi
           if [[ -n "${TARGETS}" ]]; then
             TARGETS="${TARGETS},${BROWSERTEST_TARGET}"
           else
@@ -105,12 +104,13 @@ runs:
         WORKFLOW: ${{ github.workflow }}
         PLATFORM: ${{ inputs.platform }}
         CONFIG: ${{ inputs.config }}
+        UPLOAD_E2E_TEST_ARTIFACTS: ${{ inputs.upload_e2e_test_artifacts }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
 
         # Add Cobalt release artifacts for smoke tests.
-        if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
+        if [[ "${UPLOAD_E2E_TEST_ARTIFACTS}" == "true" ]]; then
           mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
              ${GITHUB_WORKSPACE}/artifacts/
         fi

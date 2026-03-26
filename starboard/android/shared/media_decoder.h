@@ -31,6 +31,7 @@
 #include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/decoder_state_tracker.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -97,7 +98,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
-      int64_t flush_delay_usec);
+      int64_t flush_delay_usec,
+      std::optional<int> initial_max_frames,
+      std::optional<int> video_decoder_poll_interval_ms);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -125,6 +128,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
+      std::optional<int> initial_max_frames,
+      std::optional<int> video_decoder_poll_interval_ms,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -139,6 +144,10 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   }
 
   bool Flush();
+
+  DecoderStateTracker* decoder_state_tracker() {
+    return decoder_state_tracker_.get();
+  }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -215,6 +224,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
+  const int64_t video_decoder_poll_interval_us_;
 
   ErrorCB error_cb_;
 
@@ -235,6 +245,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
+
+  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;

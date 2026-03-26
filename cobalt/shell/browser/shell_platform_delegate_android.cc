@@ -43,7 +43,9 @@ struct ShellPlatformDelegate::PlatformData {};
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   // |platform_| is not used on this platform.
 }
 
@@ -148,6 +150,14 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   return false;  // Shell destroys itself.
 }
 
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {}
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     Shell* shell,
     WebContents* web_contents,
@@ -176,8 +186,7 @@ void ShellPlatformDelegate::SetOverlayMode(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  return Java_Shell_setOverlayMode(env, shell_data.java_object,
-                                   use_overlay_mode);
+  Java_Shell_setOverlayMode(env, shell_data.java_object, use_overlay_mode);
 }
 
 void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {

@@ -32,12 +32,6 @@ namespace media {
 class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
-  enum class Type {
-    kGlobal,  // The global allocator calls `Allocator::Set(this)` to register
-              // itself in the ctor
-    kLocal,
-  };
-
   // Manages the details of the Allocate() and Free(), to allow
   // DecoderBufferAllocator to adopt different strategies at runtime.
   // The class isn't required to be thread safe, and relies on
@@ -55,9 +49,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetAllocated() const = 0;
   };
 
-  explicit DecoderBufferAllocator(Type type = Type::kGlobal);
-  DecoderBufferAllocator(Type type,
-                         bool is_memory_pool_allocated_on_demand,
+  explicit DecoderBufferAllocator();
+  DecoderBufferAllocator(bool is_memory_pool_allocated_on_demand,
                          int initial_capacity,
                          int allocation_unit);
   ~DecoderBufferAllocator() override;
@@ -71,18 +64,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                  size_t alignment) override;
   void Free(void* p, size_t size) override;
 
-  int GetAudioBufferBudget() const override;
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
-  int GetProgressiveBufferBudget(VideoCodec codec,
-                                 int resolution_width,
-                                 int resolution_height,
-                                 int bits_per_pixel) const override;
-  int GetVideoBufferBudget(VideoCodec codec,
-                           int resolution_width,
-                           int resolution_height,
-                           int bits_per_pixel) const override;
+  void SetAllocateOnDemand(bool enabled) override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
@@ -96,8 +81,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-  const Type type_;
-  const bool is_memory_pool_allocated_on_demand_;
+  bool is_memory_pool_allocated_on_demand_ GUARDED_BY(mutex_);
   const int initial_capacity_;
   const int allocation_unit_;
 

@@ -105,8 +105,7 @@ public abstract class CobaltActivity extends Activity {
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
 
   private boolean mEnableSplashScreen;
-  private static final String URL_TOPIC_NAME = "topic";
-  private String mUrlTopic;
+  private String mStartDeepLink;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -184,23 +183,18 @@ public abstract class CobaltActivity extends Activity {
     // variables, and needs to set up an early copy.
 
     // TODO(b/374147993): how to handle deeplink in Chrobalt?
-    String startDeepLink = getIntentUrlAsString(getIntent());
-    if (startDeepLink == null) {
+    mStartDeepLink = getIntentUrlAsString(getIntent());
+    if (mStartDeepLink == null) {
       Log.w(TAG, "startDeepLink cannot be null, set it to empty string.");
-      startDeepLink = "";
-    }
-    Uri startDeepLinkUri = Uri.parse(startDeepLink);
-    mUrlTopic = startDeepLinkUri.getQueryParameter(URL_TOPIC_NAME);
-    if (mUrlTopic == null) {
-      mUrlTopic = "";
+      mStartDeepLink = "";
     }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
-      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
+      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
-      getStarboardBridge().handleDeepLink(startDeepLink);
+      getStarboardBridge().handleDeepLink(mStartDeepLink);
     }
 
     mShellManager = new ShellManager(this);
@@ -269,7 +263,7 @@ public abstract class CobaltActivity extends Activity {
     // that the webContents are correctly created not null.
     mShellManager.launchShell(
         "",
-        mUrlTopic,
+        mStartDeepLink,
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {

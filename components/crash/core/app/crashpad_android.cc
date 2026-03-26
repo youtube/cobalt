@@ -425,6 +425,7 @@ bool BuildEnvironmentWithApk(bool use_64_bit,
 
 const char kCrashpadJavaMain[] =
     "org.chromium.components.crash.browser.CrashpadMain";
+const char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
 
 void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
                       base::FilePath* database_path,
@@ -435,8 +436,10 @@ void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
   crash_reporter_client->GetCrashDumpLocation(database_path);
   crash_reporter_client->GetCrashMetricsLocation(metrics_path);
 
-  // TODO(jperaza): Set URL for Android when Crashpad takes over report upload.
-  *url = std::string();
+  *url = crash_reporter_client->GetUploadUrl();
+  if (url->empty()) {
+    *url = kCrashReportUrl;
+  }
 
   ProductInfo product_info;
   crash_reporter_client->GetProductInfo(&product_info);
@@ -549,7 +552,17 @@ class HandlerStarter {
     // Don't handle SIGQUIT in the browser process on Android; the system masks
     // this and uses it for generating ART stack traces, and if it gets unmasked
     // (e.g. by a WebView app) we don't want to treat this as a crash.
+    
+
+    #if BUILDFLAG(IS_COBALT)
+    // Prevent Crashpad from handling standard crash signals. Only hangs are handled.
+    GetCrashpadClient().SetUnhandledSignals({
+        SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGQUIT, SIGSEGV, SIGSYS, SIGTRAP,
+    });
+    #else
     GetCrashpadClient().SetUnhandledSignals({SIGQUIT});
+    #endif
+
 
     if (!base::PathExists(handler_path)) {
       use_java_handler_ =

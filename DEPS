@@ -2111,6 +2111,11 @@ deps = {
     'condition': 'checkout_instrumented_libraries',
   },
 
+  'src/third_party/internal': {
+    'url': Var('cobalt_internal_git') + '/third_party/internal.git' + '@' + 'main',
+    'condition': 'checkout_cobalt_internal',
+  },
+
   'src/third_party/jszip/src': {
     'url': Var('chromium_git') + '/external/github.com/Stuk/jszip.git' + '@' + '2ceb998e29d4171b4f3f2ecab1a2195c696543c0',
     'condition': 'checkout_ios',
@@ -2797,8 +2802,9 @@ deps = {
     'condition': 'checkout_src_internal',
   },
 
-  'src/third_party/skia':
-    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
+# Cobalt: imported
+#  'src/third_party/skia':
+#    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
 
   'src/third_party/smhasher/src':
     Var('chromium_git') + '/external/smhasher.git' + '@' + '0ff96f7835817a27d0487325b6c16033e2992eb5',
@@ -5726,15 +5732,15 @@ hooks = [
                ],
   },
   # Configure Siso for developer builds.
-  # {
-  #   'name': 'configure_siso',
-  #   'pattern': '.',
-  #   'action': ['python3',
-  #              'src/build/config/siso/configure_siso.py',
-  #              '--rbe_instance',
-  #              Var('rbe_instance'),
-  #              ],
-  # },
+  {
+    'name': 'configure_siso',
+    'pattern': '.',
+    'action': ['python3',
+               'src/build/config/siso/configure_siso.py',
+               '--rbe_instance',
+               Var('rbe_instance'),
+               ],
+  },
   {
     'name': 'libaom_testdata',
     'pattern': '.',
@@ -5776,7 +5782,6 @@ recursedeps = [
   # clank has its own DEPS file, does not need to be in trybot_analyze_config
   # since the roller does not run tests.
   'src/clank',
-  'src/cobalt/internal',
   'src/components/optimization_guide/internal',
   'src/ios_internal',
 ]

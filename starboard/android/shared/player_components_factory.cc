@@ -18,9 +18,11 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include "base/strings/string_number_conversions.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
@@ -55,6 +57,8 @@ namespace {
 using base::android::AttachCurrentThread;
 using features::FeatureList;
 
+namespace {
+
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -64,7 +68,8 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
+  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1,
+                                    bool pause_using_audio_track_state = false)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -86,7 +91,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
                   tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  context);
+                  pause_using_audio_track_state, context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
@@ -189,7 +194,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio passthrough decoder during Reset().";
@@ -311,13 +317,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     bool enable_reset_audio_decoder =
-        FeatureList::IsEnabled(features::kForceResetAudioDecoder);
+        FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
+        creation_parameters.reset_audio_decoder();
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`kForceResetAudioDecoder` is set to true, force resetting"
         << " audio decoder during Reset().";
 
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " audio decoder during Reset().";
@@ -331,6 +339,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
+      // TODO: b/349854301 - Connect to experimental flag.
+      const bool pause_using_audio_track_state =
+          FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
+      SB_LOG_IF(INFO, pause_using_audio_track_state)
+          << "kPauseUsingAudioTrackState is set to true, force using "
+          << "AudioTrackState while pausing playback.";
       auto decoder_creator =
           [enable_flush_during_seek, enable_platform_opus_decoder, job_queue](
               const AudioStreamInfo& audio_stream_info,
@@ -366,7 +380,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id);
+              tunnel_mode_audio_session_id, pause_using_audio_track_state);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -410,12 +424,38 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
     // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
-    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-        creation_parameters.audio_stream_info().number_of_channels,
+    const auto sample_type =
         SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
             ? kSbMediaAudioSampleTypeFloat32
-            : kSbMediaAudioSampleTypeInt16Deprecated,
+            : kSbMediaAudioSampleTypeInt16Deprecated;
+
+    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+        creation_parameters.audio_stream_info().number_of_channels, sample_type,
         creation_parameters.audio_stream_info().samples_per_second);
+
+    // To avoid redundant IsTunnelModeSupported() checks, we simply only check
+    // if tunnel mode is enabled here.
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
+        creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      const bool force_tunnel_mode =
+          FeatureList::IsEnabled(features::kForceTunnelMode);
+      MimeType video_mime_type(creation_parameters.video_mime());
+      if (force_tunnel_mode ||
+          video_mime_type.GetParamBoolValue("tunnelmode", false)) {
+        // AudioTrack.setPlaybackParams() might need extra buffer to support
+        // playback speed greater than 1.0x.
+        const double kMaxPlaybackSpeed = 2.0;
+        JNIEnv* env = AttachCurrentThread();
+        min_frames_required = std::max<int>(
+            min_frames_required,
+            AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+                env, sample_type,
+                creation_parameters.audio_stream_info().number_of_channels,
+                creation_parameters.audio_stream_info().samples_per_second) *
+                kMaxPlaybackSpeed);
+      }
+    }
+
     // On Android 5.0, the size of audio renderer sink buffer need to be two
     // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
     // stop working after pause.
@@ -431,7 +471,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int max_video_input_size) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
+        creation_parameters.flush_decoder_during_reset();
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
@@ -464,6 +505,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
+    MediaCodecVideoDecoder::FlowControlOptions flow_control_options;
+    flow_control_options.initial_max_frames_in_decoder =
+        creation_parameters.video_initial_max_frames_in_decoder();
+    flow_control_options.max_pending_input_frames =
+        creation_parameters.video_max_pending_input_frames();
+    flow_control_options.video_decoder_poll_interval_ms =
+        creation_parameters.video_decoder_poll_interval_ms();
+
     auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
@@ -473,7 +522,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
-        enable_flush_during_seek, reset_delay_usec, flush_delay_usec);
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+        flow_control_options);
     if (!result) {
       return Failure(result.error());
     }
@@ -563,6 +613,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 };
 
+}  // namespace
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
   return std::make_unique<PlayerComponentsFactory>();
