@@ -311,12 +311,6 @@ RegionType GetRegionType(const char* line) {
   if (strstr(line, kLibChrobaltPattern)) {
     return RegionType::kLibChrobalt;
   }
-  if (strstr(line, kSoExtension) || strstr(line, kApkExtension) ||
-      strstr(line, kDexExtension)) {
-    // Catch-all for other executable code and read-only data mappings
-    // from system libraries, GPU drivers, and the Android package.
-    return RegionType::kCodeOther;
-  }
   if (strstr(line, kPartitionAllocPattern)) {
     return RegionType::kPartitionAlloc;
   }
@@ -339,6 +333,12 @@ RegionType GetRegionType(const char* line) {
   }
   if (strstr(line, kStackAndTlsPattern) || strstr(line, kStackPattern)) {
     return RegionType::kStacks;
+  }
+  if (strstr(line, kSoExtension) || strstr(line, kApkExtension) ||
+      strstr(line, kDexExtension)) {
+    // Catch-all for other executable code and read-only data mappings
+    // from system libraries, GPU drivers, and the Android package.
+    return RegionType::kCodeOther;
   }
   return RegionType::kNone;
 }
