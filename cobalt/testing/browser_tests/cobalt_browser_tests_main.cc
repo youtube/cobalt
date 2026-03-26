@@ -34,7 +34,7 @@
 namespace {
 // This delegate is the bridge between the content::LaunchTests function
 // and the Google Test framework.
-class StarboardTestLauncherDelegate : public content::TestLauncherDelegate {
+class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
  public:
   // This method is called by content::LaunchTests to
   // execute the entire suite of discovered Google Tests.
@@ -72,7 +72,7 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       // TODO(b/433354983): Support more platforms.
       ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
 
-      StarboardTestLauncherDelegate delegate;
+      CobaltBrowserTestLauncherDelegate delegate;
       TestTimeouts::Initialize();
       base::InitStarboardTestMessageLoop();
       int test_result_code = content::LaunchTests(&delegate, 1, argc, argv);
@@ -88,6 +88,8 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       // because Starboard's Musl port specifically maps _exit() back to exit(),
       // which runs the problematic teardown logic anyway. std::_Exit()
       // (uppercase) bypasses this and invokes the raw SYS_exit_group syscall.
+      // TODO(b/463991461): Consider ASAN_OPTIONS=exitcode=0 to avoid the need
+      // for std::_Exit() here.
       std::_Exit(test_result_code);
     }
     default:
