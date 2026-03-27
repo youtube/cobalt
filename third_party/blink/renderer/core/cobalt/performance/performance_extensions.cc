@@ -14,9 +14,14 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "base/logging.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
 namespace blink {
@@ -86,11 +91,22 @@ ScriptPromise PerformanceExtensions::getAppStartupTimeStamp(
   BindRemotePerformance(script_state)
       ->GetAppStartupTimeStamp(&startup_timestamp);
 
-  resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
+  double result = Performance::MonotonicTimeToDOMHighResTimeStamp(
       performance_obj.GetTimeOriginInternal(),
       base::TimeTicks::FromInternalValue(startup_timestamp),
       true /* allow_negative_value */,
-      context->CrossOriginIsolatedCapability()));
+      context->CrossOriginIsolatedCapability());
+
+
+
+  LocalDOMWindow* window = LocalDOMWindow::From(script_state);
+  LOG(INFO) << "getAppStartupTimeStamp: "
+            << (window && window->GetFrame() ? "frame_name='" + window->GetFrame()->Tree().GetName().Utf8() + "', URL='" + window->document()->Url().GetString().Utf8() + "', " : "")
+            << "time_origin=" << performance_obj.GetTimeOriginInternal().ToInternalValue()
+            << ", startup_timestamp=" << startup_timestamp
+            << ", result=" << result;
+
+  resolver->Resolve(result);
 
   return promise;
 }
