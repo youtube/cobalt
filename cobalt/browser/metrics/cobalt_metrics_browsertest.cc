@@ -94,6 +94,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   EXPECT_TRUE(check_histogram("Memory.Total.ResidentSet"));
   EXPECT_TRUE(check_histogram("Memory.Total.PrivateMemoryFootprint"));
   EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
+  EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
 
   // Sub-region memory metrics
   EXPECT_TRUE(
@@ -178,6 +180,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(check_histogram("Memory.Total.ResidentSet"));
   EXPECT_TRUE(check_histogram("Memory.Total.PrivateMemoryFootprint"));
   EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
+  EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
 
   // Sub-region memory metrics
   EXPECT_TRUE(
