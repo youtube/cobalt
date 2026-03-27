@@ -299,6 +299,8 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   uint64_t private_footprint_total_kb = 0;
   uint64_t shared_footprint_total_kb = 0;
   uint64_t resident_set_total_kb = 0;
+  uint64_t private_footprint_swap_total_kb = 0;
+  uint64_t vm_size_total_kb = 0;
 
   for (const auto& pmd : global_dump_->process_dumps()) {
     HistogramProcessType ptype;
@@ -323,6 +325,8 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_total_kb += pmd.os_dump().private_footprint_kb;
     shared_footprint_total_kb += pmd.os_dump().shared_footprint_kb;
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
+    private_footprint_swap_total_kb += pmd.os_dump().private_footprint_swap_kb;
+    vm_size_total_kb += pmd.os_dump().vm_size_kb;
 
     // Manually calculate fragmentation for individual processes as it may not
     // be present in the dump.
@@ -400,6 +404,12 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   base::UmaHistogramMemoryLargeMB(
       "Memory.Total.SharedMemoryFootprint",
       static_cast<int>(shared_footprint_total_kb / kKiB));
+  // VM specific metrics
+  base::UmaHistogramMemoryLargeMB(
+      "Memory.Total.PrivateFootprintSwap",
+      static_cast<int>(private_footprint_swap_total_kb / kKiB));
+  base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
+                                  static_cast<int>(vm_size_total_kb / kKiB));
 
   global_dump_ = nullptr;
 
