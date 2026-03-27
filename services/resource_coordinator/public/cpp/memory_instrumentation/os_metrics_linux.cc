@@ -26,7 +26,7 @@
 #include "build/build_config.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 #include "third_party/abseil-cpp/absl/strings/match.h"
 #include "third_party/abseil-cpp/absl/strings/numbers.h"
 #include "third_party/abseil-cpp/absl/strings/string_view.h"
@@ -279,7 +279,7 @@ class ScopedProcessSetDumpable {
   bool was_dumpable_;
 };
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 namespace {
 constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
 constexpr char kPartitionAllocPattern[] = "partition_alloc";
@@ -516,7 +516,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
   dump->peak_resident_set_kb = GetPeakResidentSetSize(pid);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(pid);
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   PopulateCobaltSmapsMetrics(pid, dump);
 #endif
 
