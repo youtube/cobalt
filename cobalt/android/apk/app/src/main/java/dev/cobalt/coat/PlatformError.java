@@ -169,7 +169,26 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           mDialog.dismiss();
-          loadUrlWithRetryParam(cobaltActivity);
+          // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
+          // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
+          // still processed.
+          if (cobaltActivity != null) {
+            WebContents webContents = cobaltActivity.getActiveWebContents();
+            if (webContents == null) {
+              Log.e(TAG, "WebContents is null and not available to reload the URL.");
+            } else {
+              String currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+
+              // Reloading the web contents as a fallback if the URL is empty to attempt a fresh navigation.
+              // Otherwise, add a param to the URL to indicate a bootstrap request with a retry from the network dialog
+              if (currentUrl.isEmpty()) {
+                Log.i(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
+                webContents.getNavigationController().reload(true);
+              } else {
+                cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl));
+              }
+            }
+          }
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
@@ -195,34 +214,18 @@ public class PlatformError
     void sendResponse(@PlatformError.Response int response, long data);
   }
 
-  //TODO: Add unit tests for retry URL param logic b/496219065
-  /** Reloads the URL and adds a retry param */
-  private void loadUrlWithRetryParam(CobaltActivity cobaltActivity) {
-    // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
-    // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
-    // still processed.
-    if (cobaltActivity == null) {
-      return;
-    }
-    WebContents webContents = cobaltActivity.getActiveWebContents();
-    if (webContents == null) {
-      Log.e(TAG, "WebContents is null and not available to reload the URL.");
-      return;
-    }
-    String newUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
-
-    if (newUrl.isEmpty()) {
-      Log.i(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
-      webContents.getNavigationController().reload(true);
-      return;
-    }
-    Uri parsedUri = Uri.parse(newUrl);
+  //TODO(b/496219065): Add unit tests for retry URL param logic
+  /** Adds a retry param to the URL if not already present to differentiate
+   *  bootstrap requests that originate from a network dialog retry.
+   */
+  private String addRetryUrlParam(String url) {
+    Uri parsedUri = Uri.parse(url);
     if (parsedUri.getQueryParameter(RETRY_PARAM_KEY) == null) {
       Uri.Builder uriBuilder = parsedUri.buildUpon();
       uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, RETRY_PARAM_VALUE);
-      newUrl = uriBuilder.build().toString();
+      return uriBuilder.build().toString();
     }
-    cobaltActivity.getActiveShell().loadUrl(newUrl);
+    return url;
   }
 
 }
