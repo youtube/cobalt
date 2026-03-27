@@ -67,6 +67,12 @@ GST_DEBUG_CATEGORY(cobalt_gst_audio_sink_debug);
 
 constexpr int kFramesPerRequest = 1024;
 
+// Maximum number of audio session that can be opened simultaneously.
+// For RDK this is taken from
+// `kernel-source/common_drivers/drivers/media/avsync/msync.c
+// #define MAX_SESSION_NUM 4
+constexpr int MAX_ALLOWED_SESSION = 4;
+
 using ::starboard::GetBytesPerSample;
 
 class GStreamerAudioSink : public SbAudioSinkPrivate {
@@ -301,8 +307,10 @@ gboolean GStreamerAudioSink::BusMessageCallback(GstBus* bus,
     case GST_MESSAGE_EOS:
       if (GST_MESSAGE_SRC(message) == GST_OBJECT(sink->pipeline_)) {
         GST_INFO_OBJECT(sink->pipeline_, "EOS");
-        if (sink->destroying_)
+        std::lock_guard lock(sink->mutex_);
+        if (sink->destroying_) {
           g_main_loop_quit(sink->mainloop_);
+        }
       }
       break;
 
@@ -498,10 +506,15 @@ SbAudioSink GStreamerAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  return new GStreamerAudioSink(
+  if (instance_count == MAX_ALLOWED_SESSION)
+    return kSbAudioSinkInvalid;
+
+  auto sink = new GStreamerAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
       update_source_status_func, consume_frames_func, error_func, context);
+  instance_count++;
+  return sink;
 }
 
 }  // namespace audio_sink
