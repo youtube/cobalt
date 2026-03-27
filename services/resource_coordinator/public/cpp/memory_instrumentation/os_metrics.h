@@ -41,25 +41,30 @@ namespace memory_instrumentation {
 class COMPONENT_EXPORT(
     RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION) OSMetrics {
  public:
-  using MemDumpFlagSet =
-      base::EnumSet<mojom::MemDumpFlags,
-                    mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS,
-                    mojom::MemDumpFlags::kMaxValue>;
+  class Delegate {
+   public:
+    virtual ~Delegate() = default;
 
-  // Fills |dump| with memory information about |handle|. See class comments for
-  // restrictions on |handle|. |dump.platform_private_footprint| must be
-  // allocated before calling this function. If |handle| is null, the handle of
-  // the current process is used
-  static bool FillOSMemoryDump(base::ProcessHandle handle,
-                               const MemDumpFlagSet& flags,
-                               mojom::RawOSMemDump* dump);
-#if BUILDFLAG(IS_APPLE)
-  static bool FillOSMemoryDump(base::ProcessHandle handle,
-                               const MemDumpFlagSet& flags,
-                               base::PortProvider* port_provider,
-                               mojom::RawOSMemDump* dump);
-#endif
-  static bool FillProcessMemoryMaps(base::ProcessHandle,
+    // Called for each region's header line in smaps.
+    virtual void OnSmapsHeader(const char* line) = 0;
+
+    // Called for each counter in a region in smaps.
+    virtual void OnSmapsCounter(const char* name,
+                                uint64_t value_kb,
+                                mojom::RawOSMemDump* dump) = 0;
+
+    // Called after all smaps regions have been processed.
+    virtual void OnSmapsFinished(mojom::RawOSMemDump* dump) = 0;
+  };
+
+  static void SetDelegate(Delegate* delegate);
+
+  // Fills |dump| with memory information about |pid|. See class comments for
+  // restrictions on |pid|. |dump.platform_private_footprint| must be allocated
+  // before calling this function. If |pid| is null, the pid of the current
+  // process is used
+  static bool FillOSMemoryDump(base::ProcessId pid, mojom::RawOSMemDump* dump);
+  static bool FillProcessMemoryMaps(base::ProcessId,
                                     mojom::MemoryMapOption,
                                     mojom::RawOSMemDump*);
   static std::vector<mojom::VmRegionPtr> GetProcessMemoryMaps(

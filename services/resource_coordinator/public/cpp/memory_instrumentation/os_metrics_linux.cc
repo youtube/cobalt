@@ -37,9 +37,8 @@
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-#include "third_party/abseil-cpp/absl/strings/match.h"
-#include "third_party/abseil-cpp/absl/strings/numbers.h"
-#include "third_party/abseil-cpp/absl/strings/string_view.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_tokenizer.h"
 #endif
 
 // Symbol with virtual address of the start of ELF header of the current binary.
@@ -270,149 +269,17 @@ class ScopedProcessSetDumpable {
   bool was_dumpable_;
 };
 
-// Count how many mappings exist in a process.
-//
-// Return 0 in case of error (since a process necessarily has at least a
-// mapping, this is an invalid value).
-//
-// The return value is approximate, as this happens while the process is
-// running.
-uint32_t CountMappings(base::ProcessId pid) {
-  // seq_file only writes out a page-sized amount on each call.
-  const size_t read_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
-  auto buffer = base::HeapArray<char>::Uninit(read_size);
-
-  base::FilePath path = GetProcPidDir(pid).Append("maps");
-  base::ScopedFD fd(HANDLE_EINTR(open(path.value().c_str(), O_RDONLY)));
-  if (!fd.is_valid()) {
-    DPLOG(ERROR) << "Couldn't open /proc/PID/maps";
-    return 0;
-  }
-
-  // /proc/PID/smaps has a single line per mapping, without a header, just count
-  // the number of newline characters. See man proc(5) for the format.
-  uint32_t newline_characters = 0;
-  while (true) {
-    ssize_t bytes_read =
-        HANDLE_EINTR(read(fd.get(), &buffer[0], buffer.size()));
-    if (bytes_read < 0) {
-      DPLOG(ERROR) << "Couldn't read /proc/PID/maps";
-      return 0;
-    }
-
-    if (bytes_read == 0) {
-      break;
-    }
-
-    for (ssize_t i = 0; i < bytes_read; i++) {
-      if (buffer[i] == '\n') {
-        newline_characters++;
-      }
-    }
-  }
-
-  return newline_characters;
-}
-
-// Get values from smaps_rollup for the current process.
-void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
-  auto value = base::debug::ReadAndParseSmapsRollup();
-  if (!value) {
-    *pss = 0;
-    *swap_pss = 0;
-    return;
-  }
-  *pss = value->pss;
-  *swap_pss = value->swap_pss;
-}
-
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 namespace {
-constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
-constexpr char kPartitionAllocPattern[] = "partition_alloc";
-constexpr char kV8Pattern[] = "v8";
-constexpr char kScudoPattern[] = "scudo";
-constexpr char kHeapPattern[] = "[heap]";
-constexpr char kSoExtension[] = ".so";
-constexpr char kApkExtension[] = ".apk";
-constexpr char kDexExtension[] = ".dex";
-constexpr char kTtfExtension[] = ".ttf";
-constexpr char kTtcExtension[] = ".ttc";
-constexpr char kFontsPath[] = "fonts/";
-constexpr char kAshmemPath[] = "/dev/ashmem/";
-constexpr char kMemfdJitPattern[] = "memfd:jit";
-constexpr char kArtExtension[] = ".art";
-constexpr char kOatExtension[] = ".oat";
-constexpr char kVdexExtension[] = ".vdex";
-constexpr char kOdexExtension[] = ".odex";
-constexpr char kJarExtension[] = ".jar";
-constexpr char kHybExtension[] = ".hyb";
-constexpr char kDalvikPrefix[] = "dalvik-";
-constexpr char kStackAndTlsPattern[] = "stack_and_tls";
-constexpr char kStackPattern[] = "[stack]";
-
-enum class RegionType {
-  kNone,
-  kLibChrobalt,
-  kPartitionAlloc,
-  kV8,
-  kMalloc,
-  kCodeOther,
-  kFonts,
-  kAshmemJit,
-  kAndroidRuntime,
-  kStacks
-};
-
-RegionType GetRegionType(const char* line) {
-  if (absl::StrContains(line, kLibChrobaltPattern)) {
-    return RegionType::kLibChrobalt;
-  }
-  if (absl::StrContains(line, kPartitionAllocPattern)) {
-    return RegionType::kPartitionAlloc;
-  }
-  if (absl::StrContains(line, kV8Pattern)) {
-    return RegionType::kV8;
-  }
-  if (absl::StrContains(line, kScudoPattern) ||
-      absl::StrContains(line, kHeapPattern)) {
-    return RegionType::kMalloc;
-  }
-  if (absl::StrContains(line, kTtfExtension) ||
-      absl::StrContains(line, kTtcExtension) ||
-      absl::StrContains(line, kFontsPath)) {
-    return RegionType::kFonts;
-  }
-  if (absl::StrContains(line, kAshmemPath) ||
-      absl::StrContains(line, kMemfdJitPattern)) {
-    return RegionType::kAshmemJit;
-  }
-  if (absl::StrContains(line, kArtExtension) ||
-      absl::StrContains(line, kOatExtension) ||
-      absl::StrContains(line, kVdexExtension) ||
-      absl::StrContains(line, kOdexExtension) ||
-      absl::StrContains(line, kJarExtension) ||
-      absl::StrContains(line, kHybExtension) ||
-      absl::StrContains(line, kDalvikPrefix)) {
-    return RegionType::kAndroidRuntime;
-  }
-  if (absl::StrContains(line, kStackAndTlsPattern) ||
-      absl::StrContains(line, kStackPattern)) {
-    return RegionType::kStacks;
-  }
-  if (absl::StrContains(line, kSoExtension) ||
-      absl::StrContains(line, kApkExtension) ||
-      absl::StrContains(line, kDexExtension)) {
-    // Catch-all for other executable code and read-only data mappings
-    // from system libraries, GPU drivers, and the Android package.
-    return RegionType::kCodeOther;
-  }
-  return RegionType::kNone;
+OSMetrics::Delegate* g_os_metrics_delegate = nullptr;
 }
-}  // namespace
 
-void PopulateCobaltSmapsMetrics(base::ProcessId pid,
-                                mojom::RawOSMemDump* dump) {
+void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
+  OSMetrics::Delegate* delegate = g_os_metrics_delegate;
+  if (!delegate) {
+    return;
+  }
+
   std::string file_name =
       "/proc/" +
       (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
@@ -423,100 +290,30 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
   }
 
   char line[kMaxLineSize];
-  uint64_t libchrobalt_pss_kb = 0;
-  uint64_t libchrobalt_rss_kb = 0;
-  uint64_t pa_rss_kb = 0;
-  uint64_t v8_rss_kb = 0;
-  uint64_t malloc_rss_kb = 0;
-  uint64_t code_other_rss_kb = 0;
-  uint64_t fonts_rss_kb = 0;
-  uint64_t ashmem_jit_rss_kb = 0;
-  uint64_t android_runtime_rss_kb = 0;
-  uint64_t stacks_rss_kb = 0;
-
-  RegionType current_type = RegionType::kNone;
-
   while (fgets(line, kMaxLineSize, smaps_file.get())) {
     if (absl::ascii_isxdigit(static_cast<unsigned char>(line[0])) &&
         !absl::ascii_isupper(static_cast<unsigned char>(line[0]))) {
-      current_type = GetRegionType(line);
+      delegate->OnSmapsHeader(line);
       continue;
     }
 
-    if (current_type == RegionType::kNone) {
-      continue;
-    }
-
-    absl::string_view line_sv(line);
-    uint64_t value_kb = 0;
-    if (absl::StartsWith(line_sv, "Pss:")) {
-      size_t num_start = line_sv.find_first_not_of(' ', 4);
-      if (num_start != absl::string_view::npos) {
-        size_t num_end = line_sv.find(" kB", num_start);
-        if (num_end != absl::string_view::npos) {
-          if (absl::SimpleAtoi(line_sv.substr(num_start, num_end - num_start),
-                               &value_kb)) {
-            if (current_type == RegionType::kLibChrobalt) {
-              libchrobalt_pss_kb += value_kb;
-            }
-          }
-        }
-      }
-    } else if (absl::StartsWith(line_sv, "Rss:")) {
-      size_t num_start = line_sv.find_first_not_of(' ', 4);
-      if (num_start != absl::string_view::npos) {
-        size_t num_end = line_sv.find(" kB", num_start);
-        if (num_end != absl::string_view::npos) {
-          if (absl::SimpleAtoi(line_sv.substr(num_start, num_end - num_start),
-                               &value_kb)) {
-            switch (current_type) {
-              case RegionType::kLibChrobalt:
-                libchrobalt_rss_kb += value_kb;
-                break;
-              case RegionType::kPartitionAlloc:
-                pa_rss_kb += value_kb;
-                break;
-              case RegionType::kV8:
-                v8_rss_kb += value_kb;
-                break;
-              case RegionType::kMalloc:
-                malloc_rss_kb += value_kb;
-                break;
-              case RegionType::kCodeOther:
-                code_other_rss_kb += value_kb;
-                break;
-              case RegionType::kFonts:
-                fonts_rss_kb += value_kb;
-                break;
-              case RegionType::kAshmemJit:
-                ashmem_jit_rss_kb += value_kb;
-                break;
-              case RegionType::kAndroidRuntime:
-                android_runtime_rss_kb += value_kb;
-                break;
-              case RegionType::kStacks:
-                stacks_rss_kb += value_kb;
-                break;
-              default:
-                break;
-            }
-          }
+    base::StringPiece line_sp(line);
+    bool is_pss = base::StartsWith(line_sp, "Pss:", base::CompareCase::SENSITIVE);
+    bool is_rss =
+        !is_pss && base::StartsWith(line_sp, "Rss:", base::CompareCase::SENSITIVE);
+    if (is_pss || is_rss) {
+      base::StringTokenizer t(line_sp, " ");
+      t.GetNext();  // Skip "Pss:" or "Rss:"
+      if (t.GetNext()) {
+        uint64_t value_kb = 0;
+        if (base::StringToUint64(t.token_piece(), &value_kb)) {
+          delegate->OnSmapsCounter(is_pss ? "Pss:" : "Rss:", value_kb, dump);
         }
       }
     }
   }
 
-  dump->libchrobalt_pss_kb = base::saturated_cast<uint32_t>(libchrobalt_pss_kb);
-  dump->libchrobalt_rss_kb = base::saturated_cast<uint32_t>(libchrobalt_rss_kb);
-  dump->partition_alloc_rss_kb = base::saturated_cast<uint32_t>(pa_rss_kb);
-  dump->v8_rss_kb = base::saturated_cast<uint32_t>(v8_rss_kb);
-  dump->malloc_rss_kb = base::saturated_cast<uint32_t>(malloc_rss_kb);
-  dump->code_other_rss_kb = base::saturated_cast<uint32_t>(code_other_rss_kb);
-  dump->fonts_rss_kb = base::saturated_cast<uint32_t>(fonts_rss_kb);
-  dump->ashmem_jit_rss_kb = base::saturated_cast<uint32_t>(ashmem_jit_rss_kb);
-  dump->android_runtime_rss_kb =
-      base::saturated_cast<uint32_t>(android_runtime_rss_kb);
-  dump->stacks_rss_kb = base::saturated_cast<uint32_t>(stacks_rss_kb);
+  delegate->OnSmapsFinished(dump);
 }
 #endif
 
@@ -525,66 +322,88 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
 FILE* g_proc_smaps_for_testing = nullptr;
 
 // static
+void OSMetrics::SetDelegate(Delegate* delegate) {
+#if BUILDFLAG(IS_COBALT)
+  g_os_metrics_delegate = delegate;
+#endif
+}
+
+// static
 void OSMetrics::SetProcSmapsForTesting(FILE* f) {
   g_proc_smaps_for_testing = f;
 }
 
 // static
-bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
-                                 const MemDumpFlagSet& flags,
+bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
                                  mojom::RawOSMemDump* dump) {
-  auto info = GetMemoryInfo(handle);
-  if (!info.has_value()) {
+  // TODO(chiniforooshan): There is no need to read both /statm and /status
+  // files. Refactor to get everything from /status using ProcessMetric.
+  auto statm_file = GetProcPidDir(pid).Append("statm");
+  auto autoclose = base::ScopedFD(open(statm_file.value().c_str(), O_RDONLY));
+  int statm_fd = autoclose.get();
+
+  if (statm_fd == -1)
     return false;
-  }
 
-  dump->platform_private_footprint->rss_anon_bytes = info->rss_anon_bytes;
-  dump->platform_private_footprint->vm_swap_bytes = info->vm_swap_bytes;
-  dump->resident_set_kb =
-      base::saturated_cast<uint32_t>(info->resident_set_bytes / 1024);
-  dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
-  dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
+  uint64_t resident_pages;
+  uint64_t shared_pages;
+  bool success = base::debug::GetResidentAndSharedPagesFromStatmFile(
+      statm_fd, &resident_pages, &shared_pages);
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  PopulateCobaltSmapsMetrics(handle, dump);
-#endif
+  if (!success)
+    return false;
 
-  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
-    dump->mappings_count = CountMappings(handle);
-  }
-  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-    GetSmapsRollup(&dump->pss_kb, &dump->swap_pss_kb);
-  }
+  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(pid);
 
+  static const size_t page_size = base::GetPageSize();
+  uint64_t rss_anon_bytes = (resident_pages - shared_pages) * page_size;
+  uint64_t vm_swap_bytes = process_metrics->GetVmSwapBytes();
+
+  dump->platform_private_footprint->rss_anon_bytes = rss_anon_bytes;
+  dump->platform_private_footprint->vm_swap_bytes = vm_swap_bytes;
+  dump->resident_set_kb = process_metrics->GetResidentSetSize() / 1024;
+  dump->peak_resident_set_kb = GetPeakResidentSetSize(pid);
+  dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(pid);
+
+#if BUILDFLAG(IS_COBALT) 
+  dump->vm_size_kb = process_metrics->GetVmSizeBytes() / 1024;
 #if BUILDFLAG(IS_ANDROID)
-#if BUILDFLAG(SUPPORTS_CODE_ORDERING)
-  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PAGES_BITMAP)) {
-    if (!base::android::AreAnchorsSane()) {
-      DLOG(WARNING) << "Incorrect code ordering";
-      return false;
-    }
-
-    std::vector<uint8_t> accessed_pages_bitmap;
-    OSMetrics::MappedAndResidentPagesDumpState state =
-        OSMetrics::GetMappedAndResidentPages(base::android::kStartOfText,
-                                             base::android::kEndOfText,
-                                             &accessed_pages_bitmap);
-    UMA_HISTOGRAM_ENUMERATION(
-        "Memory.NativeLibrary.MappedAndResidentMemoryFootprintCollectionStatus",
-        state);
-
-    // MappedAndResidentPagesDumpState |state| can be |kAccessPagemapDenied|
-    // for Android devices running a kernel version < 4.4 or because the process
-    // is not "dumpable", as described in proc(5).
-    if (state != OSMetrics::MappedAndResidentPagesDumpState::kSuccess) {
-      return state != OSMetrics::MappedAndResidentPagesDumpState::kFailure;
-    }
-
-    dump->native_library_pages_bitmap = std::move(accessed_pages_bitmap);
-  }
-#endif  // BUILDFLAG(SUPPORTS_CODE_ORDERING)
+  PopulateSmapsMetrics(pid, dump);
 #endif  //  BUILDFLAG(IS_ANDROID)
+#endif  //  BUILDFLAG(IS_COBALT)
 
+  return true;
+}
+
+// static
+bool OSMetrics::FillProcessMemoryMaps(base::ProcessId pid,
+                                      mojom::MemoryMapOption option,
+                                      mojom::RawOSMemDump* dump) {
+  base::ScopedFILE smaps_file;
+  if (g_proc_smaps_for_testing) {
+    smaps_file.reset(g_proc_smaps_for_testing);
+  } else {
+    std::string file_name =
+        "/proc/" +
+        (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
+        "/smaps";
+    smaps_file.reset(fopen(file_name.c_str(), "r"));
+    if (!smaps_file.get()) {
+      {
+        ScopedProcessSetDumpable set_dumpable;
+        smaps_file.reset(fopen(file_name.c_str(), "r"));
+      }
+      if (!smaps_file.get()) {
+        DLOG(ERROR) << "Could not open " << file_name;
+        return false;
+      }
+    }
+  }
+
+  ReadLinuxProcSmapsFile(smaps_file.get(), &dump->memory_maps);
+  if (g_proc_smaps_for_testing) {
+    smaps_file.release();
+  }
   return true;
 }
 

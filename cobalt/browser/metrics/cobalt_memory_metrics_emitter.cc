@@ -27,6 +27,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
+#include "cobalt/browser/metrics/cobalt_os_metrics_delegate.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
@@ -399,32 +400,48 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     std::string exp_prefix = base::StrCat(
         {kExperimentalUmaPrefix, process_name, kVersionSuffixNormal});
 
-    auto emit_accurate_rss = [&](const char* name, uint32_t value_kb) {
-      base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, name, "Rss"}),
-                                      static_cast<int>(value_kb / kKiB));
-      base::UmaHistogramMemoryLargeMB(base::StrCat({exp_prefix, name}),
-                                      static_cast<int>(value_kb / kKiB));
+    auto emit_stat = [&](const char* stat_key, const char* uma_suffix,
+                         bool is_experimental) {
+      auto it = pmd.os_dump().extra_stats.find(stat_key);
+      if (it != pmd.os_dump().extra_stats.end()) {
+        uint32_t value_kb = it->second;
+        base::UmaHistogramMemoryLargeMB(
+            base::StrCat({prefix, uma_suffix, "Rss"}),
+            static_cast<int>(value_kb / kKiB));
+        if (is_experimental) {
+          base::UmaHistogramMemoryLargeMB(
+              base::StrCat({exp_prefix, uma_suffix}),
+              static_cast<int>(value_kb / kKiB));
+        }
+      }
     };
 
-    base::UmaHistogramMemoryLargeMB(
-        base::StrCat({prefix, "LibChrobaltPss"}),
-        static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
-    base::UmaHistogramMemoryLargeMB(
-        base::StrCat({prefix, "LibChrobaltRss"}),
-        static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+    auto it_pss = pmd.os_dump().extra_stats.find(kExtraStatLibChrobaltPss);
+    if (it_pss != pmd.os_dump().extra_stats.end()) {
+      base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, "LibChrobaltPss"}),
+                                      static_cast<int>(it_pss->second / kKiB));
+    }
 
-    emit_accurate_rss("PartitionAlloc", pmd.os_dump().partition_alloc_rss_kb);
-    emit_accurate_rss("Malloc", pmd.os_dump().malloc_rss_kb);
-    emit_accurate_rss("CodeOther", pmd.os_dump().code_other_rss_kb);
-    emit_accurate_rss("Fonts", pmd.os_dump().fonts_rss_kb);
-    emit_accurate_rss("AshmemJit", pmd.os_dump().ashmem_jit_rss_kb);
-    emit_accurate_rss("AndroidRuntime", pmd.os_dump().android_runtime_rss_kb);
-    emit_accurate_rss("Stacks", pmd.os_dump().stacks_rss_kb);
+    auto it_rss = pmd.os_dump().extra_stats.find(kExtraStatLibChrobaltRss);
+    if (it_rss != pmd.os_dump().extra_stats.end()) {
+      base::UmaHistogramMemoryLargeMB(base::StrCat({prefix, "LibChrobaltRss"}),
+                                      static_cast<int>(it_rss->second / kKiB));
+    }
 
-    // Override V8 with accurate RSS.
-    base::UmaHistogramMemoryLargeMB(
-        base::StrCat({exp_prefix, "V8"}),
-        static_cast<int>(pmd.os_dump().v8_rss_kb / kKiB));
+    emit_stat(kExtraStatPartitionAllocRss, "PartitionAlloc", true);
+    emit_stat(kExtraStatMallocRss, "Malloc", true);
+    emit_stat(kExtraStatCodeOtherRss, "CodeOther", true);
+    emit_stat(kExtraStatFontsRss, "Fonts", true);
+    emit_stat(kExtraStatAshmemJitRss, "AshmemJit", true);
+    emit_stat(kExtraStatAndroidRuntimeRss, "AndroidRuntime", true);
+    emit_stat(kExtraStatStacksRss, "Stacks", true);
+
+    // Override V8 with accurate RSS from extra_stats.
+    auto it_v8 = pmd.os_dump().extra_stats.find(kExtraStatV8Rss);
+    if (it_v8 != pmd.os_dump().extra_stats.end()) {
+      base::UmaHistogramMemoryLargeMB(base::StrCat({exp_prefix, "V8"}),
+                                      static_cast<int>(it_v8->second / kKiB));
+    }
 #endif
   }
 

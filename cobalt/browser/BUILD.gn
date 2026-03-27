@@ -175,6 +175,8 @@ source_set("metrics") {
     "metrics/cobalt_metrics_service_client.h",
     "metrics/cobalt_metrics_services_manager_client.cc",
     "metrics/cobalt_metrics_services_manager_client.h",
+    "metrics/cobalt_os_metrics_delegate.cc",
+    "metrics/cobalt_os_metrics_delegate.h",
   ]
   deps = [
     ":switches",
