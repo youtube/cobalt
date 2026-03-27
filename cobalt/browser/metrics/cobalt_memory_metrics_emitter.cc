@@ -408,9 +408,8 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   base::UmaHistogramMemoryLargeMB(
       "Memory.Total.PrivateFootprintSwap",
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
-  base::UmaHistogramMemoryLargeMB(
-      "Memory.Total.VmSize",
-      static_cast<int>(vm_size_total_kb / kKiB));
+  base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
+                                  static_cast<int>(vm_size_total_kb / kKiB));
 
   global_dump_ = nullptr;
 
