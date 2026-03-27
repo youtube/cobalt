@@ -17,6 +17,8 @@
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
 
+namespace content { extern base::TimeTicks g_select_keydown_time; }
+
 namespace blink {
 
 namespace {
@@ -156,6 +158,11 @@ void MediaStreamAudioTrack::OnSetFormat(const media::AudioParameters& params) {
 
 void MediaStreamAudioTrack::OnData(const media::AudioBus& audio_bus,
                                    base::TimeTicks reference_time) {
+  if (track_data_count_ == 0 && !content::g_select_keydown_time.is_null()) {
+    base::TimeDelta total_latency = base::TimeTicks::Now() - content::g_select_keydown_time;
+    LOG(INFO) << "KJ: NATIVE TRACK EXIT. latency(msec)=" << total_latency.InMilliseconds();
+  }
+  track_data_count_++;
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                "MediaStreamAudioTrack::OnData", "this",
                static_cast<void*>(this), "frame", audio_bus.frames());

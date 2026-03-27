@@ -174,6 +174,8 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
 
   bool allow_invalid_render_frame_id_for_testing_;
 
+  int capture_count_ = 0;
+
   // Provides weak pointers for tasks posted by this instance.
   base::WeakPtrFactory<ProcessedLocalAudioSource> weak_factory_{this};
 };

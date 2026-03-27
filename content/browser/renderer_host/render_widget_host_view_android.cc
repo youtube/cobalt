@@ -104,6 +104,8 @@
 
 namespace content {
 
+base::TimeTicks g_select_keydown_time;
+
 namespace {
 
 static const char kAsyncReadBackString[] = "Compositing.CopyFromSurfaceTime";
@@ -2226,6 +2228,13 @@ void RenderWidgetHostViewAndroid::UnlockMouse() {
 
 void RenderWidgetHostViewAndroid::SendKeyEvent(
     const NativeWebKeyboardEvent& event) {
+  if (event.windows_key_code == 13) {
+    if (event.GetType() == NativeWebKeyboardEvent::Type::kRawKeyDown ||
+        event.GetType() == NativeWebKeyboardEvent::Type::kKeyDown) {
+      g_select_keydown_time = base::TimeTicks::Now();
+    }
+    LOG(INFO) << "KJ: RenderWidgetHostViewAndroid::SendKeyEvent windows_key_code=" << event.windows_key_code;
+  }
   if (!host())
     return;
 

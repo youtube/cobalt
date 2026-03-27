@@ -310,6 +310,10 @@ public class ImeAdapterImpl
         return isTextInputType(mTextInputType);
     }
 
+    private static boolean isTextInputType(int type) {
+        return type != TextInputType.NONE && !InputDialogContainer.isDialogInputType(type);
+    }
+
     private boolean isHardwareKeyboardAttached() {
         return mCurrentConfig.keyboard != Configuration.KEYBOARD_NOKEYS;
     }
@@ -753,14 +757,13 @@ public class ImeAdapterImpl
         }
     }
 
-    private static boolean isTextInputType(int type) {
-        return type != TextInputType.NONE && !InputDialogContainer.isDialogInputType(type);
-    }
-
     /**
      * See {@link View#dispatchKeyEvent(KeyEvent)}
      */
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == 23) {
+            Log.i(TAG, "KJ: ImeAdapterImpl.dispatchKeyEvent action=" + event.getAction());
+        }
         if (DEBUG_LOGS) {
             Log.i(TAG, "dispatchKeyEvent: action [%d], keycode [%d]", event.getAction(),
                     event.getKeyCode());
@@ -929,6 +932,9 @@ public class ImeAdapterImpl
     }
 
     boolean sendKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == 23) {
+            Log.i(TAG, "KJ: ImeAdapterImpl.sendKeyEvent action=" + event.getAction());
+        }
         if (!isValid()) return false;
 
         int action = event.getAction();

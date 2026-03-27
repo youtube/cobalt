@@ -8,6 +8,7 @@
 
 #include "base/guid.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
@@ -57,6 +58,8 @@
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 namespace blink {
 
@@ -409,6 +412,14 @@ ScriptPromise MediaDevices::getUserMedia(
     ScriptState* script_state,
     const UserMediaStreamConstraints* options,
     ExceptionState& exception_state) {
+  if (!content::g_select_keydown_time.is_null()) {
+    base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia: latency(msec)="
+              << elapsed.InMilliseconds();
+  } else {
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia";
+  }
+
   // This timeout of base::Seconds(8) is an initial value and based on the data
   // in Media.MediaDevices.GetUserMedia.Latency, it should be iterated upon.
   auto* resolver = MakeGarbageCollected<
