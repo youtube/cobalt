@@ -61,6 +61,10 @@ if (is_win) {
   import("//build/config/win/control_flow_guard.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 declare_args() {
   # Unsafe developer build. Has developer-friendly features that may weaken or
   # disable security measures like sandboxing or ASLR.
@@ -121,12 +125,6 @@ if (is_fuchsia) {
 
 _build_date_header = "$target_gen_dir/generated_build_date.h"
 
-if (is_cobalt) {
-  _should_build_for_platform =
-      (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) ||
-      current_toolchain == native_target
-}
-
 if (is_win) {
   # This is in a separate config so the flags can be applied to dependents.
   # ldflags in GN aren't automatically inherited.
@@ -184,6 +182,15 @@ use_epoll = is_linux || is_chromeos || is_android
 # base compilation units to be linked in where they wouldn't have otherwise.
 # This does not include test code (test support and anything in the test
 # directory) which should use source_set as is recommended for GN targets).
+
+# Builds using the starboard or native_target toolchains must use
+# //copied_base/base instead.
+if (is_cobalt && is_partner_toolchain) {
+  not_needed([ "use_epoll" ])
+  group("base") {
+    public_deps = [ "//copied_base/base" ]
+  }
+} else {
 component("base") {
   sources = [
     "allocator/allocator_check.cc",
@@ -1072,7 +1079,7 @@ component("base") {
     # Used by metrics/crc32, except on NaCl builds.
     deps += [ "//third_party/zlib" ]
 
-    if (!is_cobalt || !_should_build_for_platform) {
+    if (!(is_cobalt && is_partner_toolchain)) {
     # NaCl does not support Rust.
     deps += [
       ":rust_logger",
@@ -1114,7 +1121,7 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
-  if (!is_nacl && (!is_cobalt || !_should_build_for_platform)) {
+  if (!is_nacl && !(is_cobalt && is_partner_toolchain)) {
     sources += [
       "containers/span_rust.h",
       "strings/string_view_rust.h",
@@ -1794,7 +1801,7 @@ component("base") {
       public_deps += [ "allocator/partition_allocator:allocator_shim" ]
     }
 
-    if (is_cobalt && _should_build_for_platform) {
+    if (is_cobalt && is_partner_toolchain) {
       sources -= [
         "logging/rust_log_integration.cc",
         "logging/rust_log_integration.h",
@@ -2643,6 +2650,7 @@ component("base") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+}
 }
 
 rust_bindgen("logging_log_severity_bindgen") {
@@ -3902,7 +3910,7 @@ test("base_unittests") {
     deps += [ "allocator/partition_allocator/src/partition_alloc:unittests" ]
   }
 
-  if (!is_nacl && (!is_cobalt || !_should_build_for_platform)) {
+  if (!is_nacl && !(is_cobalt && is_partner_toolchain)) {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
 
