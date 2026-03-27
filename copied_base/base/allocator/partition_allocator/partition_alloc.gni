@@ -7,6 +7,10 @@ import("//build_overrides/partition_alloc.gni")
 
 if (is_cobalt) {
   put_ref_count_in_previous_slot_default = true
+
+  # In the aosp-arm platform, `use_full_mte` is brought into scope when loading
+  # build/android/BUILD.gn
+  use_full_mte = false
 }
 
 if (is_apple) {
@@ -203,16 +207,6 @@ declare_args() {
   }
 }
 
-declare_args() {
-  # Use full MTE protection available by changing the feature flag default
-  # values. So sync mode on all processes. Also disables permissive MTE.
-  #
-  # This is meant to be used primarily on bots. It is much easier to override
-  # the feature flags using a binary flag instead of updating multiple bots's
-  # scripts to pass command line arguments.
-  use_full_mte = false
-}
-
 # *Scan is currently only used by Chromium, and supports only 64-bit.
 use_starscan = build_with_chromium && has_64_bit_pointers
 
@@ -242,7 +236,6 @@ if (!use_partition_alloc) {
   enable_pointer_subtraction_check = false
   backup_ref_ptr_poison_oob_ptr = false
   use_starscan = false
-  use_full_mte = false
 }
 
 # put_ref_count_in_previous_slot can only be used if
