@@ -330,7 +330,7 @@ FILE* g_proc_smaps_for_testing = nullptr;
 
 // static
 void OSMetrics::SetDelegate(Delegate* delegate) {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   g_os_metrics_delegate = delegate;
 #endif
 }
