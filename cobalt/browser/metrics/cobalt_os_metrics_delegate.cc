@@ -21,11 +21,13 @@
 #include "base/memory/singleton.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
+#include "build/build_config.h"
 
 namespace cobalt {
 
 namespace {
 
+#if BUILDFLAG(IS_ANDROID)
 constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
 constexpr char kPartitionAllocPattern[] = "partition_alloc";
 constexpr char kV8Pattern[] = "v8";
@@ -48,6 +50,7 @@ constexpr char kHybExtension[] = ".hyb";
 constexpr char kDalvikPrefix[] = "dalvik-";
 constexpr char kStackAndTlsPattern[] = "stack_and_tls";
 constexpr char kStackPattern[] = "[stack]";
+#endif
 
 }  // namespace
 
@@ -71,6 +74,7 @@ CobaltOSMetricsDelegate::CobaltOSMetricsDelegate() = default;
 CobaltOSMetricsDelegate::~CobaltOSMetricsDelegate() = default;
 
 void CobaltOSMetricsDelegate::OnSmapsHeader(const char* line) {
+#if BUILDFLAG(IS_ANDROID)
   base::StringPiece line_sp(line);
   if (base::Contains(line_sp, kLibChrobaltPattern)) {
     current_type_ = RegionType::kLibChrobalt;
@@ -106,12 +110,14 @@ void CobaltOSMetricsDelegate::OnSmapsHeader(const char* line) {
   } else {
     current_type_ = RegionType::kNone;
   }
+#endif
 }
 
 void CobaltOSMetricsDelegate::OnSmapsCounter(
     const char* name,
     uint64_t value_kb,
     memory_instrumentation::mojom::RawOSMemDump* dump) {
+#if BUILDFLAG(IS_ANDROID)
   if (current_type_ == RegionType::kNone) {
     return;
   }
@@ -154,10 +160,12 @@ void CobaltOSMetricsDelegate::OnSmapsCounter(
         break;
     }
   }
+#endif
 }
 
 void CobaltOSMetricsDelegate::OnSmapsFinished(
     memory_instrumentation::mojom::RawOSMemDump* dump) {
+#if BUILDFLAG(IS_ANDROID)
   dump->extra_stats[kExtraStatLibChrobaltPss] =
       base::saturated_cast<uint32_t>(libchrobalt_pss_kb_);
   dump->extra_stats[kExtraStatLibChrobaltRss] =
@@ -190,6 +198,7 @@ void CobaltOSMetricsDelegate::OnSmapsFinished(
   ashmem_jit_rss_kb_ = 0;
   android_runtime_rss_kb_ = 0;
   stacks_rss_kb_ = 0;
+#endif
 }
 
 }  // namespace cobalt
