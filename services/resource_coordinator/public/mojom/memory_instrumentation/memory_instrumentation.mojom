@@ -160,6 +160,7 @@ struct RawOSMemDump {
   // is mapped and resident in memory.
   array<uint8> native_library_pages_bitmap;
 
+  // Cobalt-specific memory metrics start
   // PSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_pss_kb = 0;
@@ -192,6 +193,7 @@ struct RawOSMemDump {
   // RSS for thread stacks.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 stacks_rss_kb = 0;
+  // Cobalt-specific memory metrics end
 };
 
 // These structs are public:
@@ -223,6 +225,7 @@ struct OSMemDump {
   [EnableIf=private_swap_info]
   uint32 private_footprint_swap_kb = 0;
 
+  // Cobalt-specific memory metrics start
   // PSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_pss_kb = 0;
@@ -255,6 +258,7 @@ struct OSMemDump {
   // RSS for thread stacks.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 stacks_rss_kb = 0;
+  // Cobalt-specific memory metrics end
 };
 
 // This struct contains information about a particular allocator dump
