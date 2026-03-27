@@ -39,6 +39,7 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.Locale;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -115,6 +116,12 @@ class MediaCodecBridge {
     }
   }
 
+  private static AtomicLong globalTotalMemoryUsage = new AtomicLong(0L);
+  @CalledByNative
+  public static long getGlobalOutputMemoryUsage(){
+    return globalTotalMemoryUsage.get();
+  }
+
   private class OutputMemoryTracker {
     private final SparseIntArray mBufferSizes = new SparseIntArray();
     private long mTotalMemoryUsage = 0;
@@ -123,21 +130,25 @@ class MediaCodecBridge {
       int oldSize = mBufferSizes.get(index, -1);
       if (oldSize != -1) {
         mTotalMemoryUsage -= oldSize;
+        globalTotalMemoryUsage.addAndGet(-oldSize);
       }
       mBufferSizes.put(index, size);
       mTotalMemoryUsage += size;
+      globalTotalMemoryUsage.addAndGet(size);
     }
 
     public synchronized void remove(int index) {
       int size = mBufferSizes.get(index, -1);
       if (size != -1) {
         mTotalMemoryUsage -= size;
+        globalTotalMemoryUsage.addAndGet(-size); 
         mBufferSizes.delete(index);
       }
     }
 
     public synchronized void reset() {
       mBufferSizes.clear();
+      globalTotalMemoryUsage.addAndGet(-mTotalMemoryUsage); 
       mTotalMemoryUsage = 0;
     }
   }
@@ -703,6 +714,8 @@ class MediaCodecBridge {
         mMediaCodec.get().stop();
       } catch (Exception e) {
         Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
+      } finally {
+        mOutputMemoryTracker.reset();
       }
     }
 
