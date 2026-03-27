@@ -353,7 +353,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
         net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
-        net::CookieSourceType::kUnknown));
+        net::CookieSourceType::kOther));
   }
   return cookies;
 }
