@@ -195,29 +195,34 @@ public class PlatformError
     void sendResponse(@PlatformError.Response int response, long data);
   }
 
+  //TODO: Add unit tests for retry URL param logic b/496219065
   /** Reloads the URL and adds a retry param */
   private void loadUrlWithRetryParam(CobaltActivity cobaltActivity) {
-    if (cobaltActivity != null) {
-      WebContents webContents = cobaltActivity.getActiveWebContents();
-      if (webContents != null) {
-        String newUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
-
-        if (newUrl.isEmpty()) {
-          Log.e(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
-          webContents.getNavigationController().reload(true);
-          return;
-        }
-        Uri parsedUri = Uri.parse(newUrl);
-        if (parsedUri.getQueryParameter(RETRY_PARAM_KEY) == null) {
-          Uri.Builder uriBuilder = parsedUri.buildUpon();
-          uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, RETRY_PARAM_VALUE);
-          newUrl = uriBuilder.build().toString();
-        }
-        cobaltActivity.getActiveShell().loadUrl(newUrl);
-      } else {
-        Log.e(TAG, "WebContents is null and not available to reload the URL.");
-      }
+    // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
+    // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
+    // still processed.
+    if (cobaltActivity == null) {
+      return;
     }
+    WebContents webContents = cobaltActivity.getActiveWebContents();
+    if (webContents == null) {
+      Log.e(TAG, "WebContents is null and not available to reload the URL.");
+      return;
+    }
+    String newUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+
+    if (newUrl.isEmpty()) {
+      Log.i(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
+      webContents.getNavigationController().reload(true);
+      return;
+    }
+    Uri parsedUri = Uri.parse(newUrl);
+    if (parsedUri.getQueryParameter(RETRY_PARAM_KEY) == null) {
+      Uri.Builder uriBuilder = parsedUri.buildUpon();
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, RETRY_PARAM_VALUE);
+      newUrl = uriBuilder.build().toString();
+    }
+    cobaltActivity.getActiveShell().loadUrl(newUrl);
   }
 
 }
