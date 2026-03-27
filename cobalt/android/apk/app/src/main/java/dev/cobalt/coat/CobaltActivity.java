@@ -247,6 +247,7 @@ public abstract class CobaltActivity extends Activity {
                 initializationFailed();
               }
             });
+    setContentView(mShellManager.getContentViewRenderView());
   }
 
   // Initially copied from ContentShellActiviy.java
