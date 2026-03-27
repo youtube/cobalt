@@ -36,7 +36,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 #include "third_party/abseil-cpp/absl/strings/match.h"
 #include "third_party/abseil-cpp/absl/strings/numbers.h"
 #include "third_party/abseil-cpp/absl/strings/string_view.h"
@@ -326,7 +326,7 @@ void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
   *swap_pss = value->swap_pss;
 }
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 namespace {
 constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
 constexpr char kPartitionAllocPattern[] = "partition_alloc";
@@ -545,7 +545,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   PopulateCobaltSmapsMetrics(handle, dump);
 #endif
 

@@ -325,8 +325,9 @@ Always run the pretty print utility on this file after editing:
   <owner>avvall@google.com</owner>
   <summary>
     The physical memory (RSS) consumed by the Android/Dalvik runtime environment.
-    This includes ART image files (.art), Optimized Android Template files
+    This tracks ART image files (.art), Optimized Android Template files
     (.oat), and internal Dalvik allocator regions (e.g., dalvik-main space).
+    Currently restricted to Android.
   </summary>
 </histogram>
 
@@ -334,10 +335,9 @@ Always run the pretty print utility on this file after editing:
     expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
-    The physical memory (RSS) consumed by Android's anonymous shared memory
-    (Ashmem) and the Just-In-Time (JIT) compilation cache. This tracks mappings
-    tagged with /dev/ashmem/ (often used for shared buffers) and
-    memfd:jit-cache (used for dynamically compiled Java code).
+    The physical memory (RSS) consumed by anonymous shared memory (Ashmem) and
+    the Just-In-Time (JIT) compilation cache. This tracks mappings tagged with
+    /dev/ashmem/ and memfd:jit-cache. Currently restricted to Android.
   </summary>
 </histogram>
 
@@ -347,8 +347,9 @@ Always run the pretty print utility on this file after editing:
   <summary>
     The physical memory (RSS) consumed by non-Cobalt executable code and
     read-only data mappings. This is a catch-all for system libraries (.so),
-    GPU drivers (e.g., libGLES_mali.so), the Android application package
-    (.apk), and compiled Java bytecode (.dex). Excludes the main libchrobalt.so.
+    GPU drivers (e.g., libGLES_mali.so), the application package (.apk), and
+    compiled Java bytecode (.dex). Excludes the main libchrobalt.so.
+    Currently restricted to Android.
   </summary>
 </histogram>
 
@@ -358,6 +359,7 @@ Always run the pretty print utility on this file after editing:
   <summary>
     The physical memory (RSS) consumed by system and application font mappings,
     specifically TrueType (.ttf) and TrueType Collection (.ttc) files.
+    Currently restricted to Android.
   </summary>
 </histogram>
 
@@ -414,7 +416,8 @@ Always run the pretty print utility on this file after editing:
   <owner>avvall@google.com</owner>
   <summary>
     Accurate RSS for the Android Runtime pillar (ART/Dalvik). This is used for
-    the cumulative CDF breakdown of the total ResidentSet.
+    the cumulative CDF breakdown of the total ResidentSet. Currently restricted
+    to Android.
   </summary>
 </histogram>
 
@@ -423,7 +426,8 @@ Always run the pretty print utility on this file after editing:
   <owner>avvall@google.com</owner>
   <summary>
     Accurate RSS for the Ashmem and JIT cache pillar. This is used for the
-    cumulative CDF breakdown of the total ResidentSet.
+    cumulative CDF breakdown of the total ResidentSet. Currently restricted to
+    Android.
   </summary>
 </histogram>
 
@@ -432,7 +436,8 @@ Always run the pretty print utility on this file after editing:
   <owner>avvall@google.com</owner>
   <summary>
     Accurate RSS for the CodeOther pillar (system libs, APK, drivers). This is
-    used for the cumulative CDF breakdown of the total ResidentSet.
+    used for the cumulative CDF breakdown of the total ResidentSet. Currently
+    restricted to Android.
   </summary>
 </histogram>
 
@@ -441,7 +446,8 @@ Always run the pretty print utility on this file after editing:
   <owner>avvall@google.com</owner>
   <summary>
     Accurate RSS for the Fonts pillar (.ttf/.ttc). This is used for the
-    cumulative CDF breakdown of the total ResidentSet.
+    cumulative CDF breakdown of the total ResidentSet. Currently restricted to
+    Android.
   </summary>
 </histogram>
 

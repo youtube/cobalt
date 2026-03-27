@@ -392,7 +392,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
             ".SharedMemoryFootprint",
         static_cast<int>(pmd.os_dump().shared_footprint_kb / kKiB));
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID)
     std::string prefix =
         base::StrCat({kMemoryHistogramPrefix, process_name, "."});
     std::string exp_prefix = base::StrCat(
