@@ -7,6 +7,10 @@ import("//build_overrides/partition_alloc.gni")
 
 if (is_cobalt) {
   put_ref_count_in_previous_slot_default = true
+
+  # In the aosp-arm platform, `use_full_mte` is brought into scope when loading
+  # build/android/BUILD.gn
+  use_full_mte = false
 }
 
 if (is_apple) {
