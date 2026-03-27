@@ -3333,6 +3333,15 @@ void PlayerImpl::HandleApplicationMessage(GstBus* bus, GstMessage* message) {
           SchedulePlayingStateUpdate();
           UpdatePresentingState();
         }
+        if (HasEOSMark() &&
+            GST_CLOCK_TIME_IS_VALID(seek_position_) &&
+            seek_position_ > MinTimestamp(nullptr) &&
+            buffering_state_ == 0 && state_ != State::kEnded) {
+          GST_INFO_OBJECT(pipeline_, "Signal EOS");
+          DispatchOnWorkerThread(new FunctionTask(std::move([this](){
+            DidEnd();
+          }), "EOS"));
+        }
       }
     }
   }
@@ -3412,7 +3421,9 @@ void PlayerImpl::AddBufferingProbe(GstClockTime target, int ticket) {
     data->ticket = ticket;
 
     GstPad* pad = gst_element_get_static_pad(element, "src");
-    GstPadProbeType probe_type = static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_FLUSH);
+    GstPadProbeType probe_type = static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER |
+                                                              GST_PAD_PROBE_TYPE_EVENT_FLUSH |
+                                                              GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM);
     gulong ret = gst_pad_add_probe (pad, probe_type, callback, data, g_free);
     GST_DEBUG_OBJECT(element,
       "Buffering probe added to %" GST_PTR_FORMAT ", target time: %" GST_TIME_FORMAT ", ticket: %d",
@@ -3426,25 +3437,36 @@ void PlayerImpl::AddBufferingProbe(GstClockTime target, int ticket) {
     if (GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_EVENT_FLUSH)
       return GST_PAD_PROBE_REMOVE;
 
+    BufferingProbeData* data = reinterpret_cast<BufferingProbeData*>(user_data);
+
+    if (GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) {
+      GstEvent *event = GST_PAD_PROBE_INFO_EVENT(info);
+      if ( GST_EVENT_TYPE(event) == GST_EVENT_EOS ) {
+        GstObject* parent = gst_pad_get_parent(pad);
+        g_return_val_if_fail(parent != nullptr, GST_PAD_PROBE_REMOVE);
+        GST_DEBUG_OBJECT(parent, "Got EOS ticket: %d, on pad: %" GST_PTR_FORMAT, data->ticket, pad);
+        GstStructure* structure = gst_structure_new(kDidReachBufferingTargetMsgName, "ticket", G_TYPE_INT, data->ticket, nullptr);
+        gst_element_post_message(GST_ELEMENT(parent), gst_message_new_application(parent, structure));
+        gst_object_unref(parent);
+        return GST_PAD_PROBE_REMOVE;
+      }
+      return GST_PAD_PROBE_OK;
+    }
+
     SB_CHECK(GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER);
 
     GstBuffer* buffer = gst_pad_probe_info_get_buffer(info);
-    BufferingProbeData* data = reinterpret_cast<BufferingProbeData*>(user_data);
-
-    GST_TRACE_OBJECT(pad, "Testing buffer: %" GST_PTR_FORMAT " for target time: %" GST_TIME_FORMAT " with ticket: %d", buffer, GST_TIME_ARGS(data->target_time), data->ticket);
-
     GstClockTime pts = GST_BUFFER_TIMESTAMP(buffer);
     GstClockTime duration = GST_CLOCK_TIME_IS_VALID(GST_BUFFER_DURATION(buffer)) ? GST_BUFFER_DURATION(buffer) : 0;
-
+    GST_TRACE_OBJECT(
+      pad, "Testing buffer: %" GST_PTR_FORMAT " for target time: %" GST_TIME_FORMAT " with ticket: %d",
+      buffer, GST_TIME_ARGS(data->target_time), data->ticket);
     if ( (pts + duration) >= data->target_time ) {
       GstObject* parent = gst_pad_get_parent(pad);
-      if (!parent) {
-        GST_WARNING_OBJECT(pad, "Pad(%" GST_PTR_FORMAT ") has no parent", pad);
-        SB_DCHECK(parent);
-        return GST_PAD_PROBE_REMOVE;
-      }
-
-      GST_DEBUG_OBJECT(parent, "Did reach target buffering time:%" GST_TIME_FORMAT ", ticket: %d, on pad: %" GST_PTR_FORMAT, GST_TIME_ARGS(data->target_time), data->ticket, pad);
+      g_return_val_if_fail(parent != nullptr, GST_PAD_PROBE_REMOVE);
+      GST_DEBUG_OBJECT(
+        parent, "Did reach target buffering time:%" GST_TIME_FORMAT ", ticket: %d, on pad: %" GST_PTR_FORMAT,
+        GST_TIME_ARGS(data->target_time), data->ticket, pad);
       GstStructure* structure = gst_structure_new(kDidReachBufferingTargetMsgName, "ticket", G_TYPE_INT, data->ticket, nullptr);
       gst_element_post_message(GST_ELEMENT(parent), gst_message_new_application(parent, structure));
       gst_object_unref(parent);
