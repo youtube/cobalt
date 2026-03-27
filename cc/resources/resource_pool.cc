@@ -190,6 +190,9 @@ ResourcePool::InUsePoolResource ResourcePool::AcquireResource(
   PoolResource* resource = ReuseResource(size, format, color_space);
   if (!resource)
     resource = CreateResource(size, format, color_space);
+#if BUILDFLAG(IS_COBALT)
+  resource->mark_avoid_reuse();
+#endif
   resource->set_debug_name(debug_name);
   return InUsePoolResource(resource, !!context_provider_);
 }
