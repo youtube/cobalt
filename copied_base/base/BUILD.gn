@@ -1757,12 +1757,15 @@ component("base") {
     sources -= [
       "debug/debugger_posix.cc",
       "process/process_posix.cc",
-      "process/process_linux.cc",
     ]
     sources += [
       "process/process_stubs.cc",
       "starboard/debugger_starboard.cc",
     ]
+
+    if (is_linux) {
+      sources -= [ "process/process_linux.cc" ]
+    }
   }
 
   # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
@@ -1772,7 +1775,6 @@ component("base") {
       # #include <linux/magic.h>
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
-      "files/dir_reader_linux.h",
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
       # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
@@ -1797,6 +1799,12 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+
+    if (is_linux) {
+      #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
+      # #include <linux/magic.h>
+      sources -= [ "files/dir_reader_linux.h" ]
+    }
   }
 
   # Windows.
