@@ -28,7 +28,6 @@
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 #include "base/strings/string_piece.h"
-#include "base/strings/string_tokenizer.h"
 #endif
 
 // Symbol with virtual address of the start of ELF header of the current binary.
@@ -310,11 +309,11 @@ void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
     bool is_rss =
         !is_pss && base::StartsWith(line_sp, "Rss:", base::CompareCase::SENSITIVE);
     if (is_pss || is_rss) {
-      base::StringTokenizer t(line_sp, " ");
-      t.GetNext();  // Skip "Pss:" or "Rss:"
-      if (t.GetNext()) {
+      std::vector<base::StringPiece> tokens = base::SplitStringPiece(
+          line_sp, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+      if (tokens.size() >= 2) {
         uint64_t value_kb = 0;
-        if (base::StringToUint64(t.token_piece(), &value_kb)) {
+        if (base::StringToUint64(tokens[1], &value_kb)) {
           delegate->OnSmapsCounter(is_pss ? "Pss:" : "Rss:", value_kb, dump);
         }
       }
