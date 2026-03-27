@@ -33,6 +33,7 @@
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#include "cobalt/browser/metrics/cobalt_os_metrics_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
@@ -78,11 +79,11 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
     browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
 #if BUILDFLAG(IS_ANDROID)
-    browser_dump->os_dump->partition_alloc_rss_kb = 16384;  // 16 MB
-    browser_dump->os_dump->malloc_rss_kb = 10240;           // 10 MB
-    browser_dump->os_dump->v8_rss_kb = 12288;               // 12 MB
-    browser_dump->os_dump->libchrobalt_rss_kb = 10240;      // 10 MB
-    browser_dump->os_dump->libchrobalt_pss_kb = 8192;       // 8 MB
+    browser_dump->os_dump->extra_stats[kExtraStatPartitionAllocRss] = 16384; // 16 MB
+    browser_dump->os_dump->extra_stats[kExtraStatMallocRss] = 10240;         // 10 MB
+    browser_dump->os_dump->extra_stats[kExtraStatV8Rss] = 12288;             // 12 MB
+    browser_dump->os_dump->extra_stats[kExtraStatLibChrobaltRss] = 10240;    // 10 MB
+    browser_dump->os_dump->extra_stats[kExtraStatLibChrobaltPss] = 8192;     // 8 MB
 #endif
 
     // Add a blink_gc dump
@@ -194,9 +195,9 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     renderer_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
     renderer_dump->os_dump->private_footprint_kb = 20480;  // 20 MB
 #if BUILDFLAG(IS_ANDROID)
-    renderer_dump->os_dump->partition_alloc_rss_kb = 2048;  // 2 MB
+    renderer_dump->os_dump->extra_stats[kExtraStatPartitionAllocRss] =
+        2048;  // 2 MB
 #endif
-
     auto renderer_blink_gc_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
     renderer_blink_gc_dump->numeric_entries["effective_size"] = 8 * 1024 * 1024;

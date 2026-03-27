@@ -33,7 +33,8 @@ class DataCollector:
     self._stop_event = builder.stop_event
 
   def _get_time_ms(self):
-    return self._time_provider.monotonic_ns() / 1000
+    """Returns the current monotonic time in milliseconds."""
+    return self._time_provider.monotonic_ns() / 1000000
 
   def run_polling_loop(self):
     """Runs the data polling loop in a dedicated thread."""
@@ -86,7 +87,13 @@ class DataCollector:
       while self._get_time_ms() - start_sleep_time < self._poll_interval_ms:
         if self._stop_event.is_set():
           break
-        self._time_provider.sleep(1 / self._poll_interval_ms / 2)
+        # Sleep in small increments to remain responsive to stop_event.
+        # Max sleep is 100ms or remaining time in interval.
+        remaining_ms = self._poll_interval_ms - (
+            self._get_time_ms() - start_sleep_time)
+        sleep_ms = min(100, remaining_ms)
+        if sleep_ms > 0:
+          self._time_provider.sleep(sleep_ms / 1000.0)
       if self._stop_event.is_set():
         break
 

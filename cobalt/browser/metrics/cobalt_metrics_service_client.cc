@@ -29,6 +29,7 @@
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#include "cobalt/browser/metrics/cobalt_os_metrics_delegate.h"
 #include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -139,6 +140,9 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
 
 void CobaltMetricsServiceClient::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  memory_instrumentation::OSMetrics::SetDelegate(
+      CobaltOSMetricsDelegate::GetInstance());
 
   metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
                                                   this, local_state_.get());

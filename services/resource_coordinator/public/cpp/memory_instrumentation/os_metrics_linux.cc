@@ -27,9 +27,8 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-#include "third_party/abseil-cpp/absl/strings/match.h"
-#include "third_party/abseil-cpp/absl/strings/numbers.h"
-#include "third_party/abseil-cpp/absl/strings/string_view.h"
+#include "base/strings/string_piece.h"
+#include "base/strings/string_tokenizer.h"
 #endif
 
 // Symbol with virtual address of the start of ELF header of the current binary.
@@ -281,91 +280,15 @@ class ScopedProcessSetDumpable {
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 namespace {
-constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
-constexpr char kPartitionAllocPattern[] = "partition_alloc";
-constexpr char kV8Pattern[] = "v8";
-constexpr char kScudoPattern[] = "scudo";
-constexpr char kHeapPattern[] = "[heap]";
-constexpr char kSoExtension[] = ".so";
-constexpr char kApkExtension[] = ".apk";
-constexpr char kDexExtension[] = ".dex";
-constexpr char kTtfExtension[] = ".ttf";
-constexpr char kTtcExtension[] = ".ttc";
-constexpr char kFontsPath[] = "fonts/";
-constexpr char kAshmemPath[] = "/dev/ashmem/";
-constexpr char kMemfdJitPattern[] = "memfd:jit";
-constexpr char kArtExtension[] = ".art";
-constexpr char kOatExtension[] = ".oat";
-constexpr char kVdexExtension[] = ".vdex";
-constexpr char kOdexExtension[] = ".odex";
-constexpr char kJarExtension[] = ".jar";
-constexpr char kHybExtension[] = ".hyb";
-constexpr char kDalvikPrefix[] = "dalvik-";
-constexpr char kStackAndTlsPattern[] = "stack_and_tls";
-constexpr char kStackPattern[] = "[stack]";
-
-enum class RegionType {
-  kNone,
-  kLibChrobalt,
-  kPartitionAlloc,
-  kV8,
-  kMalloc,
-  kCodeOther,
-  kFonts,
-  kAshmemJit,
-  kAndroidRuntime,
-  kStacks
-};
-
-RegionType GetRegionType(const char* line) {
-  if (absl::StrContains(line, kLibChrobaltPattern)) {
-    return RegionType::kLibChrobalt;
-  }
-  if (absl::StrContains(line, kPartitionAllocPattern)) {
-    return RegionType::kPartitionAlloc;
-  }
-  if (absl::StrContains(line, kV8Pattern)) {
-    return RegionType::kV8;
-  }
-  if (absl::StrContains(line, kScudoPattern) ||
-      absl::StrContains(line, kHeapPattern)) {
-    return RegionType::kMalloc;
-  }
-  if (absl::StrContains(line, kTtfExtension) ||
-      absl::StrContains(line, kTtcExtension) ||
-      absl::StrContains(line, kFontsPath)) {
-    return RegionType::kFonts;
-  }
-  if (absl::StrContains(line, kAshmemPath) ||
-      absl::StrContains(line, kMemfdJitPattern)) {
-    return RegionType::kAshmemJit;
-  }
-  if (absl::StrContains(line, kArtExtension) ||
-      absl::StrContains(line, kOatExtension) ||
-      absl::StrContains(line, kVdexExtension) ||
-      absl::StrContains(line, kOdexExtension) ||
-      absl::StrContains(line, kJarExtension) ||
-      absl::StrContains(line, kHybExtension) ||
-      absl::StrContains(line, kDalvikPrefix)) {
-    return RegionType::kAndroidRuntime;
-  }
-  if (absl::StrContains(line, kStackAndTlsPattern) ||
-      absl::StrContains(line, kStackPattern)) {
-    return RegionType::kStacks;
-  }
-  if (absl::StrContains(line, kSoExtension) ||
-      absl::StrContains(line, kApkExtension) ||
-      absl::StrContains(line, kDexExtension)) {
-    // Catch-all for other executable code and read-only data mappings
-    // from system libraries, GPU drivers, and the Android package.
-    return RegionType::kCodeOther;
-  }
-  return RegionType::kNone;
+OSMetrics::Delegate* g_os_metrics_delegate = nullptr;
 }
-}  // namespace
 
-void PopulateCobaltSmapsMetrics(base::ProcessId pid,
-                                mojom::RawOSMemDump* dump) {
+void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
+  OSMetrics::Delegate* delegate = g_os_metrics_delegate;
+  if (!delegate) {
+    return;
+  }
+
   std::string file_name =
       "/proc/" +
       (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
@@ -376,105 +299,42 @@ void PopulateCobaltSmapsMetrics(base::ProcessId pid,
   }
 
   char line[kMaxLineSize];
-  uint64_t libchrobalt_pss_kb = 0;
-  uint64_t libchrobalt_rss_kb = 0;
-  uint64_t pa_rss_kb = 0;
-  uint64_t v8_rss_kb = 0;
-  uint64_t malloc_rss_kb = 0;
-  uint64_t code_other_rss_kb = 0;
-  uint64_t fonts_rss_kb = 0;
-  uint64_t ashmem_jit_rss_kb = 0;
-  uint64_t android_runtime_rss_kb = 0;
-  uint64_t stacks_rss_kb = 0;
-
-  RegionType current_type = RegionType::kNone;
-
   while (fgets(line, kMaxLineSize, smaps_file.get())) {
     if (base::IsHexDigit(static_cast<unsigned char>(line[0]))) {
-      current_type = GetRegionType(line);
+      delegate->OnSmapsHeader(line);
       continue;
     }
 
-    if (current_type == RegionType::kNone) {
-      continue;
-    }
-
-    absl::string_view line_sv(line);
-    uint64_t value_kb = 0;
-    if (absl::StartsWith(line_sv, "Pss:")) {
-      size_t num_start = line_sv.find_first_not_of(' ', 4);
-      if (num_start != absl::string_view::npos) {
-        size_t num_end = line_sv.find(" kB", num_start);
-        if (num_end != absl::string_view::npos) {
-          if (absl::SimpleAtoi(line_sv.substr(num_start, num_end - num_start),
-                               &value_kb)) {
-            if (current_type == RegionType::kLibChrobalt) {
-              libchrobalt_pss_kb += value_kb;
-            }
-          }
-        }
-      }
-    } else if (absl::StartsWith(line_sv, "Rss:")) {
-      size_t num_start = line_sv.find_first_not_of(' ', 4);
-      if (num_start != absl::string_view::npos) {
-        size_t num_end = line_sv.find(" kB", num_start);
-        if (num_end != absl::string_view::npos) {
-          if (absl::SimpleAtoi(line_sv.substr(num_start, num_end - num_start),
-                               &value_kb)) {
-            switch (current_type) {
-              case RegionType::kLibChrobalt:
-                libchrobalt_rss_kb += value_kb;
-                break;
-              case RegionType::kPartitionAlloc:
-                pa_rss_kb += value_kb;
-                break;
-              case RegionType::kV8:
-                v8_rss_kb += value_kb;
-                break;
-              case RegionType::kMalloc:
-                malloc_rss_kb += value_kb;
-                break;
-              case RegionType::kCodeOther:
-                code_other_rss_kb += value_kb;
-                break;
-              case RegionType::kFonts:
-                fonts_rss_kb += value_kb;
-                break;
-              case RegionType::kAshmemJit:
-                ashmem_jit_rss_kb += value_kb;
-                break;
-              case RegionType::kAndroidRuntime:
-                android_runtime_rss_kb += value_kb;
-                break;
-              case RegionType::kStacks:
-                stacks_rss_kb += value_kb;
-                break;
-              default:
-                break;
-            }
-          }
+    base::StringPiece line_sp(line);
+    bool is_pss = base::StartsWith(line_sp, "Pss:", base::CompareCase::SENSITIVE);
+    bool is_rss =
+        !is_pss && base::StartsWith(line_sp, "Rss:", base::CompareCase::SENSITIVE);
+    if (is_pss || is_rss) {
+      base::StringTokenizer t(line_sp, " ");
+      t.GetNext();  // Skip "Pss:" or "Rss:"
+      if (t.GetNext()) {
+        uint64_t value_kb = 0;
+        if (base::StringToUint64(t.token_piece(), &value_kb)) {
+          delegate->OnSmapsCounter(is_pss ? "Pss:" : "Rss:", value_kb, dump);
         }
       }
     }
   }
 
-  dump->libchrobalt_pss_kb = base::saturated_cast<uint32_t>(libchrobalt_pss_kb);
-  dump->libchrobalt_rss_kb = base::saturated_cast<uint32_t>(libchrobalt_rss_kb);
-  dump->partition_alloc_rss_kb = base::saturated_cast<uint32_t>(pa_rss_kb);
-  dump->v8_rss_kb = base::saturated_cast<uint32_t>(v8_rss_kb);
-  dump->malloc_rss_kb = base::saturated_cast<uint32_t>(malloc_rss_kb);
-  dump->code_other_rss_kb = base::saturated_cast<uint32_t>(code_other_rss_kb);
-  dump->fonts_rss_kb = base::saturated_cast<uint32_t>(fonts_rss_kb);
-  dump->ashmem_jit_rss_kb = base::saturated_cast<uint32_t>(ashmem_jit_rss_kb);
-  dump->android_runtime_rss_kb =
-      base::saturated_cast<uint32_t>(android_runtime_rss_kb);
-  dump->stacks_rss_kb = base::saturated_cast<uint32_t>(stacks_rss_kb);
+  delegate->OnSmapsFinished(dump);
 }
 #endif
 
 }  // namespace
 
 FILE* g_proc_smaps_for_testing = nullptr;
+
+// static
+void OSMetrics::SetDelegate(Delegate* delegate) {
+#if BUILDFLAG(IS_COBALT)
+  g_os_metrics_delegate = delegate;
+#endif
+}
 
 // static
 void OSMetrics::SetProcSmapsForTesting(FILE* f) {
@@ -511,14 +371,16 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
   dump->platform_private_footprint->vm_swap_bytes = vm_swap_bytes;
   dump->resident_set_kb = process_metrics->GetResidentSetSize() / 1024;
 #if BUILDFLAG(IS_COBALT)
-  dump->vm_size_kb = process_metrics->GetVmSizeBytes() / 1024;
 #endif
   dump->peak_resident_set_kb = GetPeakResidentSetSize(pid);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(pid);
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  PopulateCobaltSmapsMetrics(pid, dump);
-#endif
+#if BUILDFLAG(IS_COBALT) 
+  dump->vm_size_kb = process_metrics->GetVmSizeBytes() / 1024;
+#if BUILDFLAG(IS_ANDROID)
+  PopulateSmapsMetrics(pid, dump);
+#endif  //  BUILDFLAG(IS_ANDROID)
+#endif  //  BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)
