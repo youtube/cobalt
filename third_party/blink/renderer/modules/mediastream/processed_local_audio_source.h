@@ -171,6 +171,8 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
 
   media::AudioGlitchInfo::Accumulator glitch_info_accumulator_;
 
+  int capture_count_ = 0;
+
   // Provides weak pointers for tasks posted by this instance.
   base::WeakPtrFactory<ProcessedLocalAudioSource> weak_factory_{this};
 };

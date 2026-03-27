@@ -15,6 +15,12 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/time/time.h"
+
+namespace content {
+extern base::TimeTicks g_select_keydown_time;
+}
+
 #include "base/strings/string_util.h"
 #include "build/android_buildflags.h"
 #include "media/audio/android/aaudio_input.h"
@@ -331,6 +337,12 @@ std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
+  if (!content::g_select_keydown_time.is_null()) {
+    base::TimeDelta elapsed =
+        base::TimeTicks::Now() - content::g_select_keydown_time;
+    LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: device_id=" << device_id 
+              << " latency(msec)=" << elapsed.InMilliseconds();
+  }
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   // Use mono as preferred number of input channels on Android to save
@@ -381,6 +393,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  LOG(INFO) << "KJ: AudioManagerAndroid::MakeAudioInputStream device_id=" << device_id;
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   bool has_input_streams = !HasNoAudioInputStreams();
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
@@ -527,6 +540,13 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  if (!content::g_select_keydown_time.is_null()) {
+    base::TimeDelta elapsed =
+        base::TimeTicks::Now() - content::g_select_keydown_time;
+    LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream: "
+                 "latency(msec)="
+              << elapsed.InMilliseconds();
+  }
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
@@ -709,6 +729,12 @@ void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
 }
 
 bool AudioManagerAndroid::SetCommunicationDevice(const std::string& device_id) {
+  if (!content::g_select_keydown_time.is_null()) {
+    base::TimeDelta elapsed =
+        base::TimeTicks::Now() - content::g_select_keydown_time;
+    LOG(INFO) << "KJ: AudioManagerAndroid::SetCommunicationDevice: " << device_id
+              << " latency(msec)=" << elapsed.InMilliseconds();
+  }
   DVLOG(1) << __FUNCTION__ << ": " << device_id;
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 

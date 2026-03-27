@@ -152,6 +152,7 @@ class PLATFORM_EXPORT MediaStreamAudioTrack : public MediaStreamTrackPlatform {
   // is only used on the audio thread.
   AudioFrameStats pending_frame_stats_;
 
+  int track_data_count_ = 0;
   // Provides weak pointers that are valid until Stop() is called.
   base::WeakPtrFactory<MediaStreamAudioTrack> weak_factory_{this};
 };

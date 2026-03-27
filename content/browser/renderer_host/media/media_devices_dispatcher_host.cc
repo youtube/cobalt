@@ -54,6 +54,8 @@ using blink::mojom::MediaDeviceType;
 
 namespace content {
 
+extern base::TimeTicks g_select_keydown_time;
+
 namespace {
 
 std::vector<blink::mojom::AudioInputDeviceCapabilitiesPtr>
@@ -212,6 +214,10 @@ void MediaDevicesDispatcherHost::GetAvailableVideoInputDeviceFormats(
 
 void MediaDevicesDispatcherHost::GetAudioInputCapabilities(
     GetAudioInputCapabilitiesCallback client_callback) {
+  if (!content::g_select_keydown_time.is_null()) {
+    base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+    LOG(INFO) << "KJ: MediaDevicesDispatcherHost::GetAudioInputCapabilities latency(msec)=" << elapsed.InMilliseconds();
+  }
   GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(

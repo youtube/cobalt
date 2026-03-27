@@ -115,6 +115,8 @@
 
 namespace content {
 
+base::TimeTicks g_select_keydown_time;
+
 namespace {
 
 static const base::TimeDelta kClickCountInterval = base::Seconds(0.5);
@@ -2462,6 +2464,13 @@ void RenderWidgetHostViewAndroid::OnPointerLockRelease() {
 
 void RenderWidgetHostViewAndroid::SendKeyEvent(
     const input::NativeWebKeyboardEvent& event) {
+  if (event.windows_key_code == 13) {
+    if (event.GetType() == input::NativeWebKeyboardEvent::Type::kRawKeyDown ||
+        event.GetType() == input::NativeWebKeyboardEvent::Type::kKeyDown) {
+      g_select_keydown_time = base::TimeTicks::Now();
+    }
+    LOG(INFO) << "KJ: RenderWidgetHostViewAndroid::SendKeyEvent windows_key_code=" << event.windows_key_code;
+  }
   if (!host())
     return;
 

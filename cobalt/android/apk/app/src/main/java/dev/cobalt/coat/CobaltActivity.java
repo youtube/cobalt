@@ -291,6 +291,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   protected boolean dispatchKeyEventToIme(int keyCode, int action) {
+    if (keyCode == 23) {
+      Log.i(TAG, "KJ: dispatchKeyEventToIme keyCode=Select(23) action=" + action);
+    }
     ImeAdapterImpl imeAdapter = getImeAdapterImpl();
     if (imeAdapter == null) {
       return false;
@@ -304,6 +307,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == 23) {
+      Log.i(TAG, "KJ: onKeyDown keyCode=Select(23)");
+    }
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
@@ -314,6 +320,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
+    if (keyCode == 23) {
+      Log.i(TAG, "KJ: onKeyUp keyCode=Select(23)");
+    }
     if (KeyEvent.isGamepadButton(keyCode)) {
       return super.onKeyUp(keyCode, event);
     }

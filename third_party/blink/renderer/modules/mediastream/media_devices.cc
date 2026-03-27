@@ -73,6 +73,8 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
+namespace content { extern base::TimeTicks g_select_keydown_time; }
+
 namespace blink {
 
 BASE_FEATURE(kEnumerateDevicesRequestAudioCapabilities,
@@ -469,6 +471,13 @@ ScriptPromise<MediaStream> MediaDevices::getUserMedia(
     ScriptState* script_state,
     const UserMediaStreamConstraints* options,
     ExceptionState& exception_state) {
+  if (!content::g_select_keydown_time.is_null()) {
+    base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia: latency(msec)="
+              << elapsed.InMilliseconds();
+  } else {
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia";
+  }
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto tracer =

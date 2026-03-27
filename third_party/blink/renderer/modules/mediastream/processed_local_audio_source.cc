@@ -196,6 +196,7 @@ bool ProcessedLocalAudioSource::EnsureSourceIsStarted() {
   SendLogMessage(GetEnsureSourceIsStartedLogString(device()));
 
   int device_effects = device().input.effects();
+  LOG(INFO) << "KJ: EnsureSourceIsStarted device_effects=" << device_effects;
 
   if (audio_processing_properties_.echo_cancellation_type ==
       EchoCancellationType::kEchoCancellationSystem) {
@@ -462,12 +463,17 @@ void ProcessedLocalAudioSource::OnCaptureStarted() {
   started_callback_.Run(this, mojom::blink::MediaStreamRequestResult::OK, "");
 }
 
-void ProcessedLocalAudioSource::Capture(
-    const media::AudioBus* audio_bus,
-    base::TimeTicks audio_capture_time,
-    const media::AudioGlitchInfo& glitch_info,
-    double volume) {
-  TRACE_EVENT1("audio", "ProcessedLocalAudioSource::Capture", "capture-time",
+void ProcessedLocalAudioSource::Capture(const media::AudioBus* audio_bus,
+                                       base::TimeTicks audio_capture_time,
+                                       const media::AudioGlitchInfo& glitch_info,
+                                       double volume) {
+  if (capture_count_ == 0) {
+    LOG(INFO) << "KJ: ProcessedLocalAudioSource::Capture count=" << capture_count_
+              << " has_processor=" << (media_stream_audio_processor_ != nullptr)
+              << " is_zero=" << audio_bus->AreFramesZero();
+  }
+  capture_count_++;
+  TRACE_EVENT1("audio", "ProcessedLocalAudioSource::Capture", "capture_time",
                audio_capture_time);
   glitch_info_accumulator_.Add(glitch_info);
   // Maximum number of channels used by the sinks.

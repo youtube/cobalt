@@ -4,7 +4,13 @@
 
 #include "media/audio/android/aaudio_input.h"
 
+#include "base/logging.h"
 #include "base/task/bind_post_task.h"
+#include "base/time/time.h"
+
+namespace blink {
+namespace content { extern base::TimeTicks g_select_keydown_time; }
+}
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/amplitude_peak_detector.h"
@@ -38,6 +44,7 @@ void AAudioInputStream::CreateStreamWrapper() {
 }
 
 AudioInputStream::OpenOutcome AAudioInputStream::Open() {
+  LOG(INFO) << "KJ: AAudioInputStream::Open";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   CreateStreamWrapper();
@@ -52,6 +59,7 @@ AudioInputStream::OpenOutcome AAudioInputStream::Open() {
 }
 
 void AAudioInputStream::Start(AudioInputCallback* callback) {
+  LOG(INFO) << "KJ: AAudioInputStream::Start";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   CHECK(stream_wrapper_);
@@ -122,6 +130,11 @@ void AAudioInputStream::Close() {
 
 bool AAudioInputStream::OnAudioDataRequested(void* audio_data,
                                              int32_t num_frames) {
+  static bool first_request_logged = false;
+  if (!first_request_logged) {
+    LOG(INFO) << "KJ: AAudioInputStream::OnAudioDataRequested - FIRST DATA REQUESTED";
+    first_request_logged = true;
+  }
   CHECK_EQ(num_frames, audio_bus_->frames());
 
   base::AutoLock al(lock_);
@@ -138,6 +151,11 @@ bool AAudioInputStream::OnAudioDataRequested(void* audio_data,
 
   const base::TimeTicks capture_time = stream_wrapper_->GetCaptureTimestamp();
 
+  static bool first_ondata_logged = false;
+  if (!first_ondata_logged) {
+    LOG(INFO) << "KJ: AAudioInputStream::OnAudioDataRequested - CALLING callback_->OnData";
+    first_ondata_logged = true;
+  }
   callback_->OnData(audio_bus_.get(), capture_time, 0.0, {});
 
   return true;

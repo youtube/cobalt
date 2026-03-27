@@ -30,6 +30,7 @@
 #include <optional>
 
 #include "base/feature_list.h"
+#include "base/time/time.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/common/features.h"
@@ -69,6 +70,10 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/keyboard_codes.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
+namespace content {
+extern base::TimeTicks g_select_keydown_time;
+}
+
 namespace blink {
 
 DispatchEventResult EventDispatcher::DispatchEvent(Node& node, Event& event) {
@@ -181,6 +186,28 @@ void EventDispatcher::DispatchSimulatedEnterEvent(
 
 // https://dom.spec.whatwg.org/#dispatching-events
 DispatchEventResult EventDispatcher::Dispatch() {
+  if (event_->type() == event_type_names::kKeydown) {
+    if (auto* key_event = DynamicTo<KeyboardEvent>(event_)) {
+      if (key_event->keyCode() == VKEY_RETURN) {
+        LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keydown keyCode="
+                  << key_event->keyCode();
+      }
+    }
+  }
+  if (event_->type() == event_type_names::kKeyup) {
+    if (auto* key_event = DynamicTo<KeyboardEvent>(event_)) {
+      if (key_event->keyCode() == VKEY_RETURN) {
+        if (!content::g_select_keydown_time.is_null()) {
+           base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+           LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keyup keyCode="
+                     << key_event->keyCode() << " latency(msec)=" << elapsed.InMilliseconds();
+        } else {
+           LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keyup keyCode="
+                     << key_event->keyCode();
+        }
+      }
+    }
+  }
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("blink.debug"),
                "EventDispatcher::dispatch");
 
