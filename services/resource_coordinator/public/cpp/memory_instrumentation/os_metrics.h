@@ -41,6 +41,7 @@ namespace memory_instrumentation {
 class COMPONENT_EXPORT(
     RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION) OSMetrics {
  public:
+#if BUILDFLAG(IS_COBALT)
   class Delegate {
    public:
     virtual ~Delegate() = default;
@@ -58,6 +59,7 @@ class COMPONENT_EXPORT(
   };
 
   static void SetDelegate(Delegate* delegate);
+#endif
 
   // Fills |dump| with memory information about |pid|. See class comments for
   // restrictions on |pid|. |dump.platform_private_footprint| must be allocated

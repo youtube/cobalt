@@ -320,12 +320,14 @@ void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
 
 FILE* g_proc_smaps_for_testing = nullptr;
 
+#if BUILDFLAG(IS_COBALT)
 // static
 void OSMetrics::SetDelegate(Delegate* delegate) {
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   g_os_metrics_delegate = delegate;
 #endif
 }
+#endif
 
 // static
 void OSMetrics::SetProcSmapsForTesting(FILE* f) {
