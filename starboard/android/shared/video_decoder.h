@@ -164,8 +164,6 @@ class VideoDecoder
 
   const std::optional<bool> use_dual_threads_;
 
-  const std::optional<bool> use_dual_threads_;
-
   // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
   void* surface_view_;
 
