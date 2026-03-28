@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -373,7 +374,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
           std::string_view(item.uma_name) == "Malloc") {
         continue;
       }
-      absl::optional<uint64_t> value =
+      std::optional<uint64_t> value =
           pmd.GetMetric(item.dump_name, item.metric);
       if (value) {
         EmitProcessUma(ptype, item, value.value());
