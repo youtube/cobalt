@@ -183,7 +183,7 @@ public class PlatformError
               // Otherwise, add a param to the URL to indicate a bootstrap request with a retry from the network dialog
               if (currentUrl.isEmpty()) {
                 Log.i(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
-                webContents.getNavigationController().reload(true);
+                webContents.getNavigationController().reload(/*param=*/true);
               } else {
                 cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl));
               }
