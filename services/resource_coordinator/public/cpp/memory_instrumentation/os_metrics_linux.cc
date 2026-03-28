@@ -425,38 +425,6 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 }
 
 // static
-bool OSMetrics::FillProcessMemoryMaps(base::ProcessHandle handle,
-                                      mojom::MemoryMapOption option,
-                                      mojom::RawOSMemDump* dump) {
-  base::ScopedFILE smaps_file;
-  if (g_proc_smaps_for_testing) {
-    smaps_file.reset(g_proc_smaps_for_testing);
-  } else {
-    std::string file_name =
-        "/proc/" +
-        (handle == base::kNullProcessHandle ? "self" : base::NumberToString(handle)) +
-        "/smaps";
-    smaps_file.reset(fopen(file_name.c_str(), "r"));
-    if (!smaps_file.get()) {
-      {
-        ScopedProcessSetDumpable set_dumpable;
-        smaps_file.reset(fopen(file_name.c_str(), "r"));
-      }
-      if (!smaps_file.get()) {
-        DLOG(ERROR) << "Could not open " << file_name;
-        return false;
-      }
-    }
-  }
-
-  ReadLinuxProcSmapsFile(smaps_file.get(), &dump->memory_maps);
-  if (g_proc_smaps_for_testing) {
-    smaps_file.release();
-  }
-  return true;
-}
-
-// static
 std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
     base::ProcessHandle handle) {
   std::vector<VmRegionPtr> maps;
