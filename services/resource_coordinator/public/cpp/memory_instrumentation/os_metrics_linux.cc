@@ -37,7 +37,6 @@
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-#include "base/strings/string_piece.h"
 #include "base/strings/string_tokenizer.h"
 #endif
 
@@ -354,12 +353,12 @@ void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
       continue;
     }
 
-    base::StringPiece line_sp(line);
-    bool is_pss = base::StartsWith(line_sp, "Pss:", base::CompareCase::SENSITIVE);
+    std::string_view line_sv(line);
+    bool is_pss = base::StartsWith(line_sv, "Pss:", base::CompareCase::SENSITIVE);
     bool is_rss =
-        !is_pss && base::StartsWith(line_sp, "Rss:", base::CompareCase::SENSITIVE);
+        !is_pss && base::StartsWith(line_sv, "Rss:", base::CompareCase::SENSITIVE);
     if (is_pss || is_rss) {
-      base::StringTokenizer t(line_sp, " ");
+      base::StringViewTokenizer t(line_sv, " ");
       t.GetNext();  // Skip "Pss:" or "Rss:"
       if (t.GetNext()) {
         uint64_t value_kb = 0;
@@ -518,7 +517,7 @@ size_t OSMetrics::GetPeakResidentSetSize(base::ProcessId pid) {
     // since the last time it was reset. HWM stands for "High Water Mark".
     if (pair.first == "VmHWM") {
       base::TrimWhitespaceASCII(pair.second, base::TRIM_ALL, &pair.second);
-      auto split_value_str = base::SplitStringPiece(
+      auto split_value_str = base::SplitString(
           pair.second, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
       if (split_value_str.size() != 2 || split_value_str[1] != "kB") {
         NOTREACHED();

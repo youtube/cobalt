@@ -15,6 +15,7 @@
 #include "cobalt/browser/metrics/cobalt_os_metrics_delegate.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/contains.h"
@@ -75,7 +76,7 @@ CobaltOSMetricsDelegate::~CobaltOSMetricsDelegate() = default;
 
 void CobaltOSMetricsDelegate::OnSmapsHeader(const char* line) {
 #if BUILDFLAG(IS_ANDROID)
-  base::StringPiece line_sp(line);
+  std::string_view line_sp(line);
   if (base::Contains(line_sp, kLibChrobaltPattern)) {
     current_type_ = RegionType::kLibChrobalt;
   } else if (base::Contains(line_sp, kPartitionAllocPattern)) {
@@ -122,7 +123,7 @@ void CobaltOSMetricsDelegate::OnSmapsCounter(
     return;
   }
 
-  base::StringPiece name_sp(name);
+  std::string_view name_sp(name);
   if (name_sp == "Pss:") {
     if (current_type_ == RegionType::kLibChrobalt) {
       libchrobalt_pss_kb_ += value_kb;
