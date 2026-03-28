@@ -47,6 +47,7 @@ class CobaltOSMetricsDelegate
   CobaltOSMetricsDelegate();
   ~CobaltOSMetricsDelegate() override;
 
+#if BUILDFLAG(IS_ANDROID)
   enum class RegionType {
     kNone,
     kLibChrobalt,
@@ -73,6 +74,7 @@ class CobaltOSMetricsDelegate
   uint64_t ashmem_jit_rss_kb_ = 0;
   uint64_t android_runtime_rss_kb_ = 0;
   uint64_t stacks_rss_kb_ = 0;
+#endif
 };
 
 // Keys used in the RawOSMemDump::extra_stats map.

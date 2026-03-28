@@ -38,6 +38,7 @@
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 #include "base/strings/string_piece.h"
+#include "base/strings/string_tokenizer.h"
 #endif
 
 // Symbol with virtual address of the start of ELF header of the current binary.
@@ -268,11 +269,68 @@ class ScopedProcessSetDumpable {
   bool was_dumpable_;
 };
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+// Count how many mappings exist in a process.
+//
+// Return 0 in case of error (since a process necessarily has at least a
+// mapping, this is an invalid value).
+//
+// The return value is approximate, as this happens while the process is
+// running.
+uint32_t CountMappings(base::ProcessId pid) {
+  // seq_file only writes out a page-sized amount on each call.
+  const size_t read_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  auto buffer = base::HeapArray<char>::Uninit(read_size);
+
+  base::FilePath path = GetProcPidDir(pid).Append("maps");
+  base::ScopedFD fd(HANDLE_EINTR(open(path.value().c_str(), O_RDONLY)));
+  if (!fd.is_valid()) {
+    DPLOG(ERROR) << "Couldn't open /proc/PID/maps";
+    return 0;
+  }
+
+  // /proc/PID/smaps has a single line per mapping, without a header, just count
+  // the number of newline characters. See man proc(5) for the format.
+  uint32_t newline_characters = 0;
+  while (true) {
+    ssize_t bytes_read =
+        HANDLE_EINTR(read(fd.get(), &buffer[0], buffer.size()));
+    if (bytes_read < 0) {
+      DPLOG(ERROR) << "Couldn't read /proc/PID/maps";
+      return 0;
+    }
+
+    if (bytes_read == 0) {
+      break;
+    }
+
+    for (ssize_t i = 0; i < bytes_read; i++) {
+      if (buffer[i] == '\n') {
+        newline_characters++;
+      }
+    }
+  }
+
+  return newline_characters;
+}
+
+// Get values from smaps_rollup for the current process.
+void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
+  auto value = base::debug::ReadAndParseSmapsRollup();
+  if (!value) {
+    *pss = 0;
+    *swap_pss = 0;
+    return;
+  }
+  *pss = value->pss;
+  *swap_pss = value->swap_pss;
+}
+
+#if BUILDFLAG(IS_COBALT)
 namespace {
 OSMetrics::Delegate* g_os_metrics_delegate = nullptr;
 }
 
+#if BUILDFLAG(IS_ANDROID)
 void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
   OSMetrics::Delegate* delegate = g_os_metrics_delegate;
   if (!delegate) {
@@ -301,11 +359,11 @@ void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
     bool is_rss =
         !is_pss && base::StartsWith(line_sp, "Rss:", base::CompareCase::SENSITIVE);
     if (is_pss || is_rss) {
-      std::vector<base::StringPiece> tokens = base::SplitStringPiece(
-          line_sp, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-      if (tokens.size() >= 2) {
+      base::StringTokenizer t(line_sp, " ");
+      t.GetNext();  // Skip "Pss:" or "Rss:"
+      if (t.GetNext()) {
         uint64_t value_kb = 0;
-        if (base::StringToUint64(tokens[1], &value_kb)) {
+        if (base::StringToUint64(t.token_piece(), &value_kb)) {
           delegate->OnSmapsCounter(is_pss ? "Pss:" : "Rss:", value_kb, dump);
         }
       }
@@ -314,18 +372,17 @@ void PopulateSmapsMetrics(base::ProcessId pid, mojom::RawOSMemDump* dump) {
 
   delegate->OnSmapsFinished(dump);
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
 FILE* g_proc_smaps_for_testing = nullptr;
 
-#if BUILDFLAG(IS_COBALT)
 // static
+#if BUILDFLAG(IS_COBALT)
 void OSMetrics::SetDelegate(Delegate* delegate) {
-#if BUILDFLAG(IS_ANDROID)
   g_os_metrics_delegate = delegate;
-#endif
 }
 #endif
 
@@ -335,49 +392,40 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 }
 
 // static
-bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
+bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
+                                 const MemDumpFlagSet& flags,
                                  mojom::RawOSMemDump* dump) {
-  // TODO(chiniforooshan): There is no need to read both /statm and /status
-  // files. Refactor to get everything from /status using ProcessMetric.
-  auto statm_file = GetProcPidDir(pid).Append("statm");
-  auto autoclose = base::ScopedFD(open(statm_file.value().c_str(), O_RDONLY));
-  int statm_fd = autoclose.get();
-
-  if (statm_fd == -1)
+  auto info = GetMemoryInfo(handle);
+  if (!info.has_value()) {
     return false;
+  }
 
-  uint64_t resident_pages;
-  uint64_t shared_pages;
-  bool success = base::debug::GetResidentAndSharedPagesFromStatmFile(
-      statm_fd, &resident_pages, &shared_pages);
-
-  if (!success)
-    return false;
-
-  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(pid);
-
-  static const size_t page_size = base::GetPageSize();
-  uint64_t rss_anon_bytes = (resident_pages - shared_pages) * page_size;
-  uint64_t vm_swap_bytes = process_metrics->GetVmSwapBytes();
-
-  dump->platform_private_footprint->rss_anon_bytes = rss_anon_bytes;
-  dump->platform_private_footprint->vm_swap_bytes = vm_swap_bytes;
-  dump->resident_set_kb = process_metrics->GetResidentSetSize() / 1024;
-  dump->peak_resident_set_kb = GetPeakResidentSetSize(pid);
-  dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(pid);
+  dump->platform_private_footprint->rss_anon_bytes = info->rss_anon_bytes;
+  dump->platform_private_footprint->vm_swap_bytes = info->vm_swap_bytes;
+  dump->resident_set_kb =
+      base::saturated_cast<uint32_t>(info->resident_set_bytes / 1024);
+  dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
+  dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
 #if BUILDFLAG(IS_COBALT) 
-  dump->vm_size_kb = process_metrics->GetVmSizeBytes() / 1024;
+  dump->vm_size_kb = base::saturated_cast<uint32_t>(info->vm_size_bytes / 1024);
 #if BUILDFLAG(IS_ANDROID)
-  PopulateSmapsMetrics(pid, dump);
+  PopulateSmapsMetrics(handle, dump);
 #endif  //  BUILDFLAG(IS_ANDROID)
 #endif  //  BUILDFLAG(IS_COBALT)
+
+  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
+    dump->mappings_count = CountMappings(handle);
+  }
+  if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
+    GetSmapsRollup(&dump->pss_kb, &dump->swap_pss_kb);
+  }
 
   return true;
 }
 
 // static
-bool OSMetrics::FillProcessMemoryMaps(base::ProcessId pid,
+bool OSMetrics::FillProcessMemoryMaps(base::ProcessHandle handle,
                                       mojom::MemoryMapOption option,
                                       mojom::RawOSMemDump* dump) {
   base::ScopedFILE smaps_file;
@@ -386,7 +434,7 @@ bool OSMetrics::FillProcessMemoryMaps(base::ProcessId pid,
   } else {
     std::string file_name =
         "/proc/" +
-        (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
+        (handle == base::kNullProcessHandle ? "self" : base::NumberToString(handle)) +
         "/smaps";
     smaps_file.reset(fopen(file_name.c_str(), "r"));
     if (!smaps_file.get()) {

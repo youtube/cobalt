@@ -89,6 +89,7 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // Cobalt-specific memory metrics start
   os_dump->extra_stats = internal_os_dump.extra_stats;
+  os_dump->vm_size_kb = internal_os_dump.vm_size_kb;
   // Cobalt-specific memory metrics end
 #endif  //  BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 #endif

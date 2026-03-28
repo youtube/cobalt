@@ -182,8 +182,11 @@ struct RawOSMemDump {
 
   // Cobalt-specific memory metrics start
   // Generic bucket for embedder-specific breakdowns (e.g., Cobalt's Malloc, V8, etc.)
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  [EnableIf=is_cobalt]
   map<string, uint32> extra_stats;
+
+  [EnableIf=is_cobalt]
+  uint32 vm_size_kb = 0;
   // Cobalt-specific memory metrics end
 };
 
@@ -233,8 +236,11 @@ struct OSMemDump {
 
   // Cobalt-specific memory metrics start
   // Generic bucket for embedder-specific breakdowns (e.g., Cobalt's Malloc, V8, etc.)
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  [EnableIf=is_cobalt]
   map<string, uint32> extra_stats;
+
+  [EnableIf=is_cobalt]
+  uint32 vm_size_kb = 0;
   // Cobalt-specific memory metrics end
 };
 

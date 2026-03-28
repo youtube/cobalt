@@ -61,12 +61,25 @@ class COMPONENT_EXPORT(
   static void SetDelegate(Delegate* delegate);
 #endif
 
-  // Fills |dump| with memory information about |pid|. See class comments for
-  // restrictions on |pid|. |dump.platform_private_footprint| must be allocated
-  // before calling this function. If |pid| is null, the pid of the current
-  // process is used
-  static bool FillOSMemoryDump(base::ProcessId pid, mojom::RawOSMemDump* dump);
-  static bool FillProcessMemoryMaps(base::ProcessId,
+  using MemDumpFlagSet =
+      base::EnumSet<mojom::MemDumpFlags,
+                    mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS,
+                    mojom::MemDumpFlags::kMaxValue>;
+
+  // Fills |dump| with memory information about |handle|. See class comments for
+  // restrictions on |handle|. |dump.platform_private_footprint| must be
+  // allocated before calling this function. If |handle| is null, the handle of
+  // the current process is used
+  static bool FillOSMemoryDump(base::ProcessHandle handle,
+                               const MemDumpFlagSet& flags,
+                               mojom::RawOSMemDump* dump);
+#if BUILDFLAG(IS_APPLE)
+  static bool FillOSMemoryDump(base::ProcessHandle handle,
+                               const MemDumpFlagSet& flags,
+                               base::PortProvider* port_provider,
+                               mojom::RawOSMemDump* dump);
+#endif
+  static bool FillProcessMemoryMaps(base::ProcessHandle,
                                     mojom::MemoryMapOption,
                                     mojom::RawOSMemDump*);
   static std::vector<mojom::VmRegionPtr> GetProcessMemoryMaps(
