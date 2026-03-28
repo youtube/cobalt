@@ -27,4 +27,6 @@ interface CrashLog {
     // TODO(cobalt, b/393406740): consider replacing with internals.crash.
     // TODO(cobalt, b/392940729): add a web test to verify the expected crash.
     void triggerCrash();
+
+    readonly attribute boolean testValue;
 };
