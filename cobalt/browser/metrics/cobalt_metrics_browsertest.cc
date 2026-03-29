@@ -122,10 +122,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
   check_histogram("Memory.Browser.PartitionAllocRss");
+#if BUILDFLAG(IS_ANDROID)
+  check_histogram("Memory.Browser.MallocRss");
 #endif
 }
 
@@ -202,10 +203,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
   check_histogram("Memory.Browser.PartitionAllocRss");
+#if BUILDFLAG(IS_ANDROID)
+  check_histogram("Memory.Browser.MallocRss");
 #endif
 }
 
