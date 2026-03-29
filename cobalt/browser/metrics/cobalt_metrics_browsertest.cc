@@ -123,6 +123,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
   check_histogram("Memory.Browser.PartitionAllocRss");
+  check_histogram("Memory.Browser.MallocRss");
 #endif
 }
 
@@ -193,6 +194,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Browser.LibChrobaltPss");
   check_histogram("Memory.Browser.LibChrobaltRss");
   check_histogram("Memory.Browser.PartitionAllocRss");
+  check_histogram("Memory.Browser.MallocRss");
 #endif
 }
 
