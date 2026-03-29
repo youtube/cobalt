@@ -10,12 +10,13 @@
 #include "media/audio/android/opensles_input.h"
 
 #include "base/logging.h"
-#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
+#include "base/time/time.h"
 
-namespace blink {
 namespace content { extern base::TimeTicks g_select_keydown_time; }
-}
+
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
 
@@ -91,9 +92,11 @@ AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
 
 void OpenSLESInputStream::Start(AudioInputCallback* callback) {
   LOG(INFO) << "KJ: OpenSLESInputStream::Start";
-  if (!content::g_select_keydown_time.is_null()) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::OpenSLESStart", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta elapsed =
-        base::TimeTicks::Now() - content::g_select_keydown_time;
+        base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: OpenSLESInputStream::Start: latency(msec)="
               << elapsed.InMilliseconds();
   }
@@ -336,9 +339,11 @@ void OpenSLESInputStream::ReadBufferQueue() {
     return;
 
   buffer_count_++;
-  if (buffer_count_ == 1 && !content::g_select_keydown_time.is_null()) {
+  if (buffer_count_ == 1 && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::OpenSLESFirstBuffer", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta total_elapsed =
-        base::TimeTicks::Now() - content::g_select_keydown_time;
+        base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: First audio buffer received: total_latency(msec)="
               << total_elapsed.InMilliseconds();
   }

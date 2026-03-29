@@ -277,8 +277,11 @@ bool AAudioStreamWrapper::Open() {
   AAudioStreamBuilder_setErrorCallback(builder, OnStreamErrorCallback,
                                        destruction_helper_.get());
 
-  result = AAudioStreamBuilder_openStream(builder,
-                                          &aaudio_stream_.AsEphemeralRawAddr());
+  {
+    TRACE_EVENT0("media", "AAudioStreamBuilder_openStream");
+    result = AAudioStreamBuilder_openStream(builder,
+                                            &aaudio_stream_.AsEphemeralRawAddr());
+  }
 
   AAudioStreamBuilder_delete(builder);
 
@@ -342,7 +345,11 @@ bool AAudioStreamWrapper::Start() {
   CHECK(aaudio_stream_);
   CHECK(!is_closed_);
 
-  auto result = AAudioStream_requestStart(aaudio_stream_);
+  aaudio_result_t result;
+  {
+    TRACE_EVENT0("media", "AAudioStream_requestStart");
+    result = AAudioStream_requestStart(aaudio_stream_);
+  }
   LOG(INFO) << "KJ: AAudioStream_requestStart returned: " << AAudio_convertResultToText(result);
   if (result != AAUDIO_OK) {
     DLOG(ERROR) << "Failed to start audio stream, result: "

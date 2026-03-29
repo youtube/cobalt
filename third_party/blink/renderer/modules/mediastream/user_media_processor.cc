@@ -18,6 +18,9 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
@@ -666,8 +669,10 @@ UserMediaRequest* UserMediaProcessor::CurrentRequest() {
 
 void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
                                         base::OnceClosure callback) {
-  if (!content::g_select_keydown_time.is_null()) {
-    base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::BlinkProcessRequest", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: UserMediaProcessor::ProcessRequest: latency(msec)="
               << elapsed.InMilliseconds();
   }
@@ -2055,8 +2060,10 @@ void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
     int32_t request_id,
     MediaStreamDescriptorVector* components,
     UserMediaRequest* user_media_request) {
-  if (!content::g_select_keydown_time.is_null()) {
-    base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::BlinkGetUserMediaSucceeded", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: UserMediaProcessor::DelayedGetUserMediaRequestSucceeded: "
                  "latency(msec)="
               << elapsed.InMilliseconds();

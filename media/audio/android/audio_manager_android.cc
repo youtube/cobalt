@@ -14,6 +14,9 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 
@@ -337,9 +340,11 @@ std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
-  if (!content::g_select_keydown_time.is_null()) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::GetInputStreamParameters", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta elapsed =
-        base::TimeTicks::Now() - content::g_select_keydown_time;
+        base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: device_id=" << device_id 
               << " latency(msec)=" << elapsed.InMilliseconds();
   }
@@ -540,9 +545,11 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
-  if (!content::g_select_keydown_time.is_null()) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::MakeLowLatencyInputStream", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta elapsed =
-        base::TimeTicks::Now() - content::g_select_keydown_time;
+        base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream: "
                  "latency(msec)="
               << elapsed.InMilliseconds();
@@ -723,15 +730,18 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
 }
 
 void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
+  TRACE_EVENT1("media", "SetCommunicationAudioModeOn", "on", on);
   DVLOG(1) << __FUNCTION__ << ": " << on;
   Java_AudioManagerAndroid_setCommunicationAudioModeOn(
       base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
 }
 
 bool AudioManagerAndroid::SetCommunicationDevice(const std::string& device_id) {
-  if (!content::g_select_keydown_time.is_null()) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::SetCommunicationDevice", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta elapsed =
-        base::TimeTicks::Now() - content::g_select_keydown_time;
+        base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: AudioManagerAndroid::SetCommunicationDevice: " << device_id
               << " latency(msec)=" << elapsed.InMilliseconds();
   }
@@ -745,8 +755,14 @@ bool AudioManagerAndroid::SetCommunicationDevice(const std::string& device_id) {
   ScopedJavaLocalRef<jstring> j_device_id = ConvertUTF8ToJavaString(
       env, device_id == AudioDeviceDescription::kDefaultDeviceId ? std::string()
                                                                  : device_id);
-  return Java_AudioManagerAndroid_setCommunicationDevice(
+  bool success = Java_AudioManagerAndroid_setCommunicationDevice(
       env, GetJavaAudioManager(), j_device_id);
+  if (success && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::SetCommunicationDevice", perfetto::Flow::ProcessScoped(id));
+    LOG(INFO) << "KJ: SetAudioDevice finishes";
+  }
+  return success;
 }
 
 bool AudioManagerAndroid::IsBluetoothScoOn() {

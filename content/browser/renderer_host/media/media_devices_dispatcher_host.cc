@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -133,6 +136,12 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
     bool request_video_input_capabilities,
     bool request_audio_input_capabilities,
     EnumerateDevicesCallback client_callback) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::BrowserEnumerateDevices", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: MediaDevicesDispatcherHost::EnumerateDevices latency(msec)=" << elapsed.InMilliseconds();
+  }
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   if ((!request_audio_input && !request_video_input && !request_audio_output) ||
@@ -214,8 +223,10 @@ void MediaDevicesDispatcherHost::GetAvailableVideoInputDeviceFormats(
 
 void MediaDevicesDispatcherHost::GetAudioInputCapabilities(
     GetAudioInputCapabilitiesCallback client_callback) {
-  if (!content::g_select_keydown_time.is_null()) {
-    base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::BrowserGetAudioCapabilities", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: MediaDevicesDispatcherHost::GetAudioInputCapabilities latency(msec)=" << elapsed.InMilliseconds();
   }
   GetUIThreadTaskRunner({})->PostTask(

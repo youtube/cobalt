@@ -5,12 +5,14 @@
 #include "media/audio/android/aaudio_input.h"
 
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 
-namespace blink {
 namespace content { extern base::TimeTicks g_select_keydown_time; }
-}
+
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/amplitude_peak_detector.h"
@@ -59,6 +61,10 @@ AudioInputStream::OpenOutcome AAudioInputStream::Open() {
 }
 
 void AAudioInputStream::Start(AudioInputCallback* callback) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::AAudioStart", perfetto::Flow::ProcessScoped(id));
+  }
   LOG(INFO) << "KJ: AAudioInputStream::Start";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 

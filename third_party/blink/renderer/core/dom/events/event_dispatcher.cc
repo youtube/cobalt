@@ -32,6 +32,9 @@
 #include "base/feature_list.h"
 #include "base/time/time.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
@@ -189,6 +192,10 @@ DispatchEventResult EventDispatcher::Dispatch() {
   if (event_->type() == event_type_names::kKeydown) {
     if (auto* key_event = DynamicTo<KeyboardEvent>(event_)) {
       if (key_event->keyCode() == VKEY_RETURN) {
+        if (!::content::g_select_keydown_time.is_null()) {
+          uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+          TRACE_EVENT("media", "RecordLatency::BlinkKeyEvent", perfetto::Flow::ProcessScoped(id));
+        }
         LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keydown keyCode="
                   << key_event->keyCode();
       }
@@ -197,8 +204,10 @@ DispatchEventResult EventDispatcher::Dispatch() {
   if (event_->type() == event_type_names::kKeyup) {
     if (auto* key_event = DynamicTo<KeyboardEvent>(event_)) {
       if (key_event->keyCode() == VKEY_RETURN) {
-        if (!content::g_select_keydown_time.is_null()) {
-           base::TimeDelta elapsed = base::TimeTicks::Now() - content::g_select_keydown_time;
+        if (!::content::g_select_keydown_time.is_null()) {
+           uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+           TRACE_EVENT("media", "RecordLatency::BlinkKeyEvent", perfetto::Flow::ProcessScoped(id));
+           base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
            LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keyup keyCode="
                      << key_event->keyCode() << " latency(msec)=" << elapsed.InMilliseconds();
         } else {

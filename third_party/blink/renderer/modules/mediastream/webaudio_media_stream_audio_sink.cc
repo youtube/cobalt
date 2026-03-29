@@ -8,6 +8,8 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_fifo.h"
@@ -114,8 +116,10 @@ void WebAudioMediaStreamAudioSink::OnReadyStateChanged(
 void WebAudioMediaStreamAudioSink::OnData(
     const media::AudioBus& audio_bus,
     base::TimeTicks estimated_capture_time) {
-  if (!first_sink_ondata_logged_ && !content::g_select_keydown_time.is_null()) {
-    base::TimeDelta latency = base::TimeTicks::Now() - content::g_select_keydown_time;
+  if (!first_sink_ondata_logged_ && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::WebAudioSinkFIFO", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: WebAudioMediaStreamAudioSink::OnData - ENTERED WEBAUDIO SINK FIFO. latency(msec)=" << latency.InMilliseconds();
     first_sink_ondata_logged_ = true;
   }
@@ -216,8 +220,10 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
     media::AudioBus* audio_bus,
     uint32_t frames_delayed,
     const media::AudioGlitchInfo& glitch_info) NO_THREAD_SAFETY_ANALYSIS {
-  if (!first_sink_provide_logged_ && !content::g_select_keydown_time.is_null()) {
-    base::TimeDelta latency = base::TimeTicks::Now() - content::g_select_keydown_time;
+  if (!first_sink_provide_logged_ && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::WebAudioConsume", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: WebAudioMediaStreamAudioSink::ProvideInput - DATA CONSUMED BY WEBAUDIO. latency(msec)=" << latency.InMilliseconds();
     first_sink_provide_logged_ = true;
   }
