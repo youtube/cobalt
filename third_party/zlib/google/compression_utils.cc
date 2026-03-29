@@ -57,20 +57,14 @@ bool GzipCompress(base::span<const uint8_t> input, std::string* output) {
           compressed_data, &compressed_data_size,
           base::bit_cast<const Bytef*>(input.data()), input_size, nullptr,
           nullptr) != Z_OK) {
-    free(compressed_data);
+    base::UncheckedFree(compressed_data);
     return false;
   }
 
-  Bytef* resized_data =
-      reinterpret_cast<Bytef*>(realloc(compressed_data, compressed_data_size));
-  if (!resized_data) {
-    free(compressed_data);
-    return false;
-  }
-  output->assign(resized_data, resized_data + compressed_data_size);
+  output->assign(compressed_data, compressed_data + compressed_data_size);
   DCHECK_EQ(input_size, GetUncompressedSize(*output));
 
-  free(resized_data);
+  base::UncheckedFree(compressed_data);
   return true;
 }
 
