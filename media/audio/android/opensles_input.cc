@@ -7,6 +7,8 @@
 #include "base/logging.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 
 namespace content { extern base::TimeTicks g_select_keydown_time; }
 
@@ -67,6 +69,7 @@ OpenSLESInputStream::~OpenSLESInputStream() {
 }
 
 AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
+  TRACE_EVENT("media", "RecordLatency::OpenSLES_Open");
   LOG(INFO) << "KJ: OpenSLESInputStream::Open";
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -82,12 +85,14 @@ AudioInputStream::OpenOutcome OpenSLESInputStream::Open() {
 
 void OpenSLESInputStream::Start(AudioInputCallback* callback) {
   LOG(INFO) << "KJ: OpenSLESInputStream::Start";
-  if (!content::g_select_keydown_time.is_null()) {
-    base::TimeDelta elapsed =
-        base::TimeTicks::Now() - content::g_select_keydown_time;
-    LOG(INFO) << "KJ: OpenSLESInputStream::Start: latency(msec)="
-              << elapsed.InMilliseconds();
-  }
+
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::OpenSLESStart", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed =
+      base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: OpenSLESInputStream::Start: latency(msec)="
+            << elapsed.InMilliseconds();
+
   DVLOG(2) << __PRETTY_FUNCTION__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(callback);
@@ -327,9 +332,11 @@ void OpenSLESInputStream::ReadBufferQueue() {
     return;
 
   buffer_count_++;
-  if (buffer_count_ == 1 && !content::g_select_keydown_time.is_null()) {
+  if (buffer_count_ == 1 && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::OpenSLESFirstBuffer", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta total_elapsed =
-        base::TimeTicks::Now() - content::g_select_keydown_time;
+        base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: First audio buffer received: total_latency(msec)="
               << total_elapsed.InMilliseconds();
   }

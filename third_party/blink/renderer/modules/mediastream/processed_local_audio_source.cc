@@ -10,6 +10,9 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
@@ -40,6 +43,8 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/webrtc/media/base/media_channel.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 namespace blink {
 
@@ -498,6 +503,10 @@ void ProcessedLocalAudioSource::Capture(const media::AudioBus* audio_bus,
                                         base::TimeTicks audio_capture_time,
                                         double volume,
                                         bool key_pressed) {
+  if (capture_count_ == 0 && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::FirstHWBuffer", perfetto::Flow::ProcessScoped(id));
+  }
   if (capture_count_ == 0) {
     LOG(INFO) << "KJ: ProcessedLocalAudioSource::Capture count=" << capture_count_
               << " has_processor=" << (media_stream_audio_processor_ != nullptr)

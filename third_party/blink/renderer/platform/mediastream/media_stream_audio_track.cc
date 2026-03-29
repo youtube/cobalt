@@ -9,6 +9,9 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "media/base/audio_bus.h"
 #include "third_party/blink/public/platform/modules/mediastream/web_media_stream_audio_sink.h"
 #include "third_party/blink/public/platform/modules/mediastream/web_media_stream_source.h"
@@ -158,8 +161,10 @@ void MediaStreamAudioTrack::OnSetFormat(const media::AudioParameters& params) {
 
 void MediaStreamAudioTrack::OnData(const media::AudioBus& audio_bus,
                                    base::TimeTicks reference_time) {
-  if (track_data_count_ == 0 && !content::g_select_keydown_time.is_null()) {
-    base::TimeDelta total_latency = base::TimeTicks::Now() - content::g_select_keydown_time;
+  if (track_data_count_ == 0 && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::NativeTrackExit", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta total_latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
     LOG(INFO) << "KJ: NATIVE TRACK EXIT. latency(msec)=" << total_latency.InMilliseconds();
   }
   track_data_count_++;
