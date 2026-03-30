@@ -22,7 +22,7 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 #elif BUILDFLAG(IS_IOS_TVOS)
-#include "cobalt/browser/cobalt_crash_annotations.h"
+#include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
 #endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace crash_annotator {
