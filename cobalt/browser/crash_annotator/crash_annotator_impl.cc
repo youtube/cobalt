@@ -58,6 +58,8 @@ void CrashAnnotatorImpl::SetString(const std::string& key,
   cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(key,
                                                                         value);
   std::move(callback).Run(true);
+#else
+#error Unsupported platform.
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
