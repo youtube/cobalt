@@ -8,6 +8,10 @@
 #include "media/base/decoder_buffer.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) 
+#include "starboard/android/shared/media_memory_metrics.h"
+#endif 
+
 namespace media {
 
 static MediaClient* g_media_client = nullptr;
@@ -51,6 +55,15 @@ uint64_t MediaClient::GetMediaSourceTotalAllocatedMemory() {
     return g_media_client->GetAllocatedMemory();
   }
   return 0;
+}
+
+// static
+uint64_t MediaClient::GetMediaDecodedTotalAllocatedMemory() {
+#if BUILDFLAG(IS_ANDROID)
+  return starboard::GetGlobalOutputMemoryUsage();
+#else
+  return 0;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 uint64_t MediaClient::GetMaximumMemoryCapacity() const {

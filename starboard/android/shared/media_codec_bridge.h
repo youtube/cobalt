@@ -184,6 +184,8 @@ class MediaCodecBridge {
 
   static jboolean IsFrameRenderedCallbackEnabled();
 
+  static uint64_t GetGlobalOutputMemoryUsage();
+
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
   explicit MediaCodecBridge(Handler* handler);

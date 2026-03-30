@@ -79,7 +79,7 @@ class MEDIA_EXPORT MediaClient {
   static uint64_t GetMediaSourceMaximumMemoryCapacity();
   static uint64_t GetMediaSourceCurrentMemoryCapacity();
   static uint64_t GetMediaSourceTotalAllocatedMemory();
-
+  static uint64_t GetMediaDecodedTotalAllocatedMemory();
   uint64_t GetMaximumMemoryCapacity() const;
   uint64_t GetCurrentMemoryCapacity() const;
   uint64_t GetAllocatedMemory() const;

@@ -413,9 +413,17 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
                                   static_cast<int>(vm_size_total_kb / kKiB));
 
   // UMA metrics for media buffer memory usage 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   uint64_t encoded_memory_bytes = media::MediaClient::GetMediaSourceTotalAllocatedMemory();
   base::UmaHistogramMemoryKB("Memory.Media.EncodedBuffer.Allocated",
                              static_cast<int>(encoded_memory_bytes / kKiB));
+#if BUILDFLAG(IS_ANDROID)
+  uint64_t decoded_memory_bytes = media::MediaClient::GetMediaDecodedTotalAllocatedMemory();
+  base::UmaHistogramMemoryKB("Memory.Media.DecodedBuffer.Allocated",
+                             static_cast<int>(decoded_memory_bytes / kKiB));
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   global_dump_ = nullptr;
 

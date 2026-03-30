@@ -509,4 +509,9 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
+uint64_t MediaCodecBridge::GetGlobalOutputMemoryUsage() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_getGlobalOutputMemoryUsage(env);
+}
+
 }  // namespace starboard
