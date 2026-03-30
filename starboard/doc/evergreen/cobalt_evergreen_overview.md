@@ -273,7 +273,11 @@ directory tree,
 we would use the following command to run NPLB:
 
 ```sh
+<<<<<<< HEAD
 .../elf_loader_sandbox --evergreen_library=app/nplb/lib/libnplb.so
+=======
+.../elf_loader_sandbox --evergreen_library=app/nplb/content/libnplb.so
+>>>>>>> 75e86e7a7a (doc: Fix evergreen content/lib paths (#9021))
                        --evergreen_content=app/nplb/content
 ```
 
