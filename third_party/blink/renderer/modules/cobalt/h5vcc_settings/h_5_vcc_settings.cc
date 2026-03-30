@@ -49,30 +49,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
-<<<<<<< HEAD
-  if (name == kMediaAppendFirstSegmentSynchronously) {
-    if (value->IsLong()) {
-      append_first_segment_synchronously_ = (value->GetAsLong() != 0);
-      if (append_first_segment_synchronously_) {
-        LOG(INFO) << "Enable synchronous append of first media source segment.";
-      } else {
-        LOG(INFO) << "Disable synchronous append of first media source"
-                  << " segment.";
-      }
-      resolver->Resolve();
-    } else {
-      LOG(WARNING) << "The value for '" << kMediaAppendFirstSegmentSynchronously
-                   << "' must be a number.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(),
-          String("The value for '") + kMediaAppendFirstSegmentSynchronously +
-              "' must be a number."));
-    }
-    return promise;
-  }
-
-=======
->>>>>>> 7b498a3ca5 (Revert "cobalt: Support synchronous MSE init segment append" (#8654))
   EnsureReceiverIsBound();
 
   h5vcc_settings::mojom::blink::ValuePtr mojo_value;
