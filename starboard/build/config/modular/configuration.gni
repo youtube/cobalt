@@ -25,7 +25,7 @@ sb_static_contents_output_data_dir = "$root_out_dir"
 final_executable_type = "shared_library"
 gtest_target_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"
-starboard_level_test_target_type = "shared_library"
+starboard_level_gtest_target_type = "shared_library"
 
 pedantic_warnings_config_path =
     "//starboard/build/config/modular:pedantic_warnings"

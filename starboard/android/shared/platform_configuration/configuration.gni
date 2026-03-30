@@ -17,7 +17,7 @@ import("//starboard/build/config/base_configuration.gni")
 final_executable_type = "shared_library"
 gtest_target_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"
-starboard_level_test_target_type = "shared_library"
+starboard_level_gtest_target_type = "shared_library"
 
 sb_enable_benchmark = true
 
