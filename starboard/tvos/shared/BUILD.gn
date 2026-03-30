@@ -85,8 +85,6 @@ static_library("starboard_platform") {
     "application_darwin.mm",
     "configuration_constants.cc",
     "configuration_public.h",
-    "crash_handler.cc",
-    "crash_handler.h",
     "defines.h",
     "media/application_drm_system.h",
     "media/application_drm_system.mm",
@@ -194,7 +192,6 @@ static_library("starboard_platform") {
 
   deps = [
     "//base",
-    "//components/crash/core/common:crash_key",
     "//starboard/shared/starboard/player:video_dmp",
     "//third_party/angle:includes",
     "//third_party/libvpx",

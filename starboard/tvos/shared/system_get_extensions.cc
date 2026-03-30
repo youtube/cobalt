@@ -42,7 +42,10 @@ const void* SbSystemGetExtension(const char* name) {
     return nullptr;
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::GetCrashHandlerApi();
+    // TODO: b/477518757 - Re-enable once Crashpad support is in and if it
+    // needs to be exposed as an extension.
+    // return starboard::GetCrashHandlerApi();
+    return nullptr;
   }
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     SB_LOG(INFO) << "The platform service extension is not supported on tvOS";
