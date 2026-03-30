@@ -66,9 +66,6 @@ public class JavaSwitches {
   public static final String USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY =
       "UsingSurfaceViewForAndroidOverlay";
 
-  /** flag to enable SkiaFontCache */
-  public static final String SKIA_FONT_CACHE = "SkiaFontCache";
-
   /** flag to lower the priority of the network service thread */
   public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY =
       "LowerNetworkServiceThreadPriority";
@@ -164,10 +161,6 @@ public class JavaSwitches {
       if (javaSwitches.containsKey(JavaSwitches.USING_SURFACE_VIEW_FOR_ANDROID_OVERLAY)) {
         extraCommandLineArgs.add("--enable-features=UseSurfaceViewForAndroidOverlay");
       }
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.SKIA_FONT_CACHE)) {
-      extraCommandLineArgs.add("--enable-features=SkiaFontCache");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
