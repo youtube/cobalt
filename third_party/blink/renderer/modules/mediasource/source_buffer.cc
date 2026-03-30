@@ -2020,26 +2020,6 @@ void SourceBuffer::AppendBufferInternal_Locked(
   ScheduleEvent(event_type_names::kUpdatestart);
 
   // 5. Asynchronously run the buffer append algorithm.
-<<<<<<< HEAD
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // We only append the first segment synchronous when
-  // `append_first_segment_synchronously_` is true.
-  bool append_synchronously = append_first_segment_synchronously_ &&
-                              !first_segment_appended_;
-
-  first_segment_appended_ = true;
-
-  if (append_synchronously) {
-    LOG(INFO) << __func__ << ": Append first segment of " << data.size()
-              << " bytes synchronously.";
-
-    first_segment_append_start_time_ = base::TimeTicks::Now();
-
-    AppendBufferSyncPart();
-  } else {
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-=======
->>>>>>> 7b498a3ca5 (Revert "cobalt: Support synchronous MSE init segment append" (#8654))
   append_buffer_async_task_handle_ = PostCancellableTask(
       *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
       FROM_HERE,
