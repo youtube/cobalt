@@ -21,11 +21,9 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
-#endif  // BUILDFLAG(IS_STARBOARD)
-
-#if BUILDFLAG(IS_IOS_TVOS)
+#elif BUILDFLAG(IS_IOS_TVOS)
 #include "cobalt/browser/cobalt_crash_annotations.h"
-#endif
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace crash_annotator {
 
