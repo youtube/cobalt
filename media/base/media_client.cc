@@ -9,7 +9,7 @@
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) 
-#include "starboard/android/shared/media_memory_metrics.h"
+#include "starboard/android/shared/media_codec_memory_metrics.h"
 #endif 
 
 namespace media {
