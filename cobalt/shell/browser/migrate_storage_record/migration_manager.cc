@@ -443,6 +443,11 @@ std::string MigrationManager::GetMigrationStatusUrlParameter() {
 }
 
 // static
+void MigrationManager::ResetMigrationStatusForTesting() {
+  g_migration_status_param.clear();
+}
+
+// static
 // Groups multiple sequential asynchronous tasks into a single chain of
 // callbacks. When the returned Task is invoked, it will execute the first task,
 // which in turn will trigger the second, and so on, until all tasks are run.
