@@ -328,7 +328,8 @@ ReadAndParseLegacyStorageRecord() {
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
     if (!record->IsValid()) {
-      bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
+      bool fallback =
+          partition_key == GetApplicationKey(GURL(::switches::kDefaultURL));
       if (!fallback) {
         result = StorageReadResult::kPartitionKeyNotDefault;
         return;
@@ -341,7 +342,7 @@ ReadAndParseLegacyStorageRecord() {
       }
     }
 
-    if (record->GetSize() < kRecordHeaderSize) {
+    if (static_cast<size_t>(record->GetSize()) < kRecordHeaderSize) {
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -350,7 +351,7 @@ ReadAndParseLegacyStorageRecord() {
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
-    if (read_result != bytes.size()) {
+    if (read_result < 0 || static_cast<size_t>(read_result) != bytes.size()) {
       result = StorageReadResult::kReadMismatch;
       return;
     }
@@ -555,8 +556,9 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.last_access_time_us()),
         base::Time::FromInternalValue(c.creation_time_us()), true,
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
+        net::COOKIE_PRIORITY_DEFAULT, absl::nullopt,
+        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
+        net::CookieSourceType::kUnknown));
   }
   return cookies;
 }
@@ -715,15 +717,14 @@ Task MigrationManager::LocalStorageTask(
               auto shared_state = base::MakeRefCounted<SharedClosureState>();
               shared_state->cb = std::move(next_step);
 
-              partition->GetLocalStorageControl()->Flush(base::BindOnce(
-                  [](scoped_refptr<SharedClosureState> state) {
-                    if (state->cb) {
-                      LOG(INFO) << "LocalStorage Flush complete callback "
-                                   "executed successfully.";
-                      state->Run();
-                    }
-                  },
-                  shared_state));
+              // Flush is now a fire-and-forget Mojo call that no longer
+              // supports a completion callback in M138.
+              partition->GetLocalStorageControl()->Flush();
+              if (shared_state->cb) {
+                LOG(INFO) << "LocalStorage Flush complete callback "
+                             "executed successfully.";
+                shared_state->Run();
+              }
 
               // Hard timeout fallback: if the disk IO hangs or the Storage
               // Service crashes during flush, resume app startup after 2

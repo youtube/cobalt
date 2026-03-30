@@ -23,6 +23,7 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
