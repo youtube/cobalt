@@ -110,20 +110,11 @@ bool SetStringImpl(std::string_view key, std::string_view value) {
     // are not relevant), so under 200kB.
     static base::NoDestructor<std::deque<CrashKeyWithName>> runtime_crash_keys;
 
-    auto it = std::ranges::find_if(
-        *runtime_crash_keys,
-        [&key](const auto& crash_key) { return crash_key.name() == key; });
-    if (it != runtime_crash_keys->end()) {
-      SB_LOG(INFO) << "Updating annotation: " << key;
-      it->Set(value);
-    } else {
-      if (runtime_crash_keys->size() == kMaxCrashKeys) {
-        SB_LOG(ERROR) << "Crash key limit reached. Ignoring key " << key;
-        return false;
-      }
-      SB_LOG(INFO) << "Added annotation: " << key;
-      runtime_crash_keys->emplace_back(std::string(key)).Set(value);
+    if (runtime_crash_keys->size() == kMaxCrashKeys) {
+      SB_LOG(ERROR) << "Crash key limit reached. Ignoring key " << key;
+      return false;
     }
+    runtime_crash_keys->emplace_back(std::string(key)).Set(value);
   }
 
   return true;
