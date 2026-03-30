@@ -76,8 +76,7 @@
 
 namespace content {
 
-namespace {
-GURL GetStartupURL() {
+GURL ShellBrowserMainParts::GetStartupURL() const {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kBrowserTest)) {
     return GURL();
@@ -108,6 +107,8 @@ GURL GetStartupURL() {
   return initial_url;
 #endif
 }
+
+namespace {
 
 scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
   if (key == IDR_DIR_HEADER_HTML) {

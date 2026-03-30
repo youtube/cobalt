@@ -17,14 +17,17 @@
 #include <memory>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/sequence_checker.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
@@ -89,7 +92,29 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // On Linux, we might need the base behavior.
   // go/chrobalt-pre-initialization-storage-migration-pipeline
 #if !BUILDFLAG(IS_ANDROID)
-  ShellBrowserMainParts::InitializeMessageLoopContext();
+  auto create_window_task = base::BindOnce(
+      [](GURL url, std::string deeplink_url,
+         content::ShellBrowserContext* browser_context) {
+        const std::string status_param = cobalt::migrate_storage_record::
+            MigrationManager::GetMigrationStatusUrlParameter();
+        if (!status_param.empty() && !deeplink_url.empty()) {
+          // If a migration occurred on this launch, append its outcome directly
+          // to the URL's query parameters (e.g. "?migration_status=0-0-0").
+          // This makes the migration telemetry accessible to the loaded web
+          // app.
+          if (deeplink_url.find('?') == std::string::npos) {
+            deeplink_url += "?";
+          } else {
+            deeplink_url += "&";
+          }
+          deeplink_url += status_param;
+        }
+        content::Shell::CreateNewWindow(
+            browser_context, url, nullptr, gfx::Size(),
+            switches::ShouldCreateSplashScreen(), deeplink_url);
+      },
+      GetStartupURL(), deep_link(), browser_context());
+  PostOrRunIfStorageMigrationFinished(std::move(create_window_task));
 #endif
 }
 
