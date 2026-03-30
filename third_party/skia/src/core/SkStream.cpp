@@ -932,8 +932,6 @@ static sk_sp<SkData> mmap_filename(const char path[]) {
 
 using PathToDataMap = skia_private::THashMap<SkString, sk_sp<SkData>>;
 
-static std::atomic<bool> s_is_cache_enabled{false};
-
 static SkMutex& get_path_to_data_map_mutex() {
     // It's Skia convention to intentionally leak static objects to ensure proper lifetime.
     static SkMutex* mutex = new SkMutex;
@@ -964,15 +962,6 @@ static sk_sp<SkData> mmap_filename_with_cache(const char path[]) {
     }
 
     return nullptr;
-}
-
-// static
-void SkMemoryStream::EnableMmapCache() {
-  SkASSERT(s_is_cache_enabled.is_lock_free());
-
-  SkDebugf("Enabling Skia mmap cache.\n");
-
-  s_is_cache_enabled.store(true);
 }
 
 SkMemoryStream::SkMemoryStream(const char path[], sk_sp<SkData> data)
@@ -1008,16 +997,9 @@ std::unique_ptr<SkStreamAsset> SkStream::MakeFromFile(const char path[]) {
         return nullptr;
     }
 
-    if (s_is_cache_enabled) {
-        auto data(mmap_filename_with_cache(path));
-        if (data) {
-            return std::make_unique<SkMemoryStream>(path, std::move(data));
-        }
-    } else {
-        auto data(mmap_filename(path));
-        if (data) {
-            return std::make_unique<SkMemoryStream>(std::move(data));
-        }
+    auto data(mmap_filename_with_cache(path));
+    if (data) {
+        return std::make_unique<SkMemoryStream>(path, std::move(data));
     }
 
     // If we get here, then our attempt at using mmap failed, so try normal file access.

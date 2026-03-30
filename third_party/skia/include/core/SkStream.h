@@ -392,9 +392,6 @@ public:
     /** Returns a stream with a shared reference to the input data. */
     static std::unique_ptr<SkMemoryStream> Make(sk_sp<SkData> data);
 
-    /** Enabled the mmap cache so multiple read only mappings of the same file are consolidated. */
-    static void EnableMmapCache();
-
     /** Resets the stream to the specified data and length,
         just like the constructor.
         if copyData is true, the stream makes a private copy of the data
