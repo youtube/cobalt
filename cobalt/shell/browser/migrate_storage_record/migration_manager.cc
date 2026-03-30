@@ -342,7 +342,7 @@ ReadAndParseLegacyStorageRecord() {
       }
     }
 
-    if (record->GetSize() < kRecordHeaderSize) {
+    if (static_cast<size_t>(record->GetSize()) < kRecordHeaderSize) {
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -351,7 +351,7 @@ ReadAndParseLegacyStorageRecord() {
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
-    if (read_result != bytes.size()) {
+    if (static_cast<size_t>(read_result) != bytes.size()) {
       result = StorageReadResult::kReadMismatch;
       return;
     }

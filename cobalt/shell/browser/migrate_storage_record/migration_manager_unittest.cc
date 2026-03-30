@@ -89,11 +89,11 @@ TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   constexpr uint32_t kTaskCount = 100;
   std::vector<Task> tasks;
   std::vector<int> collected_values;
-  for (int i = 0; i < kTaskCount; i++) {
+  for (uint32_t i = 0; i < kTaskCount; i++) {
     tasks.push_back(base::BindOnce(
-        [](std::vector<int>& collected_values, int i,
+        [](std::vector<int>& collected_values, uint32_t i,
            base::OnceClosure callback) {
-          collected_values.push_back(i);
+          collected_values.push_back(static_cast<int>(i));
           std::move(callback).Run();
         },
         std::ref(collected_values), i));
@@ -102,7 +102,7 @@ TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   Task grouped_task = GroupTasks(std::move(tasks));
   std::move(grouped_task).Run(base::DoNothing());
   base::RunLoop().RunUntilIdle();
-  std::vector<int> expected_values(kTaskCount);
+  std::vector<int> expected_values(static_cast<size_t>(kTaskCount));
   std::iota(expected_values.begin(), expected_values.end(), 0);
   EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
 }
@@ -135,8 +135,8 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
   source_cookies.push_back(cookie2);
 
   auto cookies = ToCanonicalCookies(storage);
-  EXPECT_EQ(2, cookies.size());
-  for (size_t i = 0; i < 2; i++) {
+  EXPECT_EQ(2u, cookies.size());
+  for (size_t i = 0; i < cookies.size(); i++) {
     EXPECT_EQ(source_cookies[i]->name(), cookies[i]->Name());
     EXPECT_EQ(source_cookies[i]->value(), cookies[i]->Value());
     EXPECT_EQ(source_cookies[i]->domain(), cookies[i]->Domain());
@@ -207,7 +207,7 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
 
   auto actual1 = ToLocalStorageItems(
       url::Origin::Create(GURL("https://example1.com")), storage);
-  EXPECT_EQ(4, actual1.size());
+  EXPECT_EQ(4u, actual1.size());
   EXPECT_EQ("local_storage1_entry1_key", actual1[0]->first);
   EXPECT_EQ("local_storage1_entry1_value", actual1[0]->second);
   EXPECT_EQ("local_storage1_entry2_key", actual1[1]->first);
@@ -219,7 +219,7 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
 
   auto actual2 = ToLocalStorageItems(
       url::Origin::Create(GURL("https://example2.com")), storage);
-  EXPECT_EQ(2, actual2.size());
+  EXPECT_EQ(2u, actual2.size());
   EXPECT_EQ("local_storage2_entry1_key", actual2[0]->first);
   EXPECT_EQ("local_storage2_entry1_value", actual2[0]->second);
   EXPECT_EQ("local_storage2_entry2_key", actual2[1]->first);
