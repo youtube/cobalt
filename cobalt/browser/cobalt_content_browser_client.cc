@@ -80,8 +80,12 @@
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
+#elif BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/cobalt_crash_annotations.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 namespace cobalt {
@@ -606,6 +610,7 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
     return;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
@@ -617,6 +622,10 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
                << "the CrashHandler Starboard extension; not setting the user "
                << "agent annotation";
   }
+#elif BUILDFLAG(IS_IOS_TVOS)
+  cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(
+      kUserAgentAnnotationKey, user_agent_string);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 

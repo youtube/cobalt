@@ -16,8 +16,16 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/cobalt_crash_annotations.h"
+#endif
 
 namespace crash_annotator {
 
@@ -36,6 +44,7 @@ void CrashAnnotatorImpl::Create(
 void CrashAnnotatorImpl::SetString(const std::string& key,
                                    const std::string& value,
                                    SetStringCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
@@ -47,6 +56,11 @@ void CrashAnnotatorImpl::SetString(const std::string& key,
     // or greater, of this Starboard Extension.
     std::move(callback).Run(false);
   }
+#elif BUILDFLAG(IS_IOS_TVOS)
+  cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(key,
+                                                                        value);
+  std::move(callback).Run(true);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 }  // namespace crash_annotator

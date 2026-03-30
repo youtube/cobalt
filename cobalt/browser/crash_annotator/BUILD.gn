@@ -25,4 +25,8 @@ source_set("crash_annotator") {
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_headers_only",
   ]
+
+  if (is_ios) {
+    deps += [ "//cobalt/browser:cobalt_crash_annotations" ]
+  }
 }
