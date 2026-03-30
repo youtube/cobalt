@@ -59,13 +59,7 @@ class MODULES_EXPORT H5vccSettings final
   // Holds promises associated with outstanding async remote_h5vcc_settings_
   // requests so that they can be rejected in the case of a Mojo connection
   // error.
-<<<<<<< HEAD
   HeapHashSet<Member<ScriptPromiseResolver<IDLUndefined>>> ongoing_requests_;
-
-  std::optional<bool> append_first_segment_synchronously_;
-=======
-  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
->>>>>>> 7b498a3ca5 (Revert "cobalt: Support synchronous MSE init segment append" (#8654))
 };
 
 }  // namespace blink
