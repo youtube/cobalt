@@ -344,7 +344,7 @@
                 },
                 {
                     "from_file": "obj/components/crash/android/handler_java.processed.jar",
-                    "to_file": "jar/qa/components_crash_android_handler_java.jar"
+                    "to_file": "jar/components_crash_android_handler_java.jar"
                 },
                 {
                     "from_file": "obj/components/crash/android/java.processed.jar",
