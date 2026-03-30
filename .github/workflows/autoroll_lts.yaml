@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Setup Git user
         run: |
