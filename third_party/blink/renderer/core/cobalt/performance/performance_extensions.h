@@ -16,6 +16,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_PERFORMANCE_EXTENSIONS_H_
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -27,6 +28,9 @@ class ScriptState;
 
 class CORE_EXPORT PerformanceExtensions final {
   STATIC_ONLY(PerformanceExtensions);
+
+ private:
+  static absl::optional<int64_t> app_startup_time_;
 
  public:
   // Web-exposed interface:

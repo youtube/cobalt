@@ -14,13 +14,17 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
+
 namespace blink {
+absl::optional<int64_t> PerformanceExtensions::app_startup_time_;
+
 
 namespace {
 
@@ -60,10 +64,13 @@ ScriptPromise<IDLLongLong> PerformanceExtensions::getAppStartupTime(
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLLongLong>>(
       script_state, exception_state.GetContext());
-  int64_t startup_time = 0;
-  BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
+  if (!app_startup_time_.has_value()) {
+    int64_t startup_time = 0;
+    BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
+    app_startup_time_ = startup_time;
+  }
   ScriptPromise<IDLLongLong> promise = resolver->Promise();
-  resolver->Resolve(startup_time);
+  resolver->Resolve(app_startup_time_.value());
   return promise;
 }
 
