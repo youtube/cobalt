@@ -325,7 +325,10 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_total_kb += pmd.os_dump().private_footprint_kb;
     shared_footprint_total_kb += pmd.os_dump().shared_footprint_kb;
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
+#if !BUILDFLAG(IS_IOS_TVOS)
+    // TODO: b/497706115 - This field does not exist on tvOS.
     private_footprint_swap_total_kb += pmd.os_dump().private_footprint_swap_kb;
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
     vm_size_total_kb += pmd.os_dump().vm_size_kb;
 
     // Manually calculate fragmentation for individual processes as it may not
