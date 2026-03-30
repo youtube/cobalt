@@ -508,8 +508,6 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
-  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-      web_contents());
 #if BUILDFLAG(USE_EVERGREEN)
   cobalt::updater::UpdaterModule* updater_module =
       cobalt::updater::UpdaterModule::GetInstance();
