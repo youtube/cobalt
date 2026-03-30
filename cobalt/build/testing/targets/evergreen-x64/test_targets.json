@@ -3,7 +3,7 @@
   "_disabled_build_errors": {
     "content/test:content_unittests_loader": "b/493933651: linker error: -shared and -pie may not be used together",
     "gin:gin_unittests_loader": "b/493933651: linker error: -shared and -pie may not be used together",
-    "third_party/abseil-cpp:absl_tests_loader": "b/493933651: implicit sign conversion in starboard/common/string.h",
+    "third_party/abseil-cpp:absl_tests_loader": "b/493934350: implicit sign conversion in starboard/common/string.h",
     "third_party/angle/src/tests:angle_unittests_loader": "b/493936063: Missing posix symbols",
     "third_party/blink/renderer/controller:blink_unittests_loader": "b/493936900: blink_test_suite.h file not found",
     "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/493936063: Missing posix symbols",
