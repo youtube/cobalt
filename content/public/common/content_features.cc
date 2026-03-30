@@ -1526,6 +1526,7 @@ bool IsVideoCaptureServiceEnabledForBrowserProcess() {
          VideoCaptureServiceConfiguration::kEnabledForBrowserProcess;
 }
 
+<<<<<<< HEAD
 bool IsPushSubscriptionChangeEventEnabled() {
   return base::FeatureList::IsEnabled(
              features::kPushSubscriptionChangeEventOnInvalidation) ||
@@ -1537,4 +1538,6 @@ bool IsPushSubscriptionChangeEventEnabled() {
 BASE_FEATURE(kSkiaFontCache, "SkiaFontCache", base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
+=======
+>>>>>>> 133177a9d3 (skia: always enable Skia font file data cache (#9801))
 }  // namespace features
