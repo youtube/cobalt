@@ -2068,7 +2068,7 @@ void SourceBuffer::AppendBufferInternal_Locked(
   first_segment_appended_ = true;
 
   if (append_synchronously) {
-    LOG(INFO) << __func__ << ": Append first segment of " << size
+    LOG(INFO) << __func__ << ": Append first segment of " << data.size()
               << " bytes synchronously.";
 
     first_segment_append_start_time_ = base::TimeTicks::Now();
