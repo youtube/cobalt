@@ -15,6 +15,7 @@
 #ifndef COBALT_APP_APP_EVENT_RUNNER_H_
 #define COBALT_APP_APP_EVENT_RUNNER_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -76,15 +77,15 @@ class AppEventRunner {
       const SbEvent* event) = 0;
 
   // State tracking
-  bool is_running() const { return is_running_; }
-  bool is_visible() const { return is_visible_; }
-  bool is_focused() const { return is_focused_; }
-  bool is_frozen() const { return is_frozen_; }
+  bool is_running() const { return is_running_.load(); }
+  bool is_visible() const { return is_visible_.load(); }
+  bool is_focused() const { return is_focused_.load(); }
+  bool is_frozen() const { return is_frozen_.load(); }
 
-  void set_is_running(bool value) { is_running_ = value; }
-  void set_is_visible(bool value) { is_visible_ = value; }
-  void set_is_focused(bool value) { is_focused_ = value; }
-  void set_is_frozen(bool value) { is_frozen_ = value; }
+  void set_is_running(bool value) { is_running_.store(value); }
+  void set_is_visible(bool value) { is_visible_.store(value); }
+  void set_is_focused(bool value) { is_focused_.store(value); }
+  void set_is_frozen(bool value) { is_frozen_.store(value); }
 
  private:
   // Lifecycle signals called from the application.
@@ -97,10 +98,10 @@ class AppEventRunner {
   virtual void DoFreeze() = 0;
   virtual void DoUnfreeze() = 0;
 
-  bool is_running_ = false;
-  bool is_visible_ = false;
-  bool is_focused_ = false;
-  bool is_frozen_ = true;
+  std::atomic<bool> is_running_{false};
+  std::atomic<bool> is_visible_{false};
+  std::atomic<bool> is_focused_{false};
+  std::atomic<bool> is_frozen_{true};
 };
 
 }  // namespace cobalt

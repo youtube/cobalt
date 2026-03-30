@@ -18,13 +18,19 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/run_loop.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/app/app_event_runner.h"
+#include "content/public/browser/browser_thread.h"
 
 namespace cobalt {
 
 namespace {
+constexpr base::TimeDelta kTransitionTimeout = base::Seconds(5);
+
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
   switch (type) {
@@ -56,7 +62,9 @@ AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
 
 AppEventDelegate::AppEventDelegate(std::unique_ptr<AppEventRunner> runner)
     : runner_(std::move(runner)) {
+  base::AutoLock lock(lock_);
   application_state_ = ApplicationState::kInitial;
+  target_state_ = ApplicationState::kInitial;
   if (!runner_) {
     // If a special runner wasn't provided, use the default.
     runner_ = AppEventRunner::Create();
@@ -66,25 +74,63 @@ AppEventDelegate::AppEventDelegate(std::unique_ptr<AppEventRunner> runner)
 AppEventDelegate::~AppEventDelegate() {}
 
 bool AppEventDelegate::IsRunning() const {
+  base::AutoLock lock(lock_);
+  return IsRunningLocked();
+}
+
+bool AppEventDelegate::IsRunningLocked() const {
   return application_state_ != ApplicationState::kInitial &&
          application_state_ != ApplicationState::kStopped;
 }
 
 bool AppEventDelegate::IsVisible() const {
-  return application_state_ == ApplicationState::kBlurred || IsFocused();
+  base::AutoLock lock(lock_);
+  return IsVisibleLocked();
+}
+
+bool AppEventDelegate::IsVisibleLocked() const {
+  return application_state_ == ApplicationState::kBlurred ||
+         application_state_ == ApplicationState::kStarted;
 }
 
 bool AppEventDelegate::IsFocused() const {
+  base::AutoLock lock(lock_);
+  return IsFocusedLocked();
+}
+
+bool AppEventDelegate::IsFocusedLocked() const {
   return application_state_ == ApplicationState::kStarted;
 }
 
 bool AppEventDelegate::IsFrozen() const {
-  return application_state_ == ApplicationState::kFrozen || !IsRunning();
+  base::AutoLock lock(lock_);
+  return IsFrozenLocked();
+}
+
+AppEventDelegate::ApplicationState AppEventDelegate::GetState() const {
+  base::AutoLock lock(lock_);
+  return application_state_;
+}
+
+bool AppEventDelegate::IsFrozenLocked() const {
+  return application_state_ == ApplicationState::kFrozen ||
+         application_state_ == ApplicationState::kStopped ||
+         application_state_ == ApplicationState::kInitial;
 }
 
 void AppEventDelegate::HandleEvent(const SbEvent* event) {
+  // Use a lock to ensure thread safety as HandleEvent might be called from
+  // different threads (e.g., Starboard thread, UI thread).
+  base::AutoLock lock(lock_);
+  HandleEventLocked(event);
+}
+
+void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
+  lock_.AssertAcquired();
+
   // Drop events received after the application stops.
-  if (application_state_ == ApplicationState::kStopped) {
+  if (application_state_ == ApplicationState::kStopped ||
+      target_state_ == ApplicationState::kStopped) {
     LOG(WARNING) << "Received event " << event->type
                  << " after stopping. Event is ignored.";
     return;
@@ -97,6 +143,7 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
       case kSbEventTypePreload:
         runner_->OnStart(event);
         application_state_ = SbEventToTargetApplicationState(event->type);
+        target_state_ = application_state_;
         return;
       default:
         // Robustly handle events received before the application has started or
@@ -107,7 +154,7 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
                      << "An implicit preload event was inserted.";
         SbEvent preload_event = {kSbEventTypePreload, event->timestamp,
                                  nullptr};
-        HandleEvent(&preload_event);
+        HandleEventLocked(&preload_event);
         // Break here instead of return to handle the received event.
         break;
     }
@@ -132,7 +179,7 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
         SbEvent link_event = {
             kSbEventTypeLink, event->timestamp,
             const_cast<void*>(static_cast<const void*>(data->link))};
-        HandleEvent(&link_event);
+        HandleEventLocked(&link_event);
       }
       if (event->type == kSbEventTypeStart) {
         // Redundant start events are treated as focus events.
@@ -146,8 +193,32 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
     case kSbEventTypeReveal:
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
-    case kSbEventTypeStop:
+      // Ensure all intermediate state changes are triggered.
       TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
+      break;
+    case kSbEventTypeStop:
+      // Stop is a special case that completely tears down the Chromium
+      // environment. It must be executed synchronously on the UI thread to
+      // avoid destroying the TaskEnvironment from within a task or nested
+      // RunLoop.
+
+      // Ensure all intermediate state changes are triggered up to kFrozen.
+      TransitionToLifeCycleState(ApplicationState::kFrozen);
+
+      // We must be on the UI thread to synchronously run DoStop.
+      // Unlike a standard Chromium desktop application where the main
+      // MessagePump naturally unwinds the stack upon exit to destroy the
+      // ContentMainRunner, Cobalt's outermost loop is owned by the Starboard OS
+      // layer. Therefore, we must manually invoke `main_runner_->Shutdown()`
+      // (via `DoStop()`) to trigger the teardown sequence. This manual teardown
+      // must happen on the UI thread and cannot be posted to a task queue, as
+      // it destroys the very SequenceManager that would execute the task.
+      CHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI))
+          << "kSbEventTypeStop must be delivered on the UI thread.";
+
+      runner_->OnStop();
+      application_state_ = ApplicationState::kStopped;
+      target_state_ = ApplicationState::kStopped;
       break;
     case kSbEventTypeInput:
       runner_->OnInput(event);
@@ -176,7 +247,81 @@ void AppEventDelegate::HandleEvent(const SbEvent* event) {
   }
 }
 
+void AppEventDelegate::ExecuteNextStepOnUIThread() {
+  base::AutoLock lock(lock_);
+  ExecuteNextStepOnUIThreadLocked(true /* schedule_next_step */);
+}
+
+void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
+    bool schedule_next_step) {
+  lock_.AssertAcquired();
+
+  if (application_state_ == target_state_) {
+    // Target state reached. Transition complete.
+    if (transition_quit_closure_) {
+      content::GetUIThreadTaskRunner({})->PostTask(
+          FROM_HERE, std::move(transition_quit_closure_));
+    }
+    is_transitioning_ = false;
+    return;
+  }
+
+  ApplicationState next_state;
+
+  if (application_state_ < target_state_) {
+    switch (application_state_) {
+      case ApplicationState::kStarted:
+        runner_->OnBlur();
+        next_state = ApplicationState::kBlurred;
+        break;
+      case ApplicationState::kBlurred:
+        runner_->OnConceal();
+        next_state = ApplicationState::kConcealed;
+        break;
+      case ApplicationState::kConcealed:
+        runner_->OnFreeze();
+        next_state = ApplicationState::kFrozen;
+        break;
+      case ApplicationState::kFrozen:
+        NOTREACHED();
+      default:
+        NOTREACHED();
+    }
+  } else {
+    switch (application_state_) {
+      case ApplicationState::kStopped:
+        NOTREACHED();
+      case ApplicationState::kFrozen:
+        runner_->OnUnfreeze();
+        next_state = ApplicationState::kConcealed;
+        break;
+      case ApplicationState::kConcealed:
+        runner_->OnReveal();
+        next_state = ApplicationState::kBlurred;
+        break;
+      case ApplicationState::kBlurred:
+        runner_->OnFocus();
+        next_state = ApplicationState::kStarted;
+        break;
+      case ApplicationState::kStarted:
+        NOTREACHED();
+      default:
+        NOTREACHED();
+    }
+  }
+
+  application_state_ = next_state;
+
+  if (schedule_next_step) {
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegate::ExecuteNextStepOnUIThread,
+                                  base::Unretained(this)));
+  }
+}
+
 void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
+  lock_.AssertAcquired();
+
   // TransitionToLifeCycleState ensures that the application moves from its
   // current state to the target |state| by traversing all intermediate states
   // in strict linear order. Each state transition triggers its corresponding
@@ -186,67 +331,63 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
   // order, duplicated, or missing.
   CHECK_GT(state, ApplicationState::kInitial);
   CHECK_LE(state, ApplicationState::kStopped);
-  // Ensure all intermediate state changes are triggered.
-  while (application_state_ != state) {
-    CHECK_GT(application_state_, ApplicationState::kInitial);
-    CHECK_LE(application_state_, ApplicationState::kStopped);
-    ApplicationState old_state = application_state_;
-    if (old_state < state) {
-      // Moving towards Stopped
-      switch (old_state) {
-        case ApplicationState::kStarted:
-          runner_->OnBlur();
-          application_state_ = ApplicationState::kBlurred;
-          break;
-        case ApplicationState::kBlurred:
-          runner_->OnConceal();
-          application_state_ = ApplicationState::kConcealed;
-          break;
-        case ApplicationState::kConcealed:
-          runner_->OnFreeze();
-          application_state_ = ApplicationState::kFrozen;
-          break;
-        case ApplicationState::kFrozen:
-          runner_->OnStop();
-          application_state_ = ApplicationState::kStopped;
-          break;
-        case ApplicationState::kStopped:
-        default:
-          NOTREACHED();
+
+  target_state_ = state;
+
+  bool is_downward = state > application_state_;
+
+  if (!is_transitioning_) {
+    is_transitioning_ = true;
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(&AppEventDelegate::ExecuteNextStepOnUIThread,
+                                  base::Unretained(this)));
+  }
+
+  // If this is a downward transition, we MUST block the OS (Starboard) thread
+  // until the target state is reached.
+  if (is_downward) {
+    if (content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
+      // REQUIRED BEHAVIOR:
+      // We must block the Starboard OS thread while still pumping Chromium's UI
+      // task queue to execute asynchronous side effects (like Wayland/X11
+      // surface destruction). We use a nested `base::RunLoop` to achieve this.
+      base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+      base::RepeatingClosure quit_closure = run_loop.QuitClosure();
+      transition_quit_closure_ = base::BindOnce(quit_closure);
+
+      // Ensure we don't hang the OS thread indefinitely if the transition
+      // takes too long or the signal is missed.
+      content::GetUIThreadTaskRunner({})->PostDelayedTask(
+          FROM_HERE, base::BindOnce(quit_closure), kTransitionTimeout);
+
+      {
+        base::AutoUnlock unlock(lock_);
+        run_loop.Run();
+      }
+
+      // Synchronously execute any remaining steps that were skipped by the
+      // asynchronous task runner.
+      while (application_state_ < target_state_) {
+        ExecuteNextStepOnUIThreadLocked(false /* schedule_next_step */);
       }
     } else {
-      // Moving towards Started
-      switch (old_state) {
-        case ApplicationState::kStopped:
-          // Cannot transition out of Stopped.
-          NOTREACHED();
-        case ApplicationState::kFrozen:
-          runner_->OnUnfreeze();
-          application_state_ = ApplicationState::kConcealed;
-          break;
-        case ApplicationState::kConcealed:
-          runner_->OnReveal();
-          application_state_ = ApplicationState::kBlurred;
-          break;
-        case ApplicationState::kBlurred:
-          runner_->OnFocus();
-          application_state_ = ApplicationState::kStarted;
-          break;
-        case ApplicationState::kStarted:
-        default:
-          NOTREACHED();
+      // If we are on a non-UI thread, we can simply block using a
+      // WaitableEvent. The UI thread will remain free to process the
+      // asynchronous teardown tasks and will execute `transition_quit_closure_`
+      // once the target state is reached.
+      base::WaitableEvent waitable_event(
+          base::WaitableEvent::ResetPolicy::MANUAL,
+          base::WaitableEvent::InitialState::NOT_SIGNALED);
+      transition_quit_closure_ = base::BindOnce(
+          &base::WaitableEvent::Signal, base::Unretained(&waitable_event));
+      {
+        base::AutoUnlock unlock(lock_);
+        if (!waitable_event.TimedWait(kTransitionTimeout)) {
+          LOG(ERROR) << "Timeout waiting " << kTransitionTimeout.InSeconds()
+                     << "s for lifecycle transition to "
+                     << static_cast<int>(state);
+        }
       }
-    }
-
-    CHECK_EQ(IsRunning(), runner_->is_running());
-    CHECK_EQ(IsVisible(), runner_->is_visible());
-    CHECK_EQ(IsFocused(), runner_->is_focused());
-    CHECK_EQ(IsFrozen(), runner_->is_frozen());
-
-    if (application_state_ == old_state) {
-      // Prevent infinite loop if something goes wrong. This will break out of
-      // the loop if application_state_ was not changed.
-      NOTREACHED();
     }
   }
 }
