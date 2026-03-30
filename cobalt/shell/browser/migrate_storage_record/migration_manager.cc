@@ -534,9 +534,9 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   std::vector<Task> tasks;
   // Run LocalStorageTask first. In M138, there is no callback for the flush()
   // API. It is not garanteed it will be finished before Kabuki loads.
+  tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage), state));
   tasks.push_back(LocalStorageTask(
       partition, origin, ToLocalStorageItems(origin, *storage), state));
-  tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage), state));
   tasks.push_back(RecordMigrationDurationTask(std::move(elapsed_timer)));
   tasks.push_back(CleanupLegacyFilesTask(state));
 
@@ -561,7 +561,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
         net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
-        net::CookieSourceType::kUnknown));
+        net::CookieSourceType::kOther));
   }
   return cookies;
 }
@@ -674,7 +674,8 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
 // pairs into the Chromium Storage Service. This is executed as a multi-step
 // sequence:
 // 1. Send all `Put` commands over Mojo.
-// 2. Call `Flush()` to ensure LevelDB writes the Puts to the physical disk.
+// 2. Call `FlushForTesting()` to ensure LevelDB writes the Puts to the physical
+// disk.
 // 3. Call `PurgeMemory()` so that the Renderer fetches fresh data instead of
 // using cached state.
 Task MigrationManager::LocalStorageTask(
@@ -692,73 +693,47 @@ Task MigrationManager::LocalStorageTask(
           return;
         }
 
+        // Initialize the Remote
         auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
         GetLocalStorageArea(partition, origin, *area);
-        auto* raw_remote_ptr = area.get();
 
-        // STEP 3: Purge memory handles.
-        // Force the Storage Service to drop its handle for this origin so that
-        // the newly spawned Renderer process sees the updated disk state.
-        base::OnceClosure purge_memory_step = base::BindOnce(
+        // Use a raw pointer for the loop, but the unique_ptr stays alive
+        // until we move it into the finalize_step.
+        blink::mojom::StorageArea* raw_area = area->get();
+
+        auto shared_state = base::MakeRefCounted<SharedClosureState>();
+        shared_state->cb = std::move(callback);
+
+        // STEP 2: Flush and Purge Step
+        // We move 'area' here to ensure the connection stays open until the
+        // barrier closes.
+        base::OnceClosure finalize_step = base::BindOnce(
             [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
-               content::StoragePartition* partition, base::OnceClosure cb) {
-              LOG(INFO) << "Purging Storage Service handles to force "
-                           "Renderer synchronization.";
-              partition->GetLocalStorageControl()->PurgeMemory();
-              std::move(cb).Run();
-            },
-            std::move(area), base::Unretained(partition), std::move(callback));
-
-        // STEP 2: Flush step.
-        // Tells the Storage Service to commit the LevelDB transactions to disk.
-        base::OnceClosure flush_step = base::BindOnce(
-            [](content::StoragePartition* partition,
-               scoped_refptr<MigrationState> state,
-               base::OnceClosure next_step) {
-              LOG(INFO) << "LocalStorage Puts complete. Flushing...";
-
-              auto shared_state = base::MakeRefCounted<SharedClosureState>();
-              shared_state->cb = std::move(next_step);
-
-              // chromium removed the callback.
-              // https://source.chromium.org/chromium/chromium/src/+/f300a2af020de6cd216c9cb783c9b3109bd5dc2f
-              // Now, we have no way to wait for Flush() to be finished.
-              // Kabuki may run into the race condition that some Local Storage
-              // is missing.
-              partition->GetLocalStorageControl()->Flush();
-              if (shared_state->cb) {
-                LOG(INFO) << "LocalStorage Flush complete callback "
-                             "executed successfully.";
-                shared_state->Run();
+               content::StoragePartition* partition,
+               scoped_refptr<SharedClosureState> shared_state) {
+              if (!shared_state->cb) {
+                return;
               }
 
-              // Hard timeout fallback: if the disk IO hangs or the Storage
-              // Service crashes during flush, resume app startup after 2
-              // seconds.
-              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-                  FROM_HERE,
-                  base::BindOnce(
-                      [](scoped_refptr<SharedClosureState> shared_state,
-                         scoped_refptr<MigrationState> migration_state) {
-                        if (shared_state->cb) {
-                          LOG(ERROR) << "LocalStorage Flush timed out "
-                                        "after 2 seconds. Proceeding anyway.";
-                          migration_state->UpdateLocalStorageResult(
-                              InjectionResult::kTimeout);
-                          shared_state->Run();
-                        }
-                      },
-                      shared_state, state),
-                  base::Seconds(2));
-            },
-            base::Unretained(partition), state, std::move(purge_memory_step));
+              LOG(INFO) << "LocalStorage Puts complete. Synchronizing with "
+                           "Service...";
 
-        // STEP 1: Put keys step.
-        // Iterates through all k/v pairs and sends Mojo Put commands.
-        // The `flush_step` runs only when the barrier closes (all Puts have
-        // responded).
+              // M138 Synchronous-like barrier: Wait for all Puts to be
+              // processed by the service.
+              area->FlushForTesting();
+
+              LOG(INFO) << "Purging Storage Service handles to force Renderer "
+                           "synchronization.";
+              partition->GetLocalStorageControl()->PurgeMemory();
+
+              LOG(INFO) << "LocalStorage Flush and Purge complete.";
+              shared_state->Run();
+            },
+            std::move(area), base::Unretained(partition), shared_state);
+
+        // STEP 1: Put keys step via Barrier
         base::RepeatingClosure barrier =
-            base::BarrierClosure(pairs.size(), std::move(flush_step));
+            base::BarrierClosure(pairs.size(), std::move(finalize_step));
 
         for (const auto& pair : pairs) {
           std::string key_str = pair->first;
@@ -766,27 +741,44 @@ Task MigrationManager::LocalStorageTask(
           std::vector<uint8_t> value =
               FormatStringForLocalStorage(pair->second);
 
-          (*raw_remote_ptr)
-              ->Put(key, value, absl::nullopt, "migration",
-                    base::BindOnce(
-                        [](base::RepeatingClosure barrier, std::string key_str,
-                           scoped_refptr<MigrationState> state, bool success) {
-                          if (success) {
-                            LOG(INFO) << "Put SUCCESS for key: " << key_str;
-                          } else {
-                            LOG(ERROR) << "Put FAILED for key: " << key_str;
-                          }
-                          InjectionResult inj_result =
-                              success ? InjectionResult::kSuccess
-                                      : InjectionResult::kError;
-                          base::UmaHistogramEnumeration(
-                              kLocalStorageInjectionResultHistogram,
-                              inj_result);
-                          state->UpdateLocalStorageResult(inj_result);
-                          barrier.Run();
-                        },
-                        barrier, key_str, state));
+          // Mojo call using the raw pointer
+          raw_area->Put(
+              key, value, std::nullopt, "migration",
+              base::BindOnce(
+                  [](base::RepeatingClosure barrier, std::string key_str,
+                     scoped_refptr<MigrationState> state, bool success) {
+                    if (success) {
+                      LOG(INFO) << "Put SUCCESS for key: " << key_str;
+                    } else {
+                      LOG(ERROR) << "Put FAILED for key: " << key_str;
+                    }
+                    InjectionResult inj_result = success
+                                                     ? InjectionResult::kSuccess
+                                                     : InjectionResult::kError;
+                    base::UmaHistogramEnumeration(
+                        kLocalStorageInjectionResultHistogram, inj_result);
+                    state->UpdateLocalStorageResult(inj_result);
+                    barrier.Run();
+                  },
+                  barrier, key_str, state));
         }
+
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](scoped_refptr<SharedClosureState> shared_state,
+                   scoped_refptr<MigrationState> migration_state) {
+                  if (shared_state->cb) {
+                    LOG(ERROR)
+                        << "LocalStorage migration timed out after 2 seconds. "
+                           "Proceeding anyway.";
+                    migration_state->UpdateLocalStorageResult(
+                        InjectionResult::kTimeout);
+                    shared_state->Run();
+                  }
+                },
+                shared_state, state),
+            base::Seconds(2));
       },
       partition, origin, std::move(pairs), state);
 }
