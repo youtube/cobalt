@@ -653,7 +653,6 @@ public class StarboardBridge {
 
     long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
     mAppStartTimestamp = cppTimestamp - appStartDuration;
-    return mAppStartTimestamp;
   }
 
   // Returns the saved app start timestamp.
