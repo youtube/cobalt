@@ -51,3 +51,8 @@ int main(int argc, char** argv) {
   ...
 }
 ```
+
+NOTE: platforms using Evergreen should not call
+`crashpad::InstallCrashpadHandler()` from their own application code. Starting
+with Cobalt 26, this function is now called from shared Evergreen code linked
+into the `loader_app`.
