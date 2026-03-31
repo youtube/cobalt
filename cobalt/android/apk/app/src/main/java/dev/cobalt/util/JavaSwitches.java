@@ -70,9 +70,6 @@ public class JavaSwitches {
   public static final String LOWER_NETWORK_SERVICE_THREAD_PRIORITY =
       "LowerNetworkServiceThreadPriority";
 
-  /** Skia Ganesh resource cache limit. Value type: Integer (MiB) */
-  public static final String SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB = "SkiaGaneshResourceCacheLimitMb";
-
   /** flag to re-enable freeze and resume events */
   public static final String ENABLE_FREEZE = "EnableFreeze";
 
@@ -165,14 +162,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.LOWER_NETWORK_SERVICE_THREAD_PRIORITY)) {
       extraCommandLineArgs.add("--enable-features=LowerNetworkServiceThreadPriority");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)) {
-      extraCommandLineArgs.add(
-          "--skia-ganesh-resource-cache-limit-mb="
-              + javaSwitches
-                  .get(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB)
-                  .replaceAll("[^0-9]", ""));
     }
 
     if (javaSwitches.containsKey(JavaSwitches.NO_STOP_IN_BACKGROUND)) {

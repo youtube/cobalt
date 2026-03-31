@@ -5,7 +5,6 @@
 #ifndef GPU_CONFIG_GPU_SWITCHES_H_
 #define GPU_CONFIG_GPU_SWITCHES_H_
 
-#include "build/build_config.h"
 #include "gpu/gpu_export.h"
 
 namespace switches {
@@ -45,9 +44,6 @@ GPU_EXPORT extern const char kForceSeparateEGLDisplayForWebGLTesting[];
 GPU_EXPORT extern const char kSkiaGraphiteBackend[];
 GPU_EXPORT extern const char kSkiaGraphiteBackendDawn[];
 GPU_EXPORT extern const char kSkiaGraphiteBackendMetal[];
-#if BUILDFLAG(IS_COBALT)
-GPU_EXPORT extern const char kSkiaGaneshResourceCacheLimitMb[];
-#endif
 
 }  // namespace switches
 
