@@ -133,23 +133,23 @@ class MediaCodecBridge {
         globalTotalMemoryUsage.addAndGet(-oldSize);
       }
       int trackedSize = size;
-            if (mDecodesToSurface) {
-                try {
-                    if (mActiveFormat != null) {
-                        int width = mActiveFormat.width();
-                        int height = mActiveFormat.height();
-                        if (width > 0 && height > 0) {
-                            // This is an estimated size assuming YUV420 format
-                            // width * height * 1.5
-                            trackedSize = width * height * 3 / 2;
-                        }
-                    }
-                } catch (Exception e) {
-                    trackedSize = 0;
-                }
+      if (mDecodesToSurface) {
+        try {
+          if (mActiveFormat != null) {
+            int width = mActiveFormat.width();
+            int height = mActiveFormat.height();
+            if (width > 0 && height > 0) {
+                // This is an estimated size assuming YUV420 format
+                // width * height * 1.5
+                trackedSize = width * height * 3 / 2;
             }
+          }
+        } catch (Exception e) {
+            trackedSize = 0;
+        }
+      }
       mBufferSizes.put(index, trackedSize);
-      mTotalMemoryUsage += sitrackedSizeze;
+      mTotalMemoryUsage += trackedSize;
       globalTotalMemoryUsage.addAndGet(trackedSize);
     }
 
