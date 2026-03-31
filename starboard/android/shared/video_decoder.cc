@@ -432,12 +432,20 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
+<<<<<<< HEAD
       number_of_preroll_frames_(
           experimental_features.video_decoder_initial_preroll_count.value_or(
               kInitialPrerollFrameCount)),
       bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
                   ? std::make_unique<VideoSurfaceTextureBridge>(this)
                   : nullptr) {
+=======
+      surface_condition_variable_(surface_destroy_mutex_),
+      initial_number_of_preroll_frames_(
+          experimental_features.video_decoder_initial_preroll_count.value_or(
+              kInitialPrerollFrameCount)),
+      number_of_preroll_frames_(initial_number_of_preroll_frames_) {
+>>>>>>> 7b0200f9ec (android: Respect VideoDecoderInitialPrerollCount config (#9852))
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -1012,7 +1020,7 @@ void MediaCodecVideoDecoder::RefreshOutputFormat(
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()
           ->GetMaxOutputVideoBuffers(output_format_.value());
   if (max_output_buffers > 0 &&
-      max_output_buffers < kInitialPrerollFrameCount) {
+      max_output_buffers < initial_number_of_preroll_frames_) {
     number_of_preroll_frames_ = max_output_buffers;
   }
 }
