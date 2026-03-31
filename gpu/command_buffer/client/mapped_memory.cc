@@ -168,15 +168,9 @@ void* MappedMemoryManager::Alloc(unsigned int size,
     return nullptr;
 
   int32_t id = -1;
-<<<<<<< HEAD
   scoped_refptr<gpu::Buffer> shm = cmd_buf->CreateTransferBuffer(
       safe_chunk_size, &id, /* alignment */ 0, option);
   if (id  < 0)
-=======
-  scoped_refptr<gpu::Buffer> shm =
-      cmd_buf->CreateTransferBuffer(safe_chunk_size, &id, option);
-  if (id < 0)
->>>>>>> 008759621b (Fix: Introduce backpressure to curb mapped memory growth (#8515))
     return nullptr;
   DCHECK(shm.get());
   MemoryChunk* mc = new MemoryChunk(id, shm, helper_);
