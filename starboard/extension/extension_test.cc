@@ -609,8 +609,6 @@ TEST(ExtensionTest, StarboardFeaturesExtension) {
       << "Extension struct should be a singleton";
 }
 
-<<<<<<< HEAD
-=======
 TEST(ExtensionTest, StarboardMediaBufferPoolExtension) {
   typedef StarboardExtensionMediaBufferPoolApi ExtensionApi;
   const char* kExtensionName = kStarboardExtensionMediaBufferPoolApiName;
@@ -633,6 +631,4 @@ TEST(ExtensionTest, StarboardMediaBufferPoolExtension) {
       << "Extension struct should be a singleton";
 }
 
-}  // namespace extension
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
 }  // namespace starboard
