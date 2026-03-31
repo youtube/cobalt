@@ -134,31 +134,24 @@ base::FilePath GetMigrationSentinelPath() {
 // Writes the sentinel file `migration_completed.txt` in the background so that
 // future app launches can skip the migration process.
 void WriteMigrationSentinelAsync(scoped_refptr<MigrationState> state) {
-  base::ThreadPool::CreateSequencedTaskRunner(
-      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
-      ->PostTask(
-          FROM_HERE,
-          base::BindOnce(
-              [](scoped_refptr<MigrationState> state) {
-                base::FilePath sentinel_path = GetMigrationSentinelPath();
-                SentinelWriteResult result = SentinelWriteResult::kSuccess;
-                if (sentinel_path.empty()) {
-                  LOG(ERROR)
-                      << "Sentinel path is empty, cannot write sentinel file.";
-                  result = SentinelWriteResult::kEmptyPath;
-                } else {
-                  if (!base::WriteFile(sentinel_path,
-                                       state->GetStatusString())) {
-                    LOG(ERROR) << "Failed to write migration sentinel file to "
-                               << sentinel_path.value();
-                    result = SentinelWriteResult::kWriteFailed;
-                  }
-                }
-                base::UmaHistogramEnumeration(kSentinelWriteResultHistogram,
-                                              result);
-              },
-              state));
+  base::FilePath sentinel_path = GetMigrationSentinelPath();
+  SentinelWriteResult result = SentinelWriteResult::kSuccess;
+
+  if (sentinel_path.empty()) {
+    LOG(ERROR) << "Sentinel path is empty, cannot write sentinel file.";
+    result = SentinelWriteResult::kEmptyPath;
+  } else {
+    // WriteFile returns a boolean indicating success.
+    // state->GetStatusString() is used as the file content.
+    if (!base::WriteFile(sentinel_path, state->GetStatusString())) {
+      LOG(ERROR) << "Failed to write migration sentinel file to "
+                 << sentinel_path.value();
+      result = SentinelWriteResult::kWriteFailed;
+    }
+  }
+
+  // Record the result to UMA.
+  base::UmaHistogramEnumeration(kSentinelWriteResultHistogram, result);
 }
 
 // Generates the Base64 encoded key used to look up the legacy Starboard storage
@@ -187,78 +180,73 @@ bool DeleteLegacyStorageRecord(starboard::StorageRecord* record) {
 
 // Deletes the legacy starboard storage files asynchronously.
 void DeleteLegacyStorageFilesAsync() {
-  base::ThreadPool::CreateSequencedTaskRunner(
-      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
-      ->PostTask(FROM_HERE, base::BindOnce([]() {
-                   GURL initial_url(switches::GetInitialURL(
-                       *base::CommandLine::ForCurrentProcess()));
-                   if (initial_url.is_valid()) {
-                     std::string partition_key = GetApplicationKey(initial_url);
-                     auto record = std::make_unique<starboard::StorageRecord>(
-                         partition_key.c_str());
-                     DeleteLegacyStorageRecord(record.get());
-                   }
-                   // Also attempt to delete the fallback default record.
-                   auto fallback_record =
-                       std::make_unique<starboard::StorageRecord>();
-                   DeleteLegacyStorageRecord(fallback_record.get());
-                 }));
+  // Logic extracted from the internal lambda.
+  GURL initial_url(
+      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+
+  if (initial_url.is_valid()) {
+    std::string partition_key = GetApplicationKey(initial_url);
+    auto record =
+        std::make_unique<starboard::StorageRecord>(partition_key.c_str());
+    DeleteLegacyStorageRecord(record.get());
+  }
+
+  // Also attempt to delete the fallback default record.
+  auto fallback_record = std::make_unique<starboard::StorageRecord>();
+  DeleteLegacyStorageRecord(fallback_record.get());
 }
 
 // Deletes legacy cache subdirectories asynchronously to free up disk space.
 // It ensures that it does not accidentally delete the current actively used
 // cache directory.
 void DeleteOldCacheDirectoryAsync() {
-  base::ThreadPool::CreateSequencedTaskRunner(
-      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
-      ->PostTask(
-          FROM_HERE, base::BindOnce([]() {
-            base::FilePath old_cache_path = GetOldCachePath();
-            if (old_cache_path.empty() || !base::PathExists(old_cache_path)) {
-              return;
-            }
+  base::FilePath old_cache_path = GetOldCachePath();
+  if (old_cache_path.empty() || !base::PathExists(old_cache_path)) {
+    return;
+  }
 
-            base::FilePath current_cache_path;
-            if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
-              LOG(ERROR) << "Failed to get current cache directory. Skipping "
-                            "deletion of old cache path.";
-              return;
-            }
-            if (!old_cache_path.IsParent(current_cache_path) &&
-                old_cache_path != current_cache_path) {
-              if (!base::DeletePathRecursively(old_cache_path)) {
-                LOG(ERROR) << "Failed to delete old cache directory: "
-                           << old_cache_path.value();
-              }
-              return;
-            }
+  base::FilePath current_cache_path;
+  if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
+    LOG(ERROR) << "Failed to get current cache directory. Skipping "
+                  "deletion of old cache path.";
+    return;
+  }
 
-            std::vector<std::string> old_cache_subpaths = {
-                "cache_settings.json",
-                "compiled_js",
-                "css",
-                "font",
-                "html",
-                "image",
-                "other",
-                "service_worker_settings.json",
-                "settings.json",
-                "splash",
-                "splash_screen",
-                "uncompiled_js",
-            };
-            for (const auto& subpath : old_cache_subpaths) {
-              base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
-              if (base::PathExists(old_cache_subpath)) {
-                if (!base::DeletePathRecursively(old_cache_subpath)) {
-                  LOG(ERROR) << "Failed to delete old cache subpath: "
-                             << old_cache_subpath.value();
-                }
-              }
-            }
-          }));
+  // Safety check: Don't delete the directory if it's currently in use.
+  if (!old_cache_path.IsParent(current_cache_path) &&
+      old_cache_path != current_cache_path) {
+    if (!base::DeletePathRecursively(old_cache_path)) {
+      LOG(ERROR) << "Failed to delete old cache directory: "
+                 << old_cache_path.value();
+    }
+    return;
+  }
+
+  // If the paths overlap, we delete only specific legacy subdirectories.
+  const std::vector<std::string> kOldCacheSubpaths = {
+      "cache_settings.json",
+      "compiled_js",
+      "css",
+      "font",
+      "html",
+      "image",
+      "other",
+      "service_worker_settings.json",
+      "settings.json",
+      "splash",
+      "splash_screen",
+      "uncompiled_js",
+  };
+
+  for (const auto& subpath : kOldCacheSubpaths) {
+    base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
+    if (base::PathExists(old_cache_subpath)) {
+      if (!base::DeletePathRecursively(old_cache_subpath)) {
+        LOG(ERROR) << "Failed to delete old cache subpath: "
+                   << old_cache_subpath.value();
+      }
+    }
+  }
 }
 
 void SetMigrationStatusUrlParameter(scoped_refptr<MigrationState> state) {
@@ -270,9 +258,20 @@ void SetMigrationStatusUrlParameter(scoped_refptr<MigrationState> state) {
 void CleanupLegacyFilesAsync(scoped_refptr<MigrationState> state) {
   base::UmaHistogramEnumeration(kOutcomeHistogram, state->GetOutcome());
   SetMigrationStatusUrlParameter(state);
-  DeleteOldCacheDirectoryAsync();
-  DeleteLegacyStorageFilesAsync();
-  WriteMigrationSentinelAsync(state);
+
+  // M138 Style: Use direct PostTask with explicit power traits.
+  // We don't need a SequencedTaskRunner because these three functions
+  // can actually run in parallel or on any available worker.
+  auto traits =
+      base::TaskTraits{base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+                       base::ThreadPolicy::PREFER_BACKGROUND,
+                       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN};
+  base::ThreadPool::PostTask(FROM_HERE, traits,
+                             base::BindOnce(&DeleteOldCacheDirectoryAsync));
+  base::ThreadPool::PostTask(FROM_HERE, traits,
+                             base::BindOnce(&DeleteLegacyStorageFilesAsync));
+  base::ThreadPool::PostTask(
+      FROM_HERE, traits, base::BindOnce(&WriteMigrationSentinelAsync, state));
 }
 
 // Creates a task that runs the legacy files cleanup and then immediately
@@ -586,21 +585,23 @@ Task MigrationManager::CookieTask(
         auto shared_state = base::MakeRefCounted<SharedClosureState>();
         shared_state->cb = std::move(callback);
 
-        // A barrier closure that executes the 'shared_state' callback only
-        // after all individual cookie Puts have completed.
+        // Success Path: The barrier executes the callback when all cookies are
+        // injected.
         base::RepeatingClosure barrier = base::BarrierClosure(
             cookies.size(), base::BindOnce(
                                 [](scoped_refptr<SharedClosureState> state) {
-                                  if (state->cb) {
-                                    LOG(INFO) << "Cookie injection complete.";
-                                    state->Run();
-                                  }
+                                  LOG(INFO) << "Cookie injection complete.";
+                                  state->Run();
                                 },
                                 shared_state));
 
         for (auto& cookie : cookies) {
           std::string name = cookie->Name();
+
+          // M138/Network Service: Ensure the source_url is a full GURL
+          // representing the cookie's domain to satisfy Schemeful Site checks.
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
+
           // Mojo IPC call to the Network Service.
           cookie_manager->SetCanonicalCookie(
               *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
@@ -613,20 +614,22 @@ Task MigrationManager::CookieTask(
                           << "SetCanonicalCookie failed for: " << cookie_name
                           << " with status: " << result.status.GetDebugString();
                     }
+
                     InjectionResult inj_result = result.status.IsInclude()
                                                      ? InjectionResult::kSuccess
                                                      : InjectionResult::kError;
+
+                    // Restored UMA Histograms
                     base::UmaHistogramEnumeration(
                         kCookieInjectionResultHistogram, inj_result);
+
                     state->UpdateCookieResult(inj_result);
                     barrier.Run();
                   },
                   barrier, name, state));
         }
 
-        // Hard timeout fallback: if the Network Service IPC drops the callback
-        // or hangs, this task guarantees the app startup resumes after 2
-        // seconds.
+        // Hard timeout fallback: guarantee app startup resumes after 2 seconds.
         base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE,
             base::BindOnce(
@@ -673,10 +676,10 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
 // Returns an asynchronous task that injects all legacy LocalStorage key-value
 // pairs into the Chromium Storage Service. This is executed as a multi-step
 // sequence:
-// 1. Send all `Put` commands over Mojo.
-// 2. Call `FlushForTesting()` to ensure LevelDB writes the Puts to the physical
+// 1. Send all Put commands over Mojo.
+// 2. Call FlushForTesting() to ensure LevelDB writes the Puts to the physical
 // disk.
-// 3. Call `PurgeMemory()` so that the Renderer fetches fresh data instead of
+// 3. Call PurgeMemory() so that the Renderer fetches fresh data instead of
 // using cached state.
 Task MigrationManager::LocalStorageTask(
     content::StoragePartition* partition,
