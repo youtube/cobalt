@@ -59,26 +59,28 @@ def build(package_platforms):
     for config in CONFIGS:
       out_dir = out_dir_for_google3(platform, config)
 
-      subprocess.call(
-          ['cobalt/build/gn.py', out_dir, '-p', platform, '-c', config])
+      subprocess.run(
+          ['cobalt/build/gn.py', out_dir, '-p', platform, '-c', config],
+          check=True)
 
       patch_args_for_google3(out_dir)
 
-      subprocess.call(['autoninja', '-C', out_dir, 'cobalt:gn_all'])
+      subprocess.run(['autoninja', '-C', out_dir, 'cobalt:gn_all'], check=True)
 
 
 def package(package_platforms, package_branch):
-  subprocess.call(['rm', '-rf', 'out/packages'])
+  subprocess.run(['rm', '-rf', 'out/packages'], check=True)
   for platform in package_platforms:
     for config in CONFIGS:
       out_dir = out_dir_for_google3(platform, config)
-      subprocess.call([
+      subprocess.run([
           'cobalt/build/packager.py',
           f'--name={platform}_{config}',
           '--json_path=cobalt/build/android/package.json',
           f'--out_dir={out_dir}',
           f'--package_dir=out/packages/{platform}_{package_branch}/local/local',
-      ])
+      ],
+                     check=True)
 
 
 if __name__ == '__main__':
