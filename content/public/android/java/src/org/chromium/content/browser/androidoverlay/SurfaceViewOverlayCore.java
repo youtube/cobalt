@@ -56,10 +56,7 @@ class SurfaceViewOverlayCore implements OverlayCore {
         if (config.secure) {
             mSurfaceView.setSecure(true);
         }
-        // Emulate how AndroidOverlay typically works: Punch a hole
         mSurfaceView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-        
-        mSurfaceView.getHolder().setFormat(PixelFormat.TRANSPARENT);
 
         // Initialize with MATCH_PARENT so the Android view system considers it valid
         // and creates the surface. The exact bounds will be set in layoutSurface().
@@ -87,7 +84,6 @@ class SurfaceViewOverlayCore implements OverlayCore {
 
         mCallbacks = new Callbacks();
         mSurfaceView.getHolder().addCallback(mCallbacks);
-
     }
 
     @Override
