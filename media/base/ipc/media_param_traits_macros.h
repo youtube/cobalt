@@ -239,6 +239,7 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
   IPC_STRUCT_TRAITS_MEMBER(video_renderer_min_input_buffers)
   IPC_STRUCT_TRAITS_MEMBER(video_renderer_min_decoded_frames)
   IPC_STRUCT_TRAITS_MEMBER(media_codec_reset_delay_ms)
+  IPC_STRUCT_TRAITS_MEMBER(use_dual_threads_for_video)
 IPC_STRUCT_TRAITS_END()
 
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
