@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_MEMORY_METRICS_H_
-#define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_MEMORY_METRICS_H_
-
 #include "starboard/android/shared/media_codec_memory_metrics.h"
 
 #include "starboard/android/shared/media_codec_bridge.h"
@@ -24,8 +21,6 @@ namespace starboard {
 // Returns the global memory usage of all MediaCodec output buffers.
 int64_t GetGlobalOutputMemoryUsage() {
   return MediaCodecBridge::GetGlobalOutputMemoryUsage();
-};
+}
 
 }  // namespace starboard
-
-#endif  // STARBOARD_ANDROID_SHARED_MEDIA_CODEC_MEMORY_METRICS_H_
