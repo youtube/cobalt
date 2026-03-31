@@ -51,14 +51,11 @@ static_library("common") {
     "device_type.h",
     "drm.cc",
     "drm.h",
-<<<<<<< HEAD
     "expected.h",
-=======
     "experimental/media_buffer_pool.cc",
     "experimental/media_buffer_pool.h",
     "experimental/media_buffer_pool_bidirectional_reuse_allocator.h",
     "experimental/media_buffer_pool_memory_allocator.h",
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
