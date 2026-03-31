@@ -94,13 +94,16 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // go/chrobalt-pre-initialization-storage-migration-pipeline
 #if !BUILDFLAG(IS_ANDROID)
   auto create_window_task = base::BindOnce(
-      [](GURL url, std::string deeplink_url,
+      [](std::string deeplink_url,
          content::ShellBrowserContext* browser_context) {
+        base::CommandLine* command_line =
+            base::CommandLine::ForCurrentProcess();
+        GURL url = GURL(switches::GetInitialURL(*command_line));
         content::Shell::CreateNewWindow(
             browser_context, url, nullptr, gfx::Size(),
             ::switches::ShouldCreateSplashScreen(), deeplink_url);
       },
-      GetStartupURL(), deep_link(), browser_context());
+      deep_link(), browser_context());
   PostOrRunIfStorageMigrationFinished(std::move(create_window_task));
 #endif
 }
@@ -161,29 +164,30 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
 
-  #if !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_ANDROIDTV)
   // Inject the migration telemetry into the global command line URL.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   GURL url = GURL(switches::GetInitialURL(*command_line));
-  const std::string status_param = cobalt::migrate_storage_record::MigrationManager::GetMigrationStatusUrlParameter();
-  LOG(INFO) << "Hao: url= " << url.spec();
-  LOG(INFO) << "Hao: status_param= " << status_param;
+  const std::string status_param = cobalt::migrate_storage_record::
+      MigrationManager::GetMigrationStatusUrlParameter();
 
   if (url.is_valid() && !status_param.empty()) {
     GURL::Replacements replacements;
     std::string query = url.query();
     if (!query.empty()) {
-       query += "&";
+      query += "&";
     }
     query += status_param;
     replacements.SetQueryStr(query);
     url = url.ReplaceComponents(replacements);
-  
+
     command_line->RemoveSwitch(switches::kInitialURL);
     command_line->AppendSwitchASCII(switches::kInitialURL, url.spec());
-    LOG(INFO) << "Storage migration status telemetry injected into global startup URL: " << url.spec();
+    LOG(INFO) << "Storage migration status telemetry injected into global "
+                 "startup URL: "
+              << url.spec();
   }
-  #endif  // !BUILDFLAG(IS_ANDROIDTV)
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
   migration_finished_ = true;
   if (pending_task_) {
