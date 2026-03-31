@@ -15,6 +15,7 @@
   },
   "targets": [
     "libloader_app.so",
+    "elf_loader_sandbox",
     "cobalt:gn_all",
     "loader_app"
   ],
