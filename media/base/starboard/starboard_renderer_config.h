@@ -38,6 +38,11 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     std::optional<int> video_decoder_initial_preroll_count;
     std::optional<int> video_renderer_min_input_buffers;
     std::optional<int> video_renderer_min_decoded_frames;
+<<<<<<< HEAD
+=======
+    std::optional<int> media_codec_reset_delay_ms;
+    std::optional<bool> use_dual_threads_for_video;
+>>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
   };
 
   StarboardRendererConfig();

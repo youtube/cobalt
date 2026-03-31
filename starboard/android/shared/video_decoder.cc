@@ -412,6 +412,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
+<<<<<<< HEAD
+=======
+      use_dual_threads_(experimental_features.use_dual_threads_for_video),
+>>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
