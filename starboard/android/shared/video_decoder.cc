@@ -978,7 +978,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()
           ->GetMaxOutputVideoBuffers(output_format_.value());
   if (max_output_buffers > 0 &&
-      max_output_buffers < kInitialPrerollFrameCount) {
+      max_output_buffers < number_of_preroll_frames_) {
     number_of_preroll_frames_ = max_output_buffers;
   }
 }
