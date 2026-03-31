@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
 
@@ -88,6 +89,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };
 
 }  // namespace cobalt

@@ -342,7 +342,7 @@ ReadAndParseLegacyStorageRecord() {
       }
     }
 
-    if (static_cast<size_t>(record->GetSize()) < kRecordHeaderSize) {
+    if (record->GetSize() < static_cast<int64_t>(kRecordHeaderSize)) {
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -554,7 +554,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), true,
+        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
         c.http_only(), net::CookieSameSite::NO_RESTRICTION,
         net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
