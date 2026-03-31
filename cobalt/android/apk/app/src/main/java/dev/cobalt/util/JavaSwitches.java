@@ -85,6 +85,16 @@ public class JavaSwitches {
   /** flag to enable Async DNS mode and DNS over Https */
   public static final String ENABLE_ASYNC_DNS_AND_DOH = "EnableAsyncDnsAndDoH";
 
+  /** Limit decoded image cache size. Value type: Integer (MB) */
+  public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
+
+  /** Limit the age of decoded images in the cache. Value type: Integer (seconds) */
+  public static final String LIMIT_IMAGE_DECODE_CACHE_AGE_SECONDS =
+      "LimitImageDecodeCacheAgeSeconds";
+
+  /** Force GPU memory available. Value type: Integer (MB) */
+  public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -180,6 +190,32 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ASYNC_DNS_AND_DOH)) {
       extraCommandLineArgs.add("--enable-features=AsyncDnsAndDoH");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB)) {
+      extraCommandLineArgs.add(
+          "--enable-features=LimitImageDecodeCacheSize:mb/"
+              + javaSwitches
+                  .get(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB)
+                  .replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--enable-features=LimitImageDecodeCacheSize:mb/24");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_AGE_SECONDS)) {
+      extraCommandLineArgs.add(
+          "--enable-features=LimitImageDecodeCacheAge:seconds/"
+              + javaSwitches
+                  .get(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_AGE_SECONDS)
+                  .replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--enable-features=LimitImageDecodeCacheAge:seconds/5");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB)) {
+      extraCommandLineArgs.add(
+          "--force-gpu-mem-available-mb="
+              + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
     }
 
     return extraCommandLineArgs;
