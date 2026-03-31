@@ -551,16 +551,29 @@ std::vector<std::unique_ptr<net::CanonicalCookie>>
 MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   for (auto& c : storage.cookies()) {
-    cookies.push_back(net::CanonicalCookie::FromStorage(
+    // CRITICAL for M138: SameSite=None MUST be Secure.
+    // We force is_secure to true because legacy Cobalt cookies
+    // often lack this bit but require cross-site access.
+    bool is_secure = true;
+
+    auto cookie = net::CanonicalCookie::FromStorage(
         c.name(), c.value(), c.domain(), c.path(),
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), true,
-        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
-        net::CookieSourceType::kOther));
+        base::Time::FromInternalValue(c.creation_time_us()), is_secure,
+        c.http_only(),
+        net::CookieSameSite::NO_RESTRICTION,  // SameSite=None
+        net::COOKIE_PRIORITY_DEFAULT,
+        std::nullopt,  // PartitionKey
+        // Since we use https:// in CookieTask, use kSecure here.
+        net::CookieSourceScheme::kSecure, 443, net::CookieSourceType::kOther);
+
+    if (cookie) {
+      cookies.push_back(std::move(cookie));
+    } else {
+      LOG(ERROR) << "Failed to create CanonicalCookie for: " << c.name();
+    }
   }
   return cookies;
 }
@@ -602,9 +615,16 @@ Task MigrationManager::CookieTask(
           // representing the cookie's domain to satisfy Schemeful Site checks.
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
 
+          // M138 Change: Explicitly set the SameSite Context to Inclusive.
+          // This prevents IsSetPermittedInContext from crashing when it sees
+          // a legacy cookie that doesn't match strict modern site rules.
+          net::CookieOptions options = net::CookieOptions::MakeAllInclusive();
+          options.set_same_site_cookie_context(
+              net::CookieOptions::SameSiteCookieContext::MakeInclusive());
+
           // Mojo IPC call to the Network Service.
           cookie_manager->SetCanonicalCookie(
-              *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
+              *cookie, source_url, options,
               base::BindOnce(
                   [](base::RepeatingClosure barrier, std::string cookie_name,
                      scoped_refptr<MigrationState> state,
