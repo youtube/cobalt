@@ -22,13 +22,9 @@ namespace media {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 
-<<<<<<< HEAD
-bool s_use_allocator = false;
-=======
 DecoderBuffer::Allocator* s_allocator = nullptr;
-bool s_use_allocator = true;
+bool s_use_allocator = false;
 
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
 }  // namespace
 
 // static
@@ -74,15 +70,6 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 
 }  // namespace
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
-=======
-  s_allocator->Write(allocator_data_->handle, data, size_);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  memcpy(data_.get(), data, size_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
-
 // --- Starboard-specific Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
   if (size_ > 0) {
@@ -110,11 +97,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     Initialize();
     memcpy(writable_data(), data, size_);
   }
-<<<<<<< HEAD
-  memcpy(writable_data(), data, size_);
 }
-=======
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
 
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              base::span<const uint8_t> data)
@@ -216,32 +199,14 @@ void DecoderBuffer::Initialize() {
 
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   DCHECK(s_allocator);
-<<<<<<< HEAD
   DCHECK(data_.empty());
   DCHECK(!allocator_data_);
-
-  int alignment = s_allocator->GetBufferAlignment();
-  int padding = s_allocator->GetBufferPadding();
-  base::CheckedNumeric<size_t> checked_allocated_size = size_;
-  checked_allocated_size += padding;
-  size_t allocated_size = checked_allocated_size.ValueOrDie();
-  allocator_data_.emplace(static_cast<uint8_t*>(s_allocator->Allocate(
-                              type, allocated_size, alignment)),
-                          allocated_size);
-  memset(allocator_data_->data + size_, 0, padding);
-=======
-  DCHECK(!data_);
   DCHECK_EQ(s_allocator->GetBufferPadding(), 0);
 
   int alignment = s_allocator->GetBufferAlignment();
-
   allocator_data_.emplace(type,
                           s_allocator->Allocate(type, size_, alignment),
                           size_);
-
-  if (side_data_size_ > 0)
-    side_data_.reset(new uint8_t[side_data_size_]);
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
