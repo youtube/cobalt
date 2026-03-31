@@ -901,18 +901,10 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-<<<<<<< HEAD
     if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->data(), buffer, /*usage_count=*/1, sample_type);
+            buffer->handle(), buffer, /*usage_count=*/1, sample_type);
         !inserted) {
       ++iter->second.usage_count;
-=======
-    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->handle());
-    if (iter == decoding_buffers_.end()) {
-      decoding_buffers_[buffer->handle()] = std::make_pair(buffer, 1);
-    } else {
-      ++iter->second.second;
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -943,14 +935,9 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     SbPlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
-<<<<<<< HEAD
-    sample_info.buffer = buffer->data();
-    sample_info.buffer_size = buffer->size();
-=======
     // Cast the handle to void* to reuse the existing SbPlayerWriteSamples().
     sample_info.buffer = reinterpret_cast<void*>(buffer->handle());
-    sample_info.buffer_size = buffer->data_size();
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+    sample_info.buffer_size = buffer->size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
     if (buffer->side_data() && !buffer->side_data()->alpha_data.empty()) {
