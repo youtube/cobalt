@@ -422,9 +422,10 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
-      number_of_preroll_frames_(
+      initial_number_of_preroll_frames_(
           experimental_features.video_decoder_initial_preroll_count.value_or(
-              kInitialPrerollFrameCount)) {
+              kInitialPrerollFrameCount)),
+      number_of_preroll_frames_(initial_number_of_preroll_frames_) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -977,8 +978,13 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   auto max_output_buffers =
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()
           ->GetMaxOutputVideoBuffers(output_format_.value());
-  if (max_output_buffers > 0 &&
-      max_output_buffers < number_of_preroll_frames_) {
+  // When the output format changes, we re-calculate the preroll frame count
+  // (not re-using the existing preroll count). For example, the hardware's
+  // buffer limit for 4K may be much lower than for 720p, and we want to tailor
+  // the preroll specifically to the current format's capabilities.
+  number_of_preroll_frames_ = initial_number_of_preroll_frames_;
+  if (max_output_buffers > 0 && static_cast<size_t>(max_output_buffers) <
+                                    initial_number_of_preroll_frames_) {
     number_of_preroll_frames_ = max_output_buffers;
   }
 }
