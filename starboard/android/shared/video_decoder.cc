@@ -978,10 +978,6 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   auto max_output_buffers =
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()
           ->GetMaxOutputVideoBuffers(output_format_.value());
-  // When the output format changes, we re-calculate the preroll frame count
-  // (not re-using the existing preroll count). For example, the hardware's
-  // buffer limit for 4K may be much lower than for 720p, and we want to tailor
-  // the preroll specifically to the current format's capabilities.
   if (max_output_buffers > 0 &&
       max_output_buffers < initial_number_of_preroll_frames_) {
     number_of_preroll_frames_ = max_output_buffers;
