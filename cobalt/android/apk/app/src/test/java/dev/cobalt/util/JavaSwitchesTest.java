@@ -56,7 +56,6 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_NOWASM_CODE_GC, "true");
     javaSwitches.put(JavaSwitches.DISABLE_SPLASH_SCREEN, "true");
     javaSwitches.put(JavaSwitches.FORCE_IMAGE_SPLASH_SCREEN, "true");
-    javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "24");
     javaSwitches.put(JavaSwitches.ENABLE_AV1_STARTUP_OPTIMIZATION, "true");
     javaSwitches.put(JavaSwitches.DISABLE_SW_AV1_DECODER, "true");
 
@@ -78,20 +77,9 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--nowasm-code-gc");
     assertThat(args).contains("--disable-splash-screen");
     assertThat(args).contains("--force-image-splash-screen");
-    assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=24");
     assertThat(args).contains("--enable-features=EnableAv1StartupOptimization");
     assertThat(args).contains("--enable-features=RejectLowPerformanceSoftwareDecoder");
-    assertThat(args).hasSize(15);
-  }
-
-  @Test
-  public void getExtraCommandLineArgs_SkiaGaneshResourceCacheLimitMb() {
-    Map<String, String> javaSwitches = new HashMap<>();
-    javaSwitches.put(JavaSwitches.SKIA_GANESH_RESOURCE_CACHE_LIMIT_MB, "32 MiB");
-
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
-
-    assertThat(args).contains("--skia-ganesh-resource-cache-limit-mb=32");
+    assertThat(args).hasSize(14);
   }
 
   @Test
