@@ -13,6 +13,12 @@ inputs:
   enable_sccache:
     description: Use sccache for build acceleration.
     default: 'false'
+  is_asan:
+    description: "Enable ASAN"
+    default: 'false'
+  is_lsan:
+    description: "Enable LSAN"
+    default: 'false'
   sccache_gcs_key:
     description: GCS SA key to read/write to bucket
 runs:
@@ -30,6 +36,8 @@ runs:
       - name: GN gen
         env:
           ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
+          IS_ASAN: ${{ inputs.is_asan }}
+          IS_LSAN: ${{ inputs.is_lsan }}
         run: |
           cd cobalt/src
           gn_flags=()
@@ -39,6 +47,12 @@ runs:
           fi
           if [[ $ENABLE_SCCACHE == "true" ]]; then
             gn_flags+=(--use-sccache)
+          fi
+          if [[ $IS_ASAN == "true" ]]; then
+            gn_flags+=(--asan)
+          fi
+          if [[ $IS_LSAN == "true" ]]; then
+            gn_flags+=(--lsan)
           fi
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
         shell: bash

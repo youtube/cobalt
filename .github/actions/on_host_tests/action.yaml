@@ -46,7 +46,7 @@ runs:
 
         # TODO: b/467135717 - Remove this once tests don't have asan leaks.
         # Don't fail if only asan fails.
-        export ASAN_OPTIONS=exitcode=0
+        export ASAN_OPTIONS="allocator_may_return_null=1 symbolize=1 external_symbolizer_path=./third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer detect_leaks=1 detect_odr_violation=0"
 
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"

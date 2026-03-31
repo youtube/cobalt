@@ -81,7 +81,7 @@ _COBALT_TVOS_PLATFORMS = [
 
 # pylint: disable=too-many-positional-arguments
 def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
-                     use_coverage, use_sccache):
+                     use_coverage, use_sccache, use_asan, use_lsan):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
@@ -90,6 +90,10 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
       f.write(f'use_siso = true {gen_comment}\n')
     if use_sccache:
       f.write(f'cc_wrapper = "sccache" {gen_comment}\n')
+    if use_asan:
+      f.write(f'is_asan = true {gen_comment}\n')
+    if use_lsan:
+      f.write(f'is_lsan = true {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
@@ -100,7 +104,8 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
                             use_rbe: bool, gn_gen_args: List[str], *,
-                            use_coverage: bool, use_sccache: bool):
+                            use_coverage: bool, use_sccache: bool,
+                            use_asan: bool, use_lsan: bool):
   Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
@@ -114,7 +119,7 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
           'Old file was copied to stale_args.gn.')
 
   write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe,
-                   use_coverage, use_sccache)
+                   use_coverage, use_sccache, use_asan, use_lsan)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print('Running', ' '.join(gn_command))
@@ -168,6 +173,16 @@ def parse_args():
       default=False,
       action='store_true',
       help='Use sccache for build acceleration.')
+  parser.add_argument(
+      '--asan',
+      default=False,
+      action='store_true',
+      help='Pass this flag to enable AddressSanitizer.')
+  parser.add_argument(
+      '--lsan',
+      default=False,
+      action='store_true',
+      help='Pass this flag to enable LeakSanitizer.')
 
   # Consume --args to avoid passing to gn gen, overriding args.gn file.
   parser.add_argument('--args', help=argparse.SUPPRESS)
@@ -200,7 +215,9 @@ def main():
       not script_args.no_rbe,
       gen_args,
       use_coverage=script_args.coverage,
-      use_sccache=script_args.use_sccache)
+      use_sccache=script_args.use_sccache,
+      use_asan=script_args.asan,
+      use_lsan=script_args.lsan)
 
 
 if __name__ == '__main__':
