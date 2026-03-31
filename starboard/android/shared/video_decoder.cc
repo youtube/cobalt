@@ -982,9 +982,8 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   // (not re-using the existing preroll count). For example, the hardware's
   // buffer limit for 4K may be much lower than for 720p, and we want to tailor
   // the preroll specifically to the current format's capabilities.
-  number_of_preroll_frames_ = initial_number_of_preroll_frames_;
-  if (max_output_buffers > 0 && static_cast<size_t>(max_output_buffers) <
-                                    initial_number_of_preroll_frames_) {
+  if (max_output_buffers > 0 &&
+      max_output_buffers < initial_number_of_preroll_frames_) {
     number_of_preroll_frames_ = max_output_buffers;
   }
 }
