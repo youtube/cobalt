@@ -16,13 +16,9 @@
 
 #include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
-<<<<<<< HEAD
+#include "media/base/decoder_buffer.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
-=======
-#include "media/base/decoder_buffer.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
@@ -97,25 +93,17 @@ void H5vccSettings::ContextDestroyed() {
   ongoing_requests_.clear();
 }
 
-<<<<<<< HEAD
 ScriptPromise<IDLUndefined> H5vccSettings::set(
     ScriptState* script_state,
     const WTF::String& name,
     const V8UnionLongOrString* value,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
-=======
-ScriptPromise H5vccSettings::set(ScriptState* script_state,
-                                 const WTF::String& name,
-                                 const V8UnionLongOrString* value,
-                                 ExceptionState& exception_state) {
   if (name.StartsWith(kDecoderBufferSettingPrefix)) {
     return ProcessDecoderBufferSettings(script_state, name, value,
                                         exception_state);
   }
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
->>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
