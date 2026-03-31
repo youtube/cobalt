@@ -46,6 +46,10 @@ class SplashScreenTest : public ShellTestBase {
 
   void CallDidStopLoading(Shell* shell) { shell->DidStopLoading(); }
 
+  void CallOnSplashScreenLoadComplete(Shell* shell) {
+    shell->OnSplashScreenLoadComplete();
+  }
+
   Shell::State GetSplashState(Shell* shell) { return shell->splash_state_; }
 
   bool IsMainFrameLoaded(Shell* shell) { return shell->is_main_frame_loaded_; }
@@ -104,7 +108,7 @@ TEST_F(SplashScreenTest, ParallelLoading) {
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
   ExpectStateStarted(shell);
-
+  CallOnSplashScreenLoadComplete(shell);
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(IsMainFrameLoaded(shell));
@@ -133,6 +137,7 @@ TEST_F(SplashScreenTest, EarlyMainContentLoad) {
 
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
@@ -206,6 +211,7 @@ TEST_F(SplashScreenTest, DestroyShellWhileSwitching) {
       CreateShell(std::move(web_contents), std::move(splash_contents));
 
   CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
@@ -297,6 +303,7 @@ TEST_F(SplashScreenTest, MultipleLoadProgressEvents) {
       CreateShell(std::move(web_contents), std::move(splash_contents));
 
   CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 0.5);
   EXPECT_FALSE(IsMainFrameLoaded(shell));
   CallLoadProgressChanged(shell, 1.0);
@@ -322,7 +329,8 @@ TEST_F(SplashScreenTest, SplashTimeoutExceededBeforeMainLoad) {
   Shell* shell =
       CreateShell(std::move(web_contents), std::move(splash_contents));
   CallLoadSplashScreenWebContents(shell);
-  task_environment()->FastForwardBy(base::Milliseconds(2000));
+  CallOnSplashScreenLoadComplete(shell);
+  task_environment_.FastForwardBy(base::Milliseconds(2000));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   CallLoadProgressChanged(shell, 1.0);
   task_environment()->RunUntilIdle();
@@ -348,6 +356,7 @@ TEST_F(SplashScreenTest, MainContentLoadBeforeSplashStart) {
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   task_environment()->FastForwardBy(base::Milliseconds(2000));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
@@ -370,6 +379,7 @@ TEST_F(SplashScreenTest, MainContentDidStopLoadingFallback) {
       CreateShell(std::move(web_contents), std::move(splash_contents));
 
   CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 0.9);
   EXPECT_FALSE(IsMainFrameLoaded(shell));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
@@ -404,6 +414,29 @@ TEST_F(SplashScreenTest, PreloadSkipsSplashScreen) {
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, SplashTimerStartsOnLoadComplete) {
+  WebContents::CreateParams create_params(browser_context_.get());
+  create_params.desired_renderer_state =
+      WebContents::CreateParams::kNoRendererProcess;
+  std::unique_ptr<WebContents> web_contents(
+      TestWebContents::Create(create_params));
+  std::unique_ptr<WebContents> splash_contents(
+      TestWebContents::Create(create_params));
+  Shell* shell =
+      CreateShell(std::move(web_contents), std::move(splash_contents));
+  CallLoadSplashScreenWebContents(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_TRUE(IsMainFrameLoaded(shell));
+  task_environment_.FastForwardBy(base::Seconds(10));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+  CallOnSplashScreenLoadComplete(shell);
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment_.FastForwardBy(base::Milliseconds(1600));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
   shell->Close();
 }
 
