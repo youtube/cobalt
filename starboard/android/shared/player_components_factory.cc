@@ -75,6 +75,13 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
 
+bool UseLibopusDecoder(SbMediaAudioCodec codec,
+                       SbDrmSystem drm_system,
+                       bool force_platform_opus_decoder) {
+  return codec == kSbMediaAudioCodecOpus && !SbDrmSystemIsValid(drm_system) &&
+         !force_platform_opus_decoder;
+}
+
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
   const auto& experimental_features =
@@ -205,6 +212,15 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 };
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
+ public:
+  PlayerComponentsFactory()
+      : force_platform_opus_decoder_(features::FeatureList::IsEnabled(
+            features::kForcePlatformOpusDecoder)) {
+    SB_LOG_IF(INFO, force_platform_opus_decoder_)
+        << "kForcePlatformOpusDecoder is set to true, force using platform opus"
+        << " codec instead of libopus.";
+  }
+
   typedef starboard::shared::starboard::media::MimeType MimeType;
   typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
   typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
@@ -452,12 +468,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_renderer_sink);
 
       using starboard::shared::starboard::media::AudioStreamInfo;
-      const bool enable_platform_opus_decoder =
-          starboard::features::FeatureList::IsEnabled(
-              starboard::features::kForcePlatformOpusDecoder);
-      SB_LOG_IF(INFO, enable_platform_opus_decoder)
-          << "kForcePlatformOpusDecoder is set to true, force using "
-          << "platform opus codec instead of libopus.";
       const bool pause_using_audio_track_state =
           starboard::features::FeatureList::IsEnabled(
               features::kPauseUsingAudioTrackState) ||
@@ -465,14 +475,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, pause_using_audio_track_state)
           << "kPauseUsingAudioTrackState is set to true, force using "
           << "AudioTrackState while pausing playback.";
+      const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
-          [enable_flush_during_seek, enable_platform_opus_decoder](
+          [enable_flush_during_seek, force_platform_opus_decoder](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoderBase> {
-        bool use_libopus_decoder =
-            audio_stream_info.codec == kSbMediaAudioCodecOpus &&
-            !SbDrmSystemIsValid(drm_system) && !enable_platform_opus_decoder;
-        if (use_libopus_decoder) {
+        if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
+                              force_platform_opus_decoder)) {
           auto audio_decoder_impl =
               std::make_unique<OpusAudioDecoder>(audio_stream_info);
           if (audio_decoder_impl->is_valid()) {
@@ -637,14 +646,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       // more straightforward.
       // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
       // where technically the stream can start with aac then transit into opus.
-      const bool force_platform_opus_decoder =
-          starboard::features::FeatureList::IsEnabled(
-              starboard::features::kForcePlatformOpusDecoder);
-      bool use_libopus_decoder =
-          creation_parameters.audio_codec() == kSbMediaAudioCodecOpus &&
-          !SbDrmSystemIsValid(creation_parameters.drm_system()) &&
-          !force_platform_opus_decoder;
-      if (!use_libopus_decoder) {
+      if (!UseLibopusDecoder(creation_parameters.audio_codec(),
+                             creation_parameters.drm_system(),
+                             force_platform_opus_decoder_)) {
         experimental_features.use_dual_threads_for_video = false;
       }
     }
@@ -764,6 +768,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 
  private:
+  const bool force_platform_opus_decoder_;
   bool is_tunnel_mode_used_ = false;
 };
 
