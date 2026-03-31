@@ -8,9 +8,9 @@
 #include "media/base/decoder_buffer.h"
 #endif
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID) 
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/media_codec_memory_metrics.h"
-#endif 
+#endif
 
 namespace media {
 

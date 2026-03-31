@@ -118,7 +118,7 @@ class MediaCodecBridge {
 
   private static AtomicLong globalTotalMemoryUsage = new AtomicLong(0L);
   @CalledByNative
-  public static long getGlobalOutputMemoryUsage(){
+  public static long getGlobalOutputMemoryUsage() {
     return globalTotalMemoryUsage.get();
   }
 
@@ -132,9 +132,25 @@ class MediaCodecBridge {
         mTotalMemoryUsage -= oldSize;
         globalTotalMemoryUsage.addAndGet(-oldSize);
       }
-      mBufferSizes.put(index, size);
-      mTotalMemoryUsage += size;
-      globalTotalMemoryUsage.addAndGet(size);
+      int trackedSize = size;
+            if (mDecodesToSurface) {
+                try {
+                    if (mActiveFormat != null) {
+                        int width = mActiveFormat.width();
+                        int height = mActiveFormat.height();
+                        if (width > 0 && height > 0) {
+                            // This is an estimated size assuming YUV420 format
+                            // width * height * 1.5
+                            trackedSize = width * height * 3 / 2;
+                        }
+                    }
+                } catch (Exception e) {
+                    trackedSize = 0;
+                }
+            }
+      mBufferSizes.put(index, trackedSize);
+      mTotalMemoryUsage += sitrackedSizeze;
+      globalTotalMemoryUsage.addAndGet(trackedSize);
     }
 
     public synchronized void remove(int index) {
@@ -148,13 +164,15 @@ class MediaCodecBridge {
 
     public synchronized void reset() {
       mBufferSizes.clear();
-      globalTotalMemoryUsage.addAndGet(-mTotalMemoryUsage); 
+      globalTotalMemoryUsage.addAndGet(-mTotalMemoryUsage);
       mTotalMemoryUsage = 0;
     }
   }
 
   private FrameRateEstimator mFrameRateEstimator = null;
   private final OutputMemoryTracker mOutputMemoryTracker;
+  private MediaFormatWrapper mActiveFormat = null;
+  private boolean mDecodesToSurface = false;
 
    /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
@@ -375,6 +393,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              mActiveFormat = new MediaFormatWrapper(format);
               MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.reset();
@@ -901,6 +920,7 @@ class MediaCodecBridge {
       }
 
       maybeSetMaxVideoInputSize(format);
+      mDecodesToSurface = surface != null;
       mMediaCodec.get().configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;
