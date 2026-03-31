@@ -8,6 +8,9 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
@@ -137,6 +140,7 @@ MediaStreamUIProxy::Core::~Core() {
 
 void MediaStreamUIProxy::Core::RequestAccess(
     std::unique_ptr<MediaStreamRequest> request) {
+  TRACE_EVENT("media", "RecordLatency::UI_RequestAccess");
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   RenderFrameHostDelegate* render_delegate = GetRenderFrameHostDelegate(

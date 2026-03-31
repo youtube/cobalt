@@ -2586,6 +2586,7 @@ void MediaStreamManager::PostRequestToUI(
     const std::string& label,
     const MediaDeviceEnumeration& enumeration,
     const absl::optional<media::AudioParameters>& output_parameters) {
+  TRACE_EVENT("media", "RecordLatency::MSM_PostRequestToUI");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(!output_parameters || output_parameters->IsValid());
   DeviceRequest* request = FindRequest(label);
@@ -2622,6 +2623,7 @@ void MediaStreamManager::PostRequestToUI(
 }
 
 void MediaStreamManager::SetUpRequest(const std::string& label) {
+  TRACE_EVENT("media", "RecordLatency::MSM_SetUpRequest");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const DeviceRequests::const_iterator request_it = FindRequestIterator(label);

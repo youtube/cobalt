@@ -550,6 +550,17 @@ absl::optional<double> AudioProcessor::ProcessData(
   const webrtc::StreamConfig apm_output_config = webrtc::StreamConfig(
       output_format_.sample_rate(), num_apm_output_channels);
 
+  if (input_format_.sample_rate() != output_format_.sample_rate()) {
+    TRACE_EVENT2("audio", "AudioProcessor::ProcessData_Resampling",
+                 "input_rate", input_format_.sample_rate(),
+                 "output_rate", output_format_.sample_rate());
+    if (!resampling_logged_) {
+      LOG(INFO) << "KJ: Native Resampling Triggered: " << input_format_.sample_rate()
+                << " -> " << output_format_.sample_rate();
+      resampling_logged_ = true;
+    }
+  }
+
   int err = ap->ProcessStream(process_ptrs, CreateStreamConfig(input_format_),
                               apm_output_config, output_ptrs);
   DCHECK_EQ(err, 0) << "ProcessStream() error: " << err;

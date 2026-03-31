@@ -203,7 +203,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
                          GetNativeOutputSampleRate(), buffer_size);
   params.set_effects(effects);
-  DVLOG(1) << params.AsHumanReadableString();
+  LOG(INFO) << "KJ: " << __func__ << "params=" << params.AsHumanReadableString();
   return params;
 }
 
