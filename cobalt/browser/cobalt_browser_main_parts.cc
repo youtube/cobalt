@@ -21,6 +21,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
+#include "base/task/bind_post_task.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
@@ -137,13 +138,27 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 
 void CobaltBrowserMainParts::StartStorageMigration() {
   LOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
+
+  // Ensure we are on the UI thread/Expected sequence before accessing the
+  // partition.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
+
   content::StoragePartition* partition =
       browser_context()->GetDefaultStoragePartition();
 
   DCHECK(partition);
+
+  // M138 Change: Use base::BindPostTask to wrap the completion callback.
+  // This guarantees that regardless of which thread the MigrationManager
+  // finishes on, OnMigrationComplete will execute back on this UI sequence.
+  auto completion_callback = base::BindPostTask(
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
+                     base::Unretained(this)));
+
   cobalt::migrate_storage_record::MigrationManager::RunMigration(
-      partition, base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
-                                base::Unretained(this)));
+      partition, std::move(completion_callback));
 }
 
 void CobaltBrowserMainParts::OnMigrationComplete() {
