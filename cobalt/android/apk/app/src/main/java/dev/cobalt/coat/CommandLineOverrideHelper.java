@@ -66,6 +66,9 @@ public final class CommandLineOverrideHelper {
   public static StringJoiner getDefaultJsFlagOverridesList() {
     StringJoiner paramOverrides = new StringJoiner(",");
 
+    // Set initial old space size to 64MB.
+    paramOverrides.add("--initial-old-space-size=64");
+
     return paramOverrides;
   }
 

@@ -49,7 +49,6 @@ public class JavaSwitchesTest {
     javaSwitches.put(JavaSwitches.V8_JITLESS, "true");
     javaSwitches.put(JavaSwitches.V8_WRITE_PROTECT_CODE_MEMORY, "true");
     javaSwitches.put(JavaSwitches.V8_GC_INTERVAL, "1000");
-    javaSwitches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128");
     javaSwitches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "256");
     javaSwitches.put(JavaSwitches.V8_MAX_SEMI_SPACE_SIZE, "16");
     javaSwitches.put(JavaSwitches.V8_HEAP_GROWING_PERCENT, "50");
@@ -69,7 +68,6 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--js-flags=--jitless");
     assertThat(args).contains("--js-flags=--write-protect-code-memory");
     assertThat(args).contains("--js-flags=--gc-interval=1000");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=128");
     assertThat(args).contains("--js-flags=--max-old-space-size=256");
     assertThat(args).contains("--js-flags=--max-semi-space-size=16");
     assertThat(args).contains("--js-flags=--heap-growing-percent=50");
@@ -79,7 +77,7 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--force-image-splash-screen");
     assertThat(args).contains("--enable-features=EnableAv1StartupOptimization");
     assertThat(args).contains("--enable-features=RejectLowPerformanceSoftwareDecoder");
-    assertThat(args).hasSize(14);
+    assertThat(args).hasSize(13);
   }
 
   @Test
@@ -97,12 +95,10 @@ public class JavaSwitchesTest {
   public void getExtraCommandLineArgs_SanitizeValues() {
     Map<String, String> javaSwitches = new HashMap<>();
     javaSwitches.put(JavaSwitches.V8_GC_INTERVAL, "1,000ms");
-    javaSwitches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128 MiB");
 
     List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
 
     assertThat(args).contains("--js-flags=--gc-interval=1000");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=128");
   }
 
   @Test
