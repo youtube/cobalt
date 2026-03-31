@@ -768,6 +768,8 @@ void SbPlayerBridge::CreatePlayer() {
 
     extension_features.enable_av1_startup_optimization =
         experimental_features_.enable_av1_startup_optimization;
+    extension_features.enable_codec_output_checker =
+        experimental_features_.enable_codec_output_checker;
     extension_features.disable_low_performance_sw_decoder =
         experimental_features_.disable_low_performance_sw_decoder;
     extension_features.flush_decoder_during_reset =

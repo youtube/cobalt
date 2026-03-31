@@ -417,6 +417,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
+      enable_output_checker_(experimental_features.enable_codec_output_checker),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
@@ -799,7 +800,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      error_message));
+      enable_output_checker_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

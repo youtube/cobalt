@@ -30,6 +30,7 @@ namespace media {
 struct MEDIA_EXPORT StarboardRendererConfig {
   struct ExperimentalFeatures {
     bool enable_av1_startup_optimization = false;
+    bool enable_codec_output_checker = false;
     bool enable_flush_during_seek = false;
     bool enable_reset_audio_decoder = false;
     bool disable_low_performance_sw_decoder = false;

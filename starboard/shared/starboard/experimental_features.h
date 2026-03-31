@@ -28,6 +28,7 @@ namespace starboard::shared::starboard {
 struct ExperimentalFeatures {
   // The fields should be in alphabetical order.
   bool enable_av1_startup_optimization = false;
+  bool enable_codec_output_checker = false;
   bool disable_low_performance_sw_decoder = false;
   bool flush_decoder_during_reset = false;
   std::optional<int> media_codec_reset_delay_ms;
