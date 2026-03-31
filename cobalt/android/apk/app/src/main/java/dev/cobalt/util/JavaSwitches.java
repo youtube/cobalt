@@ -41,9 +41,6 @@ public class JavaSwitches {
   /** V8 flag to set the GC interval. Value type: Integer */
   public static final String V8_GC_INTERVAL = "V8GcInterval";
 
-  /** V8 flag to set the initial old space size. Value type: Integer (MiB) */
-  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
-
   /** V8 flag to set the maximum old space size. Value type: Integer (MiB) */
   public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
 
@@ -110,11 +107,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--js-flags=--gc-interval="
               + javaSwitches.get(JavaSwitches.V8_GC_INTERVAL).replaceAll("[^0-9]", ""));
-    }
-    if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
-      extraCommandLineArgs.add(
-          "--js-flags=--initial-old-space-size="
-              + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
     }
     if (javaSwitches.containsKey(JavaSwitches.V8_MAX_OLD_SPACE_SIZE)) {
       extraCommandLineArgs.add(
