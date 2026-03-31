@@ -36,6 +36,8 @@ final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
     filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
     filter.addAction(Intent.ACTION_TIME_CHANGED);
     filter.addAction(Intent.ACTION_DATE_CHANGED);
+    filter.addAction("android.intent.action.DREAMING_STARTED");
+    filter.addAction("android.intent.action.DREAMING_STOPPED");
     appContext.registerReceiver(this, filter);
   }
 
@@ -55,6 +57,12 @@ final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
       case Intent.ACTION_LOCALE_CHANGED:
         Log.w(TAG, "System locale settings have changed.");
         mStopRequester.run();
+        break;
+      case "android.intent.action.DREAMING_STARTED":
+        Log.w(TAG, "Screensaver started.");
+        break;
+      case "android.intent.action.DREAMING_STOPPED":
+        Log.w(TAG, "Screensaver stopped.");
         break;
       default:
         Log.w(TAG, "Unknown intent.");
