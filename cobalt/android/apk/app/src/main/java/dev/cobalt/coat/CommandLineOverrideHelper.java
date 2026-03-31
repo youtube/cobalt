@@ -102,6 +102,34 @@ public final class CommandLineOverrideHelper {
 
         // Use SurfaceTexture for decode-to-texture mode.
         paramOverrides.add("AImageReader");
+        // Disables the BackForwardCache to save memory.
+        paramOverrides.add("BackForwardCache");
+        // Disables the Digital Goods API for in-app purchases.
+        paramOverrides.add("DigitalGoodsApi");
+        // Disables drawing cutouts edge to edge.
+        paramOverrides.add("DrawCutoutEdgeToEdge");
+        // Disables Federated Credential Management API.
+        paramOverrides.add("FedCm");
+        // Disables FedCM alternative identifiers.
+        paramOverrides.add("FedCmAlternativeIdentifiers");
+        // Disables FedCM iframe origin.
+        paramOverrides.add("FedCmIframeOrigin");
+        // Disables the Installed App API.
+        paramOverrides.add("InstalledApp");
+        // Disables the Installed App Provider.
+        paramOverrides.add("InstalledAppProvider");
+        // Disables Secure Payment Confirmation.
+        paramOverrides.add("SecurePaymentConfirmation");
+        // Disables the WebOTP API for SMS-based authentication.
+        paramOverrides.add("WebOTP");
+        // Disables Web Payments API.
+        paramOverrides.add("WebPayments");
+        // Disables the Web Permissions API.
+        paramOverrides.add("WebPermissionsApi");
+        // Disables the WebUSB API for accessing USB devices.
+        paramOverrides.add("WebUSB");
+        // Disables the WebXR API for VR and AR.
+        paramOverrides.add("WebXR");
 
         return paramOverrides;
     }
@@ -112,6 +140,63 @@ public final class CommandLineOverrideHelper {
         // Enable precise memory info so we can make accurate client-side
         // measurements.
         paramOverrides.add("PreciseMemoryInfo");
+
+        return paramOverrides;
+    }
+
+    public static StringJoiner getDefaultBlinkDisableFeatureOverridesList() {
+        StringJoiner paramOverrides = new StringJoiner(",");
+
+        // Disables CSS Typed OM for arithmetic operations.
+        paramOverrides.add("CSSTypedArithmetic");
+        // Disables Federated Credential Management API in Blink.
+        paramOverrides.add("FedCm");
+        // Disables Fenced Frames for embedding content.
+        paramOverrides.add("FencedFrames");
+        // Disables HTML printing artifact annotations.
+        paramOverrides.add("HTMLPrintingArtifactAnnotations");
+        // Disables the Installed App API in Blink.
+        paramOverrides.add("InstalledApp");
+        // Disables the Web Notifications API.
+        paramOverrides.add("Notifications");
+        // Disables Payment Link Detection.
+        paramOverrides.add("PaymentLinkDetection");
+        // Disables the Payment Method Change Event.
+        paramOverrides.add("PaymentMethodChangeEvent");
+        // Disables Periodic Background Sync.
+        paramOverrides.add("PeriodicBackgroundSync");
+        // Disables the Presentation API for second screen experiences.
+        paramOverrides.add("Presentation");
+        // Disables CSS scrollbar-color property.
+        paramOverrides.add("ScrollbarColor");
+        // Disables CSS scrollbar-width property.
+        paramOverrides.add("ScrollbarWidth");
+        // Disables Scroll Top/Left Interop.
+        paramOverrides.add("ScrollTopLeftInterop");
+        // Disables Secure Payment Confirmation Availability API.
+        paramOverrides.add("SecurePaymentConfirmationAvailabilityAPI");
+        // Disables Secure Payment Confirmation Opt Out.
+        paramOverrides.add("SecurePaymentConfirmationOptOut");
+        // Disables the Web Serial API for serial port access.
+        paramOverrides.add("Serial");
+        // Disables the Web App Launch Queue.
+        paramOverrides.add("WebAppLaunchQueue");
+        // Disables the Web Authentication API.
+        paramOverrides.add("WebAuth");
+        // Disables WebGPU Texture Component Swizzle.
+        paramOverrides.add("WebGPUTextureComponentSwizzle");
+        // Disables the Web NFC API.
+        paramOverrides.add("WebNFC");
+        // Disables the WebOTP API in Blink.
+        paramOverrides.add("WebOTP");
+        // Disables the Web Share API.
+        paramOverrides.add("WebShare");
+        // Disables the WebSocket Stream API.
+        paramOverrides.add("WebSocketStream");
+        // Disables the WebUSB API in Blink.
+        paramOverrides.add("WebUSB");
+        // Disables the WebXR API in Blink.
+        paramOverrides.add("WebXR");
 
         return paramOverrides;
     }
@@ -128,6 +213,8 @@ public final class CommandLineOverrideHelper {
             getDefaultDisableFeatureOverridesList();
         StringJoiner blinkEnableFeatureOverrides =
             getDefaultBlinkEnableFeatureOverridesList();
+        StringJoiner blinkDisableFeatureOverrides =
+            getDefaultBlinkDisableFeatureOverridesList();
 
         if (params != null) {
             if (!params.mIsOfficialBuild) {
@@ -155,6 +242,8 @@ public final class CommandLineOverrideHelper {
                                 disableFeatureOverrides.add(v);
                             } else if (key.equals("--enable-blink-features")) {
                                 blinkEnableFeatureOverrides.add(v);
+                            } else if (key.equals("--disable-blink-features")) {
+                                blinkDisableFeatureOverrides.add(v);
                             } else {
                                 cliOverrides.add(param);
                                 break; // Avoid adding the same param multiple times
@@ -179,5 +268,8 @@ public final class CommandLineOverrideHelper {
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--enable-blink-features="
             + blinkEnableFeatureOverrides.toString() });
+        CommandLine.getInstance().appendSwitchesAndArguments(
+            new String[]{"--disable-blink-features="
+            + blinkDisableFeatureOverrides.toString() });
     }
 }
