@@ -105,9 +105,9 @@ def package(name, json_path, out_dir, package_dir, print_contents):
         base_dir = os.path.join(tmp_dir, name)
         layout(archive_data, out_dir, base_dir)
         if print_contents:
-          for _, _, paths in os.walk(base_dir):
-            for path in paths:
-              print(path)
+          for dirpath, _, filenames in os.walk(base_dir):
+            for filename in filenames:
+              print(os.path.join(dirpath, filename))
 
         archive_type = archive_data['archive_type']
         if archive_type == 'ARCHIVE_TYPE_ZIP':
