@@ -96,6 +96,7 @@ assert(!is_win || is_clang,
 
 if (is_android || is_robolectric) {
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (is_fuchsia) {
@@ -1293,8 +1294,8 @@ component("base") {
     ]
 
     deps += [
-      "//third_party/android_ndk:cpu_features",
       "//third_party/ashmem",
+      "//third_party/cpu_features:ndk_compat",
     ]
 
     # Needs to be a public config so that dependent targets link against it as
@@ -1756,12 +1757,15 @@ component("base") {
     sources -= [
       "debug/debugger_posix.cc",
       "process/process_posix.cc",
-      "process/process_linux.cc",
     ]
     sources += [
       "process/process_stubs.cc",
       "starboard/debugger_starboard.cc",
     ]
+
+    if (is_linux) {
+      sources -= [ "process/process_linux.cc" ]
+    }
   }
 
   # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
@@ -1771,7 +1775,6 @@ component("base") {
       # #include <linux/magic.h>
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
-      "files/dir_reader_linux.h",
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
       # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
@@ -1796,6 +1799,12 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+
+    if (is_linux) {
+      #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
+      # #include <linux/magic.h>
+      sources -= [ "files/dir_reader_linux.h" ]
+    }
   }
 
   # Windows.
@@ -3655,7 +3664,6 @@ test("base_unittests") {
 
   if (is_starboard) {
     sources -= [
-      "debug/proc_maps_linux_unittest.cc",
       "debug/stack_trace_unittest.cc",
       "files/file_path_watcher_unittest.cc",
       "files/file_util_unittest.cc",
@@ -3664,18 +3672,24 @@ test("base_unittests") {
       "metrics/field_trial_unittest.cc",
       "native_library_unittest.cc",
       "process/process_metrics_unittest.cc",
-      "process/process_util_unittest.cc",
-      "process/process_unittest.cc",
       "profiler/module_cache_unittest.cc",
       "profiler/stack_sampling_profiler_unittest.cc",
       "profiler/stack_sampler_unittest.cc",
       "sync_socket_unittest.cc",
       "system/sys_info_unittest.cc",
-      "test/launcher/test_launcher_unittest.cc",
-      "test/launcher/test_results_tracker_unittest.cc",
       "test/task_environment_unittest.cc",
       "task/thread_pool/thread_pool_impl_unittest.cc",
     ]
+
+    if (is_linux) {
+      sources -= [
+        "debug/proc_maps_linux_unittest.cc",
+        "process/process_unittest.cc",
+        "process/process_util_unittest.cc",
+        "test/launcher/test_launcher_unittest.cc",
+        "test/launcher/test_results_tracker_unittest.cc",
+      ]
+    }
   }
 
   # TODO: b/402471389 - Cobalt: try to enable these tests.
@@ -4557,10 +4571,9 @@ if (is_android) {
       ":base_java",
       "//copied_base/base:jni_java",
       "//build/android:build_java",
-      "//third_party/accessibility_test_framework:accessibility_test_framework_java",
+      "//third_party/accessibility_test_framework:accessibility_core_java",
       "//third_party/android_deps:espresso_java",
       "//third_party/android_deps:guava_android_java",
-      "//third_party/android_sdk:android_test_base_java",
       "//third_party/android_sdk:android_test_mock_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_core_core_java",
