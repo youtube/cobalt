@@ -19,8 +19,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace android {
-namespace shared {
 namespace {
 
 TEST(MemFdMediaBufferPoolTest, BasicOperations) {
@@ -93,6 +91,4 @@ TEST(MemFdMediaBufferPoolTest, Fail) {
 }
 
 }  // namespace
-}  // namespace shared
-}  // namespace android
 }  // namespace starboard
