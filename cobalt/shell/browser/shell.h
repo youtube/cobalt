@@ -285,6 +285,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void SwitchToMainWebContents();
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
+  void OnSplashScreenLoadComplete();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
