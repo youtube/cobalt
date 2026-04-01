@@ -76,6 +76,15 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
     browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
     browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
+#if BUILDFLAG(IS_ANDROID)
+    browser_dump->os_dump->detailed_stats_kb = {
+        {"rss:partition_alloc", 16384},
+        {"rss:malloc", 10240},
+        {"rss:v8", 12288},
+        {"rss:cobalt_core", 10240},
+        {"pss:cobalt_core", 8192},
+    };
+#endif
 
     // Add a blink_gc dump
     auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -185,6 +194,9 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
         memory_instrumentation::mojom::ProcessType::RENDERER;
     renderer_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
     renderer_dump->os_dump->private_footprint_kb = 20480;  // 20 MB
+#if BUILDFLAG(IS_ANDROID)
+    renderer_dump->os_dump->detailed_stats_kb = {{"rss:partition_alloc", 2048}};
+#endif
 
     auto renderer_blink_gc_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -482,6 +494,22 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
           .size(),
       1u);
 
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Malloc", 10),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc", 16),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.V8", 12),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount("Memory.Browser.LibChrobaltPss", 8),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Browser.LibChrobaltRss", 10), 0);
+#endif
+
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Tiny.NumberOfDocuments", 3),
             0);
@@ -504,13 +532,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
                 "Memory.Experimental.Browser2.Small.LevelDatabase", 512),
             0);
   EXPECT_GT(histogram_tester.GetBucketCount(
-                "Memory.Experimental.Browser2.Malloc", 10),
-            0);
-  EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Malloc.AllocatedObjects", 8),
-            0);
-  EXPECT_GT(histogram_tester.GetBucketCount(
-                "Memory.Experimental.Browser2.PartitionAlloc", 16),
             0);
   EXPECT_GT(
       histogram_tester.GetBucketCount(
@@ -528,9 +550,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Small.UI", 2),
             0);
-  EXPECT_GT(
-      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.V8", 12),
-      0);
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.V8.AllocatedObjects", 10),
             0);
