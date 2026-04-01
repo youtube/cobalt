@@ -117,7 +117,7 @@ if (current_toolchain == starboard_toolchain) {
 }
 
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_final_executable_type, "elf_loader_sys_sandbox") {
+  target(starboard_level_gtest_target_type, "elf_loader_sys_sandbox") {
     # To properly function the system loader requires the starboard
     # symbols to be exported from the binary.
     # To allow symbols to be exported remove the '-fvisibility=hidden' flag
