@@ -236,6 +236,13 @@ void MediaDrmBridge::CloseSession(std::string_view session_id) const {
 }
 
 const void* MediaDrmBridge::GetMetrics(int* size) {
+  if (!host_->WaitForDrmSystemReady(500'000 /* 500ms */)) {
+    SB_LOG(ERROR)
+        << "Timed out waiting for DRM system to be ready for GetMetrics.";
+    *size = 0;
+    return nullptr;
+  }
+
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_metrics =

@@ -50,6 +50,8 @@ class MediaDrmBridge {
         const std::vector<SbDrmKeyId>& drm_key_ids,
         const std::vector<SbDrmKeyStatus>& drm_key_statuses) = 0;
 
+    virtual bool WaitForDrmSystemReady(int64_t timeout_usec) = 0;
+
    protected:
     ~Host() = default;
   };

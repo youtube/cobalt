@@ -160,8 +160,14 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
+  MediaCodecBridge::DrmSystemReadyCb drm_system_ready_cb;
+  if (drm_system_) {
+    drm_system_ready_cb = [drm_system = drm_system_](int64_t timeout_usec) {
+      return drm_system->WaitForDrmSystemReady(timeout_usec);
+    };
+  }
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto);
+      audio_stream_info, this, j_media_crypto, std::move(drm_system_ready_cb));
   if (!media_codec_bridge_) {
     *error_message = "Failed to create audio media codec bridge.";
     SB_LOG(ERROR) << *error_message;
@@ -230,11 +236,18 @@ MediaCodecDecoder::MediaCodecDecoder(
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
+  MediaCodecBridge::DrmSystemReadyCb drm_system_ready_cb;
+  if (drm_system_) {
+    drm_system_ready_cb = [drm_system = drm_system_](int64_t timeout_usec) {
+      return drm_system->WaitForDrmSystemReady(timeout_usec);
+    };
+  }
   auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
-      j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
-      require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size);
+      j_output_surface, j_media_crypto, std::move(drm_system_ready_cb),
+      color_metadata, require_secured_decoder, require_software_codec,
+      tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
+      max_video_input_size);
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {

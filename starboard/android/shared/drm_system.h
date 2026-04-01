@@ -22,6 +22,7 @@
 #include <jni.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -80,6 +81,9 @@ class DrmSystem : public ::SbDrmSystemPrivate,
       std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
+  // Blocks until the DRM system is ready or the timeout expires.
+  // Returns true if the system is ready, false on timeout.
+  bool WaitForDrmSystemReady(int64_t timeout_us) override;
 
   void OnInsufficientOutputProtection();
 
@@ -134,6 +138,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
   std::mutex mutex_;
+  std::condition_variable created_media_crypto_session_cv_;
 
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;  // Guarded by |mutex_|.

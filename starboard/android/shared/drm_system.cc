@@ -25,6 +25,7 @@
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/features.h"
 
 // Declare the function as static instead of putting it in the above anonymous
@@ -95,7 +96,9 @@ void DrmSystem::Run() {
   SB_CHECK(!enable_app_provisioning_);
 
   if (media_drm_bridge_->CreateMediaCryptoSession()) {
+    std::unique_lock<std::mutex> lock(mutex_);
     created_media_crypto_session_.store(true);
+    created_media_crypto_session_cv_.notify_all();
   } else {
     SB_LOG(INFO) << "Could not create media crypto session";
     return;
@@ -406,6 +409,23 @@ void DrmSystem::OnKeyStatusChange(
                                  eme_session_id.size(),
                                  static_cast<int>(drm_key_ids.size()),
                                  drm_key_ids.data(), drm_key_statuses.data());
+}
+
+bool DrmSystem::WaitForDrmSystemReady(int64_t timeout_usec) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  int64_t start_usec = CurrentMonotonicTime();
+
+  while (!created_media_crypto_session_.load()) {
+    int64_t now_usec = CurrentMonotonicTime();
+    int64_t elapsed_usec = now_usec - start_usec;
+    if (elapsed_usec >= timeout_usec) {
+      return created_media_crypto_session_.load();
+    }
+    int64_t remaining_usec = timeout_usec - elapsed_usec;
+    created_media_crypto_session_cv_.wait_for(
+        lock, std::chrono::microseconds(remaining_usec));
+  }
+  return true;
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -84,6 +85,8 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
+  using DrmSystemReadyCb = std::function<bool(int64_t timeout_usec)>;
+
   // The methods are called on the default Looper.  They won't get called after
   // Flush() is returned.
   class Handler {
@@ -111,7 +114,8 @@ class MediaCodecBridge {
   static std::unique_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
-      jobject j_media_crypto);
+      jobject j_media_crypto,
+      DrmSystemReadyCb drm_system_ready_cb);
 
   static NonNullResult<std::unique_ptr<MediaCodecBridge>>
   CreateVideoMediaCodecBridge(
@@ -128,6 +132,7 @@ class MediaCodecBridge {
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
+      DrmSystemReadyCb drm_system_ready_cb,
       const SbMediaColorMetadata* color_metadata,
       bool require_secured_decoder,
       bool require_software_codec,
@@ -186,11 +191,15 @@ class MediaCodecBridge {
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
-  explicit MediaCodecBridge(Handler* handler);
+  explicit MediaCodecBridge(Handler* handler,
+                            DrmSystemReadyCb drm_system_ready_cb = {});
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* const handler_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+
+  DrmSystemReadyCb drm_system_ready_cb_;
+  bool drm_system_ready_ = false;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;
