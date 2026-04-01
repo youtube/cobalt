@@ -1145,6 +1145,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Memory.DetailedDump.AbortReason"
+    enum="MemoryDetailedDumpAbortReason" expires_after="2026-03-31">
+  <owner>avvall@google.com</owner>
+  <owner>chrome-memory@google.com</owner>
+  <summary>
+    The reason why a detailed memory dump (smaps parsing) was aborted on Android.
+    Recorded during OS memory dump collection for Cobalt.
+  </summary>
+</histogram>
+
 <histogram name="Memory.CommitAvailableMB" units="MB"
     expires_after="2025-11-02">
   <owner>aattar@google.com</owner>
