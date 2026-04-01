@@ -108,7 +108,7 @@ if (rdk_enable_ocdm) {
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
-  data_deps = [ ":rdk_cobalt_content" ]
+  data_deps = [ ":rdk_cobalt_content" , ":loader_app_rdk_exe" ]
 }
 
 static_library("starboard_platform_sources") {
@@ -385,4 +385,26 @@ group("rdk_cobalt_content") {
 copy("rdk_cobalt_keymap") {
   sources = [ "cobalt/content/etc/keymapping.json" ]
   outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
+}
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  executable("loader_app_rdk_exe") {
+    output_name = "loader_app"
+    check_includes = false
+    output_dir = root_build_dir
+    sources = [
+      "//starboard/loader_app/loader_app.cc",
+      "//starboard/loader_app/loader_app_switches.cc",
+      "//starboard/loader_app/loader_app_switches.h",
+      "//starboard/loader_app/system_get_extension_shim.cc",
+      "//starboard/loader_app/system_get_extension_shim.h",
+    ]
+    deps = [
+      "//starboard/loader_app:common_loader_app_dependencies",
+      "//starboard:starboard_with_main",
+      "//starboard/content/fonts:copy_font_data",
+      "//starboard/elf_loader",
+    ]
+    data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+  }
 }

@@ -17,6 +17,8 @@
                 "libcobalt.so",
                 "libloader_app.so",
                 "elf_loader_sandbox",
+                "elf_loader_sys_sandbox",
+                "loader_app_rdk_exe",
                 {
                     "from_file": "cobalt_shell.pak",
                     "to_file": "content/cobalt_shell.pak"
