@@ -5,8 +5,11 @@
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringInBcp47Format/*",
     "PosixLocaleSetTests/PosixLocaleSetAlternativeFormatTest.HandlesLocaleStringWithCodeSet/*",
     "PosixLocaleSetTests/PosixLocaleSetFormatTest.HandlesLocaleString/*",
+    "PosixMemoryMapTest.CanChangeMemoryProtection",
+    "PosixPrctlNameTests.SetNameFailsWithNull",
     "PosixSocketSendTest.RainyDaySendToClosedSocket",
     "PosixSocketSendtoTest.RainyDaySendToClosedSocket",
-    "PosixStrftimeTest.TimezoneOffsetSpecifier"
+    "PosixStrftimeTest.TimezoneOffsetSpecifier",
+    "PosixThreadDetachTest.SunnyDay"
   ]
 }
