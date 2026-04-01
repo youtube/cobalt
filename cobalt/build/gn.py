@@ -92,6 +92,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
       f.write(f'cc_wrapper = "sccache" {gen_comment}\n')
     if use_asan:
       f.write(f'is_asan = true {gen_comment}\n')
+      f.write(f'use_asan = true {gen_comment}\n')
     if use_lsan:
       f.write(f'is_lsan = true {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
