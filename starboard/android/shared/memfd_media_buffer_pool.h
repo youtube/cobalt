@@ -19,8 +19,6 @@
 #include <stdint.h>
 
 namespace starboard {
-namespace android {
-namespace shared {
 
 // MemFdMediaBufferPool manages a shared memory pool using memfd_create.
 class MemFdMediaBufferPool {
@@ -48,8 +46,6 @@ class MemFdMediaBufferPool {
   size_t current_capacity_ = 0;
 };
 
-}  // namespace shared
-}  // namespace android
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEMFD_MEDIA_BUFFER_POOL_H_

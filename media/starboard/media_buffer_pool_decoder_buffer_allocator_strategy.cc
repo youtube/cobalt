@@ -19,11 +19,11 @@
 
 namespace media {
 
-using ::starboard::common::experimental::IsPointerAnnotated;
+using ::starboard::experimental::IsPointerAnnotated;
 
 MediaBufferPoolDecoderBufferAllocatorStrategy::
     MediaBufferPoolDecoderBufferAllocatorStrategy(
-        starboard::common::experimental::MediaBufferPool* media_buffer_pool,
+        starboard::experimental::MediaBufferPool* media_buffer_pool,
         size_t video_buffer_initial_capacity,
         size_t video_buffer_allocation_increment)
     : media_buffer_pool_(media_buffer_pool),

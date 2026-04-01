@@ -28,7 +28,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace common {
 
 struct AlignedMemoryDeleter {
   void operator()(uint8_t* p) { free(p); }
@@ -255,5 +254,4 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, AllocationsWithThreshold) {
   this->allocator_->Free(small_allocation_3);
 }
 
-}  // namespace common
 }  // namespace starboard

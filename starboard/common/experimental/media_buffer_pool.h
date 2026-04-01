@@ -22,7 +22,6 @@
 #include "starboard/extension/experimental/media_buffer_pool.h"
 
 namespace starboard {
-namespace common {
 namespace experimental {
 
 // The media buffer pool is a linear space that cannot be directly accessed as
@@ -42,7 +41,7 @@ inline void* AnnotatePointer(void* p) {
 
   uintptr_t p_as_uint = reinterpret_cast<uintptr_t>(p);
 
-  SB_DCHECK_EQ(p_as_uint % sizeof(void*), 0);
+  SB_DCHECK_EQ(p_as_uint % sizeof(void*), 0u);
   // Ensure that the most significant bit is 0, as it will be lost when the
   // pointer is shifted left for annotation.
   SB_DCHECK_EQ(p_as_uint >> (sizeof(uintptr_t) * 8 - 1), 0u);
@@ -66,13 +65,13 @@ inline bool IsPointerAnnotated(Pointer p) {
   }
 
   if (p_as_uint % 2 == 0) {
-    SB_DCHECK_EQ(p_as_uint % sizeof(void*), 0);
+    SB_DCHECK_EQ(p_as_uint % sizeof(void*), 0u);
     return false;
   }
 
   p_as_uint >>= 1;
 
-  SB_DCHECK_EQ(p_as_uint % sizeof(void*), 0);
+  SB_DCHECK_EQ(p_as_uint % sizeof(void*), 0u);
   return true;
 }
 
@@ -136,7 +135,6 @@ class MediaBufferPool {
 };
 
 }  // namespace experimental
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_EXPERIMENTAL_MEDIA_BUFFER_POOL_H_

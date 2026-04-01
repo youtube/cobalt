@@ -24,7 +24,6 @@
 #include "starboard/common/reuse_allocator_base.h"
 
 namespace starboard {
-namespace common {
 namespace experimental {
 
 // MediaBufferPoolBidirectionalReuseAllocator uses
@@ -92,7 +91,6 @@ class MediaBufferPoolBidirectionalReuseAllocator : public Allocator {
 };
 
 }  // namespace experimental
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_EXPERIMENTAL_MEDIA_BUFFER_POOL_BIDIRECTIONAL_REUSE_ALLOCATOR_H_

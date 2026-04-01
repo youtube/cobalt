@@ -232,7 +232,7 @@ class MEDIA_EXPORT DecoderBuffer
       // it but CHECK() when the handle is annotated (e.g. cannot be converted
       // to a pointer).
 #if !defined(OFFICIAL_BUILD)
-      using starboard::common::experimental::IsPointerAnnotated;
+      using starboard::experimental::IsPointerAnnotated;
       CHECK(!IsPointerAnnotated(allocator_data_->handle));
 #endif  // !defined(OFFICIAL_BUILD)
       return reinterpret_cast<const uint8_t*>(allocator_data_->handle);
@@ -263,7 +263,7 @@ class MEDIA_EXPORT DecoderBuffer
       // it but CHECK() when the handle is annotated (e.g. cannot be converted
       // to a pointer).
 #if !defined(OFFICIAL_BUILD)
-      using starboard::common::experimental::IsPointerAnnotated;
+      using starboard::experimental::IsPointerAnnotated;
       CHECK(!IsPointerAnnotated(allocator_data_->handle));
 #endif  // !defined(OFFICIAL_BUILD)
       return reinterpret_cast<uint8_t*>(allocator_data_->handle);
@@ -278,7 +278,8 @@ class MEDIA_EXPORT DecoderBuffer
   base::span<uint8_t> writable_span() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (allocator_data_) {
-      return UNSAFE_TODO(base::span(allocator_data_->data, size_));
+      CHECK(0);  // This code path isn't used in Chrobalt
+      return UNSAFE_TODO(base::span(writable_data(), size()));
     }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     // TODO(crbug.com/40284755): `data_` should be converted to HeapArray, then
@@ -349,7 +350,7 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK(!end_of_stream());
     decrypt_config_ = std::move(decrypt_config);
   }
-  
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void shrink_to(size_t size) {
     DCHECK_LE(size, size_);

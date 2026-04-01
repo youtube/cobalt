@@ -18,7 +18,6 @@
 #include "starboard/system.h"
 
 namespace starboard {
-namespace common {
 namespace experimental {
 
 // static
@@ -56,5 +55,4 @@ void MediaBufferPool::Write(intptr_t position, const void* data, size_t size) {
 }
 
 }  // namespace experimental
-}  // namespace common
 }  // namespace starboard

@@ -70,6 +70,7 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 
 }  // namespace
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 // --- Starboard-specific Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
   if (size_ > 0) {

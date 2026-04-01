@@ -22,16 +22,15 @@
 #include "starboard/common/log.h"
 
 namespace starboard {
-namespace common {
 namespace experimental {
 
 // MediaBufferPoolMemoryAllocator allocates memory sequentially and expands the
 // underlying MediaBufferPool as needed.
 // It does not support freeing individual allocations (Free is a no-op).
-class MediaBufferPoolMemoryAllocator : public starboard::common::Allocator {
+class MediaBufferPoolMemoryAllocator : public starboard::Allocator {
  public:
   explicit MediaBufferPoolMemoryAllocator(
-      starboard::common::experimental::MediaBufferPool* pool)
+      starboard::experimental::MediaBufferPool* pool)
       : pool_(pool) {
     SB_DCHECK(pool_);
   }
@@ -91,13 +90,12 @@ class MediaBufferPoolMemoryAllocator : public starboard::common::Allocator {
                         int max_allocations_to_print) const override {}
 
  private:
-  starboard::common::experimental::MediaBufferPool* pool_;
+  starboard::experimental::MediaBufferPool* pool_;
   // Not start from 0, so it won't return `nullptr` as a valid pointer.
   std::size_t offset_ = sizeof(void*);
 };
 
 }  // namespace experimental
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_EXPERIMENTAL_MEDIA_BUFFER_POOL_MEMORY_ALLOCATOR_H_

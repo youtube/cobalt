@@ -32,7 +32,7 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
     : public DecoderBufferAllocator::Strategy {
  public:
   MediaBufferPoolDecoderBufferAllocatorStrategy(
-      starboard::common::experimental::MediaBufferPool* media_buffer_pool,
+      starboard::experimental::MediaBufferPool* media_buffer_pool,
       size_t video_buffer_initial_capacity,
       size_t video_buffer_allocation_increment);
 
@@ -49,9 +49,8 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
   size_t GetAllocated() const override;
 
  private:
-  typedef starboard::common::experimental::
-      MediaBufferPoolBidirectionalReuseAllocator
-          MediaBufferPoolBidirectionalReuseAllocator;
+  typedef starboard::experimental::MediaBufferPoolBidirectionalReuseAllocator
+      MediaBufferPoolBidirectionalReuseAllocator;
 
   // We do not treat small allocations differently from large ones in this
   // strategy.
@@ -60,13 +59,13 @@ class MediaBufferPoolDecoderBufferAllocatorStrategy
   // significantly smaller than video buffers.
   static constexpr size_t kAudioAllocationIncrement = 1024 * 1024;
 
-  starboard::common::experimental::MediaBufferPool* const media_buffer_pool_;
+  starboard::experimental::MediaBufferPool* const media_buffer_pool_;
   const size_t video_buffer_initial_capacity_;
   const size_t video_buffer_allocation_increment_;
 
   StarboardMemoryAllocator audio_fallback_allocator_;
-  starboard::common::BidirectionalFitReuseAllocator<
-      starboard::common::InPlaceReuseAllocatorBase>
+  starboard::BidirectionalFitReuseAllocator<
+      starboard::InPlaceReuseAllocatorBase>
       audio_allocator_;
 
   // TODO(b/369245553): Consider using a small in-memory pool (e.g. 10 MBytes),

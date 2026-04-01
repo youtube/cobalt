@@ -25,8 +25,6 @@
 
 namespace starboard {
 
-namespace common {
-
 // This class uses first-fit allocation strategy to allocate memory block whose
 // size is greater than the |small_allocation_threshold|.  It uses last-fit
 // strategy to allocate memory block whose size is less than or equal to the
@@ -88,7 +86,6 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   std::size_t small_allocation_threshold_;
 };
 
-}  // namespace common
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
