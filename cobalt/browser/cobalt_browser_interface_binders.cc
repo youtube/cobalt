@@ -111,8 +111,8 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
 #else
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(base::BindRepeating(
-      [](content::RenderFrameHost* host,
-         mojo::PendingReceiver<h5vcc_updater::mojom::H5vccUpdater> receiver) {
+      [](content::RenderFrameHost*,
+         mojo::PendingReceiver<h5vcc_updater::mojom::H5vccUpdater>) {
         VLOG(1) << "Ignoring H5vccUpdater request for non-Evergreen build.";
       }));
 #endif
@@ -126,13 +126,12 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));
 #else
-  binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
-      base::BindRepeating(
-          [](content::RenderFrameHost* host,
-             mojo::PendingReceiver<
-                 h5vcc_updater::mojom::H5vccUpdaterSideloading> receiver) {
-            VLOG(1) << "Ignoring H5vccUpdaterSideloading request.";
-          }));
+  binder_map->Add<
+      h5vcc_updater::mojom::H5vccUpdaterSideloading>(base::BindRepeating(
+      [](content::RenderFrameHost*,
+         mojo::PendingReceiver<h5vcc_updater::mojom::H5vccUpdaterSideloading>) {
+        VLOG(1) << "Ignoring H5vccUpdaterSideloading request.";
+      }));
 #endif
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
