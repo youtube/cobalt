@@ -8,7 +8,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -109,8 +108,6 @@ using MediaCodecResult = TypedStatus<MediaCodecResultTraits>;
 // An interface for a bridge to an Android MediaCodec.
 class MEDIA_EXPORT MediaCodecBridge {
  public:
-  using DrmSystemReadyCb = std::function<bool(int64_t timeout_usec)>;
-
   MediaCodecBridge() = default;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
