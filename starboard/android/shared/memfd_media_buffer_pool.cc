@@ -33,9 +33,6 @@
 #include "starboard/common/time.h"
 
 namespace starboard {
-namespace android {
-namespace shared {
-
 namespace {
 
 using ::starboard::common::experimental::IsPointerAnnotated;
@@ -240,6 +237,4 @@ void MemFdMediaBufferPool::Read(intptr_t position, void* buffer, size_t size) {
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 }
 
-}  // namespace shared
-}  // namespace android
 }  // namespace starboard
