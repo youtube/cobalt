@@ -6,6 +6,7 @@ component("memory_instrumentation") {
   sources = [
     "client_process_impl.cc",
     "client_process_impl.h",
+    "detailed_metrics_delegate.h",
     "global_memory_dump.cc",
     "global_memory_dump.h",
     "memory_instrumentation.cc",
@@ -13,6 +14,8 @@ component("memory_instrumentation") {
     "os_metrics.cc",
     "os_metrics.h",
     "registry.h",
+    "smaps_categorizer.cc",
+    "smaps_categorizer.h",
     "tracing_observer.cc",
     "tracing_observer.h",
     "tracing_observer_proto.cc",
