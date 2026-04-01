@@ -30,6 +30,7 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.SparseIntArray;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
@@ -38,7 +39,9 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.Locale;
+import org.chromium.base.metrics.RecordHistogram;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -114,7 +117,64 @@ class MediaCodecBridge {
     }
   }
 
+  private static AtomicLong sGlobalTotalMemoryUsage = new AtomicLong(0L);Expand commentComment on line R119Resolved
+  @CalledByNative
+  public static long getGlobalOutputMemoryUsage() {
+    return sGlobalTotalMemoryUsage.get();
+  }
+
+  private class OutputMemoryTracker {
+    private final SparseIntArray mBufferSizes = new SparseIntArray();
+    private long mTotalMemoryUsage = 0;
+
+    public synchronized void add(int index, int size) {Expand commentComment on line R129Resolved
+      int oldSize = mBufferSizes.get(index, -1);
+      if (oldSize != -1) {
+        mTotalMemoryUsage -= oldSize;
+        sGlobalTotalMemoryUsage.addAndGet(-oldSize);
+      }
+      int trackedSize = size;
+      if (mDecodesToSurface) {
+        try {
+          if (mActiveFormat != null) {
+            int width = mActiveFormat.width();
+            int height = mActiveFormat.height();
+            if (width > 0 && height > 0) {
+              // This is an estimated size assuming YUV420 format
+              // width * height * 1.5
+              trackedSize = width * height * 3 / 2;
+            }
+          }
+        } catch (Exception e) {
+          trackedSize = 0;
+        }
+      }
+      mBufferSizes.put(index, trackedSize);
+      mTotalMemoryUsage += trackedSize;
+      sGlobalTotalMemoryUsage.addAndGet(trackedSize);
+    }
+
+    public synchronized void remove(int index) {
+      int size = mBufferSizes.get(index, -1);
+      if (size != -1) {
+        mTotalMemoryUsage -= size;
+        sGlobalTotalMemoryUsage.addAndGet(-size); 
+        mBufferSizes.delete(index);
+      }
+    }
+
+    public synchronized void reset() {
+      mBufferSizes.clear();
+      sGlobalTotalMemoryUsage.addAndGet(-mTotalMemoryUsage);
+      mTotalMemoryUsage = 0;
+    }
+  }
+
   private FrameRateEstimator mFrameRateEstimator = null;
+  private final OutputMemoryTracker mOutputMemoryTracker;
+  private MediaFormatWrapper mActiveFormat = null;
+  private boolean mDecodesToSurface = false;
+  private static final BYTES_PER_MIB = 1024 * 1024;
 
    /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
@@ -272,6 +332,7 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
+    mOutputMemoryTracker = new OutputMemoryTracker();
     mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
@@ -316,6 +377,7 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
+              mOutputMemoryTracker.add(index, info.size);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
                 int fps = mFrameRateEstimator.getEstimatedFrameRate();
@@ -333,6 +395,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              mActiveFormat = new MediaFormatWrapper(format);
               MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.reset();
@@ -649,6 +712,7 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
     } finally {
+      mOutputMemoryTracker.reset();
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
@@ -662,6 +726,11 @@ class MediaCodecBridge {
       mNativeMediaCodecBridge = 0;
     }
 
+    // Collect output buffer total memory usage before releasing
+    RecordHistogram.recordMemoryMediumMBHistogram(
+        "Media.MediaCodec.DecodedBuffer.Allocated",
+        (int)(sGlobalTotalMemoryUsage.get() / BYTES_PER_MIB));
+
     // We skip calling stop() on Android 11, as this version has a race condition
     // if an error occurs during stop(). See b/369372033 for details.
     if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
@@ -671,6 +740,8 @@ class MediaCodecBridge {
         mMediaCodec.get().stop();
       } catch (Exception e) {
         Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
+      } finally {
+        mOutputMemoryTracker.reset();
       }
     }
 
@@ -812,6 +883,7 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
+      mOutputMemoryTracker.remove(index);
       mMediaCodec.get().releaseOutputBuffer(index, render);
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
@@ -822,6 +894,7 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
+      mOutputMemoryTracker.remove(index);
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
@@ -854,6 +927,7 @@ class MediaCodecBridge {
       }
 
       maybeSetMaxVideoInputSize(format);
+      mDecodesToSurface = true;
       mMediaCodec.get().configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;
