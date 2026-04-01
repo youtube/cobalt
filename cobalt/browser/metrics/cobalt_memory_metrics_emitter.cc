@@ -388,7 +388,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
             ".SharedMemoryFootprint",
         static_cast<int>(pmd.os_dump().shared_footprint_kb / kKiB));
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID)
     base::UmaHistogramMemoryLargeMB(
         std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltPss",
         static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));

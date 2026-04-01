@@ -320,7 +320,7 @@ void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
   *swap_pss = value->swap_pss;
 }
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 struct LibChrobaltMem {
   uint32_t pss_kb = 0;
   uint32_t rss_kb = 0;
@@ -400,7 +400,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   LibChrobaltMem lib_mem = GetLibChrobaltMem(handle);
   dump->libchrobalt_pss_kb = lib_mem.pss_kb;
   dump->libchrobalt_rss_kb = lib_mem.rss_kb;
