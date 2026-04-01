@@ -466,6 +466,18 @@ class MediaCodecBridge {
           }
 
           @Override
+          public void onCryptoError(MediaCodec codec, MediaCodec.CryptoException e) {
+            synchronized (this) {
+              if (mNativeMediaCodecBridge == 0) {
+                return;
+              }
+              nativeOnMediaCodecCryotoError(
+                  mNativeMediaCodecBridge,
+                  e.getErrorCode());
+            }
+          }
+
+          @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
             synchronized (this) {
               if (mNativeMediaCodecBridge == 0) {
@@ -1060,6 +1072,9 @@ class MediaCodecBridge {
       }
 
       maybeSetMaxVideoInputSize(format);
+      if (Build.VERSION.SDK_INT > 33 && crypto != null) {
+        flags |= MediaCodec.CONFIGURE_FLAG_USE_CRYPTO_ASYNC;
+      }
       mMediaCodec.get().configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;
@@ -1169,6 +1184,9 @@ class MediaCodecBridge {
   @UsedByNative
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
+      if (Build.VERSION.SDK_INT > 33 && crypto != null) {
+        flags |= MediaCodec.CONFIGURE_FLAG_USE_CRYPTO_ASYNC;
+      }
       mMediaCodec.get().configure(format, null, crypto, flags);
       return true;
     } catch (IllegalArgumentException | IllegalStateException e) {
@@ -1212,6 +1230,10 @@ class MediaCodecBridge {
       boolean isRecoverable,
       boolean isTransient,
       String diagnosticInfo);
+
+  private native void nativeOnMediaCodecCryotoError(
+      long nativeMediaCodecBridge,
+      int error_code);
 
   private native void nativeOnMediaCodecInputBufferAvailable(
       long nativeMediaCodecBridge, int bufferIndex);
