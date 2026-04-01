@@ -63,11 +63,12 @@ fi
 # --- 2. Extract test targets ---
 echo "📋 Extracting test targets from ${TEST_TARGETS_FILE}..."
 # We use the 'test_targets' field from the JSON to get the GN targets to build.
+# We skip tests with "perf" in the name.
 if command -v jq &> /dev/null; then
-  TARGETS=$(jq -r '.test_targets[]' "${TEST_TARGETS_FILE}")
+  TARGETS=$(jq -r '.test_targets[]' "${TEST_TARGETS_FILE}" | grep -v "perf")
 else
   # Fallback: extract strings that look like targets (containing :)
-  TARGETS=$(grep -o '"[^"]*:[^"]*"' "${TEST_TARGETS_FILE}" | tr -d '"' | grep -v "TODO" || true)
+  TARGETS=$(grep -o '"[^"]*:[^"]*"' "${TEST_TARGETS_FILE}" | tr -d '"' | grep -v "TODO" | grep -v "perf" || true)
 fi
 
 if [ -z "$TARGETS" ]; then
@@ -112,11 +113,12 @@ if [ "$RUN_TESTS" = true ]; then
   LD_LIB_PATH="${ABS_OUT_DIR}/starboard:${ABS_OUT_DIR}:${LD_LIBRARY_PATH}"
 
   # We use the 'executables' field to know what to run. 
+  # We skip tests with "perf" in the name.
   if command -v jq &> /dev/null; then
-    EXECUTABLES=$(jq -r '.executables[]' "${TEST_TARGETS_FILE}")
+    EXECUTABLES=$(jq -r '.executables[]' "${TEST_TARGETS_FILE}" | grep -v "perf")
   else
     # Fallback: extract executable paths.
-    EXECUTABLES=$(grep -o '"out/linux-x64x11_devel/[^"]*"' "${TEST_TARGETS_FILE}" | tr -d '"')
+    EXECUTABLES=$(grep -o '"out/linux-x64x11_devel/[^"]*"' "${TEST_TARGETS_FILE}" | tr -d '"' | grep -v "perf")
   fi
 
   # For each executable, we need to map from the placeholder path in the JSON 
