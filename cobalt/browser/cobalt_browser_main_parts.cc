@@ -94,18 +94,37 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // go/chrobalt-pre-initialization-storage-migration-pipeline
 #if !BUILDFLAG(IS_ANDROID)
   auto create_window_task = base::BindOnce(
-      [](std::string deeplink_url,
-         content::ShellBrowserContext* browser_context) {
-        base::CommandLine* command_line =
-            base::CommandLine::ForCurrentProcess();
-        GURL url = GURL(switches::GetInitialURL(*command_line));
-        content::Shell::CreateNewWindow(
-            browser_context, url, nullptr, gfx::Size(),
-            ::switches::ShouldCreateSplashScreen(), deeplink_url);
-      },
-      deep_link(), browser_context());
+      &CobaltBrowserMainParts::CreateWindowWithMigrationStatus,
+      base::Unretained(this), GetStartupURL(), deep_link(), browser_context());
   PostOrRunIfStorageMigrationFinished(std::move(create_window_task));
 #endif
+}
+
+void CobaltBrowserMainParts::CreateWindowWithMigrationStatus(
+    GURL url,
+    std::string deeplink_url,
+    content::ShellBrowserContext* browser_context) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::string migration_status = cobalt::migrate_storage_record::
+      MigrationManager::GetMigrationStatusUrlParameter();
+  if (!migration_status.empty() && url.is_valid()) {
+    GURL::Replacements replacements;
+    std::string query = url.query();
+    if (!query.empty()) {
+      query += "&";
+    }
+    query += migration_status;
+    replacements.SetQueryStr(query);
+    url = url.ReplaceComponents(replacements);
+    LOG(INFO)
+        << "Storage migration status telemetry injected into startup URL: "
+        << url.spec();
+  }
+
+  content::Shell::CreateNewWindow(browser_context, url, nullptr, gfx::Size(),
+                                  ::switches::ShouldCreateSplashScreen(),
+                                  deeplink_url);
 }
 
 CobaltBrowserMainParts::CobaltBrowserMainParts(bool is_visible,
@@ -163,31 +182,6 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
-
-#if !BUILDFLAG(IS_ANDROIDTV)
-  // Inject the migration telemetry into the global command line URL.
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  GURL url = GURL(switches::GetInitialURL(*command_line));
-  const std::string status_param = cobalt::migrate_storage_record::
-      MigrationManager::GetMigrationStatusUrlParameter();
-
-  if (url.is_valid() && !status_param.empty()) {
-    GURL::Replacements replacements;
-    std::string query = url.query();
-    if (!query.empty()) {
-      query += "&";
-    }
-    query += status_param;
-    replacements.SetQueryStr(query);
-    url = url.ReplaceComponents(replacements);
-
-    command_line->RemoveSwitch(switches::kInitialURL);
-    command_line->AppendSwitchASCII(switches::kInitialURL, url.spec());
-    LOG(INFO) << "Storage migration status telemetry injected into global "
-                 "startup URL: "
-              << url.spec();
-  }
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
   migration_finished_ = true;
   if (pending_task_) {

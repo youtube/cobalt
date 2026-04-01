@@ -85,6 +85,11 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void InitializeMessageLoopContext() override;
 
  private:
+  void CreateWindowWithMigrationStatus(
+      GURL url,
+      std::string deeplink_url,
+      content::ShellBrowserContext* browser_context);
+
   base::SequenceCheckerImpl sequence_checker_;
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
