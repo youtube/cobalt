@@ -103,6 +103,11 @@ public final class CommandLineOverrideHelper {
         // Use SurfaceTexture for decode-to-texture mode.
         paramOverrides.add("AImageReader");
 
+        // Force OpenSL ES for Starboard to avoid AAudio MMAP/Legacy switching issues
+        // with virtual bridges (like AtvRemote) on Android TV.
+        // For details, see http://b/478022126#comment5.
+        paramOverrides.add("UseAAudioInput");
+
         return paramOverrides;
     }
 
