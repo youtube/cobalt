@@ -25,7 +25,6 @@
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
-#include "starboard/common/time.h"
 #include "starboard/shared/starboard/features.h"
 
 // Declare the function as static instead of putting it in the above anonymous
@@ -413,19 +412,9 @@ void DrmSystem::OnKeyStatusChange(
 
 bool DrmSystem::WaitForDrmSystemReady(int64_t timeout_usec) {
   std::unique_lock<std::mutex> lock(mutex_);
-  int64_t start_usec = CurrentMonotonicTime();
-
-  while (!created_media_crypto_session_.load()) {
-    int64_t now_usec = CurrentMonotonicTime();
-    int64_t elapsed_usec = now_usec - start_usec;
-    if (elapsed_usec >= timeout_usec) {
-      return created_media_crypto_session_.load();
-    }
-    int64_t remaining_usec = timeout_usec - elapsed_usec;
-    created_media_crypto_session_cv_.wait_for(
-        lock, std::chrono::microseconds(remaining_usec));
-  }
-  return true;
+  return created_media_crypto_session_cv_.wait_for(
+      lock, std::chrono::microseconds(timeout_usec),
+      [this] { return created_media_crypto_session_.load(); });
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
