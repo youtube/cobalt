@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -199,7 +200,7 @@ class MediaCodecBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   DrmSystemReadyCb drm_system_ready_cb_;
-  bool drm_system_ready_ = false;
+  std::atomic_bool drm_system_ready_;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

@@ -349,14 +349,14 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     const SbDrmSampleInfo& drm_sample_info,
     jlong presentation_time_microseconds,
     jboolean is_decode_only) {
-  if (!drm_system_ready_) {
+  if (!drm_system_ready_.load()) {
     if (drm_system_ready_cb_) {
       if (!drm_system_ready_cb_(kDrmSystemReadyTimeoutUsec)) {
         SB_LOG(ERROR) << "Timed out waiting for DRM system to be ready.";
         return MEDIA_CODEC_ERROR;
       }
     }
-    drm_system_ready_ = true;
+    drm_system_ready_.store(true);
   }
 
   JNIEnv* env = AttachCurrentThread();

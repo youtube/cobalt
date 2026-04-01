@@ -41,6 +41,8 @@ using base::android::ToJavaByteArray;
 
 using DrmOperationResult = MediaDrmBridge::OperationResult;
 
+constexpr int64_t kDrmSystemReadyTimeoutUsec = 500'000;
+
 // Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
@@ -236,7 +238,7 @@ void MediaDrmBridge::CloseSession(std::string_view session_id) const {
 }
 
 const void* MediaDrmBridge::GetMetrics(int* size) {
-  if (!host_->WaitForDrmSystemReady(500'000 /* 500ms */)) {
+  if (!host_->WaitForDrmSystemReady(kDrmSystemReadyTimeoutUsec)) {
     SB_LOG(ERROR)
         << "Timed out waiting for DRM system to be ready for GetMetrics.";
     *size = 0;
