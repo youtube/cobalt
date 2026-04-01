@@ -9,6 +9,7 @@ BUILD=true
 RUN_TESTS=true
 ANALYZE=true
 LOG_DIR=""
+TEST_FILTER=""
 
 for arg in "$@"; do
   case $arg in
@@ -34,8 +35,25 @@ for arg in "$@"; do
       ANALYZE=true
       LOG_DIR="${arg#*=}"
       ;;
+    --tests=*)
+      TEST_FILTER="${arg#*=}"
+      ;;
   esac
 done
+
+# --- Parse test filter ---
+INCLUDES=()
+EXCLUDES=()
+if [ -n "$TEST_FILTER" ]; then
+  IFS=':' read -r -a FILTER_ARRAY <<< "$TEST_FILTER"
+  for f in "${FILTER_ARRAY[@]}"; do
+    if [[ $f == -* ]]; then
+      EXCLUDES+=("${f#-}")
+    else
+      INCLUDES+=("$f")
+    fi
+  done
+fi
 
 PLATFORM="linux-x64x11"
 BUILD_TYPE="devel"
@@ -74,6 +92,42 @@ fi
 if [ -z "$TARGETS" ]; then
   echo "❌ Error: No test targets found."
   exit 1
+fi
+
+# Apply test filter if provided
+if [ -n "$TEST_FILTER" ]; then
+  FILTERED_TARGETS=""
+  for T in $TARGETS; do
+    T_NAME="${T##*:}"
+    
+    # Check for positive inclusion
+    FOUND=false
+    for INC in "${INCLUDES[@]}"; do
+      if [ "$T_NAME" == "$INC" ]; then
+        FOUND=true
+        break
+      fi
+    done
+    [ "$FOUND" = false ] && continue
+
+    # Check for exclusion
+    SKIP=false
+    for EX in "${EXCLUDES[@]}"; do
+      if [ "$T_NAME" == "$EX" ]; then
+        SKIP=true
+        break
+      fi
+    done
+    [ "$SKIP" = true ] && continue
+    
+    FILTERED_TARGETS="${FILTERED_TARGETS}${T}"$'\n'
+  done
+  TARGETS=$(echo "$FILTERED_TARGETS" | sed '/^$/d')
+
+  if [ -z "$TARGETS" ]; then
+    echo "❌ Error: No test targets match the filter: ${TEST_FILTER}"
+    exit 1
+  fi
 fi
 
 if [ "$DRY_RUN" = true ]; then
@@ -119,6 +173,37 @@ if [ "$RUN_TESTS" = true ]; then
   else
     # Fallback: extract executable paths.
     EXECUTABLES=$(grep -o '"out/linux-x64x11_devel/[^"]*"' "${TEST_TARGETS_FILE}" | tr -d '"' | grep -v "perf")
+  fi
+
+  # Apply test filter if provided
+  if [ -n "$TEST_FILTER" ]; then
+    FILTERED_EXECUTABLES=""
+    for E in $EXECUTABLES; do
+      E_NAME="${E##*/}"
+      
+      # Check for positive inclusion
+      FOUND=false
+      for INC in "${INCLUDES[@]}"; do
+        if [ "$E_NAME" == "$INC" ]; then
+          FOUND=true
+          break
+        fi
+      done
+      [ "$FOUND" = false ] && continue
+
+      # Check for exclusion
+      SKIP=false
+      for EX in "${EXCLUDES[@]}"; do
+        if [ "$E_NAME" == "$EX" ]; then
+          SKIP=true
+          break
+        fi
+      done
+      [ "$SKIP" = true ] && continue
+      
+      FILTERED_EXECUTABLES="${FILTERED_EXECUTABLES}${E}"$'\n'
+    done
+    EXECUTABLES=$(echo "$FILTERED_EXECUTABLES" | sed '/^$/d')
   fi
 
   # For each executable, we need to map from the placeholder path in the JSON 
@@ -233,4 +318,6 @@ fi
 
 echo ""
 echo "✅ All steps completed."
-[ -n "$LOG_DIR" ] && echo "Logs are available in: ${LOG_DIR}"
+if [ -n "$LOG_DIR" ]; then
+  echo "Logs are available in: ${LOG_DIR}"
+fi
