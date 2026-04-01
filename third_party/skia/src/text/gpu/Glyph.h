@@ -34,9 +34,12 @@ public:
         SkUNREACHABLE;
     }
 
-    Glyph(SkPackedGlyphID packedGlyphID) : fPackedID(packedGlyphID) {}
+    Glyph(SkPackedGlyphID packedGlyphID, skgpu::MaskFormat format)
+            : fPackedID(packedGlyphID)
+            , fMaskFormat(format) {}
 
     const SkPackedGlyphID       fPackedID;
+    const skgpu::MaskFormat     fMaskFormat;
     skgpu::AtlasLocator         fAtlasLocator;
 };
 
