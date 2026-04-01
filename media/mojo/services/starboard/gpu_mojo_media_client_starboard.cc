@@ -14,6 +14,7 @@
 
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_encoder.h"
 #include "media/base/media_log.h"
@@ -21,6 +22,10 @@
 #include "media/mojo/services/gpu_mojo_media_client.h"
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 #include "media/starboard/starboard_cdm_factory.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "gpu/command_buffer/service/ref_counted_lock.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 
@@ -51,7 +56,18 @@ std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
 
 std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
     StarboardRendererTraits traits) {
+#if BUILDFLAG(IS_ANDROID)
+  scoped_refptr<gpu::RefCountedLock> ref_counted_lock;
+
+  if (features::NeedThreadSafeAndroidMedia()) {
+    ref_counted_lock = base::MakeRefCounted<gpu::RefCountedLock>();
+  }
+
+  return std::make_unique<StarboardRendererWrapper>(std::move(traits),
+                                                    ref_counted_lock);
+#else   // BUILDFLAG(IS_ANDROID)
   return std::make_unique<StarboardRendererWrapper>(std::move(traits));
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
