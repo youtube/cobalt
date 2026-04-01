@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "media/starboard/decoder_buffer_allocator.h"
+// clang-format on
 
 #include "media/base/demuxer_stream.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
