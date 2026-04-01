@@ -229,7 +229,9 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
     splash_state_ = STATE_SPLASH_SCREEN_INITIALIZED;
     splash_screen_web_contents_observer_ =
         std::make_unique<SplashScreenWebContentsObserver>(
-            splash_screen_web_contents_.get());
+            splash_screen_web_contents_.get(),
+            base::BindOnce(&Shell::OnSplashScreenLoadComplete,
+                           weak_factory_.GetWeakPtr()));
     splash_screen_web_contents_delegate_ =
         std::make_unique<SplashScreenWebContentsDelegate>(
             base::BindPostTaskToCurrentDefault(
@@ -577,7 +579,6 @@ void Shell::LoadSplashScreenWebContents() {
     // Display splash screen.
     VLOG(1) << "NativeSplash: Loading splash screen WebContents.";
     splash_state_ = STATE_SPLASH_SCREEN_STARTED;
-    splash_screen_start_time_ = base::TimeTicks::Now();
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GURL(switches::kSplashScreenURL);
@@ -1116,6 +1117,10 @@ void Shell::LoadProgressChanged(double progress) {
 }
 
 void Shell::ScheduleSwitchToMainWebContents() {
+  if (splash_screen_start_time_.is_null()) {
+    LOG(INFO) << "NativeSplash: Splash screen not loaded yet, waiting.";
+    return;
+  }
   base::TimeDelta splash_screen_elapsed =
       base::TimeTicks::Now() - splash_screen_start_time_;
 
@@ -1184,6 +1189,16 @@ void Shell::SwitchToMainWebContents() {
       splash_screen_web_contents_.reset();
       splash_screen_web_contents_observer_.reset();
       splash_screen_web_contents_delegate_.reset();
+    }
+  }
+}
+
+void Shell::OnSplashScreenLoadComplete() {
+  if (splash_state_ >= STATE_SPLASH_SCREEN_STARTED &&
+      splash_screen_start_time_.is_null()) {
+    splash_screen_start_time_ = base::TimeTicks::Now();
+    if (is_main_frame_loaded_) {
+      ScheduleSwitchToMainWebContents();
     }
   }
 }
