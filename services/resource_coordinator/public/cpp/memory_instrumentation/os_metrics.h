@@ -66,6 +66,12 @@ class COMPONENT_EXPORT(
       base::ProcessHandle);
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  static bool ReadDetailedMetricsFile(std::vector<char>* buffer);
+#else
+  static bool ReadDetailedMetricsFile(std::vector<char>* buffer) { return false; }
+#endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static void SetProcSmapsForTesting(FILE*);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)

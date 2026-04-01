@@ -469,6 +469,25 @@ std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
 }
 
 // static
+bool OSMetrics::ReadDetailedMetricsFile(std::vector<char>* buffer) {
+  base::FilePath path("/proc/self/smaps");
+  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!file.IsValid())
+    return false;
+
+  const size_t kMaxSnapshotSize = 5 * 1024 * 1024;
+  buffer->resize(kMaxSnapshotSize);
+  auto bytes_read = file.ReadAtCurrentPos(base::as_writable_byte_span(*buffer));
+
+  if (bytes_read.has_value() && bytes_read.value() > 0 &&
+      bytes_read.value() < kMaxSnapshotSize) {
+    buffer->resize(bytes_read.value());
+    return true;
+  }
+  return false;
+}
+
+// static
 OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
     const size_t start_address,
     const size_t end_address,

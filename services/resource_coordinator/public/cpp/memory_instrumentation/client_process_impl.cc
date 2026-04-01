@@ -5,6 +5,8 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/client_process_impl.h"
 
 #include "base/containers/flat_map.h"
+#include "base/files/file.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/process/process.h"
@@ -12,12 +14,21 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/smaps_categorizer.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/tracing_observer_proto.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 
 namespace memory_instrumentation {
+
+namespace {
+
+ClientProcessImpl* g_client_process_impl = nullptr;
+constexpr base::TimeDelta kDetailedDumpThrottle = base::Minutes(30);
+
+}  // namespace
 
 struct ClientProcessImpl::OSMemoryDumpArgs {
   OSMemoryDumpArgs();
@@ -44,8 +55,23 @@ void ClientProcessImpl::CreateInstance(
     instance = new ClientProcessImpl(
         std::move(receiver), std::move(coordinator), is_browser_process,
         /*initialize_memory_instrumentation=*/true);
+    g_client_process_impl = instance;
   } else {
     NOTREACHED();
+  }
+}
+
+// static
+void ClientProcessImpl::SetDetailedMetricsDelegate(
+    DetailedMetricsDelegate* delegate) {
+  if (g_client_process_impl) {
+    g_client_process_impl->detailed_metrics_delegate_ = delegate;
+    if (delegate) {
+      g_client_process_impl->detailed_metrics_harness_ =
+          std::make_unique<SmapsCategorizer>(delegate);
+    } else {
+      g_client_process_impl->detailed_metrics_harness_.reset();
+    }
   }
 }
 
@@ -181,6 +207,8 @@ void ClientProcessImpl::RequestOSMemoryDump(
 void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
   bool global_success = true;
   base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results;
+  mojom::RawOSMemDump* self_dump = nullptr;
+
   for (const base::ProcessId& pid : args.pids) {
     auto handle = base::Process::Open(pid).Handle();
     mojom::RawOSMemDumpPtr result = mojom::RawOSMemDump::New();
@@ -192,11 +220,46 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
                                handle, args.mmap_option, result.get());
     }
     if (success) {
+      if (pid == base::GetCurrentProcId() || pid == base::kNullProcessId) {
+        self_dump = result.get();
+      }
       results[pid] = std::move(result);
     } else {
       DLOG(ERROR) << "OS memory dump failed for pid " << pid;
     }
     global_success = global_success && success;
+  }
+
+  bool trigger_detailed_dump =
+      args.flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS) &&
+      self_dump && detailed_metrics_harness_ &&
+      (base::TimeTicks::Now() - last_detailed_dump_time_ >=
+       kDetailedDumpThrottle);
+
+  if (trigger_detailed_dump) {
+    std::vector<char> buffer;
+    if (OSMetrics::ReadDetailedMetricsFile(&buffer)) {
+      detailed_metrics_harness_->Start(
+          std::move(buffer), self_dump,
+          base::BindOnce(&ClientProcessImpl::OnDetailedDumpDone,
+                         weak_ptr_factory_.GetWeakPtr(), std::move(args),
+                         std::move(results), global_success));
+      return;
+    }
+    // If snapshot fails or self-dump is missing, just continue without
+    // detailed stats.
+  }
+
+  std::move(args.callback).Run(global_success, std::move(results));
+}
+
+void ClientProcessImpl::OnDetailedDumpDone(
+    OSMemoryDumpArgs args,
+    base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results,
+    bool global_success,
+    bool success) {
+  if (success) {
+    last_detailed_dump_time_ = base::TimeTicks::Now();
   }
   std::move(args.callback).Run(global_success, std::move(results));
 }

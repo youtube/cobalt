@@ -56,7 +56,11 @@ base::trace_event::MemoryDumpRequestArgs QueuedRequest::GetRequestArgs() {
 
 std::vector<mojom::MemDumpFlags> QueuedRequest::memory_dump_flags() const {
   if (!args.memory_footprint_only) {
-    return base::ToVector(OSMetrics::MemDumpFlagSet::All());
+    auto flags = OSMetrics::MemDumpFlagSet::All();
+    if (args.level_of_detail != MemoryDumpLevelOfDetail::kDetailed) {
+      flags.Remove(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
+    }
+    return base::ToVector(flags);
   }
   return {};
 }
