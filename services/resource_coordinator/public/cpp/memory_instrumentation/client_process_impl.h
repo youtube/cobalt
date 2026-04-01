@@ -19,6 +19,9 @@
 
 namespace memory_instrumentation {
 
+class DetailedMetricsDelegate;
+class SmapsCategorizer;
+
 // This is the bridge between MemoryDumpManager and the Coordinator service.
 // This indirection is needed to avoid a dependency from //base, where
 // MemoryDumpManager lives, to //services, where the Coordinator service lives.
@@ -34,6 +37,8 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
       mojo::PendingReceiver<mojom::ClientProcess> receiver,
       mojo::PendingRemote<mojom::Coordinator> coordinator,
       bool is_browser_process = false);
+
+  static void SetDetailedMetricsDelegate(DetailedMetricsDelegate* delegate);
 
   ClientProcessImpl(const ClientProcessImpl&) = delete;
   ClientProcessImpl& operator=(const ClientProcessImpl&) = delete;
@@ -74,6 +79,12 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   struct OSMemoryDumpArgs;
   void PerformOSMemoryDump(OSMemoryDumpArgs args);
 
+  void OnDetailedDumpDone(
+      OSMemoryDumpArgs args,
+      base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results,
+      bool global_success,
+      bool success);
+
   // Map containing pending chrome memory callbacks indexed by dump guid.
   // This must be destroyed after |binding_|.
   std::map<uint64_t, RequestChromeMemoryDumpCallback> pending_chrome_callbacks_;
@@ -91,8 +102,14 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   mojo::Remote<mojom::Coordinator> coordinator_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
+  DetailedMetricsDelegate* detailed_metrics_delegate_ = nullptr;
+  std::unique_ptr<SmapsCategorizer> detailed_metrics_harness_;
+  base::TimeTicks last_detailed_dump_time_;
+
   // Only browser process is allowed to request memory dumps.
   const bool is_browser_process_;
+
+  base::WeakPtrFactory<ClientProcessImpl> weak_ptr_factory_{this};
 };
 
 }  // namespace memory_instrumentation

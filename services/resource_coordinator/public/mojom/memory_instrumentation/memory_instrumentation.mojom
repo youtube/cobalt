@@ -59,6 +59,8 @@ enum MemDumpFlags {
   MEM_DUMP_PSS = 1,
   // On Android, populate the native_library_pages_bitmap field of RawOSMemDump.
   MEM_DUMP_PAGES_BITMAP = 2,
+  // Populate the detailed_stats_kb field of RawOSMemDump.
+  MEM_DUMP_DETAILED_STATS = 3,
 };
 
 // These structs are internal only (only for the communication between
@@ -181,13 +183,11 @@ struct RawOSMemDump {
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
 
-  // PSS for libchrobalt.so specifically.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  uint32 libchrobalt_pss_kb = 0;
+  // Generic map for detailed memory metrics.
+  map<string, uint32>? detailed_stats_kb;
 
-  // RSS for libchrobalt.so specifically.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  uint32 libchrobalt_rss_kb = 0;
+  // Timestamp of the last successful detailed memory dump.
+  mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
 // These structs are public:
@@ -236,13 +236,11 @@ struct OSMemDump {
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
 
-  // PSS for libchrobalt.so specifically.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  uint32 libchrobalt_pss_kb = 0;
+  // Generic map for detailed memory metrics.
+  map<string, uint32>? detailed_stats_kb;
 
-  // RSS for libchrobalt.so specifically.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  uint32 libchrobalt_rss_kb = 0;
+  // Timestamp of the last successful detailed memory dump.
+  mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
 // This struct contains information about a particular allocator dump

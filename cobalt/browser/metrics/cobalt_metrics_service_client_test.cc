@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_path_override.h"
@@ -29,6 +30,7 @@
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/version.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
@@ -76,6 +78,20 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->os_dump->private_footprint_kb = 10240;  // 10 MB
     browser_dump->os_dump->resident_set_kb = 20480;       // 20 MB
     browser_dump->os_dump->shared_footprint_kb = 5120;    // 5 MB
+#if BUILDFLAG(IS_ANDROID)
+    browser_dump->os_dump->detailed_stats_kb = {
+        {base::StrCat(
+             {kDetailedMetricRssPrefix, kDetailedMetricPartitionAlloc}),
+         16384},
+        {base::StrCat({kDetailedMetricRssPrefix, kDetailedMetricMalloc}),
+         10240},
+        {base::StrCat({kDetailedMetricRssPrefix, kDetailedMetricV8}), 12288},
+        {base::StrCat({kDetailedMetricRssPrefix, kDetailedMetricCobaltCore}),
+         10240},
+        {base::StrCat({kDetailedMetricPssPrefix, kDetailedMetricCobaltCore}),
+         8192},
+    };
+#endif
 
     // Add a blink_gc dump
     auto blink_gc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -185,6 +201,12 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
         memory_instrumentation::mojom::ProcessType::RENDERER;
     renderer_dump->os_dump = memory_instrumentation::mojom::OSMemDump::New();
     renderer_dump->os_dump->private_footprint_kb = 20480;  // 20 MB
+#if BUILDFLAG(IS_ANDROID)
+    renderer_dump->os_dump->detailed_stats_kb = {
+        {base::StrCat(
+             {kDetailedMetricRssPrefix, kDetailedMetricPartitionAlloc}),
+         2048}};
+#endif
 
     auto renderer_blink_gc_dump =
         memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -482,6 +504,22 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
           .size(),
       1u);
 
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Malloc", 10),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc", 16),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.V8", 12),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount("Memory.Browser.LibChrobaltPss", 8),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Browser.LibChrobaltRss", 10), 0);
+#endif
+
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Tiny.NumberOfDocuments", 3),
             0);
@@ -504,13 +542,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
                 "Memory.Experimental.Browser2.Small.LevelDatabase", 512),
             0);
   EXPECT_GT(histogram_tester.GetBucketCount(
-                "Memory.Experimental.Browser2.Malloc", 10),
-            0);
-  EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Malloc.AllocatedObjects", 8),
-            0);
-  EXPECT_GT(histogram_tester.GetBucketCount(
-                "Memory.Experimental.Browser2.PartitionAlloc", 16),
             0);
   EXPECT_GT(
       histogram_tester.GetBucketCount(
@@ -528,9 +560,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Small.UI", 2),
             0);
-  EXPECT_GT(
-      histogram_tester.GetBucketCount("Memory.Experimental.Browser2.V8", 12),
-      0);
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.V8.AllocatedObjects", 10),
             0);

@@ -19,6 +19,7 @@
 #include "base/path_service.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
@@ -47,6 +48,8 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
 namespace {
+
+std::unique_ptr<CobaltDetailedMetricsDelegate> g_detailed_metrics_delegate;
 
 void InitializeBrowserMemoryInstrumentationClient() {
   if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
@@ -79,6 +82,11 @@ void InitializeBrowserMemoryInstrumentationClient() {
   memory_instrumentation::ClientProcessImpl::CreateInstance(
       std::move(process_receiver), std::move(coordinator),
       /*is_browser_process=*/true);
+
+  g_detailed_metrics_delegate =
+      std::make_unique<CobaltDetailedMetricsDelegate>();
+  memory_instrumentation::ClientProcessImpl::SetDetailedMetricsDelegate(
+      g_detailed_metrics_delegate.get());
 }
 
 }  // namespace

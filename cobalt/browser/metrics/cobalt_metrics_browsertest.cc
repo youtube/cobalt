@@ -117,12 +117,21 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Small.UI");
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfDocuments");
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfFrames");
-  check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
-  check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
+  EXPECT_TRUE(check_histogram(
+      "Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects"));
+  EXPECT_TRUE(
+      check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes"));
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
-  check_histogram("Memory.Browser.LibChrobaltPss");
-  check_histogram("Memory.Browser.LibChrobaltRss");
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(check_histogram("Memory.Browser.LibChrobaltPss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.LibChrobaltRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.PartitionAllocRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.MallocRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.AshmemJitRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.CodeOtherRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.FontsRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.AndroidRuntimeRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.StacksRss"));
 #endif
 }
 
@@ -194,9 +203,16 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
-  check_histogram("Memory.Browser.LibChrobaltPss");
-  check_histogram("Memory.Browser.LibChrobaltRss");
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(check_histogram("Memory.Browser.LibChrobaltPss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.LibChrobaltRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.PartitionAllocRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.MallocRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.AshmemJitRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.CodeOtherRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.FontsRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.AndroidRuntimeRss"));
+  EXPECT_TRUE(check_histogram("Memory.Browser.StacksRss"));
 #endif
 }
 

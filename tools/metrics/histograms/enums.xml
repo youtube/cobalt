@@ -20111,6 +20111,26 @@ from previous Chrome versions.
   <int value="6" label="None"/>
 </enum>
 
+<enum name="MemoryCategory">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="libchrobalt.so"/>
+  <int value="2" label="PartitionAlloc"/>
+  <int value="3" label="V8"/>
+  <int value="4" label="Malloc"/>
+  <int value="5" label="CodeOther"/>
+  <int value="6" label="Fonts"/>
+  <int value="7" label="AshmemJit"/>
+  <int value="8" label="AndroidRuntime"/>
+  <int value="9" label="Stacks"/>
+</enum>
+
+<enum name="MemoryDetailedDumpAbortReason">
+  <int value="0" label="Success"/>
+  <int value="1" label="Snapshot limit hit (5MB)"/>
+  <int value="2" label="Smaps file open failed"/>
+  <int value="3" label="Smaps file read failed"/>
+</enum>
+
 <enum name="MenuSourceType">
   <int value="0" label="None"/>
   <int value="1" label="Mouse"/>
