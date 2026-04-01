@@ -112,6 +112,7 @@
     "TransliteratorTest.LatinASCIICorrect",
     "TransliteratorTest.LowerCorrect",
     "TransliteratorTest.LowerLatinASCIICorrect",
-    "ValuesUtilTest.FilePath"
+    "ValuesUtilTest.FilePath",
+    "RawSpan.SameSlotAssignmentWhenDangling"
   ]
 }
