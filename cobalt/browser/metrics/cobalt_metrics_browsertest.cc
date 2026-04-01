@@ -182,6 +182,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   // Sub-region memory metrics
   EXPECT_TRUE(
       check_histogram("Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
+  
+  // media decoder buffer memory metrics 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_TRUE(
+      check_histogram("Media.Memory.EncodedBuffer.Allocated"));
+#endif
 
   // Check for the specific regions requested by the user.
   check_histogram("Memory.Experimental.Browser2.BlinkGC");

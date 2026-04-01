@@ -548,6 +548,57 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   // Memory.Experimental.Browser2.Small.FontCaches
 }
 
+// Test version of MediaClient. It provides a test environment to inject
+// a DecoderBufferAllocator to simulate memory allocation of a decoder
+// buffer. This is used to track and verify the collection of metrics by
+// media memory histogram.
+class TestMediaClient : public media::MediaClient {
+ public:
+  bool IsDecoderSupportedAudioType(const media::AudioType& type) override { return true; }
+  bool IsDecoderSupportedVideoType(const media::VideoType& type) override { return true; }
+  bool IsEncoderSupportedVideoType(const media::VideoType& type) override { return true; }
+  bool IsSupportedBitstreamAudioCodec(media::AudioCodec codec) override { return true; }
+  std::optional<::media::AudioRendererAlgorithmParameters> GetAudioRendererAlgorithmParameters(
+      media::AudioParameters audio_parameters) override {
+    return std::nullopt;
+  }
+  media::ExternalMemoryAllocator* GetMediaAllocator() override { return nullptr; }
+};
+
+TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistograms) {
+  base::HistogramTester histogram_tester;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  TestMediaClient test_media_client;
+  media::SetMediaClient(&test_media_client);
+
+  const size_t kSize = 1024 * 1024;
+  auto buffer = base::MakeRefCounted<media::DecoderBuffer>(kSize);
+  uint64_t allocated = media::MediaClient::GetMediaSourceTotalAllocatedMemory();
+  ASSERT_GE(allocated, static_cast<uint64_t>(kSize));
+#endif
+
+  // Trigger a memory dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Wait for the dump to be processed.
+  task_environment_.FastForwardBy(base::Seconds(3));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Media.EncodedBuffer.Allocated")
+          .size(), 1u);
+  EXPECT_GE(
+      histogram_tester.GetBucketCount("Memory.Media.EncodedBuffer.Allocated", kSize),
+      1);
+  media::SetMediaClient(nullptr);
+  media::DecoderBuffer::Allocator::Set(nullptr);
+#endif
+}
+
 TEST_F(CobaltMetricsServiceClientTest,
        CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
   base::MockCallback<base::OnceClosure> done_callback_mock;
