@@ -728,7 +728,7 @@ class MediaCodecBridge {
 
     // Collect output buffer total memory usage before releasing
     RecordHistogram.recordMemoryMediumMBHistogram(
-        "Media.MediaCodec.DecodedBuffer.Allocated",
+        "Media.Memory.DecodedBuffer.Allocated",
         (int)(sGlobalTotalMemoryUsage.get() / BYTES_PER_MIB));
 
     // We skip calling stop() on Android 11, as this version has a race condition
