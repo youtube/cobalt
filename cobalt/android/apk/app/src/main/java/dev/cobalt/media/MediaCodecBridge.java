@@ -117,7 +117,7 @@ class MediaCodecBridge {
     }
   }
 
-  private static AtomicLong sGlobalTotalMemoryUsage = new AtomicLong(0L);Expand commentComment on line R119Resolved
+  private static AtomicLong sGlobalTotalMemoryUsage = new AtomicLong(0L);
   @CalledByNative
   public static long getGlobalOutputMemoryUsage() {
     return sGlobalTotalMemoryUsage.get();
@@ -127,7 +127,7 @@ class MediaCodecBridge {
     private final SparseIntArray mBufferSizes = new SparseIntArray();
     private long mTotalMemoryUsage = 0;
 
-    public synchronized void add(int index, int size) {Expand commentComment on line R129Resolved
+    public synchronized void add(int index, int size) {
       int oldSize = mBufferSizes.get(index, -1);
       if (oldSize != -1) {
         mTotalMemoryUsage -= oldSize;
