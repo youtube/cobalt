@@ -118,63 +118,12 @@ class MediaCodecBridge {
   }
 
   private static AtomicLong sGlobalTotalMemoryUsage = new AtomicLong(0L);
-  @CalledByNative
-  public static long getGlobalOutputMemoryUsage() {
-    return sGlobalTotalMemoryUsage.get();
-  }
-
-  private class OutputMemoryTracker {
-    private final SparseIntArray mBufferSizes = new SparseIntArray();
-    private long mTotalMemoryUsage = 0;
-
-    public synchronized void add(int index, int size) {
-      int oldSize = mBufferSizes.get(index, -1);
-      if (oldSize != -1) {
-        mTotalMemoryUsage -= oldSize;
-        sGlobalTotalMemoryUsage.addAndGet(-oldSize);
-      }
-      int trackedSize = size;
-      if (mDecodesToSurface) {
-        try {
-          if (mActiveFormat != null) {
-            int width = mActiveFormat.width();
-            int height = mActiveFormat.height();
-            if (width > 0 && height > 0) {
-              // This is an estimated size assuming YUV420 format
-              // width * height * 1.5
-              trackedSize = width * height * 3 / 2;
-            }
-          }
-        } catch (Exception e) {
-          trackedSize = 0;
-        }
-      }
-      mBufferSizes.put(index, trackedSize);
-      mTotalMemoryUsage += trackedSize;
-      sGlobalTotalMemoryUsage.addAndGet(trackedSize);
-    }
-
-    public synchronized void remove(int index) {
-      int size = mBufferSizes.get(index, -1);
-      if (size != -1) {
-        mTotalMemoryUsage -= size;
-        sGlobalTotalMemoryUsage.addAndGet(-size); 
-        mBufferSizes.delete(index);
-      }
-    }
-
-    public synchronized void reset() {
-      mBufferSizes.clear();
-      sGlobalTotalMemoryUsage.addAndGet(-mTotalMemoryUsage);
-      mTotalMemoryUsage = 0;
-    }
-  }
-
   private FrameRateEstimator mFrameRateEstimator = null;
-  private final OutputMemoryTracker mOutputMemoryTracker;
+  private final OutputMemoryTracker mOutputMemoryTracker = null;
+  private static AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);  
   private MediaFormatWrapper mActiveFormat = null;
   private boolean mDecodesToSurface = false;
-  private static final BYTES_PER_MIB = 1024 * 1024;
+  private static final int BYTES_PER_MIB = 1024 * 1024;
 
    /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
@@ -332,7 +281,6 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mOutputMemoryTracker = new OutputMemoryTracker();
     mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
@@ -377,7 +325,9 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
-              mOutputMemoryTracker.add(index, info.size);
+              if (mOutputMemoryTracker != null) {
+                mOutputMemoryTracker.add(index, info.size);
+              }
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
                 int fps = mFrameRateEstimator.getEstimatedFrameRate();
@@ -513,6 +463,7 @@ class MediaCodecBridge {
         new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
+    mOutputMemoryTracker = new OutputMemoryTracker();
 
     boolean shouldConfigureHdr =
         colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
@@ -741,7 +692,10 @@ class MediaCodecBridge {
       } catch (Exception e) {
         Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
       } finally {
-        mOutputMemoryTracker.reset();
+        if (mOutputMemoryTracker != null) {
+          mOutputMemoryTracker.reset();
+          mActiveOutputBuffers.addAndGet(-1);
+        }
       }
     }
 
@@ -883,7 +837,9 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
-      mOutputMemoryTracker.remove(index);
+      if (mOutputMemoryTracker != null) {
+        mOutputMemoryTracker.remove(index);
+      }
       mMediaCodec.get().releaseOutputBuffer(index, render);
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
@@ -894,7 +850,9 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
-      mOutputMemoryTracker.remove(index);
+      if (mOutputMemoryTracker != null) {
+        mOutputMemoryTracker.remove(index);
+      }
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
