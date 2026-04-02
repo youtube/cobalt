@@ -345,7 +345,7 @@ ReadAndParseLegacyStorageRecord() {
       }
     }
 
-    if (record->GetSize() < kRecordHeaderSize) {
+    if (record->GetSize() < static_cast<int64_t>(kRecordHeaderSize)) {
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
