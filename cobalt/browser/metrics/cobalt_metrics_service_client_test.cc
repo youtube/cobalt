@@ -49,6 +49,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+#include "media/base/decoder_buffer.h"
+#include "media/base/media_client.h"
+#include "media/base/mock_filters.h"
+
 namespace cobalt {
 
 using base::trace_event::MemoryAllocatorDump;
@@ -548,30 +552,12 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   // Memory.Experimental.Browser2.Small.FontCaches
 }
 
-// Test version of MediaClient. It provides a test environment to inject
-// a DecoderBufferAllocator to simulate memory allocation of a decoder
-// buffer. This is used to track and verify the collection of metrics by
-// media memory histogram.
-class TestMediaClient : public media::MediaClient {
- public:
-  bool IsDecoderSupportedAudioType(const media::AudioType& type) override { return true; }
-  bool IsDecoderSupportedVideoType(const media::VideoType& type) override { return true; }
-  bool IsEncoderSupportedVideoType(const media::VideoType& type) override { return true; }
-  bool IsSupportedBitstreamAudioCodec(media::AudioCodec codec) override { return true; }
-  std::optional<::media::AudioRendererAlgorithmParameters> GetAudioRendererAlgorithmParameters(
-      media::AudioParameters audio_parameters) override {
-    return std::nullopt;
-  }
-  media::ExternalMemoryAllocator* GetMediaAllocator() override { return nullptr; }
-};
-
-TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistograms) {
+TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
   base::HistogramTester histogram_tester;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  TestMediaClient test_media_client;
-  media::SetMediaClient(&test_media_client);
-
+  media::MockMediaClient mock_media_client;
+  media::SetMediaClient(&mock_media_client);
   const size_t kSize = 2 * 1024 * 1024;
   auto buffer = base::MakeRefCounted<media::DecoderBuffer>(kSize);
   uint64_t allocated = media::MediaClient::GetMediaSourceTotalAllocatedMemory();
@@ -590,10 +576,12 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistograms) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   EXPECT_GE(
       histogram_tester.GetAllSamples("Media.Memory.EncodedBuffer.Allocated")
-          .size(), 1u);
-  EXPECT_GE(
-      histogram_tester.GetBucketCount("Media.Memory.EncodedBuffer.Allocated", 2),
-      1);
+          .size(), 
+      1u);
+  EXPECT_GE(histogram_tester.GetBucketCount(
+                "Media.Memory.EncodedBuffer.Allocated", 2),
+            1);
+  buffer = nullptr;
   media::SetMediaClient(nullptr);
   media::DecoderBuffer::Allocator::Set(nullptr);
 #endif

@@ -422,7 +422,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
   base::UmaHistogramMemoryMB("Media.Memory.EncodedBuffer.Allocated",
                              static_cast<int>(encoded_memory_bytes / kMiB));
 #endif
-  
+
   global_dump_ = nullptr;
 
   if (callback_for_testing_) {
