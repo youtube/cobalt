@@ -40,6 +40,8 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
       mojo::PendingRemote<mojom::Coordinator> coordinator,
       bool is_browser_process = false);
 
+  static ClientProcessImpl* GetInstance();
+
   static void SetDetailedMetricsDelegate(DetailedMetricsDelegate* delegate);
 
   ClientProcessImpl(const ClientProcessImpl&) = delete;

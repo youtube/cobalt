@@ -73,6 +73,15 @@ class COMPONENT_EXPORT(
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static void SetProcSmapsForTesting(FILE*);
+
+  enum class DetailedDumpAbortReason {
+    kSuccess = 0,
+    kSnapshotLimitHit = 1,
+    kSmapsFileOpenFailed = 2,
+    kSmapsFileReadFailed = 3,
+    kSmapsValidationFailed = 4,
+    kMaxValue = kSmapsValidationFailed
+  };
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 

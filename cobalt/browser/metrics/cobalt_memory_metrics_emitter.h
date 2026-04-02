@@ -54,6 +54,12 @@ class CobaltMemoryMetricsEmitter
     kIgnored
   };
 
+  enum class CalculationType {
+    kValue,          // Direct value from dump
+    kFragmentation,  // (Value - SecondaryValue) / Value
+    kWasted,         // Value - SecondaryValue
+  };
+
   struct MetricRange {
     const int min;
     const int max;
@@ -64,6 +70,8 @@ class CobaltMemoryMetricsEmitter
     const char* const uma_name;
     const MetricSize metric_size;
     const char* const metric;
+    const char* const secondary_metric;
+    const CalculationType calculation;
     const EmitTo target;
     const MetricRange range;
   };

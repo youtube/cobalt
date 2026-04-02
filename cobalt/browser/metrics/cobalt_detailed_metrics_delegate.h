@@ -33,7 +33,8 @@ class CobaltDetailedMetricsDelegate
   ~CobaltDetailedMetricsDelegate() override;
 
   // DetailedMetricsDelegate implementation.
-  void OnSmapsLine(absl::string_view line) override;
+  void OnSmapsHeader(absl::string_view line) override;
+  void OnSmapsCounter(absl::string_view name, uint64_t value_kb) override;
   base::flat_map<std::string, uint32_t> GetAndResetStats() override;
 
  private:

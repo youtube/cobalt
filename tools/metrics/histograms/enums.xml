@@ -20129,6 +20129,7 @@ from previous Chrome versions.
   <int value="1" label="Snapshot limit hit (5MB)"/>
   <int value="2" label="Smaps file open failed"/>
   <int value="3" label="Smaps file read failed"/>
+  <int value="4" label="Smaps validation failed"/>
 </enum>
 
 <enum name="MenuSourceType">

@@ -26,6 +26,10 @@ namespace memory_instrumentation {
 namespace {
 
 ClientProcessImpl* g_client_process_impl = nullptr;
+
+// How often we should collect detailed memory metrics. 30 minutes is chosen
+// as a balance between providing observability and minimizing overhead from
+// parsing smaps.
 constexpr base::TimeDelta kDetailedDumpThrottle = base::Minutes(30);
 
 }  // namespace
@@ -50,27 +54,31 @@ void ClientProcessImpl::CreateInstance(
   if (!is_browser_process)
     coordinator.reset();
 
-  static ClientProcessImpl* instance = nullptr;
-  if (!instance) {
-    instance = new ClientProcessImpl(
+  if (!g_client_process_impl) {
+    g_client_process_impl = new ClientProcessImpl(
         std::move(receiver), std::move(coordinator), is_browser_process,
         /*initialize_memory_instrumentation=*/true);
-    g_client_process_impl = instance;
   } else {
     NOTREACHED();
   }
 }
 
 // static
+ClientProcessImpl* ClientProcessImpl::GetInstance() {
+  return g_client_process_impl;
+}
+
+// static
 void ClientProcessImpl::SetDetailedMetricsDelegate(
     DetailedMetricsDelegate* delegate) {
-  if (g_client_process_impl) {
-    g_client_process_impl->detailed_metrics_delegate_ = delegate;
+  ClientProcessImpl* instance = GetInstance();
+  if (instance) {
+    instance->detailed_metrics_delegate_ = delegate;
     if (delegate) {
-      g_client_process_impl->detailed_metrics_harness_ =
+      instance->detailed_metrics_harness_ =
           std::make_unique<SmapsCategorizer>(delegate);
     } else {
-      g_client_process_impl->detailed_metrics_harness_.reset();
+      instance->detailed_metrics_harness_.reset();
     }
   }
 }
@@ -246,8 +254,6 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
                          std::move(results), global_success));
       return;
     }
-    // If snapshot fails or self-dump is missing, just continue without
-    // detailed stats.
   }
 
   std::move(args.callback).Run(global_success, std::move(results));

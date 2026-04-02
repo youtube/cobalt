@@ -7,12 +7,14 @@
 #include <cmath>
 
 #include "base/containers/flat_map.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/abseil-cpp/absl/strings/match.h"
 #include "third_party/abseil-cpp/absl/strings/numbers.h"
@@ -34,6 +36,9 @@ SmapsCategorizer::~SmapsCategorizer() = default;
 void SmapsCategorizer::Start(std::vector<char> buffer,
                              mojom::RawOSMemDump* dump,
                              DoneCallback callback) {
+  if (done_callback_) {
+    std::move(done_callback_).Run(false);
+  }
   weak_ptr_factory_.InvalidateWeakPtrs();
   buffer_ = std::move(buffer);
   dump_ = dump;
@@ -56,16 +61,28 @@ void SmapsCategorizer::ParseNextChunk() {
                                  ? content.substr(current_pos_)
                                  : content.substr(current_pos_, line_end - current_pos_);
 
-    if (delegate_) {
-      delegate_->OnSmapsLine(line);
-    }
-
-    if (absl::StartsWith(line, "Pss:")) {
-      absl::string_view value_part = absl::StripPrefix(line, "Pss:");
-      value_part = absl::StripSuffix(value_part, " kB");
-      uint64_t value_kb = 0;
-      if (absl::SimpleAtoi(absl::StripAsciiWhitespace(value_part), &value_kb)) {
-        total_pss_kb_ += value_kb;
+    // Check if it's a header line (starts with hex address range).
+    if (absl::ascii_isxdigit(static_cast<unsigned char>(line[0]))) {
+      if (delegate_) {
+        delegate_->OnSmapsHeader(line);
+      }
+    } else {
+      // Check if it's a counter line (e.g. "Pss:  12 kB").
+      size_t colon_pos = line.find(':');
+      if (colon_pos != absl::string_view::npos) {
+        absl::string_view name = line.substr(0, colon_pos);
+        absl::string_view value_part = line.substr(colon_pos + 1);
+        value_part = absl::StripAsciiWhitespace(value_part);
+        value_part = absl::StripSuffix(value_part, " kB");
+        uint64_t value_kb = 0;
+        if (absl::SimpleAtoi(value_part, &value_kb)) {
+          if (name == "Pss") {
+            total_pss_kb_ += value_kb;
+          }
+          if (delegate_) {
+            delegate_->OnSmapsCounter(name, value_kb);
+          }
+        }
       }
     }
 
@@ -95,6 +112,8 @@ void SmapsCategorizer::ParseNextChunk() {
         DLOG(WARNING) << "Smaps snapshot validation failed. Snapshot PSS: "
                       << total_pss_kb_ << " KB, Rollup PSS: " << dump_->pss_kb
                       << " KB";
+        base::UmaHistogramEnumeration("Memory.DetailedDump.AbortReason",
+                                      OSMetrics::DetailedDumpAbortReason::kSmapsValidationFailed);
       }
     }
 

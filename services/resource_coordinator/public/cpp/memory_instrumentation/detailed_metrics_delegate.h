@@ -20,9 +20,11 @@ class DetailedMetricsDelegate {
  public:
   virtual ~DetailedMetricsDelegate() = default;
 
-  // Called for each line in /proc/self/smaps. The |line| view is only valid
-  // for the duration of this call.
-  virtual void OnSmapsLine(absl::string_view line) = 0;
+  // Called for each header line (hex address range) in /proc/self/smaps.
+  virtual void OnSmapsHeader(absl::string_view line) = 0;
+
+  // Called for each memory counter line (e.g. "Pss:  12 kB") in /proc/self/smaps.
+  virtual void OnSmapsCounter(absl::string_view name, uint64_t value_kb) = 0;
 
   // Called after all lines have been processed to retrieve the aggregated
   // metrics and reset internal counters for the next dump.

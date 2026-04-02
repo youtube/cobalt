@@ -63,39 +63,23 @@ constexpr char kAnonPrefix[] = "[anon:";
 CobaltDetailedMetricsDelegate::CobaltDetailedMetricsDelegate() = default;
 CobaltDetailedMetricsDelegate::~CobaltDetailedMetricsDelegate() = default;
 
-void CobaltDetailedMetricsDelegate::OnSmapsLine(absl::string_view line) {
+void CobaltDetailedMetricsDelegate::OnSmapsHeader(absl::string_view line) {
   if (line.empty()) {
     return;
   }
+  current_category_ = GetCategory(line);
+}
 
-  // Check if it's a header line (starts with hex address range).
-  if (base::IsHexDigit(static_cast<unsigned char>(line[0]))) {
-    current_category_ = GetCategory(line);
-    return;
-  }
-
+void CobaltDetailedMetricsDelegate::OnSmapsCounter(absl::string_view name,
+                                                   uint64_t value_kb) {
   if (current_category_ == Category::kNone) {
     return;
   }
 
-  // Parse counter line. Format: "Name:  Value kB"
-  bool is_pss = absl::StartsWith(line, "Pss:");
-  bool is_rss = absl::StartsWith(line, "Rss:");
+  bool is_pss = (name == "Pss");
+  bool is_rss = (name == "Rss");
 
   if (!is_pss && !is_rss) {
-    return;
-  }
-
-  std::vector<absl::string_view> tokens = base::SplitStringPiece(
-      line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-
-  // Expected tokens: ["Pss:", "12", "kB"] or ["Rss:", "12", "kB"]
-  if (tokens.size() < 3 || tokens.back() != "kB") {
-    return;
-  }
-
-  uint64_t value_kb = 0;
-  if (!absl::SimpleAtoi(tokens[1], &value_kb)) {
     return;
   }
 

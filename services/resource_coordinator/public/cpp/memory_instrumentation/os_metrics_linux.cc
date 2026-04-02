@@ -322,6 +322,10 @@ void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
   *swap_pss = value->swap_pss;
 }
 
+void RecordDetailedDumpAbortReason(OSMetrics::DetailedDumpAbortReason reason) {
+  base::UmaHistogramEnumeration("Memory.DetailedDump.AbortReason", reason);
+}
+
 }  // namespace
 
 FILE* g_proc_smaps_for_testing = nullptr;
@@ -413,19 +417,42 @@ std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
 bool OSMetrics::ReadDetailedMetricsFile(std::vector<char>* buffer) {
   base::FilePath path("/proc/self/smaps");
   base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  if (!file.IsValid())
+  if (!file.IsValid()) {
+    RecordDetailedDumpAbortReason(OSMetrics::DetailedDumpAbortReason::kSmapsFileOpenFailed);
     return false;
-
-  const size_t kMaxSnapshotSize = 5 * 1024 * 1024;
-  buffer->resize(kMaxSnapshotSize);
-  auto bytes_read = file.ReadAtCurrentPos(base::as_writable_byte_span(*buffer));
-
-  if (bytes_read.has_value() && bytes_read.value() > 0 &&
-      bytes_read.value() < kMaxSnapshotSize) {
-    buffer->resize(bytes_read.value());
-    return true;
   }
-  return false;
+
+  // 8MB limit to be safe, but we read incrementally.
+  const size_t kMaxSnapshotSize = 8 * 1024 * 1024;
+  const size_t kInitialBufferSize = 1 * 1024 * 1024;
+  buffer->reserve(kInitialBufferSize);
+
+  char chunk[4096];
+  while (true) {
+    auto bytes_read = file.ReadAtCurrentPos(base::as_writable_byte_span(chunk));
+    if (!bytes_read.has_value()) {
+      RecordDetailedDumpAbortReason(OSMetrics::DetailedDumpAbortReason::kSmapsFileReadFailed);
+      return false;
+    }
+    if (bytes_read.value() == 0) {
+      break;
+    }
+
+    if (buffer->size() + bytes_read.value() > kMaxSnapshotSize) {
+      RecordDetailedDumpAbortReason(OSMetrics::DetailedDumpAbortReason::kSnapshotLimitHit);
+      return false;
+    }
+
+    buffer->insert(buffer->end(), chunk, chunk + bytes_read.value());
+  }
+
+  if (buffer->empty()) {
+    RecordDetailedDumpAbortReason(OSMetrics::DetailedDumpAbortReason::kSmapsFileReadFailed);
+    return false;
+  }
+
+  RecordDetailedDumpAbortReason(OSMetrics::DetailedDumpAbortReason::kSuccess);
+  return true;
 }
 
 // static
