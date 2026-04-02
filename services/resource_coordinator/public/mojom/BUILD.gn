@@ -12,9 +12,8 @@ mojom_component("mojom") {
   enabled_features = []
   if (is_cobalt) {
     enabled_features += [ "is_cobalt" ]
-    if (is_linux || is_android) {
-      enabled_features += [ "is_cobalt_with_libchrobalt_metrics" ]
-    }
+    enabled_features += [ "is_cobalt_with_libchrobalt_metrics" ]
+
   }
 
   sources = [
