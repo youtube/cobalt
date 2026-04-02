@@ -386,8 +386,21 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         &prefs_);
     client_->CallInitialize();  // This will use the overridden factory methods.
 
+    // Instantiate mock media client for testing
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    mock_media_client_ = std::make_unique<media::MockMediaClient>();
+    media::SetMediaClient(mock_media_client_.get());
+#endif
+
     ASSERT_THAT(client_->mock_metrics_service(), NotNull());
     ASSERT_THAT(client_->mock_log_uploader(), NotNull());
+  }
+
+  void TearDown() override {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    media::SetMediaClient(nullptr);
+    media::DecoderBuffer::Allocator::Set(nullptr);
+#endif
   }
 
   base::test::TaskEnvironment task_environment_{
@@ -400,6 +413,9 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
   std::unique_ptr<TestCobaltMetricsServiceClient> client_;
   base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<media::MockMediaClient> mock_media_client_;
+#endif
 };
 
 TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
@@ -555,8 +571,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
   base::HistogramTester histogram_tester;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  media::MockMediaClient mock_media_client;
-  media::SetMediaClient(&mock_media_client);
   const size_t kSize = 2 * 1024 * 1024;
   auto buffer = base::MakeRefCounted<media::DecoderBuffer>(kSize);
   uint64_t allocated = media::MediaClient::GetMediaSourceTotalAllocatedMemory();
@@ -580,9 +594,6 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
   EXPECT_GE(histogram_tester.GetBucketCount(
                 "Media.Memory.EncodedBuffer.Allocated", 2),
             1);
-  buffer = nullptr;
-  media::SetMediaClient(nullptr);
-  media::DecoderBuffer::Allocator::Set(nullptr);
 #endif
 }
 
