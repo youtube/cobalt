@@ -14,10 +14,9 @@
 
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
-#include <numeric>
-
 #include "base/command_line.h"
 #include "base/base_paths.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -30,7 +29,6 @@
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "content/public/test/test_storage_partition.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
-#include "net/base/net_errors.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_constants.h"
@@ -42,8 +40,6 @@
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
-
-using ::testing::Return;
 
 namespace {
 
@@ -184,6 +180,9 @@ class MigrationManagerTest : public testing::Test {
  protected:
   void SetUp() override {
     MigrationManager::ResetMigrationStatusForTesting();
+    base::FilePath cache_dir;
+    base::PathService::Get(base::DIR_CACHE, &cache_dir);
+    base::DeleteFile(cache_dir.Append("migration_completed.txt"));
   }
 
   Task GroupTasks(std::vector<Task> tasks) {
@@ -223,8 +222,9 @@ class MigrationManagerTest : public testing::Test {
 
  private:
   base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::IO,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  base::ScopedPathOverride cache_dir_override_{base::DIR_TEMP};
+  base::ScopedPathOverride cache_dir_override_{base::DIR_CACHE};
 };
 
 TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
