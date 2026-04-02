@@ -572,7 +572,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistograms) {
   TestMediaClient test_media_client;
   media::SetMediaClient(&test_media_client);
 
-  const size_t kSize = 1024 * 1024;
+  const size_t kSize = 2 * 1024 * 1024;
   auto buffer = base::MakeRefCounted<media::DecoderBuffer>(kSize);
   uint64_t allocated = media::MediaClient::GetMediaSourceTotalAllocatedMemory();
   ASSERT_GE(allocated, static_cast<uint64_t>(kSize));

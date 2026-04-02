@@ -313,7 +313,7 @@ Always run the pretty print utility on this file after editing:
 </histogram>
 
 <histogram name="Media.Memory.EncodedBuffer.Allocated"
-    unit="KB" expires_after="never">
+    unit="MB" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records the memory allocated by media decoder buffer for video and audio.
