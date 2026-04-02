@@ -61,10 +61,14 @@ media_use_libvpx = false
 media_use_openh264 = false
 rtc_use_h264 = false
 
-# Enable OpenSL ES to provide a stable fallback path for microphone input
-# on Android TV, avoiding AAudio MMAP conflicts with virtual bridges.
-# See http://b/478022126#comment5
-media_use_opensles = true
+if (is_android) {
+  # Enable OpenSL ES to provide a stable fallback path for microphone input
+  # on Android TV, avoiding AAudio MMAP conflicts with virtual bridges.
+  # See http://b/478022126#comment5
+  media_use_opensles = true
+} else {
+  media_use_opensles = false
+}
 
 # Enable widevine for encrypted media playback.
 enable_widevine = true
