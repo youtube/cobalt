@@ -110,6 +110,10 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
 #else
+  // Always register a binder for H5vccUpdater to prevent the browser
+  // from killing the Mojo connection if the renderer probes for this interface.
+  // If this is not registered, it disconnects the overall
+  // BrowserInterfaceBroker for the frame.
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(base::BindRepeating(
       [](content::RenderFrameHost*,
          mojo::PendingReceiver<h5vcc_updater::mojom::H5vccUpdater>) {
@@ -119,6 +123,8 @@ void PopulateCobaltFrameBinders(
 
 // Always register a binder for H5vccUpdaterSideloading to prevent the browser
 // from killing the Mojo connection if the renderer probes for this interface.
+// If this is not registered, it disconnects the overall BrowserInterfaceBroker
+// for the frame.
 // TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
 // security review.
 #if BUILDFLAG(USE_EVERGREEN) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && \
