@@ -8,6 +8,16 @@ mojom_component("mojom") {
   output_prefix = "resource_coordinator_public_mojom"
   macro_prefix = "RESOURCE_COORDINATOR_PUBLIC_MOJOM"
 
+<<<<<<< HEAD
+=======
+  enabled_features = []
+  if (is_cobalt) {
+    enabled_features += [ "is_cobalt" ]
+    enabled_features += [ "is_cobalt_with_libchrobalt_metrics" ]
+
+  }
+
+>>>>>>> 97a4ba4cec (cobalt/metrics: [Mojo] Define generic transport (#9869))
   sources = [
     "memory_instrumentation/constants.mojom",
     "memory_instrumentation/memory_instrumentation.mojom",
