@@ -22,6 +22,7 @@
 #include "media/audio/android/audio_track_output_stream.h"
 #include "media/audio/android/opensles_input.h"
 #include "media/audio/android/opensles_output.h"
+#include "media/audio/android/starboard_audio_input_stream.h"
 #include "media/audio/audio_device_description.h"
 #include "media/audio/audio_features.h"
 #include "media/audio/audio_manager.h"
@@ -179,30 +180,16 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: device_id=" << device_id 
             << " latency(msec)=" << elapsed.InMilliseconds();
 
-  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-  // Use mono as preferred number of input channels on Android to save
-  // resources. Using mono also avoids a driver issue seen on Samsung
-  // Galaxy S3 and S4 devices. See http://crbug.com/256851 for details.
-  JNIEnv* env = AttachCurrentThread();
+  // Starboard POC: Hardcode to 16kHz Mono to bypass JNI/Probing overhead.
+  // This is now thread-safe and can be called from any thread to avoid hops.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
-  int buffer_size = Java_AudioManagerAndroid_getMinInputFrameSize(
-      env, GetNativeOutputSampleRate(),
-      ChannelLayoutToChannelCount(channel_layout));
-  buffer_size = buffer_size <= 0 ? kDefaultInputBufferSize : buffer_size;
-  int effects = AudioParameters::NO_EFFECTS;
-  effects |= Java_AudioManagerAndroid_acousticEchoCancelerIsAvailable(env)
-                 ? AudioParameters::ECHO_CANCELLER
-                 : AudioParameters::NO_EFFECTS;
-
-  int user_buffer_size = GetUserBufferSize();
-  if (user_buffer_size)
-    buffer_size = user_buffer_size;
+  int sample_rate = StarboardAudioInputStream::kSampleRateHz;
+  int buffer_size = 128; // Starboard default samples per buffer
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
-                         GetNativeOutputSampleRate(), buffer_size);
-  params.set_effects(effects);
+                         sample_rate, buffer_size);
+  params.set_effects(AudioParameters::NO_EFFECTS);
   LOG(INFO) << "KJ: " << __func__ << "params=" << params.AsHumanReadableString();
   return params;
 }
@@ -228,6 +215,24 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     const std::string& device_id,
     const LogCallback& log_callback) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  
+  // KJ: Check if we have a pre-started stream for this device.
+  // Note: Standard Chromium doesn't pass session_id here, but for Cobalt 
+  // we assume the 'device_id' contains the session information or we use 
+  // the most recent pre-started stream if it matches.
+  // For this POC, we'll just take the first one available since there's 
+  // usually only one mic request at a time.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    if (!pre_started_streams_.empty()) {
+      auto it = pre_started_streams_.begin();
+      AudioInputStream* stream = it->second;
+      pre_started_streams_.erase(it);
+      LOG(INFO) << "KJ: Re-using PRE-STARTED hardware stream";
+      return stream;
+    }
+  }
+
   bool has_no_input_streams = HasNoAudioInputStreams();
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
@@ -253,6 +258,18 @@ void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {
 
 void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  
+  // KJ: Remove from pre-started map if present.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    for (auto it = pre_started_streams_.begin(); it != pre_started_streams_.end(); ++it) {
+      if (it->second == stream) {
+        pre_started_streams_.erase(it);
+        break;
+      }
+    }
+  }
+
   AudioManagerBase::ReleaseInputStream(stream);
 
   // Restore the audio mode which was used before the first communication-
@@ -344,7 +361,39 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
 
   // Create a new audio input stream and enable or disable all audio effects
   // given |params.effects()|.
-  return new OpenSLESInputStream(this, params);
+  return new StarboardAudioInputStream(this, params);
+}
+
+void AudioManagerAndroid::PreStartStream(const base::UnguessableToken& session_id,
+                                         const AudioParameters& params) {
+  LOG(INFO) << "KJ: AudioManagerAndroid::PreStartStream session=" << session_id.ToString();
+  
+  // We must be on the audio thread to create the stream objects.
+  if (!GetTaskRunner()->BelongsToCurrentThread()) {
+    GetTaskRunner()->PostTask(
+        FROM_HERE, base::BindOnce(&AudioManagerAndroid::PreStartStream,
+                                  base::Unretained(this), session_id, params));
+    return;
+  }
+
+  // KJ: Use the base class factory method so the stream is properly registered 
+  // in the AudioManagerBase::input_streams_ list. This prevents the ReleaseInputStream crash.
+  AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
+      params, "default", base::DoNothing());
+  
+  if (!stream) {
+    LOG(ERROR) << "KJ: Failed to create hardware stream for pre-start";
+    return;
+  }
+
+  if (stream->Open() == AudioInputStream::OpenOutcome::kSuccess) {
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_[session_id] = stream;
+    LOG(INFO) << "KJ: Hardware stream PRE-STARTED and PARKED for session=" << session_id.ToString();
+  } else {
+    LOG(ERROR) << "KJ: Failed to pre-start hardware stream";
+    ReleaseInputStream(stream);
+  }
 }
 
 // static

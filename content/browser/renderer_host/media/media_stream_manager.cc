@@ -68,6 +68,7 @@ namespace content { extern base::TimeTicks g_select_keydown_time; }
 #include "content/public/common/content_switches.h"
 #include "crypto/hmac.h"
 #include "media/audio/audio_device_description.h"
+#include "media/audio/audio_manager.h"
 #include "media/audio/audio_system.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
@@ -78,6 +79,7 @@ namespace content { extern base::TimeTicks g_select_keydown_time; }
 #include "media/capture/video/fake_video_capture_device_factory.h"
 #include "media/capture/video/video_capture_system_impl.h"
 #include "media/mojo/mojom/display_media_information.mojom.h"
+#include "services/audio/audio_manager_power_user.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/mediastream/media_devices.h"
@@ -2639,6 +2641,44 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
 
   request->SetAudioType(request->stream_controls().audio.stream_type);
   request->SetVideoType(request->stream_controls().video.stream_type);
+
+  // KJ: FAST-TRACK for Cobalt Android Audio Capture
+  // This bypasses the asynchronous device enumeration and UI permission round-trips
+  // to start the hardware immediately.
+  if (request->audio_type() == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
+      request->video_type() == MediaStreamType::NO_SERVICE) {
+    LOG(INFO) << "KJ: SetUpRequest: FAST-TRACKING Cobalt Audio Request";
+    
+    // Manually construct the device list and jump to response handling.
+    blink::mojom::StreamDevicesSet stream_devices_set;
+    stream_devices_set.stream_devices.emplace_back(blink::mojom::StreamDevices::New());
+    
+    // Hardcode 16kHz Mono parameters (Starboard spec).
+    media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                                  media::ChannelLayoutConfig::Mono(),
+                                  16000, 128);
+    
+    blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
+                                    "default", "Default Microphone");
+    device.input = params;
+
+    // KJ: Physical hardware ignition starts NOW!
+    // We register a session ID and trigger the physical Open() on the Audio thread
+    // immediately, so it warms up while we are waiting for the Renderer to reply.
+    auto session_id = audio_input_device_manager()->Open(device);
+    device.set_session_id(session_id);
+    
+    media::AudioManager* audio_manager = media::AudioManager::Get();
+    if (audio_manager) {
+      audio_manager->PreStartStream(session_id, params);
+    }
+    
+    stream_devices_set.stream_devices[0]->audio_device = device;
+
+    HandleAccessRequestResponse(label, params, stream_devices_set,
+                                 blink::mojom::MediaStreamRequestResult::OK);
+    return;
+  }
 
   const bool is_display_capture =
       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||

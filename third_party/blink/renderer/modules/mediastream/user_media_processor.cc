@@ -644,11 +644,18 @@ void UserMediaProcessor::SetupAudioInput() {
   if (blink::IsDeviceMediaType(audio_controls.stream_type)) {
     SendLogMessage(
         base::StringPrintf("SetupAudioInput({request_id=%d}) => "
-                           "(Requesting device capabilities)",
+                           "(KJ: Shortcut handshake, hardcoding capabilities)",
                            current_request_info_->request_id()));
-    GetMediaDevicesDispatcher()->GetAudioInputCapabilities(
-        WTF::BindOnce(&UserMediaProcessor::SelectAudioDeviceSettings,
-                      WrapWeakPersistent(this), WrapPersistent(request)));
+    
+    // KJ: Bypass the Mojo call to GetAudioInputCapabilities.
+    // Construct hardcoded capabilities (16kHz Mono) matching StarboardAudioInputStream.
+    media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                                  media::ChannelLayoutConfig::Mono(),
+                                  16000, 128);
+    blink::AudioDeviceCaptureCapabilities capabilities;
+    capabilities.emplace_back("default", "default_group", params);
+    
+    SelectAudioSettings(request, capabilities);
   } else {
     if (!blink::IsAudioInputMediaType(audio_controls.stream_type)) {
       String failed_constraint_name = String(
