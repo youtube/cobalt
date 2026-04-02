@@ -41,7 +41,7 @@ Unexpected<std::string> SndError(const std::string& method_name, int error) {
 
 Result<void> OpenPcm(snd_pcm_t*& handle) {
   int error = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE,
-                           /*mode=SND_PCM_NONBLOCK*/ 0);
+                           SND_PCM_NONBLOCK);
   if (error < 0) {
     handle = nullptr;
     return SndError("snd_pcm_open", error);
@@ -293,7 +293,7 @@ bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(
 }
 
 namespace {
-constexpr int kUnusedBufferSize = 32 * 1024;
+constexpr int kMaxMicrophoneBufferSize = 32 * 1024;
 // Only a single microphone is supported.
 SbMicrophone s_microphone = kSbMicrophoneInvalid;
 }  // namespace
@@ -314,7 +314,7 @@ SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
                   << sample_rate_in_hz;
     return kSbMicrophoneInvalid;
   }
-  if (buffer_bytes > kUnusedBufferSize || buffer_bytes <= 0) {
+  if (buffer_bytes > kMaxMicrophoneBufferSize || buffer_bytes <= 0) {
     SB_LOG(ERROR) << "CreateMicrophone() - FAILED: Bad buffer size: "
                   << buffer_bytes;
     return kSbMicrophoneInvalid;

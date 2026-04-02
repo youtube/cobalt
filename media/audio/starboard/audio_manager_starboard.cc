@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 #include "media/audio/starboard/audio_input_stream_starboard.h"
 #include "starboard/microphone.h"
 
+namespace media {
+
 namespace {
 constexpr const char* kAudioManagerStarboardName = "AudioManagerStarboard";
 constexpr int kDefaultSampleRate = 16'000;
 }  // namespace
-
-namespace media {
 
 AudioManagerStarboard::AudioManagerStarboard(
     std::unique_ptr<AudioThread> audio_thread,
@@ -54,6 +54,7 @@ void AudioManagerStarboard::GetAudioInputDeviceNames(
 
 void AudioManagerStarboard::GetAudioOutputDeviceNames(
     AudioDeviceNames* device_names) {
+  // Starboard doesnt support output devices
   NOTIMPLEMENTED();
 }
 
@@ -67,13 +68,14 @@ AudioParameters AudioManagerStarboard::GetInputStreamParameters(
                                 buffer_size);
 }
 
-const char* AudioManagerStarboard::GetName() {
+const std::string_view AudioManagerStarboard::GetName() {
   return kAudioManagerStarboardName;
 }
 
 AudioOutputStream* AudioManagerStarboard::MakeLinearOutputStream(
     const AudioParameters& params,
     const LogCallback& log_callback) {
+  // Starboard doesnt support output devices
   NOTIMPLEMENTED();
   return nullptr;
 }
@@ -82,6 +84,8 @@ AudioOutputStream* AudioManagerStarboard::MakeLowLatencyOutputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  // Starboard doesnt support output devices
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
@@ -104,6 +108,7 @@ AudioInputStream* AudioManagerStarboard::MakeLowLatencyInputStream(
 AudioParameters AudioManagerStarboard::GetPreferredOutputStreamParameters(
     const std::string& output_device_id,
     const AudioParameters& input_params) {
+  // Starboard doesnt support output devices
   return AudioParameters();
 }
 

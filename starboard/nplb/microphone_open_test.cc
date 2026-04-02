@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-
 #include "starboard/microphone.h"
 #include "starboard/nplb/microphone_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"

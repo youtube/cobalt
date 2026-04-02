@@ -134,21 +134,25 @@ double AudioInputStreamStarboard::GetMaxVolume() {
 }
 
 void AudioInputStreamStarboard::SetVolume(double volume) {
+  // Starboard doesn't allow volume changes
   NOTIMPLEMENTED();
 }
 
 double AudioInputStreamStarboard::GetVolume() {
+  // Starboard doesn't allow volume changes
   NOTIMPLEMENTED();
   return 1.0;
 }
 
 bool AudioInputStreamStarboard::IsMuted() {
+  // Starboard doesn't allow volume changes
   NOTIMPLEMENTED();
   return false;
 }
 
 void AudioInputStreamStarboard::SetOutputDeviceForAec(
     const std::string& output_device_id) {
+  // starboard does not support output device
   NOTIMPLEMENTED();
 }
 
