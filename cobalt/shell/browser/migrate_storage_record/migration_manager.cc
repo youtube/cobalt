@@ -77,9 +77,12 @@ std::string g_migration_status_param;
 // multiple async paths (like an IPC response and a timeout) attempt to run it.
 struct SharedClosureState : public base::RefCounted<SharedClosureState> {
   base::OnceClosure cb;
+<<<<<<< HEAD
   // Keeps the StorageArea Mojo connection alive during the injection process.
   mojo::Remote<blink::mojom::StorageArea> storage_area;
 
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
   void Run() {
     if (cb) {
       std::move(cb).Run();
@@ -132,6 +135,7 @@ base::FilePath GetMigrationSentinelPath() {
     return base::FilePath();
   }
   return current_cache_path.Append("migration_completed.txt");
+<<<<<<< HEAD
 }
 
 // Writes the sentinel file `migration_completed.txt` in the background so that
@@ -252,6 +256,140 @@ void DeleteOldCacheDirectoryAsync() {
   }
 }
 
+=======
+}
+
+// Writes the sentinel file `migration_completed.txt` in the background so that
+// future app launches can skip the migration process.
+void WriteMigrationSentinelAsync(scoped_refptr<MigrationState> state) {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              [](scoped_refptr<MigrationState> state) {
+                base::FilePath sentinel_path = GetMigrationSentinelPath();
+                SentinelWriteResult result = SentinelWriteResult::kSuccess;
+                if (sentinel_path.empty()) {
+                  LOG(ERROR)
+                      << "Sentinel path is empty, cannot write sentinel file.";
+                  result = SentinelWriteResult::kEmptyPath;
+                } else {
+                  if (!base::WriteFile(sentinel_path,
+                                       state->GetStatusString())) {
+                    LOG(ERROR) << "Failed to write migration sentinel file to "
+                               << sentinel_path.value();
+                    result = SentinelWriteResult::kWriteFailed;
+                  }
+                }
+                base::UmaHistogramEnumeration(kSentinelWriteResultHistogram,
+                                              result);
+              },
+              state));
+}
+
+// Generates the Base64 encoded key used to look up the legacy Starboard storage
+// record for the given URL.
+std::string GetApplicationKey(const GURL& url) {
+  std::string encoded_url;
+  base::Base64UrlEncode(url_matcher::util::Normalize(url).spec(),
+                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                        &encoded_url);
+  return encoded_url;
+}
+
+// Deletes the C25 Starboard Storage Record file from disk.
+// Returns true if the deletion was successful or the record was already
+// invalid.
+bool DeleteLegacyStorageRecord(starboard::StorageRecord* record) {
+  if (!record || !record->IsValid()) {
+    return true;  // Nothing to delete if null or not valid.
+  }
+  if (!record->Delete()) {
+    LOG(ERROR) << "Failed to delete legacy storage record.";
+    return false;
+  }
+  return true;
+}
+
+// Deletes the legacy starboard storage files asynchronously.
+void DeleteLegacyStorageFilesAsync() {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(FROM_HERE, base::BindOnce([]() {
+                   GURL initial_url(switches::GetInitialURL(
+                       *base::CommandLine::ForCurrentProcess()));
+                   if (initial_url.is_valid()) {
+                     std::string partition_key = GetApplicationKey(initial_url);
+                     auto record = std::make_unique<starboard::StorageRecord>(
+                         partition_key.c_str());
+                     DeleteLegacyStorageRecord(record.get());
+                   }
+                   // Also attempt to delete the fallback default record.
+                   auto fallback_record =
+                       std::make_unique<starboard::StorageRecord>();
+                   DeleteLegacyStorageRecord(fallback_record.get());
+                 }));
+}
+
+// Deletes legacy cache subdirectories asynchronously to free up disk space.
+// It ensures that it does not accidentally delete the current actively used
+// cache directory.
+void DeleteOldCacheDirectoryAsync() {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(
+          FROM_HERE, base::BindOnce([]() {
+            base::FilePath old_cache_path = GetOldCachePath();
+            if (old_cache_path.empty() || !base::PathExists(old_cache_path)) {
+              return;
+            }
+
+            base::FilePath current_cache_path;
+            if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
+              LOG(ERROR) << "Failed to get current cache directory. Skipping "
+                            "deletion of old cache path.";
+              return;
+            }
+            if (!old_cache_path.IsParent(current_cache_path) &&
+                old_cache_path != current_cache_path) {
+              if (!base::DeletePathRecursively(old_cache_path)) {
+                LOG(ERROR) << "Failed to delete old cache directory: "
+                           << old_cache_path.value();
+              }
+              return;
+            }
+
+            std::vector<std::string> old_cache_subpaths = {
+                "cache_settings.json",
+                "compiled_js",
+                "css",
+                "font",
+                "html",
+                "image",
+                "other",
+                "service_worker_settings.json",
+                "settings.json",
+                "splash",
+                "splash_screen",
+                "uncompiled_js",
+            };
+            for (const auto& subpath : old_cache_subpaths) {
+              base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
+              if (base::PathExists(old_cache_subpath)) {
+                if (!base::DeletePathRecursively(old_cache_subpath)) {
+                  LOG(ERROR) << "Failed to delete old cache subpath: "
+                             << old_cache_subpath.value();
+                }
+              }
+            }
+          }));
+}
+
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 void SetMigrationStatusUrlParameter(scoped_refptr<MigrationState> state) {
   g_migration_status_param = "migration_status=" + state->GetStatusString();
 }
@@ -261,6 +399,7 @@ void SetMigrationStatusUrlParameter(scoped_refptr<MigrationState> state) {
 void CleanupLegacyFilesAsync(scoped_refptr<MigrationState> state) {
   base::UmaHistogramEnumeration(kOutcomeHistogram, state->GetOutcome());
   SetMigrationStatusUrlParameter(state);
+<<<<<<< HEAD
 
   // M138 Style: Use direct PostTask with explicit power traits.
   // We don't need a SequencedTaskRunner because these three functions
@@ -275,6 +414,11 @@ void CleanupLegacyFilesAsync(scoped_refptr<MigrationState> state) {
                              base::BindOnce(&DeleteLegacyStorageFilesAsync));
   base::ThreadPool::PostTask(
       FROM_HERE, traits, base::BindOnce(&WriteMigrationSentinelAsync, state));
+=======
+  DeleteOldCacheDirectoryAsync();
+  DeleteLegacyStorageFilesAsync();
+  WriteMigrationSentinelAsync(state);
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 }
 
 // Creates a task that runs the legacy files cleanup and then immediately
@@ -353,7 +497,11 @@ ReadAndParseLegacyStorageRecord() {
     const int read_result =
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
+<<<<<<< HEAD
     if (read_result < 0 || static_cast<size_t>(read_result) != bytes.size()) {
+=======
+    if (static_cast<size_t>(read_result) != bytes.size()) {
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
       result = StorageReadResult::kReadMismatch;
       return;
     }
@@ -446,11 +594,14 @@ std::string MigrationManager::GetMigrationStatusUrlParameter() {
 }
 
 // static
+<<<<<<< HEAD
 void MigrationManager::ResetMigrationStatusForTesting() {
   g_migration_status_param.clear();
 }
 
 // static
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 // Groups multiple sequential asynchronous tasks into a single chain of
 // callbacks. When the returned Task is invoked, it will execute the first task,
 // which in turn will trigger the second, and so on, until all tasks are run.
@@ -475,6 +626,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
                                     base::OnceClosure done_callback) {
   LOG(INFO) << "Starting Pre-MainLoop Migration.";
 
+<<<<<<< HEAD
   // TODO: re-enable this.
   // base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   // if (command_line->HasSwitch(switches::kDisableStorageMigration)) {
@@ -498,10 +650,16 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
                             elapsed_timer->Elapsed());
     base::UmaHistogramEnumeration(kOutcomeHistogram,
                                   MigrationOutcome::kFastPath);
+=======
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(::switches::kDisableStorageMigration)) {
+    LOG(INFO) << "Storage migration disabled via switch.";
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
     std::move(done_callback).Run();
     return;
   }
 
+<<<<<<< HEAD
   // Attempt to read the legacy storage protobuf from disk.
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
@@ -525,10 +683,58 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   if (!state->has_data_to_migrate) {
     LOG(INFO) << "Nothing to migrate.";
     CleanupLegacyFilesAsync(state);
+=======
+  auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
+
+  // Fast Path: If the sentinel file exists, migration is already done.
+  base::ElapsedTimer sentinel_timer;
+  base::FilePath sentinel_path = GetMigrationSentinelPath();
+  bool sentinel_exists =
+      !sentinel_path.empty() && base::PathExists(sentinel_path);
+  if (sentinel_exists) {
+    LOG(INFO) << "Migration sentinel file found. Skipping migration.";
+    LOG(INFO) << "RunMigration fast path took "
+              << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
+    base::UmaHistogramTimes(kFastPathDurationHistogram,
+                            elapsed_timer->Elapsed());
+    base::UmaHistogramEnumeration(kOutcomeHistogram,
+                                  MigrationOutcome::kFastPath);
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
     std::move(done_callback).Run();
     return;
   }
 
+<<<<<<< HEAD
+=======
+  // Attempt to read the legacy storage protobuf from disk.
+  GURL initial_url(
+      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
+  if (!initial_url.is_valid()) {
+    LOG(INFO) << "RunMigration invalid URL early exit.";
+    std::move(done_callback).Run();
+    return;
+  }
+  url::Origin origin = url::Origin::Create(initial_url);
+
+  auto parsed_storage = ReadAndParseLegacyStorageRecord();
+  StorageReadResult read_result = parsed_storage.first;
+  auto storage = std::move(parsed_storage.second);
+
+  base::UmaHistogramEnumeration(kReadResultHistogram, read_result);
+
+  auto state = base::MakeRefCounted<MigrationState>();
+  state->read_result = read_result;
+  state->has_data_to_migrate = storage && (storage->cookies_size() > 0 ||
+                                           storage->local_storages_size() > 0);
+
+  if (!state->has_data_to_migrate) {
+    LOG(INFO) << "Nothing to migrate.";
+    CleanupLegacyFilesAsync(state);
+    std::move(done_callback).Run();
+    return;
+  }
+
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
   base::UmaHistogramCounts1000(kCookiesCountHistogram, storage->cookies_size());
   base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
                                storage->local_storages_size());
@@ -538,8 +744,11 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
 
   // Build the pipeline of tasks to execute asynchronously.
   std::vector<Task> tasks;
+<<<<<<< HEAD
   // Run LocalStorageTask first. In M138, there is no callback for the flush()
   // API. It is not garanteed it will be finished before Kabuki loads.
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
   tasks.push_back(CookieTask(partition, ToCanonicalCookies(*storage), state));
   tasks.push_back(LocalStorageTask(
       partition, origin, ToLocalStorageItems(origin, *storage), state));
@@ -558,6 +767,7 @@ std::vector<std::unique_ptr<net::CanonicalCookie>>
 MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   for (auto& c : storage.cookies()) {
+<<<<<<< HEAD
     // CRITICAL for M138: SameSite=None MUST be Secure.
     // We force is_secure to true because legacy Cobalt cookies
     // often lack this bit but require cross-site access.
@@ -598,6 +808,19 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
                  << "name=" << c.name() << " domain=" << c.domain()
                  << " path=" << c.path();
     }
+=======
+    cookies.push_back(net::CanonicalCookie::FromStorage(
+        c.name(), c.value(), c.domain(), c.path(),
+        base::Time::FromInternalValue(c.creation_time_us()),
+        base::Time::FromInternalValue(c.expiration_time_us()),
+        base::Time::FromInternalValue(c.last_access_time_us()),
+        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
+        c.http_only(),
+        c.secure() ? net::CookieSameSite::NO_RESTRICTION
+                   : net::CookieSameSite::UNSPECIFIED,
+        net::COOKIE_PRIORITY_DEFAULT, false, absl::nullopt,
+        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
   }
   return cookies;
 }
@@ -605,6 +828,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
 // static
 // Returns an asynchronous task that injects all legacy cookies into the new
 // Chromium Network Service.
+<<<<<<< HEAD
 
 // Timeout Behavior Summary:
 // If a 2-second timeout fires during CookieTask, this state guarantees the
@@ -618,6 +842,8 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
 //   consuming resources or preventing further storage operations. The closures
 //   and Mojo pipes are leaked for the lifetime of the application, but the
 //   main thread remains unblocked and the application continues running.
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 Task MigrationManager::CookieTask(
     content::StoragePartition* partition,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
@@ -635,6 +861,7 @@ Task MigrationManager::CookieTask(
         auto shared_state = base::MakeRefCounted<SharedClosureState>();
         shared_state->cb = std::move(callback);
 
+<<<<<<< HEAD
         // Success Path: The barrier executes the callback when all cookies are
         // injected.
         base::RepeatingClosure barrier = base::BarrierClosure(
@@ -642,11 +869,23 @@ Task MigrationManager::CookieTask(
                                 [](scoped_refptr<SharedClosureState> state) {
                                   LOG(INFO) << "Cookie injection complete.";
                                   state->Run();
+=======
+        // A barrier closure that executes the 'shared_state' callback only
+        // after all individual cookie Puts have completed.
+        base::RepeatingClosure barrier = base::BarrierClosure(
+            cookies.size(), base::BindOnce(
+                                [](scoped_refptr<SharedClosureState> state) {
+                                  if (state->cb) {
+                                    LOG(INFO) << "Cookie injection complete.";
+                                    state->Run();
+                                  }
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
                                 },
                                 shared_state));
 
         for (auto& cookie : cookies) {
           std::string name = cookie->Name();
+<<<<<<< HEAD
 
           // M138/Network Service: Ensure the source_url is a full GURL
           // representing the cookie's domain to satisfy Schemeful Site checks.
@@ -666,6 +905,12 @@ Task MigrationManager::CookieTask(
           // Mojo IPC call to the Network Service.
           cookie_manager->SetCanonicalCookie(
               *cookie, source_url, options,
+=======
+          GURL source_url("https://" + cookie->Domain() + cookie->Path());
+          // Mojo IPC call to the Network Service.
+          cookie_manager->SetCanonicalCookie(
+              *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
               base::BindOnce(
                   [](base::RepeatingClosure barrier, std::string cookie_name,
                      scoped_refptr<MigrationState> state,
@@ -675,6 +920,7 @@ Task MigrationManager::CookieTask(
                           << "SetCanonicalCookie failed for: " << cookie_name
                           << " with status: " << result.status.GetDebugString();
                     }
+<<<<<<< HEAD
 
                     InjectionResult inj_result = result.status.IsInclude()
                                                      ? InjectionResult::kSuccess
@@ -684,13 +930,26 @@ Task MigrationManager::CookieTask(
                     base::UmaHistogramEnumeration(
                         kCookieInjectionResultHistogram, inj_result);
 
+=======
+                    InjectionResult inj_result = result.status.IsInclude()
+                                                     ? InjectionResult::kSuccess
+                                                     : InjectionResult::kError;
+                    base::UmaHistogramEnumeration(
+                        kCookieInjectionResultHistogram, inj_result);
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
                     state->UpdateCookieResult(inj_result);
                     barrier.Run();
                   },
                   barrier, name, state));
         }
 
+<<<<<<< HEAD
         // Hard timeout fallback: guarantee app startup resumes after 2 seconds.
+=======
+        // Hard timeout fallback: if the Network Service IPC drops the callback
+        // or hangs, this task guarantees the app startup resumes after 2
+        // seconds.
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
         base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE,
             base::BindOnce(
@@ -738,8 +997,15 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
 // Returns an asynchronous task that injects all legacy LocalStorage key-value
 // pairs into the Chromium Storage Service. This is executed as a multi-step
 // sequence:
+<<<<<<< HEAD
 // 1. Send all Put commands over Mojo.
 // 2. Call Flush() to ensure LocalStorage key-value pairs are in memory.
+=======
+// 1. Send all `Put` commands over Mojo.
+// 2. Call `Flush()` to ensure LevelDB writes the Puts to the physical disk.
+// 3. Call `PurgeMemory()` so that the Renderer fetches fresh data instead of
+// using cached state.
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 Task MigrationManager::LocalStorageTask(
     content::StoragePartition* partition,
     const url::Origin& origin,
@@ -751,11 +1017,15 @@ Task MigrationManager::LocalStorageTask(
              pairs,
          scoped_refptr<MigrationState> state, base::OnceClosure callback) {
         if (pairs.empty()) {
+<<<<<<< HEAD
           LOG(INFO) << "No LocalStorage pairs, finishing.";
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
           std::move(callback).Run();
           return;
         }
 
+<<<<<<< HEAD
         // Shared context to keep the mojo::Remote alive until the entire
         // pipeline finishes.
         auto shared_state = base::MakeRefCounted<SharedClosureState>();
@@ -778,6 +1048,66 @@ Task MigrationManager::LocalStorageTask(
               shared_state->Run();
             },
             base::Unretained(partition), state, shared_state);
+=======
+        auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
+        GetLocalStorageArea(partition, origin, *area);
+        auto* raw_remote_ptr = area.get();
+
+        // STEP 3: Purge memory handles.
+        // Force the Storage Service to drop its handle for this origin so that
+        // the newly spawned Renderer process sees the updated disk state.
+        base::OnceClosure purge_memory_step = base::BindOnce(
+            [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
+               content::StoragePartition* partition, base::OnceClosure cb) {
+              LOG(INFO) << "Purging Storage Service handles to force "
+                           "Renderer synchronization.";
+              partition->GetLocalStorageControl()->PurgeMemory();
+              std::move(cb).Run();
+            },
+            std::move(area), base::Unretained(partition), std::move(callback));
+
+        // STEP 2: Flush step.
+        // Tells the Storage Service to commit the LevelDB transactions to disk.
+        base::OnceClosure flush_step = base::BindOnce(
+            [](content::StoragePartition* partition,
+               scoped_refptr<MigrationState> state,
+               base::OnceClosure next_step) {
+              LOG(INFO) << "LocalStorage Puts complete. Flushing...";
+
+              auto shared_state = base::MakeRefCounted<SharedClosureState>();
+              shared_state->cb = std::move(next_step);
+
+              partition->GetLocalStorageControl()->Flush(base::BindOnce(
+                  [](scoped_refptr<SharedClosureState> state) {
+                    if (state->cb) {
+                      LOG(INFO) << "LocalStorage Flush complete callback "
+                                   "executed successfully.";
+                      state->Run();
+                    }
+                  },
+                  shared_state));
+
+              // Hard timeout fallback: if the disk IO hangs or the Storage
+              // Service crashes during flush, resume app startup after 2
+              // seconds.
+              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                  FROM_HERE,
+                  base::BindOnce(
+                      [](scoped_refptr<SharedClosureState> shared_state,
+                         scoped_refptr<MigrationState> migration_state) {
+                        if (shared_state->cb) {
+                          LOG(ERROR) << "LocalStorage Flush timed out "
+                                        "after 2 seconds. Proceeding anyway.";
+                          migration_state->UpdateLocalStorageResult(
+                              InjectionResult::kTimeout);
+                          shared_state->Run();
+                        }
+                      },
+                      shared_state, state),
+                  base::Seconds(2));
+            },
+            base::Unretained(partition), state, std::move(purge_memory_step));
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 
         // STEP 1: Put keys step.
         // Iterates through all k/v pairs and sends Mojo Put commands.
@@ -792,6 +1122,7 @@ Task MigrationManager::LocalStorageTask(
           std::vector<uint8_t> value =
               FormatStringForLocalStorage(pair->second);
 
+<<<<<<< HEAD
           LOG(INFO) << "Put for key: " << key_str;
           shared_state->storage_area->Put(
               key, value, absl::nullopt, "migration",
@@ -814,6 +1145,28 @@ Task MigrationManager::LocalStorageTask(
                     barrier.Run();
                   },
                   barrier, key_str, state, shared_state));
+=======
+          (*raw_remote_ptr)
+              ->Put(key, value, absl::nullopt, "migration",
+                    base::BindOnce(
+                        [](base::RepeatingClosure barrier, std::string key_str,
+                           scoped_refptr<MigrationState> state, bool success) {
+                          if (success) {
+                            LOG(INFO) << "Put SUCCESS for key: " << key_str;
+                          } else {
+                            LOG(ERROR) << "Put FAILED for key: " << key_str;
+                          }
+                          InjectionResult inj_result =
+                              success ? InjectionResult::kSuccess
+                                      : InjectionResult::kError;
+                          base::UmaHistogramEnumeration(
+                              kLocalStorageInjectionResultHistogram,
+                              inj_result);
+                          state->UpdateLocalStorageResult(inj_result);
+                          barrier.Run();
+                        },
+                        barrier, key_str, state));
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
         }
       },
       partition, origin, std::move(pairs), state);

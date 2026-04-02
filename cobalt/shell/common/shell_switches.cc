@@ -34,6 +34,9 @@ const char kDisableSplashScreen[] = "disable-splash-screen";
 // Disables the check for the system font when specified.
 const char kDisableSystemFontCheck[] = "disable-system-font-check";
 
+// Disables storage migration.
+const char kDisableStorageMigration[] = "disable-storage-migration";
+
 // Size for the content_shell's host window (i.e. "800x600").
 const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
 

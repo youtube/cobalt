@@ -23,7 +23,10 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
+<<<<<<< HEAD
 #include "base/strings/stringprintf.h"
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
@@ -151,8 +154,11 @@ class MigrationManager {
   // "migration_status=read|cookie|local_storage".
   // Returns an empty string if the migration fast path was taken.
   static std::string GetMigrationStatusUrlParameter();
+<<<<<<< HEAD
 
   static void ResetMigrationStatusForTesting();
+=======
+>>>>>>> bbbce722e7 (Cherry pick Storage Migration Rework to 26.eap (#9816))
 
  private:
   friend class MigrationManagerTest;

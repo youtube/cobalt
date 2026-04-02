@@ -66,6 +66,9 @@ class ShellBrowserMainParts : public BrowserMainParts {
   }
 
  protected:
+  virtual GURL GetStartupURL() const;
+  const std::string& deep_link() const { return deep_link_; }
+
   virtual void InitializeBrowserContexts();
   virtual void InitializeMessageLoopContext();
   // Gets the ShellPlatformDelegate to be used. May be a subclass of

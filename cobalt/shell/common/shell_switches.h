@@ -33,6 +33,7 @@ extern const char kContentShellUserDataDir[];
 extern const char kCrashDumpsDir[];
 extern const char kDisableSplashScreen[];
 extern const char kDisableSystemFontCheck[];
+extern const char kDisableStorageMigration[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
 extern const char kForceVideoSplashScreen[];
