@@ -57,6 +57,7 @@ public class CommandLineOverrideHelperTest {
         String overrides =
             CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
         assertThat(overrides.contains("AImageReader")).isTrue();
+        assertThat(overrides.contains("UseAAudioInput")).isTrue();
     }
 
     @Test
