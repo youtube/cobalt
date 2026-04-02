@@ -39,6 +39,9 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/synthetic_trial_registry.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/media_client.h"
+#include "media/base/mock_filters.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -48,10 +51,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
-
-#include "media/base/decoder_buffer.h"
-#include "media/base/media_client.h"
-#include "media/base/mock_filters.h"
 
 namespace cobalt {
 
@@ -576,7 +575,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   EXPECT_GE(
       histogram_tester.GetAllSamples("Media.Memory.EncodedBuffer.Allocated")
-          .size(), 
+          .size(),
       1u);
   EXPECT_GE(histogram_tester.GetBucketCount(
                 "Media.Memory.EncodedBuffer.Allocated", 2),
