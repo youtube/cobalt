@@ -10,5 +10,5 @@ use_errorprone_java_compiler = false
 
 # Enable OpenSL ES to provide a stable fallback path for microphone input
 # on Android TV, avoiding AAudio MMAP conflicts with virtual bridges.
-# See http://b/478022126#comment5
+# See http://b/478022126#comment6
 media_use_opensles = true
