@@ -83,7 +83,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
   // Blocks until the DRM system is ready or the timeout expires.
   // Returns true if the system is ready, false on timeout.
-  bool WaitForDrmSystemReady(int64_t timeout_usec) override;
+  bool WaitForDrmSystemReady(int64_t timeout_us) override;
 
   void OnInsufficientOutputProtection();
 

@@ -34,7 +34,7 @@ using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
 
-constexpr int64_t kDrmSystemReadyTimeoutUsec = 500'000;
+constexpr int64_t kDrmSystemReadyTimeoutUs = 500'000;
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -350,11 +350,10 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     jlong presentation_time_microseconds,
     jboolean is_decode_only) {
   if (!drm_system_ready_.load()) {
-    if (drm_system_ready_cb_) {
-      if (!drm_system_ready_cb_(kDrmSystemReadyTimeoutUsec)) {
-        SB_LOG(ERROR) << "Timed out waiting for DRM system to be ready.";
-        return MEDIA_CODEC_ERROR;
-      }
+    SB_CHECK(drm_system_ready_cb_);
+    if (!drm_system_ready_cb_(kDrmSystemReadyTimeoutUs)) {
+      SB_LOG(ERROR) << "Timed out waiting for DRM system to be ready.";
+      return MEDIA_CODEC_ERROR;
     }
     drm_system_ready_.store(true);
   }

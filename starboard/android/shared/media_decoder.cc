@@ -162,8 +162,8 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
   SB_DCHECK(!drm_system_ || j_media_crypto);
   MediaCodecBridge::DrmSystemReadyCb drm_system_ready_cb;
   if (drm_system_) {
-    drm_system_ready_cb = [drm_system = drm_system_](int64_t timeout_usec) {
-      return drm_system->WaitForDrmSystemReady(timeout_usec);
+    drm_system_ready_cb = [drm_system = drm_system_](int64_t timeout_us) {
+      return drm_system->WaitForDrmSystemReady(timeout_us);
     };
   }
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
@@ -238,8 +238,8 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(!drm_system_ || j_media_crypto);
   MediaCodecBridge::DrmSystemReadyCb drm_system_ready_cb;
   if (drm_system_) {
-    drm_system_ready_cb = [drm_system = drm_system_](int64_t timeout_usec) {
-      return drm_system->WaitForDrmSystemReady(timeout_usec);
+    drm_system_ready_cb = [drm_system = drm_system_](int64_t timeout_us) {
+      return drm_system->WaitForDrmSystemReady(timeout_us);
     };
   }
   auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(

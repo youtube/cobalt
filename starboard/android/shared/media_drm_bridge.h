@@ -50,7 +50,7 @@ class MediaDrmBridge {
         const std::vector<SbDrmKeyId>& drm_key_ids,
         const std::vector<SbDrmKeyStatus>& drm_key_statuses) = 0;
 
-    virtual bool WaitForDrmSystemReady(int64_t timeout_usec) = 0;
+    virtual bool WaitForDrmSystemReady(int64_t timeout_us) = 0;
 
    protected:
     ~Host() = default;
@@ -109,6 +109,8 @@ class MediaDrmBridge {
   static bool IsCbcsSupported(JNIEnv* env);
 
  private:
+  bool IsDrmSystemReady(std::string_view caller_name) const;
+
   const raw_ref<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
 

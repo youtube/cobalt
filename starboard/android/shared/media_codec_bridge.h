@@ -86,7 +86,7 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
-  using DrmSystemReadyCb = std::function<bool(int64_t timeout_usec)>;
+  using DrmSystemReadyCb = std::function<bool(int64_t timeout_us)>;
 
   // The methods are called on the default Looper.  They won't get called after
   // Flush() is returned.
@@ -193,13 +193,13 @@ class MediaCodecBridge {
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
   explicit MediaCodecBridge(Handler* handler,
-                            DrmSystemReadyCb drm_system_ready_cb = {});
+                            DrmSystemReadyCb drm_system_ready_cb);
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* const handler_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
-  DrmSystemReadyCb drm_system_ready_cb_;
+  const DrmSystemReadyCb drm_system_ready_cb_;
   std::atomic_bool drm_system_ready_;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
