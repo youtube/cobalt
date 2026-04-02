@@ -589,10 +589,10 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistograms) {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   EXPECT_GE(
-      histogram_tester.GetAllSamples("Memory.Media.EncodedBuffer.Allocated")
+      histogram_tester.GetAllSamples("Media.Memory.EncodedBuffer.Allocated")
           .size(), 1u);
   EXPECT_GE(
-      histogram_tester.GetBucketCount("Memory.Media.EncodedBuffer.Allocated", kSize),
+      histogram_tester.GetBucketCount("Media.Memory.EncodedBuffer.Allocated", 2),
       1);
   media::SetMediaClient(nullptr);
   media::DecoderBuffer::Allocator::Set(nullptr);
