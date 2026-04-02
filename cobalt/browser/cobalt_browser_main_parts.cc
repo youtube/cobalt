@@ -137,7 +137,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::StartStorageMigration() {
-  LOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
+  LOG(INFO) << "ColinL: CobaltBrowserMainParts::StartStorageMigration started.";
 
   // Ensure we are on the UI thread/Expected sequence before accessing the
   // partition.

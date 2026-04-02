@@ -92,6 +92,7 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
   if (parts) {
     // Defers the execution of the task if the migration is still in progress.
     // If the migration is already complete, the task is executed synchronously.
+    LOG(INFO) << "ColinL: PostOrRunIfStorageMigrationFinished";
     parts->PostOrRunIfStorageMigrationFinished(std::move(create_window_task));
   } else {
     std::move(create_window_task).Run();

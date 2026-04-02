@@ -324,24 +324,30 @@ ReadAndParseLegacyStorageRecord() {
     }
 
     std::string partition_key = GetApplicationKey(initial_url);
+    LOG(INFO) << "ColinL: partition_key: " << partition_key;
+
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
     if (!record->IsValid()) {
+      ;
       bool fallback =
           partition_key == GetApplicationKey(GURL(::switches::kDefaultURL));
       if (!fallback) {
+        LOG(INFO) << "ColinL: kPartitionKeyNotDefault";
         result = StorageReadResult::kPartitionKeyNotDefault;
         return;
       }
 
       record = std::make_unique<starboard::StorageRecord>();
       if (!record->IsValid()) {
+        LOG(INFO) << "ColinL: !record->IsValid()";
         result = StorageReadResult::kRecordInvalid;
         return;
       }
     }
 
     if (record->GetSize() < kRecordHeaderSize) {
+      LOG(INFO) << "ColinL: StorageReadResult::kSizeTooSmall";
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -351,6 +357,7 @@ ReadAndParseLegacyStorageRecord() {
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
     if (read_result < 0 || static_cast<size_t>(read_result) != bytes.size()) {
+      LOG(INFO) << "ColinL: StorageReadResult::kReadMismatch";
       result = StorageReadResult::kReadMismatch;
       return;
     }
@@ -358,6 +365,7 @@ ReadAndParseLegacyStorageRecord() {
     std::string version(reinterpret_cast<const char*>(bytes.data()),
                         kRecordHeaderSize);
     if (version != kRecordHeader) {
+      LOG(INFO) << "ColinL: StorageReadResult::kHeaderMismatch";
       result = StorageReadResult::kHeaderMismatch;
       return;
     }
@@ -366,6 +374,7 @@ ReadAndParseLegacyStorageRecord() {
     if (!storage->ParseFromArray(
             reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
             bytes.size() - kRecordHeaderSize)) {
+      LOG(INFO) << "ColinL: StorageReadResult::kParseError";
       result = StorageReadResult::kParseError;
       storage.reset();
       return;
@@ -373,11 +382,11 @@ ReadAndParseLegacyStorageRecord() {
   }();
 
   if (storage) {
-    LOG(INFO) << "Successfully parsed storage. Cookies: "
+    LOG(INFO) << "ColinL: Successfully parsed storage. Cookies: "
               << storage->cookies_size()
               << ", LocalStorage groups: " << storage->local_storages_size();
   } else {
-    LOG(INFO) << "Legacy storage was not found or failed to parse.";
+    LOG(INFO) << "ColinL: Legacy storage was not found or failed to parse.";
   }
   return {result, std::move(storage)};
 }
@@ -465,7 +474,7 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 // done_callback to resume app startup immediately.
 void MigrationManager::RunMigration(content::StoragePartition* partition,
                                     base::OnceClosure done_callback) {
-  LOG(INFO) << "Starting Pre-MainLoop Migration.";
+  LOG(INFO) << "ColinL: Starting Pre-MainLoop Migration.";
 
   // TODO: re-enable this.
   // base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -483,7 +492,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   bool sentinel_exists =
       !sentinel_path.empty() && base::PathExists(sentinel_path);
   if (sentinel_exists) {
-    LOG(INFO) << "Migration sentinel file found. Skipping migration.";
+    LOG(INFO) << "ColinL: Migration sentinel file found. Skipping migration.";
     LOG(INFO) << "RunMigration fast path took "
               << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
     base::UmaHistogramTimes(kFastPathDurationHistogram,
@@ -498,7 +507,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   if (!initial_url.is_valid()) {
-    LOG(INFO) << "RunMigration invalid URL early exit.";
+    LOG(INFO) << "ColinL: RunMigration invalid URL early exit.";
     std::move(done_callback).Run();
     return;
   }
@@ -508,6 +517,12 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   StorageReadResult read_result = parsed_storage.first;
   auto storage = std::move(parsed_storage.second);
 
+  if (storage) {
+    LOG(INFO) << "ColinL: read cookie size:" << storage->cookies_size();
+    LOG(INFO) << "ColinL: read local storage size:"
+              << storage->local_storages_size();
+  }
+
   base::UmaHistogramEnumeration(kReadResultHistogram, read_result);
 
   auto state = base::MakeRefCounted<MigrationState>();
@@ -516,7 +531,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
                                            storage->local_storages_size() > 0);
 
   if (!state->has_data_to_migrate) {
-    LOG(INFO) << "Nothing to migrate.";
+    LOG(INFO) << "ColinL: Nothing to migrate.";
     CleanupLegacyFilesAsync(state);
     std::move(done_callback).Run();
     return;
@@ -526,7 +541,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
                                storage->local_storages_size());
 
-  LOG(INFO) << "RunMigration synchronous setup took "
+  LOG(INFO) << "ColinL: RunMigration synchronous setup took "
             << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
 
   // Build the pipeline of tasks to execute asynchronously.
@@ -556,13 +571,22 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
     // often lack this bit but require cross-site access.
     bool is_secure = true;
 
+    base::Time creation_time =
+        base::Time::FromInternalValue(c.creation_time_us());
+    base::Time expiration_time =
+        base::Time::FromInternalValue(c.expiration_time_us());
+
+    // Legacy Cobalt cookies might have arbitrarily high expiration dates.
+    // Cap the expiration date at the Chromium limit to pass the
+    // DCHECK(cookie->IsCanonical()) check during
+    // CookieManager::SetCanonicalCookie.
+    expiration_time = net::CanonicalCookie::ValidateAndAdjustExpiryDate(
+        expiration_time, creation_time, net::CookieSourceScheme::kSecure);
+
     auto cookie = net::CanonicalCookie::FromStorage(
-        c.name(), c.value(), c.domain(), c.path(),
-        base::Time::FromInternalValue(c.creation_time_us()),
-        base::Time::FromInternalValue(c.expiration_time_us()),
-        base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), is_secure,
-        c.http_only(),
+        c.name(), c.value(), c.domain(), c.path(), creation_time,
+        expiration_time, base::Time::FromInternalValue(c.last_access_time_us()),
+        creation_time, is_secure, c.http_only(),
         net::CookieSameSite::NO_RESTRICTION,  // SameSite=None
         net::COOKIE_PRIORITY_DEFAULT,
         std::nullopt,  // PartitionKey
@@ -570,9 +594,17 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         net::CookieSourceScheme::kSecure, 443, net::CookieSourceType::kOther);
 
     if (cookie) {
-      cookies.push_back(std::move(cookie));
+      if (cookie->IsCanonical()) {
+        cookies.push_back(std::move(cookie));
+      } else {
+        LOG(ERROR) << "ColinL: Cookie failed IsCanonical() check: "
+                   << cookie->DebugString();
+      }
     } else {
-      LOG(ERROR) << "Failed to create CanonicalCookie for: " << c.name();
+      LOG(ERROR) << "ColinL: Failed to create CanonicalCookie from legacy "
+                    "storage for: "
+                 << "name=" << c.name() << " domain=" << c.domain()
+                 << " path=" << c.path();
     }
   }
   return cookies;
@@ -585,6 +617,7 @@ Task MigrationManager::CookieTask(
     content::StoragePartition* partition,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
     scoped_refptr<MigrationState> state) {
+  LOG(INFO) << "ColinL: CookieTask";
   return base::BindOnce(
       [](content::StoragePartition* partition,
          std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
@@ -716,47 +749,50 @@ Task MigrationManager::LocalStorageTask(
           return;
         }
 
-        // Initialize the Remote
         auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
         GetLocalStorageArea(partition, origin, *area);
+        auto* raw_remote_ptr = area.get();
 
-        // Use a raw pointer for the loop, but the unique_ptr stays alive
-        // until we move it into the finalize_step.
-        blink::mojom::StorageArea* raw_area = area->get();
+        // STEP 2: Flush step.
+        // Tells the Storage Service to commit the LevelDB transactions to disk.
+        base::OnceClosure flush_step = base::BindOnce(
+            [](content::StoragePartition* partition,
+               scoped_refptr<MigrationState> state,
+               base::OnceClosure next_step) {
+              LOG(INFO) << "LocalStorage Puts complete. Flushing...";
 
-        auto shared_state = base::MakeRefCounted<SharedClosureState>();
-        shared_state->cb = std::move(callback);
+              auto shared_state = base::MakeRefCounted<SharedClosureState>();
+              shared_state->cb = std::move(next_step);
 
-        // STEP 2: Flush and Purge Step
-        // We move 'area' here to ensure the connection stays open until the
-        // barrier closes.
-        base::OnceClosure finalize_step = base::BindOnce(
-            [](std::unique_ptr<mojo::Remote<blink::mojom::StorageArea>> area,
-               content::StoragePartition* partition,
-               scoped_refptr<SharedClosureState> shared_state) {
-              if (!shared_state->cb) {
-                return;
-              }
+              partition->GetLocalStorageControl()->Flush();
 
-              LOG(INFO) << "LocalStorage Puts complete. Synchronizing with "
-                           "Service...";
-
-              // M138 Synchronous-like barrier: Wait for all Puts to be
-              // processed by the service.
-              area->FlushForTesting();
-
-              LOG(INFO) << "Purging Storage Service handles to force Renderer "
-                           "synchronization.";
-              partition->GetLocalStorageControl()->PurgeMemory();
-
-              LOG(INFO) << "LocalStorage Flush and Purge complete.";
-              shared_state->Run();
+              // Hard timeout fallback: if the disk IO hangs or the Storage
+              // Service crashes during flush, resume app startup after 2
+              // seconds.
+              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                  FROM_HERE,
+                  base::BindOnce(
+                      [](scoped_refptr<SharedClosureState> shared_state,
+                         scoped_refptr<MigrationState> migration_state) {
+                        if (shared_state->cb) {
+                          LOG(ERROR) << "LocalStorage Flush timed out "
+                                        "after 2 seconds. Proceeding anyway.";
+                          migration_state->UpdateLocalStorageResult(
+                              InjectionResult::kTimeout);
+                          shared_state->Run();
+                        }
+                      },
+                      shared_state, state),
+                  base::Seconds(2));
             },
-            std::move(area), base::Unretained(partition), shared_state);
+            base::Unretained(partition), state, std::move(callback));
 
-        // STEP 1: Put keys step via Barrier
+        // STEP 1: Put keys step.
+        // Iterates through all k/v pairs and sends Mojo Put commands.
+        // The `flush_step` runs only when the barrier closes (all Puts have
+        // responded).
         base::RepeatingClosure barrier =
-            base::BarrierClosure(pairs.size(), std::move(finalize_step));
+            base::BarrierClosure(pairs.size(), std::move(flush_step));
 
         for (const auto& pair : pairs) {
           std::string key_str = pair->first;
@@ -764,44 +800,27 @@ Task MigrationManager::LocalStorageTask(
           std::vector<uint8_t> value =
               FormatStringForLocalStorage(pair->second);
 
-          // Mojo call using the raw pointer
-          raw_area->Put(
-              key, value, std::nullopt, "migration",
-              base::BindOnce(
-                  [](base::RepeatingClosure barrier, std::string key_str,
-                     scoped_refptr<MigrationState> state, bool success) {
-                    if (success) {
-                      LOG(INFO) << "Put SUCCESS for key: " << key_str;
-                    } else {
-                      LOG(ERROR) << "Put FAILED for key: " << key_str;
-                    }
-                    InjectionResult inj_result = success
-                                                     ? InjectionResult::kSuccess
-                                                     : InjectionResult::kError;
-                    base::UmaHistogramEnumeration(
-                        kLocalStorageInjectionResultHistogram, inj_result);
-                    state->UpdateLocalStorageResult(inj_result);
-                    barrier.Run();
-                  },
-                  barrier, key_str, state));
+          (*raw_remote_ptr)
+              ->Put(key, value, absl::nullopt, "migration",
+                    base::BindOnce(
+                        [](base::RepeatingClosure barrier, std::string key_str,
+                           scoped_refptr<MigrationState> state, bool success) {
+                          if (success) {
+                            LOG(INFO) << "Put SUCCESS for key: " << key_str;
+                          } else {
+                            LOG(ERROR) << "Put FAILED for key: " << key_str;
+                          }
+                          InjectionResult inj_result =
+                              success ? InjectionResult::kSuccess
+                                      : InjectionResult::kError;
+                          base::UmaHistogramEnumeration(
+                              kLocalStorageInjectionResultHistogram,
+                              inj_result);
+                          state->UpdateLocalStorageResult(inj_result);
+                          barrier.Run();
+                        },
+                        barrier, key_str, state));
         }
-
-        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-            FROM_HERE,
-            base::BindOnce(
-                [](scoped_refptr<SharedClosureState> shared_state,
-                   scoped_refptr<MigrationState> migration_state) {
-                  if (shared_state->cb) {
-                    LOG(ERROR)
-                        << "LocalStorage migration timed out after 2 seconds. "
-                           "Proceeding anyway.";
-                    migration_state->UpdateLocalStorageResult(
-                        InjectionResult::kTimeout);
-                    shared_state->Run();
-                  }
-                },
-                shared_state, state),
-            base::Seconds(2));
       },
       partition, origin, std::move(pairs), state);
 }
