@@ -77,6 +77,9 @@ std::string g_migration_status_param;
 // multiple async paths (like an IPC response and a timeout) attempt to run it.
 struct SharedClosureState : public base::RefCounted<SharedClosureState> {
   base::OnceClosure cb;
+  // Keeps the StorageArea Mojo connection alive during the injection process.
+  mojo::Remote<blink::mojom::StorageArea> storage_area;
+
   void Run() {
     if (cb) {
       std::move(cb).Run();
@@ -324,8 +327,6 @@ ReadAndParseLegacyStorageRecord() {
     }
 
     std::string partition_key = GetApplicationKey(initial_url);
-    LOG(INFO) << "ColinL: partition_key: " << partition_key;
-
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
     if (!record->IsValid()) {
@@ -333,21 +334,18 @@ ReadAndParseLegacyStorageRecord() {
       bool fallback =
           partition_key == GetApplicationKey(GURL(::switches::kDefaultURL));
       if (!fallback) {
-        LOG(INFO) << "ColinL: kPartitionKeyNotDefault";
         result = StorageReadResult::kPartitionKeyNotDefault;
         return;
       }
 
       record = std::make_unique<starboard::StorageRecord>();
       if (!record->IsValid()) {
-        LOG(INFO) << "ColinL: !record->IsValid()";
         result = StorageReadResult::kRecordInvalid;
         return;
       }
     }
 
     if (record->GetSize() < kRecordHeaderSize) {
-      LOG(INFO) << "ColinL: StorageReadResult::kSizeTooSmall";
       result = StorageReadResult::kSizeTooSmall;
       return;
     }
@@ -357,7 +355,6 @@ ReadAndParseLegacyStorageRecord() {
         record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
     if (read_result < 0 || static_cast<size_t>(read_result) != bytes.size()) {
-      LOG(INFO) << "ColinL: StorageReadResult::kReadMismatch";
       result = StorageReadResult::kReadMismatch;
       return;
     }
@@ -365,7 +362,6 @@ ReadAndParseLegacyStorageRecord() {
     std::string version(reinterpret_cast<const char*>(bytes.data()),
                         kRecordHeaderSize);
     if (version != kRecordHeader) {
-      LOG(INFO) << "ColinL: StorageReadResult::kHeaderMismatch";
       result = StorageReadResult::kHeaderMismatch;
       return;
     }
@@ -374,7 +370,6 @@ ReadAndParseLegacyStorageRecord() {
     if (!storage->ParseFromArray(
             reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
             bytes.size() - kRecordHeaderSize)) {
-      LOG(INFO) << "ColinL: StorageReadResult::kParseError";
       result = StorageReadResult::kParseError;
       storage.reset();
       return;
@@ -382,11 +377,11 @@ ReadAndParseLegacyStorageRecord() {
   }();
 
   if (storage) {
-    LOG(INFO) << "ColinL: Successfully parsed storage. Cookies: "
+    LOG(INFO) << "Successfully parsed storage. Cookies: "
               << storage->cookies_size()
               << ", LocalStorage groups: " << storage->local_storages_size();
   } else {
-    LOG(INFO) << "ColinL: Legacy storage was not found or failed to parse.";
+    LOG(INFO) << "Legacy storage was not found or failed to parse.";
   }
   return {result, std::move(storage)};
 }
@@ -474,7 +469,7 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 // done_callback to resume app startup immediately.
 void MigrationManager::RunMigration(content::StoragePartition* partition,
                                     base::OnceClosure done_callback) {
-  LOG(INFO) << "ColinL: Starting Pre-MainLoop Migration.";
+  LOG(INFO) << "Starting Pre-MainLoop Migration.";
 
   // TODO: re-enable this.
   // base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -492,7 +487,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   bool sentinel_exists =
       !sentinel_path.empty() && base::PathExists(sentinel_path);
   if (sentinel_exists) {
-    LOG(INFO) << "ColinL: Migration sentinel file found. Skipping migration.";
+    LOG(INFO) << "Migration sentinel file found. Skipping migration.";
     LOG(INFO) << "RunMigration fast path took "
               << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
     base::UmaHistogramTimes(kFastPathDurationHistogram,
@@ -507,7 +502,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   if (!initial_url.is_valid()) {
-    LOG(INFO) << "ColinL: RunMigration invalid URL early exit.";
+    LOG(INFO) << "RunMigration invalid URL early exit.";
     std::move(done_callback).Run();
     return;
   }
@@ -516,13 +511,6 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   auto parsed_storage = ReadAndParseLegacyStorageRecord();
   StorageReadResult read_result = parsed_storage.first;
   auto storage = std::move(parsed_storage.second);
-
-  if (storage) {
-    LOG(INFO) << "ColinL: read cookie size:" << storage->cookies_size();
-    LOG(INFO) << "ColinL: read local storage size:"
-              << storage->local_storages_size();
-  }
-
   base::UmaHistogramEnumeration(kReadResultHistogram, read_result);
 
   auto state = base::MakeRefCounted<MigrationState>();
@@ -531,7 +519,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
                                            storage->local_storages_size() > 0);
 
   if (!state->has_data_to_migrate) {
-    LOG(INFO) << "ColinL: Nothing to migrate.";
+    LOG(INFO) << "Nothing to migrate.";
     CleanupLegacyFilesAsync(state);
     std::move(done_callback).Run();
     return;
@@ -541,7 +529,7 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   base::UmaHistogramCounts1000(kLocalStorageCountHistogram,
                                storage->local_storages_size());
 
-  LOG(INFO) << "ColinL: RunMigration synchronous setup took "
+  LOG(INFO) << "RunMigration synchronous setup took "
             << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
 
   // Build the pipeline of tasks to execute asynchronously.
@@ -597,11 +585,11 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
       if (cookie->IsCanonical()) {
         cookies.push_back(std::move(cookie));
       } else {
-        LOG(ERROR) << "ColinL: Cookie failed IsCanonical() check: "
+        LOG(ERROR) << "Cookie failed IsCanonical() check: "
                    << cookie->DebugString();
       }
     } else {
-      LOG(ERROR) << "ColinL: Failed to create CanonicalCookie from legacy "
+      LOG(ERROR) << "Failed to create CanonicalCookie from legacy "
                     "storage for: "
                  << "name=" << c.name() << " domain=" << c.domain()
                  << " path=" << c.path();
@@ -617,7 +605,6 @@ Task MigrationManager::CookieTask(
     content::StoragePartition* partition,
     std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
     scoped_refptr<MigrationState> state) {
-  LOG(INFO) << "ColinL: CookieTask";
   return base::BindOnce(
       [](content::StoragePartition* partition,
          std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
@@ -722,6 +709,7 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
           local_storage_entry.key(), local_storage_entry.value()));
     }
   }
+  LOG(INFO) << "ToLocalStorageItems complete. Count=" << entries.size();
   return entries;
 }
 
@@ -730,10 +718,7 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
 // pairs into the Chromium Storage Service. This is executed as a multi-step
 // sequence:
 // 1. Send all Put commands over Mojo.
-// 2. Call FlushForTesting() to ensure LevelDB writes the Puts to the physical
-// disk.
-// 3. Call PurgeMemory() so that the Renderer fetches fresh data instead of
-// using cached state.
+// 2. Call Flush() to ensure LocalStorage key-value pairs are in memory.
 Task MigrationManager::LocalStorageTask(
     content::StoragePartition* partition,
     const url::Origin& origin,
@@ -745,25 +730,26 @@ Task MigrationManager::LocalStorageTask(
              pairs,
          scoped_refptr<MigrationState> state, base::OnceClosure callback) {
         if (pairs.empty()) {
+          LOG(INFO) << "No LocalStorage pairs, finishing.";
           std::move(callback).Run();
           return;
         }
 
-        auto area = std::make_unique<mojo::Remote<blink::mojom::StorageArea>>();
-        GetLocalStorageArea(partition, origin, *area);
-        auto* raw_remote_ptr = area.get();
+        // Shared context to keep the mojo::Remote alive until the entire
+        // pipeline finishes.
+        auto shared_state = base::MakeRefCounted<SharedClosureState>();
+        shared_state->cb = std::move(callback);
+
+        GetLocalStorageArea(partition, origin, shared_state->storage_area);
 
         // STEP 2: Flush step.
         // Tells the Storage Service to commit the LevelDB transactions to disk.
+        // We use BindOnce with shared_state to ensure it is kept alive.
         base::OnceClosure flush_step = base::BindOnce(
             [](content::StoragePartition* partition,
                scoped_refptr<MigrationState> state,
-               base::OnceClosure next_step) {
+               scoped_refptr<SharedClosureState> shared_state) {
               LOG(INFO) << "LocalStorage Puts complete. Flushing...";
-
-              auto shared_state = base::MakeRefCounted<SharedClosureState>();
-              shared_state->cb = std::move(next_step);
-
               partition->GetLocalStorageControl()->Flush();
 
               // Hard timeout fallback: if the disk IO hangs or the Storage
@@ -785,7 +771,7 @@ Task MigrationManager::LocalStorageTask(
                       shared_state, state),
                   base::Seconds(2));
             },
-            base::Unretained(partition), state, std::move(callback));
+            base::Unretained(partition), state, shared_state);
 
         // STEP 1: Put keys step.
         // Iterates through all k/v pairs and sends Mojo Put commands.
@@ -800,26 +786,28 @@ Task MigrationManager::LocalStorageTask(
           std::vector<uint8_t> value =
               FormatStringForLocalStorage(pair->second);
 
-          (*raw_remote_ptr)
-              ->Put(key, value, absl::nullopt, "migration",
-                    base::BindOnce(
-                        [](base::RepeatingClosure barrier, std::string key_str,
-                           scoped_refptr<MigrationState> state, bool success) {
-                          if (success) {
-                            LOG(INFO) << "Put SUCCESS for key: " << key_str;
-                          } else {
-                            LOG(ERROR) << "Put FAILED for key: " << key_str;
-                          }
-                          InjectionResult inj_result =
-                              success ? InjectionResult::kSuccess
-                                      : InjectionResult::kError;
-                          base::UmaHistogramEnumeration(
-                              kLocalStorageInjectionResultHistogram,
-                              inj_result);
-                          state->UpdateLocalStorageResult(inj_result);
-                          barrier.Run();
-                        },
-                        barrier, key_str, state));
+          LOG(INFO) << "Put for key: " << key_str;
+          shared_state->storage_area->Put(
+              key, value, absl::nullopt, "migration",
+              base::BindOnce(
+                  [](base::RepeatingClosure barrier, std::string key_str,
+                     scoped_refptr<MigrationState> state,
+                     scoped_refptr<SharedClosureState> keep_alive,
+                     bool success) {
+                    if (success) {
+                      LOG(INFO) << "Put SUCCESS for key: " << key_str;
+                    } else {
+                      LOG(ERROR) << "Put FAILED for key: " << key_str;
+                    }
+                    InjectionResult inj_result = success
+                                                     ? InjectionResult::kSuccess
+                                                     : InjectionResult::kError;
+                    base::UmaHistogramEnumeration(
+                        kLocalStorageInjectionResultHistogram, inj_result);
+                    state->UpdateLocalStorageResult(inj_result);
+                    barrier.Run();
+                  },
+                  barrier, key_str, state, shared_state));
         }
       },
       partition, origin, std::move(pairs), state);

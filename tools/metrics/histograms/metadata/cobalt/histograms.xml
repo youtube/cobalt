@@ -15,15 +15,104 @@ limitations under the License.
 -->
 
 <!--
+This file is used to generate a comprehensive list of Cobalt histograms
+along with a detailed description for each histogram. See go/cobalt-telemetry
+for details on how to modify this file.
 
-This file describes the enumerations referenced by entries in histograms.xml for
-this directory.
+For best practices on writing histogram descriptions, see
+https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md
 
-For best practices on writing enumerations descriptions, see
-https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md#Enum-Histograms
+Always run the pretty print utility on this file after editing:
+
+  ./tools/metrics/histograms/pretty_print.py tools/metrics/histograms/metadata/cobalt/histograms.xml
 -->
 
 <histogram-configuration>
+
+<histograms>
+
+<histogram name="Cobalt.Finch.ConfigAgeInDays" units="days"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the age of the Finch configuration in days each time it is checked
+    at startup. This data is used to determine an appropriate expiration
+    threshold.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.ConfigState" enum="VariationsConfigState"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the state of the Finch configuration at startup. This is used to
+    monitor the frequency of expired or invalid configurations.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.RollbackDetected" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records when a rollback is detected and prevented. This happens when the
+    cobalt version recorded for a previous Finch config is greater than the
+    current version of the Cobalt binary.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Finch.VersionComparisonIsValid" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the version strings in the Finch config are valid and can be
+    parsed correctly. A false value indicates a malformed version string was
+    received.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
+    expires_after="never">
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for the ELF dynamic shared library, stored as a compressed
+    file, to be decompressed. This metric is only recorded when the shared
+    library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
+    enum="LocalStorageDatabaseResetReason" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the reason why the Local Storage database was reset.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the number of times a platform error was raised due to a navigation
+    timeout or other network error. This is logged every time RaisePlatformError
+    is called; each logged count is the cumulative number of times the error has
+    been raised. The actual number of sessions with a specific number of platform
+    errors raised can be raised by subtracting the values of counts larger than
+    said number. For example, sessions with 2 calls to RaisePlatformError would be
+    (count for 2 calls) - (count for 3 calls) - ... (count for max calls).
+    This value is reset to 0 on a successful navigation/app load.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.FetchedFromCache"
+    enum="SplashScreenFetchedState" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records whether a splash screen resource was successfully retrieved from
+    cache and indicates the reason when on error. This is recorded for every
+    splash screen request handled by h5vcc scheme loader.
+  </summary>
+</histogram>
 
 <histogram name="Cobalt.Storage.Cookie.CommitDurationPerOperation" units="ms"
     expires_after="never">
@@ -242,5 +331,7 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
     are emitted.
   </summary>
 </histogram>
+
+</histograms>
 
 </histogram-configuration>
