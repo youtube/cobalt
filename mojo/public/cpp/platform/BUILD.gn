@@ -60,7 +60,7 @@ component("platform") {
 
   if (is_posix && !is_nacl && !is_minimal_toolchain && !is_mac) {
     sources += [ "named_platform_channel_posix.cc" ]
-    deps += [ "//net" ]
+    deps += [ "//net:sockaddr_util" ]
   }
 
   if (is_mac) {

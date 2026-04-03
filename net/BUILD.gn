@@ -297,8 +297,6 @@ component("net") {
     "base/schemeful_site.cc",
     "base/schemeful_site.h",
     "base/session_usage.h",
-    "base/sockaddr_storage.cc",
-    "base/sockaddr_storage.h",
     "base/sys_addrinfo.h",
     "base/trace_event_stub.h",
     "base/tracing.h",
@@ -1159,6 +1157,7 @@ component("net") {
   public_deps = [
     ":net_export_header",
     ":net_public_deps",
+    ":sockaddr_util",
     "//base",
     "//net/dns",
     "//net/dns:dns_client",
@@ -1463,8 +1462,6 @@ component("net") {
       "base/file_stream_context_posix.cc",
       "base/network_interfaces_posix.cc",
       "base/network_interfaces_posix.h",
-      "base/sockaddr_util_posix.cc",
-      "base/sockaddr_util_posix.h",
       "disk_cache/cache_util_posix.cc",
       "disk_cache/simple/simple_util_posix.cc",
       "http/url_security_manager_posix.cc",
@@ -1821,6 +1818,25 @@ component("net") {
 # net_nqe_proto) can use it without depending on the whole of //net.
 source_set("net_export_header") {
   sources = [ "base/net_export.h" ]
+}
+
+# Minimal sockaddr utilities. Split out so that mojo/public/cpp/platform
+# can use it without depending on //net.
+component("sockaddr_util") {
+  sources = [
+    "base/sockaddr_storage.cc",
+    "base/sockaddr_storage.h",
+  ]
+
+  if (is_posix) {
+    sources += [
+      "base/sockaddr_util_posix.cc",
+      "base/sockaddr_util_posix.h",
+    ]
+  }
+
+  deps = [ "//base" ]
+  public_deps = [ ":net_export_header" ]
 }
 
 # Private dependencies for the //net component and for any build targets (e.g.
