@@ -156,7 +156,7 @@ void CobaltBrowserMainParts::StartStorageMigration() {
   auto completion_callback = base::BindPostTask(
       base::SequencedTaskRunner::GetCurrentDefault(),
       base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
-                     base::Unretained(this)));
+                     weak_ptr_factory_.GetWeakPtr()));
 
   cobalt::migrate_storage_record::MigrationManager::RunMigration(
       partition, std::move(completion_callback));

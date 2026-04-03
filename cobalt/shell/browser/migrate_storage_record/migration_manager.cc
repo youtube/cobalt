@@ -633,7 +633,11 @@ Task MigrationManager::CookieTask(
 
           // M138/Network Service: Ensure the source_url is a full GURL
           // representing the cookie's domain to satisfy Schemeful Site checks.
-          GURL source_url("https://" + cookie->Domain() + cookie->Path());
+          std::string host = cookie->Domain();
+          if (!host.empty() && host[0] == '.') {
+            host = host.substr(1);
+          }
+          GURL source_url("https://" + host + cookie->Path());
 
           // M138 Change: Explicitly set the SameSite Context to Inclusive.
           // This prevents IsSetPermittedInContext from crashing when it sees
@@ -752,24 +756,9 @@ Task MigrationManager::LocalStorageTask(
               LOG(INFO) << "LocalStorage Puts complete. Flushing...";
               partition->GetLocalStorageControl()->Flush();
 
-              // Hard timeout fallback: if the disk IO hangs or the Storage
-              // Service crashes during flush, resume app startup after 2
-              // seconds.
-              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-                  FROM_HERE,
-                  base::BindOnce(
-                      [](scoped_refptr<SharedClosureState> shared_state,
-                         scoped_refptr<MigrationState> migration_state) {
-                        if (shared_state->cb) {
-                          LOG(ERROR) << "LocalStorage Flush timed out "
-                                        "after 2 seconds. Proceeding anyway.";
-                          migration_state->UpdateLocalStorageResult(
-                              InjectionResult::kTimeout);
-                          shared_state->Run();
-                        }
-                      },
-                      shared_state, state),
-                  base::Seconds(2));
+              // Proceed immediately. Flush() is non-blocking and we don't need
+              // to wait for disk IO to complete before starting the app.
+              shared_state->Run();
             },
             base::Unretained(partition), state, shared_state);
 
