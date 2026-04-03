@@ -13,16 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script builds and deploys the standalone Cobalt Evergreen executable (loader_app)
-# to an RDK device via ADB. It does not handle Cobalt plugins.
+# This script builds and deploys Cobalt Evergreen components to an RDK device via ADB.
+# It supports deploying the full executable environment or just the compressed library.
 
 set -e
 
-# Handle Device ID from argument
+# Handle arguments
 RDK_DEVICE_ID="$1"
+COMMAND="${2:-all}"
 
 if [ -z "${RDK_DEVICE_ID}" ]; then
-  echo "Usage: $0 <device_id>"
+  echo "Usage: $0 <device_id> [all|lib]"
+  echo ""
+  echo "Commands:"
+  echo "  all  : (Default) Build and deploy everything (loader_app, content, and libcobalt.lz4)."
+  echo "  lib  : Build and deploy ONLY the compressed libcobalt.lz4."
+  echo ""
   echo "Error: Device ID is required (obtain via 'adb devices')."
   exit 1
 fi
@@ -44,11 +50,31 @@ OUT_DIR="out/${PLATFORM}_${CONFIG}"
 REMOTE_DIR="/data/out_cobalt_exe" # Avoid using /data/out_cobalt, as it is reserved for plugins
 ARCHIVE_NAME="archive.tar.gz"
 
+# For 'lib' only mode, we just build and push the compressed library.
+if [ "${COMMAND}" == "lib" ]; then
+    if [ ! -d "${OUT_DIR}" ]; then
+        echo "=== Output directory not found. Configuring first... ==="
+        python3 cobalt/build/gn.py -p "${PLATFORM}" -C "${CONFIG}"
+    fi
+
+    echo "=== Building Cobalt Library (libcobalt.lz4) ==="
+    autoninja -C "${OUT_DIR}" copy_cobalt_lib
+    
+    echo "=== Deploying libcobalt.lz4 to ${RDK_DEVICE_ID} ==="
+    adb -s "${RDK_DEVICE_ID}" shell "mkdir -p ${REMOTE_DIR}/app/cobalt/lib"
+    adb -s "${RDK_DEVICE_ID}" push "${OUT_DIR}/app/cobalt/lib/libcobalt.lz4" "${REMOTE_DIR}/app/cobalt/lib/"
+    echo "=== Finished (Library Only) ==="
+    exit 0
+fi
+
 echo "=== Configuring Cobalt for ${PLATFORM} (${CONFIG}) ==="
 python3 cobalt/build/gn.py -p "${PLATFORM}" -C "${CONFIG}"
 
-echo "=== Building Cobalt Executable (loader_app) ==="
-autoninja -C "${OUT_DIR}" loader_app cobalt_loader
+# Define build targets
+BUILD_TARGETS="loader_app cobalt_loader copy_cobalt_lib"
+
+echo "=== Building Targets: ${BUILD_TARGETS} ==="
+autoninja -C "${OUT_DIR}" ${BUILD_TARGETS}
 
 echo "=== Packaging artifacts ==="
 tar -czvf "${ARCHIVE_NAME}" -C "${OUT_DIR}" -T "${OUT_DIR}/cobalt_loader.runtime_deps" gen/build_info.json
