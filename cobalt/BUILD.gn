@@ -331,6 +331,7 @@ test("cobalt_unittests") {
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//media:test_support",
     "//mojo/core/embedder",
     "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
