@@ -256,6 +256,45 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<<<<<<< HEAD
+=======
+<histogram name="Cobalt.StorageMigration.SentinelWriteResult"
+    enum="SentinelWriteResult" expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the result of writing the migration sentinel file to disk.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Media.AllocatedEncodedBuffer"
+    unit="MB" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records the memory allocated by media decoder buffer for video and audio.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Total.PrivateFootprintSwap" units="MB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    A rough estimate of the private memory footprint that has been swapped out
+    to disk for the Cobalt process. Recorded at regular intervals when memory
+    metrics are emitted.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Total.VmSize" units="MB" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    The virtual memory size of the Cobalt process. Virtual memory size includes
+    all memory the process can access, including shared libraries, stack, heap,
+    and memory-mapped files. Recorded at regular intervals when memory metrics
+    are emitted.
+  </summary>
+</histogram>
+
+>>>>>>> 7444dc402d (Add UMA metric for media encoded buffer (#9870))
 </histograms>
 
 </histogram-configuration>
