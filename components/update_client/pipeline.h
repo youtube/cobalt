@@ -36,7 +36,7 @@ class CrxCache;
 struct OperationResult {
 #if defined(IN_MEMORY_UPDATES)
   base::FilePath installation_dir;
-  base::raw_ptr<std::string> crx_str;
+  base::raw_ptr<const std::string> crx_str;
 #else
   base::FilePath response;
 #endif

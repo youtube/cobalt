@@ -44,8 +44,6 @@ constexpr int64_t kBackgroundDownloadSizeThreshold = 10'000'000; /*10 MB*/
 constexpr int64_t kBackgroundDownloadSizeThreshold = 0;
 #endif
 
-
-
 #if !BUILDFLAG(IS_STARBOARD)
 bool CanDoBackgroundDownload(bool is_foreground,
                              bool background_downloads_enabled,
@@ -103,7 +101,7 @@ void DownloadComplete(
     scoped_refptr<Cancellation> cancellation,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
 #if defined(IN_MEMORY_UPDATES)
-    std::string* crx_str,
+    const std::string* crx_str,
 #endif
 #if BUILDFLAG(IS_STARBOARD)
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
@@ -206,7 +204,6 @@ void HandleAvailableSpace(
                      event_adder, crx_str, std::move(callback))));
 #else
                      event_adder, std::move(callback))));
-
 #endif
 }
 
