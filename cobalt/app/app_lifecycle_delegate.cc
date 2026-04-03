@@ -69,10 +69,12 @@ class DefaultAppLifecycleRunner : public cobalt::AppLifecycleRunner {
     exit_manager_ = std::make_unique<base::AtExitManager>();
   }
 
-  void CreateMainDelegate(bool is_visible,
+  void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+                          bool is_visible,
                           const char* initial_deep_link) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-        initial_deep_link, false /* is_content_browsertests */, is_visible);
+        startup_timestamp, initial_deep_link,
+        false /* is_content_browsertests */, is_visible);
   }
 
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
@@ -287,10 +289,10 @@ void AppLifecycleDelegate::OnStart(const SbEvent* event) {
 
   bool is_visible = event->type == kSbEventTypeStart;
   if (data) {
-    Run(is_visible, data->argument_count,
+    Run(event->timestamp, is_visible, data->argument_count,
         const_cast<const char**>(data->argument_values), data->link);
   } else {
-    Run(is_visible, 0, nullptr, nullptr);
+    Run(event->timestamp, is_visible, 0, nullptr, nullptr);
   }
 
 #if BUILDFLAG(USE_EVERGREEN)
@@ -311,11 +313,12 @@ void AppLifecycleDelegate::OnStop(const SbEvent* event) {
 #endif
 }
 
-int AppLifecycleDelegate::Run(bool is_visible,
+int AppLifecycleDelegate::Run(absl::optional<int64_t> startup_timestamp,
+                              bool is_visible,
                               int argc,
                               const char** argv,
                               const char* initial_deep_link) {
-  runner_->CreateMainDelegate(is_visible, initial_deep_link);
+  runner_->CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
 
   content::ContentMainParams params(runner_->GetMainDelegate());
 
