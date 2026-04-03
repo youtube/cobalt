@@ -98,7 +98,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
-      std::optional<bool> use_dual_threads);
+      std::optional<bool> use_dual_threads,
+      bool enable_output_checker);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -127,6 +128,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::optional<bool> use_dual_threads,
+      bool enable_output_checker,
       std::string* error_message);
   ~MediaCodecDecoder();
 

@@ -128,7 +128,8 @@ MediaCodecDecoder::CreateForVideo(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
-    std::optional<bool> use_dual_threads) {
+    std::optional<bool> use_dual_threads,
+    bool enable_output_checker) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -136,7 +137,7 @@ MediaCodecDecoder::CreateForVideo(
       color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      use_dual_threads, &error_message);
+      use_dual_threads, enable_output_checker, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -199,6 +200,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<bool> use_dual_threads,
+    bool enable_output_checker,
     std::string* error_message)
     : JobOwner(job_queue),
 
@@ -225,7 +227,8 @@ MediaCodecDecoder::MediaCodecDecoder(
       video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size);
+      force_big_endian_hdr_metadata, max_video_input_size,
+      enable_output_checker);
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {
