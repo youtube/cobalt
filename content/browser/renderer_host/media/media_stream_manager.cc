@@ -2653,10 +2653,10 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
     blink::mojom::StreamDevicesSet stream_devices_set;
     stream_devices_set.stream_devices.emplace_back(blink::mojom::StreamDevices::New());
     
-    // Hardcode 16kHz Mono parameters (Starboard spec).
+    // Hardcode 48kHz Mono parameters.
     media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                   media::ChannelLayoutConfig::Mono(),
-                                  16000, 128);
+                                  48000, 512);
     
     blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
                                     "default", "Default Microphone");

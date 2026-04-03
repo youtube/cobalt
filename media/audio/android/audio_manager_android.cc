@@ -180,11 +180,11 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: device_id=" << device_id 
             << " latency(msec)=" << elapsed.InMilliseconds();
 
-  // Starboard POC: Hardcode to 16kHz Mono to bypass JNI/Probing overhead.
+  // Starboard POC: Hardcode Mono to bypass JNI/Probing overhead.
   // This is now thread-safe and can be called from any thread to avoid hops.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
   int sample_rate = StarboardAudioInputStream::kSampleRateHz;
-  int buffer_size = 128; // Starboard default samples per buffer
+  int buffer_size = 512; // Adjusted for 48kHz (approx 10ms)
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                          ChannelLayoutConfig::FromLayout<channel_layout>(),

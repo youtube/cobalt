@@ -24,11 +24,11 @@ class AudioManagerAndroid;
 
 // StarboardAudioInputStream is a simplified version of OpenSLESInputStream
 // specifically tuned for low-latency voice recognition on Cobalt/Android.
-// It bypasses complex negotiation and is hardcoded for 16kHz Mono.
+// It bypasses complex negotiation and is hardcoded for 48kHz Mono.
 class StarboardAudioInputStream : public AudioInputStream {
  public:
   static const int kMaxNumOfBuffersInQueue = 2;
-  static const int kSampleRateHz = 16000;
+  static const int kSampleRateHz = 48000;
 
   StarboardAudioInputStream(AudioManagerAndroid* manager,
                             const AudioParameters& params);

@@ -35,7 +35,7 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
       started_(false) {
   DVLOG(2) << __PRETTY_FUNCTION__;
 
-  // Hardcode to 16kHz Mono 16-bit PCM (Starboard style)
+  // Hardcode to 48kHz Mono 16-bit PCM (Starboard style)
   format_.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
   format_.numChannels = 1;
   format_.sampleRate = kSampleRateHz * 1000; // milliHertz
