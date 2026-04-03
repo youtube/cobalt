@@ -181,6 +181,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<<<<<<< HEAD
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
@@ -286,6 +287,13 @@ Always run the pretty print utility on this file after editing:
     if the current work unit started running more than 10 seconds ago. This is
     emitted only in single process mode(when renderer is a thread inside
     BrowserProcess).
+=======
+<histogram name="Memory.Media.AllocatedEncodedBuffer"
+    unit="MB" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records the memory allocated by media decoder buffer for video and audio.
+>>>>>>> 7444dc402d (Add UMA metric for media encoded buffer (#9870))
   </summary>
 </histogram>
 
