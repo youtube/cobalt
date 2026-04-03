@@ -396,8 +396,7 @@ group("loader_app_rdk_executable") {
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 # These changes are temporary for backward compatibility.
-# TODO: b/499089012 - Remove once
-# we move to the new plugin method (libloader_app.so) as part of b/491573728.
+# TODO: b/499089012 - Remove once we move to the new plugin method (libloader_app.so).
   executable("loader_app") {
     check_includes = false
     output_dir = root_build_dir
