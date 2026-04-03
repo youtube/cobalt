@@ -165,7 +165,7 @@ void MediaStreamAudioTrack::OnData(const media::AudioBus& audio_bus,
     uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
     TRACE_EVENT("media", "RecordLatency::NativeTrackExit", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta total_latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-    LOG(INFO) << "KJ: NATIVE TRACK EXIT. latency(msec)=" << total_latency.InMilliseconds();
+    LOG(INFO) << "KJ: RecordLatency::NativeTrackExit latency(msec)=" << total_latency.InMilliseconds();
   }
   track_data_count_++;
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("mediastream"),

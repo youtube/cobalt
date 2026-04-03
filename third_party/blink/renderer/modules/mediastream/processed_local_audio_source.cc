@@ -508,7 +508,7 @@ void ProcessedLocalAudioSource::Capture(const media::AudioBus* audio_bus,
     TRACE_EVENT("media", "RecordLatency::FirstHWBuffer", perfetto::Flow::ProcessScoped(id));
   }
   if (capture_count_ == 0) {
-    LOG(INFO) << "KJ: ProcessedLocalAudioSource::Capture count=" << capture_count_
+    LOG(INFO) << "KJ: RecordLatency::FirstHWBuffer count=" << capture_count_
               << " has_processor=" << (media_stream_audio_processor_ != nullptr)
               << " is_zero=" << audio_bus->AreFramesZero();
   }

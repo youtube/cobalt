@@ -851,7 +851,7 @@ void MediaDevicesManager::GotAudioInputCapabilities(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserGotAudioCapabilities", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaDevicesManager::GotAudioInputCapabilities: latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserGotAudioCapabilities latency(msec)=" << elapsed.InMilliseconds();
 
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(base::Contains(enumeration_states_, state_id));
@@ -887,7 +887,7 @@ void MediaDevicesManager::FinalizeDevicesEnumerated(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserAudioCapabilitiesReturned", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaDevicesManager::FinalizeDevicesEnumerated (Sending back): latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserAudioCapabilitiesReturned (Sending back): latency(msec)=" << elapsed.InMilliseconds();
 
   std::move(enumeration_state.completion_cb)
       .Run(std::move(enumeration_state.hashed_enumeration_results),

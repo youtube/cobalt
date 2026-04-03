@@ -66,7 +66,7 @@ ScriptPromise Permissions::query(ScriptState* script_state,
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::JS_PermissionsQuery", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: Permissions::query (START): latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::JS_PermissionsQuery (START): latency(msec)=" << elapsed.InMilliseconds();
 
   // https://www.w3.org/TR/permissions/#query-method
   // If this's relevant global object is a Window object, and if the current
@@ -116,7 +116,7 @@ ScriptPromise Permissions::request(ScriptState* script_state,
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::JS_PermissionsRequest", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: Permissions::request (START): latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::JS_PermissionsRequest (START): latency(msec)=" << elapsed.InMilliseconds();
 
   PermissionDescriptorPtr descriptor =
       ParsePermissionDescriptor(script_state, raw_permission, exception_state);

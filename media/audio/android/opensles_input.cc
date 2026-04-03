@@ -337,7 +337,7 @@ void OpenSLESInputStream::ReadBufferQueue() {
     TRACE_EVENT("media", "RecordLatency::OpenSLESFirstBuffer", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta total_elapsed =
         base::TimeTicks::Now() - ::content::g_select_keydown_time;
-    LOG(INFO) << "KJ: First audio buffer received: total_latency(msec)="
+    LOG(INFO) << "KJ: RecordLatency::OpenSLESFirstBuffer: total_latency(msec)="
               << total_elapsed.InMilliseconds();
   }
 

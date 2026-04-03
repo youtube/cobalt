@@ -94,7 +94,7 @@ void WebAudioMediaStreamAudioSink::OnData(
     uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
     TRACE_EVENT("media", "RecordLatency::WebAudioSinkFIFO", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-    LOG(INFO) << "KJ: WebAudioMediaStreamAudioSink::OnData - ENTERED WEBAUDIO SINK FIFO. latency(msec)=" << latency.InMilliseconds();
+    LOG(INFO) << "KJ: RecordLatency::WebAudioSinkFIFO latency(msec)=" << latency.InMilliseconds();
     first_sink_ondata_logged_ = true;
   }
   NON_REENTRANT_SCOPE(capture_reentrancy_checker_);
@@ -173,7 +173,7 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
     uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
     TRACE_EVENT("media", "RecordLatency::WebAudioConsume", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-    LOG(INFO) << "KJ: WebAudioMediaStreamAudioSink::ProvideInput - DATA CONSUMED BY WEBAUDIO. latency(msec)=" << latency.InMilliseconds();
+    LOG(INFO) << "KJ: RecordLatency::WebAudioConsume latency(msec)=" << latency.InMilliseconds();
     first_sink_provide_logged_ = true;
   }
   lock_.AssertAcquired();

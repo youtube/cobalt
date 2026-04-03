@@ -84,7 +84,7 @@ void PermissionServiceImpl::RequestPermission(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserRequestPermission", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: PermissionServiceImpl::RequestPermission latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserRequestPermission latency(msec)=" << elapsed.InMilliseconds();
 
   std::vector<PermissionDescriptorPtr> permissions;
   permissions.push_back(std::move(permission));
@@ -178,7 +178,7 @@ void PermissionServiceImpl::HasPermission(PermissionDescriptorPtr permission,
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserHasPermission", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: PermissionServiceImpl::HasPermission latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserHasPermission latency(msec)=" << elapsed.InMilliseconds();
 
   std::move(callback).Run(GetPermissionStatus(permission));
 }

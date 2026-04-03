@@ -119,7 +119,7 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
   TRACE_EVENT("media", "RecordLatency::StarboardStart", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed =
       base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: StarboardAudioInputStream::Start: latency(msec)="
+  LOG(INFO) << "KJ: RecordLatency::StarboardStart: latency(msec)="
             << elapsed.InMilliseconds();
 
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -257,7 +257,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
     TRACE_EVENT("media", "RecordLatency::StarboardFirstBuffer", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta total_elapsed =
         base::TimeTicks::Now() - ::content::g_select_keydown_time;
-    LOG(INFO) << "KJ: Starboard First audio buffer received: total_latency(msec)="
+    LOG(INFO) << "KJ: RecordLatency::StarboardFirstBuffer: total_latency(msec)="
               << total_elapsed.InMilliseconds();
   }
 

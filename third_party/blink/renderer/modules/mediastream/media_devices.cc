@@ -89,7 +89,7 @@ class PromiseResolverCallbacks final : public UserMediaRequest::Callbacks {
     uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
     TRACE_EVENT("media", "RecordLatency::JS_getUserMedia_Success", perfetto::Flow::ProcessScoped(id));
     base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-    LOG(INFO) << "KJ: PromiseResolverCallbacks::OnSuccess: latency(msec)="
+    LOG(INFO) << "KJ: RecordLatency::JS_getUserMedia_Success: latency(msec)="
               << elapsed.InMilliseconds();
 
     if (media_type_ == UserMediaRequestType::kDisplayMediaSet) {
@@ -392,7 +392,7 @@ ScriptPromise MediaDevices::enumerateDevices(ScriptState* script_state,
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::JS_EnumerateDevices", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaDevices::enumerateDevices: latency(msec)="
+  LOG(INFO) << "KJ: RecordLatency::JS_EnumerateDevices: latency(msec)="
             << elapsed.InMilliseconds();
 
   UpdateWebRTCMethodCount(RTCAPIName::kEnumerateDevices);
@@ -431,7 +431,7 @@ ScriptPromise MediaDevices::getUserMedia(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::JS_getUserMedia", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaDevices::getUserMedia: latency(msec)="
+  LOG(INFO) << "KJ: RecordLatency::JS_getUserMedia: latency(msec)="
             << elapsed.InMilliseconds();
 
   // This timeout of base::Seconds(8) is an initial value and based on the data
@@ -963,7 +963,7 @@ void MediaDevices::DevicesEnumerated(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::JS_DevicesEnumerated", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaDevices::DevicesEnumerated: latency(msec)="
+  LOG(INFO) << "KJ: RecordLatency::JS_DevicesEnumerated: latency(msec)="
             << elapsed.InMilliseconds();
 
   if (!enumerate_device_requests_.Contains(result_tracker)) {

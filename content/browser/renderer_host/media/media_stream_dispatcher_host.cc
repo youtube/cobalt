@@ -422,7 +422,7 @@ void MediaStreamDispatcherHost::CancelAllRequests() {
 }
 
 void MediaStreamDispatcherHost::GenerateStreams(
-    int32_t request_id,
+    int32_t page_request_id,
     const blink::StreamControls& controls,
     bool user_gesture,
     blink::mojom::StreamSelectionInfoPtr audio_stream_selection_info_ptr,
@@ -431,7 +431,7 @@ void MediaStreamDispatcherHost::GenerateStreams(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserGenerateStreams", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaStreamDispatcherHost::GenerateStreams latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserGenerateStreams latency(msec)=" << elapsed.InMilliseconds();
 
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
@@ -471,7 +471,7 @@ void MediaStreamDispatcherHost::GenerateStreams(
           base::BindOnce(salt_and_origin_callback_, render_process_id_,
                          render_frame_id_)),
       base::BindOnce(&MediaStreamDispatcherHost::DoGenerateStreams,
-                     weak_factory_.GetWeakPtr(), request_id, controls,
+                     weak_factory_.GetWeakPtr(), page_request_id, controls,
                      user_gesture, std::move(audio_stream_selection_info_ptr),
                      std::move(callback)));
 }

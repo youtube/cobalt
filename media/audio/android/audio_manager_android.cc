@@ -532,7 +532,7 @@ bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
   TRACE_EVENT("media", "RecordLatency::SetAudioDevice", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed =
       base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: AudioManagerAndroid::SetAudioDevice: " << device_id
+  LOG(INFO) << "KJ: RecordLatency::SetAudioDevice: " << device_id
             << " latency(msec)=" << elapsed.InMilliseconds();
 
   DVLOG(1) << __FUNCTION__ << ": " << device_id;

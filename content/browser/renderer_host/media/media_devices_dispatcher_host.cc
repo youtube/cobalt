@@ -145,7 +145,7 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserEnumerateDevices", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaDevicesDispatcherHost::EnumerateDevices latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserEnumerateDevices latency(msec)=" << elapsed.InMilliseconds();
 
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
@@ -251,7 +251,7 @@ void MediaDevicesDispatcherHost::GetAudioInputCapabilities(
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserGetAudioCapabilities", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaDevicesDispatcherHost::GetAudioInputCapabilities latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserGetAudioCapabilities latency(msec)=" << elapsed.InMilliseconds();
 
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,

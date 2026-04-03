@@ -3036,7 +3036,7 @@ void MediaStreamManager::FinalizeGenerateStreams(const std::string& label,
   uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
   TRACE_EVENT("media", "RecordLatency::BrowserGenerateStreamsReturned", perfetto::Flow::ProcessScoped(id));
   base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: MediaStreamManager::FinalizeGenerateStreams (Sending back): latency(msec)=" << elapsed.InMilliseconds();
+  LOG(INFO) << "KJ: RecordLatency::BrowserGenerateStreamsReturned (Sending back): latency(msec)=" << elapsed.InMilliseconds();
 
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(request);
