@@ -25,14 +25,27 @@
 #include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
 #include "content/public/browser/browser_main_runner.h"
+<<<<<<< HEAD
+=======
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/gpu/content_gpu_client.h"
+#include "content/public/renderer/content_renderer_client.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace content {
+class ContentUtilityClient;
+}  // namespace content
+>>>>>>> 15756c989c ([Cherry-pick #8488] Standardize and secure application startup time measurement (#9838))
 
 namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate(const char* initial_deep_link = nullptr,
-                              bool is_content_browsertests = false,
-                              bool is_visible = true);
+  explicit CobaltMainDelegate(
+      absl::optional<int64_t> startup_timestamp = absl::nullopt,
+      const char* initial_deep_link = nullptr,
+      bool is_content_browsertests = false,
+      bool is_visible = true);
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
@@ -62,6 +75,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   ~CobaltMainDelegate() override;
 
  private:
+  absl::optional<int64_t> startup_timestamp_;
   bool is_visible_;
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
