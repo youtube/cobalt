@@ -26,11 +26,10 @@ namespace starboard {
 
 namespace {
 
-constexpr int kSampleRateInHz = 16'000;
+constexpr int kSampleRate = 16'000;
 constexpr int kChannels = 1;
-constexpr int kFramesPerBuffer = kSampleRateInHz / 100;
-constexpr int kMinReadSizeBytes =
-    kFramesPerBuffer * kChannels * sizeof(int16_t);
+constexpr int kFramesPerBuffer = kSampleRate / 100;
+constexpr int kMinReadBytes = kFramesPerBuffer * kChannels * sizeof(int16_t);
 // We request a buffer twice the size of a single read to allow for double-
 // buffering
 constexpr int kBufferSizeMultiplier = 2;
@@ -39,11 +38,11 @@ Unexpected<std::string> SndError(const std::string& method_name, int error) {
   return Failure(method_name + " failed: " + snd_strerror(error));
 }
 
-Result<void> OpenPcm(snd_pcm_t*& handle) {
+Result<snd_pcm_t*> OpenPcm() {
+  snd_pcm_t* handle = nullptr;
   int error = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE,
                            SND_PCM_NONBLOCK);
   if (error < 0) {
-    handle = nullptr;
     return SndError("snd_pcm_open", error);
   }
 
@@ -67,13 +66,13 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
     return SndError("snd_pcm_hw_params_set_format", error);
   }
 
-  unsigned int sample_rate = kSampleRateInHz;
+  unsigned int sample_rate = kSampleRate;
   error = snd_pcm_hw_params_set_rate_near(handle, hw_params, &sample_rate,
                                           /*dir=*/nullptr);
   if (error < 0) {
     return SndError("snd_pcm_hw_params_set_rate_near", error);
   }
-  if (sample_rate != kSampleRateInHz) {
+  if (sample_rate != kSampleRate) {
     return Failure("Requested sample rate not supported by hardware.");
   }
 
@@ -111,7 +110,7 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
   if (error < 0) {
     return SndError("snd_pcm_start", error);
   }
-  return Success();
+  return handle;
 }
 
 class SbMicrophoneImpl : public SbMicrophonePrivate {
@@ -122,17 +121,25 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   bool Open() override {
     if (handle_) {
       snd_pcm_state_t state = snd_pcm_state(handle_);
-      if (state == SND_PCM_STATE_RUNNING) {
-        return true;
-      }
-      if (state == SND_PCM_STATE_PREPARED) {
-        int error = snd_pcm_start(handle_);
-        if (error >= 0) {
-          return true;
-        } else {
-          SB_LOG(ERROR) << "Failed to restart prepared stream: "
+      if (state == SND_PCM_STATE_RUNNING || state == SND_PCM_STATE_PREPARED) {
+        int error = snd_pcm_reset(handle_);
+        if (error < 0) {
+          SB_LOG(ERROR) << "Failed to reset microphone: "
                         << snd_strerror(error);
           Close();
+        } else {
+          if (state == SND_PCM_STATE_PREPARED) {
+            error = snd_pcm_start(handle_);
+            if (error < 0) {
+              SB_LOG(ERROR)
+                  << "Failed to start microphone: " << snd_strerror(error);
+              Close();
+            } else {
+              return true;
+            }
+          } else {
+            return true;
+          }
         }
       } else {
         Close();
@@ -140,7 +147,9 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
     }
 
     // Open the default capture device.
-    if (Result<void> result = OpenPcm(handle_); !result) {
+    if (auto result = OpenPcm(); result) {
+      handle_ = *result;
+    } else {
       SB_LOG(ERROR) << "OpenPcm failed: " << result.error();
       Close();
       return false;
@@ -259,8 +268,8 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
         SbMicrophoneInfo* info = &out_info_array[count];
         info->id = reinterpret_cast<SbMicrophoneId>(count + 1);
         info->type = kSbMicrophoneUnknown;
-        info->max_sample_rate_hz = starboard::kSampleRateInHz;
-        info->min_read_size = starboard::kMinReadSizeBytes;
+        info->max_sample_rate_hz = starboard::kSampleRate;
+        info->min_read_size = starboard::kMinReadBytes;
         snprintf(info->label, kSbMicrophoneLabelSize, "%s", desc ? desc : name);
       }
       count++;
@@ -281,13 +290,12 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
 }
 
 // static
-bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(
-    SbMicrophoneId id,
-    int sample_rate_in_hz) {
+bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(SbMicrophoneId id,
+                                                          int sample_rate) {
   if (!SbMicrophoneIdIsValid(id)) {
     return false;
   }
-  return sample_rate_in_hz == starboard::kSampleRateInHz;
+  return sample_rate == starboard::kSampleRate;
 }
 
 namespace {
@@ -298,18 +306,18 @@ SbMicrophone s_microphone = kSbMicrophoneInvalid;
 
 // static
 SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
-                                                   int sample_rate_in_hz,
+                                                   int sample_rate,
                                                    int buffer_bytes) {
   SB_LOG(INFO) << "SbMicrophonePrivate::CreateMicrophone():"
-               << " id=" << id << ", sample_rate_in_hz=" << sample_rate_in_hz
+               << " id=" << id << ", sample_rate=" << sample_rate
                << ", buffer_bytes=" << buffer_bytes;
 
   if (!SbMicrophoneIdIsValid(id)) {
     return kSbMicrophoneInvalid;
   }
-  if (!IsMicrophoneSampleRateSupported(id, sample_rate_in_hz)) {
+  if (!IsMicrophoneSampleRateSupported(id, sample_rate)) {
     SB_LOG(ERROR) << "CreateMicrophone() - FAILED: Sample rate not supported: "
-                  << sample_rate_in_hz;
+                  << sample_rate;
     return kSbMicrophoneInvalid;
   }
   if (buffer_bytes > kMaxMicrophoneBufferSize || buffer_bytes <= 0) {

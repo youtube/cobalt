@@ -241,8 +241,8 @@ int AlsaGetBufferedFrames(void* playback_handle) {
   }
 
   if (delay < 0) {
-    SB_LOG(ERROR) << __FUNCTION__
-                  << ": snd_pcm_delay() failed with negative delay " << delay;
+    SB_LOG(WARNING) << __FUNCTION__
+                    << ": snd_pcm_delay() failed with negative delay " << delay;
     return -1;
   }
   return delay;

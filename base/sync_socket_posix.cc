@@ -169,8 +169,8 @@ size_t SyncSocket::ReceiveWithTimeout(span<uint8_t> buffer, TimeDelta timeout) {
 #if BUILDFLAG(IS_STARBOARD)
 size_t SyncSocket::Peek() {
   DCHECK(IsValid());
-  constexpr size_t kPeekBufferSize = 4096;
-  char buffer[kPeekBufferSize];
+  constexpr size_t kPeekBufferBytes = 4096;
+  char buffer[kPeekBufferBytes];
   ssize_t number_chars = recv(handle_.get(), buffer, sizeof(buffer),
                               MSG_PEEK | MSG_TRUNC | MSG_DONTWAIT);
   if (number_chars < 0) {
