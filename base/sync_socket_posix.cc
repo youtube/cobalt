@@ -28,7 +28,6 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/logging.h"
 #include <cerrno>
-#include <vector>
 #endif
 
 namespace base {
@@ -171,8 +170,8 @@ size_t SyncSocket::ReceiveWithTimeout(span<uint8_t> buffer, TimeDelta timeout) {
 size_t SyncSocket::Peek() {
   DCHECK(IsValid());
   constexpr size_t kPeekBufferSize = 4096;
-  std::vector<char> buffer(kPeekBufferSize);
-  ssize_t number_chars = recv(handle_.get(), buffer.data(), buffer.size(),
+  char buffer[kPeekBufferSize];
+  ssize_t number_chars = recv(handle_.get(), buffer, sizeof(buffer),
                               MSG_PEEK | MSG_TRUNC | MSG_DONTWAIT);
   if (number_chars < 0) {
     PLOG(ERROR) << "recv failed in SyncSocket::Peek";

@@ -93,6 +93,7 @@ void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   // driver. This could also give us a smooth read sequence going forward.
   base::TimeDelta delay = buffer_duration_ + buffer_duration_ / 2;
   next_read_time_ = base::TimeTicks::Now() + delay;
+  frames_in_buffer_ = 0;
   running_ = true;
   StartAgc();
 
@@ -170,35 +171,50 @@ void AudioInputStreamStarboard::ReadAudio() {
     return;
   }
 
-  const int buffer_size_bytes =
-      params_.frames_per_buffer() * params_.channels() * sizeof(int16_t);
+  const int frames_to_read = params_.frames_per_buffer() - frames_in_buffer_;
+  const int bytes_to_read =
+      frames_to_read * params_.channels() * sizeof(int16_t);
 
-  int bytes_read =
-      SbMicrophoneRead(microphone_, buffer_.data(), buffer_size_bytes);
+  int bytes_read = SbMicrophoneRead(
+      microphone_, buffer_.data() + frames_in_buffer_ * params_.channels(),
+      bytes_to_read);
 
   if (bytes_read > 0) {
     int frames_read = bytes_read / (params_.channels() * sizeof(int16_t));
-    CHECK_LE(frames_read, params_.frames_per_buffer());
+    frames_in_buffer_ += frames_read;
+    DCHECK_LE(frames_in_buffer_, params_.frames_per_buffer());
 
-    audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_.data(),
-                                                             frames_read);
+    if (frames_in_buffer_ == params_.frames_per_buffer()) {
+      audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
+          buffer_.data(), params_.frames_per_buffer());
 
-    callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
+      callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
+      frames_in_buffer_ = 0;
 
-    // If the read callback is behind schedule. Schedule the next one to run
-    // immediately to catch up.
-    next_read_time_ =
-        std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
+      // If the read callback is behind schedule. Schedule the next one to run
+      // immediately to catch up.
+      next_read_time_ =
+          std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
 
-    // base::Unretained is safe here because the AudioInputStreamStarboard owns
-    // capture_thread_, and the thread is stopped before this object is
-    // destroyed, guaranteeing the callback will not run on a dangling pointer.
-    capture_thread_.task_runner()->PostDelayedTaskAt(
-        base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
-        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                       base::Unretained(this)),
-        next_read_time_, base::subtle::DelayPolicy::kPrecise);
-
+      // base::Unretained is safe here because the AudioInputStreamStarboard
+      // owns capture_thread_, and the thread is stopped before this object is
+      // destroyed, guaranteeing the callback will not run on a dangling
+      // pointer.
+      capture_thread_.task_runner()->PostDelayedTaskAt(
+          base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
+          base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                         base::Unretained(this)),
+          next_read_time_, base::subtle::DelayPolicy::kPrecise);
+    } else {
+      // Partial read. Check again in a little bit to fill the rest of the
+      // buffer.
+      capture_thread_.task_runner()->PostDelayedTaskAt(
+          base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
+          base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                         base::Unretained(this)),
+          base::TimeTicks::Now() + buffer_duration_ / 2,
+          base::subtle::DelayPolicy::kPrecise);
+    }
   } else if (bytes_read == 0) {
     // No data available yet. Check again in a little bit.
     base::TimeTicks next_check_time =

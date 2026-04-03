@@ -73,6 +73,9 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
   if (error < 0) {
     return SndError("snd_pcm_hw_params_set_rate_near", error);
   }
+  if (sample_rate != kSampleRateInHz) {
+    return Failure("Requested sample rate not supported by hardware.");
+  }
 
   error = snd_pcm_hw_params_set_channels(handle, hw_params, kChannels);
   if (error < 0) {
@@ -97,11 +100,6 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
   error = snd_pcm_hw_params(handle, hw_params);
   if (error < 0) {
     return SndError("snd_pcm_hw_params", error);
-  }
-
-  error = snd_pcm_nonblock(handle, 1);
-  if (error < 0) {
-    return SndError("snd_pcm_nonblocl", error);
   }
 
   error = snd_pcm_prepare(handle);
