@@ -420,13 +420,10 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
   base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
-<<<<<<< HEAD
   std::unique_ptr<TestCobaltMetricsServiceClient> client_;
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<media::MockMediaClient> mock_media_client_;
 #endif
->>>>>>> 7444dc402d (Add UMA metric for media encoded buffer (#9870))
 };
 
 TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
