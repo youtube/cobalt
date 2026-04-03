@@ -591,9 +591,9 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
       histogram_tester.GetAllSamples("Memory.Media.AllocatedEncodedBuffer")
           .size(),
       1u);
-  EXPECT_GE(histogram_tester.GetBucketCount(
-                "Memory.Media.AllocatedEncodedBuffer", 2),
-            1);
+  EXPECT_GE(
+      histogram_tester.GetBucketCount("Memory.Media.AllocatedEncodedBuffer", 2),
+      1);
 #endif
 }
 
