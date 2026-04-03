@@ -39,6 +39,9 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/synthetic_trial_registry.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/media_client.h"
+#include "media/base/mock_filters.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -383,8 +386,21 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         &prefs_);
     client_->CallInitialize();  // This will use the overridden factory methods.
 
+    // Instantiate mock media client for testing
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    mock_media_client_ = std::make_unique<media::MockMediaClient>();
+    media::SetMediaClient(mock_media_client_.get());
+#endif
+
     ASSERT_THAT(client_->mock_metrics_service(), NotNull());
     ASSERT_THAT(client_->mock_log_uploader(), NotNull());
+  }
+
+  void TearDown() override {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    media::SetMediaClient(nullptr);
+    media::DecoderBuffer::Allocator::Set(nullptr);
+#endif
   }
 
   base::test::TaskEnvironment task_environment_{
@@ -397,6 +413,9 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
   std::unique_ptr<TestCobaltMetricsServiceClient> client_;
   base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<media::MockMediaClient> mock_media_client_;
+#endif
 };
 
 TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
@@ -546,6 +565,36 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
 
   // TODO(b/491179673): Investigate why this metric is not firing:
   // Memory.Experimental.Browser2.Small.FontCaches
+}
+
+TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
+  base::HistogramTester histogram_tester;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const size_t kSize = 2 * 1024 * 1024;
+  auto buffer = base::MakeRefCounted<media::DecoderBuffer>(kSize);
+  uint64_t allocated = media::MediaClient::GetMediaSourceTotalAllocatedMemory();
+  ASSERT_GE(allocated, static_cast<uint64_t>(kSize));
+#endif
+
+  // Trigger a memory dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Wait for the dump to be processed.
+  task_environment_.FastForwardBy(base::Seconds(3));
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_GE(
+      histogram_tester.GetAllSamples("Memory.Media.AllocatedEncodedBuffer")
+          .size(),
+      1u);
+  EXPECT_GE(
+      histogram_tester.GetBucketCount("Memory.Media.AllocatedEncodedBuffer", 2),
+      1);
+#endif
 }
 
 TEST_F(CobaltMetricsServiceClientTest,
