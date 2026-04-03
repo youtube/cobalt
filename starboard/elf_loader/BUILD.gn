@@ -117,7 +117,7 @@ if (current_toolchain == starboard_toolchain) {
 }
 
 if (current_toolchain == starboard_toolchain) {
-    # Not a gtest target type, but it's used for loading test binaries mostly.
+  # Not a gtest target type, but it's used for loading test binaries mostly.
   target(starboard_level_gtest_target_type, "elf_loader_sys_sandbox") {
     # To properly function the system loader requires the starboard
     # symbols to be exported from the binary.
