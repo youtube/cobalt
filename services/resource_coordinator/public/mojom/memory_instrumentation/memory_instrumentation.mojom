@@ -59,6 +59,8 @@ enum MemDumpFlags {
   MEM_DUMP_PSS = 1,
   // On Android, populate the native_library_pages_bitmap field of RawOSMemDump.
   MEM_DUMP_PAGES_BITMAP = 2,
+  // Populate the detailed_stats_kb field of RawOSMemDump.
+  MEM_DUMP_DETAILED_STATS = 3,
 };
 
 // These structs are internal only (only for the communication between
@@ -188,6 +190,46 @@ struct RawOSMemDump {
   // RSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_rss_kb = 0;
+
+  // RSS for partition_alloc anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 partition_alloc_rss_kb = 0;
+
+  // RSS for V8 anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 v8_rss_kb = 0;
+
+  // RSS for system malloc (e.g. scudo) anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 malloc_rss_kb = 0;
+
+  // RSS for other code binaries (.so, .apk, .dex). This includes system
+  // libraries, GPU drivers, and the Android application package, but
+  // excludes the main libchrobalt.so.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 code_other_rss_kb = 0;
+
+  // RSS for fonts (.ttf, .ttc).
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 fonts_rss_kb = 0;
+
+  // RSS for Ashmem and JIT cache.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 ashmem_jit_rss_kb = 0;
+
+  // RSS for Android/Dalvik runtime (.art, .oat, dalvik-).
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 android_runtime_rss_kb = 0;
+
+  // RSS for thread stacks.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 stacks_rss_kb = 0;
+
+  // Generic map for detailed memory metrics.
+  map<string, uint32>? detailed_stats_kb;
+
+  // Timestamp of the last successful detailed memory dump.
+  mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
 // These structs are public:
@@ -243,6 +285,46 @@ struct OSMemDump {
   // RSS for libchrobalt.so specifically.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 libchrobalt_rss_kb = 0;
+
+  // RSS for partition_alloc anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 partition_alloc_rss_kb = 0;
+
+  // RSS for V8 anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 v8_rss_kb = 0;
+
+  // RSS for system malloc (e.g. scudo) anonymous mappings.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 malloc_rss_kb = 0;
+
+  // RSS for other code binaries (.so, .apk, .dex). This includes system
+  // libraries, GPU drivers, and the Android application package, but
+  // excludes the main libchrobalt.so.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 code_other_rss_kb = 0;
+
+  // RSS for fonts (.ttf, .ttc).
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 fonts_rss_kb = 0;
+
+  // RSS for Ashmem and JIT cache.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 ashmem_jit_rss_kb = 0;
+
+  // RSS for Android/Dalvik runtime (.art, .oat, dalvik-).
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 android_runtime_rss_kb = 0;
+
+  // RSS for thread stacks.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
+  uint32 stacks_rss_kb = 0;
+
+  // Generic map for detailed memory metrics.
+  map<string, uint32>? detailed_stats_kb;
+
+  // Timestamp of the last successful detailed memory dump.
+  mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
 // This struct contains information about a particular allocator dump
