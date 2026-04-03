@@ -345,7 +345,7 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
       presentation_time_microseconds, flags, is_decode_only);
 }
 
-int MediaCodecBridge::QueueSecureInputBuffer(
+jint MediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
