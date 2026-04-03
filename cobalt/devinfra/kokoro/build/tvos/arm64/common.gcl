@@ -10,6 +10,7 @@ build = common.build {
   timeout_mins = 300
   before_action = [
     {
+      // TODO: b/499335793 - Verify this requirement.
       fetch_keystore = {
         keystore_resource = [
           {
