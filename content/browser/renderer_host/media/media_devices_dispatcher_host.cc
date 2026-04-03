@@ -149,6 +149,33 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
 
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
+  // KJ: FAST-TRACK EnumerateDevices for audio-only requests.
+  if (request_audio_input && !request_video_input && !request_audio_output) {
+    LOG(INFO) << "KJ: Fast-tracking EnumerateDevices for audio";
+    
+    std::vector<blink::WebMediaDeviceInfoArray> enumeration(
+        static_cast<size_t>(MediaDeviceType::NUM_MEDIA_DEVICE_TYPES));
+    
+    // Add a single hardcoded microphone.
+    enumeration[static_cast<size_t>(MediaDeviceType::MEDIA_AUDIO_INPUT)].emplace_back(
+        "default", "Default Microphone", "group_default");
+        
+    std::vector<blink::mojom::VideoInputDeviceCapabilitiesPtr> video_capabilities;
+    std::vector<blink::mojom::AudioInputDeviceCapabilitiesPtr> audio_capabilities;
+    
+    if (request_audio_input_capabilities) {
+       auto caps = blink::mojom::AudioInputDeviceCapabilities::New();
+       caps->device_id = "default";
+       caps->parameters = media::AudioParameters(
+           media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+           media::ChannelLayoutConfig::Mono(), 16000, 128);
+       audio_capabilities.push_back(std::move(caps));
+    }
+    
+    std::move(client_callback).Run(enumeration, std::move(video_capabilities), std::move(audio_capabilities));
+    return;
+  }
+
   if ((!request_audio_input && !request_video_input && !request_audio_output) ||
       (request_video_input_capabilities && !request_video_input) ||
       (request_audio_input_capabilities && !request_audio_input)) {

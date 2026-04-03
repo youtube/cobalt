@@ -131,7 +131,15 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
   // KJ: Map to hold pre-started streams indexed by session ID.
   base::Lock pre_started_streams_lock_;
-  std::map<base::UnguessableToken, AudioInputStream*> pre_started_streams_;
+  
+  struct PreStartedEntry {
+    PreStartedEntry();
+    ~PreStartedEntry();
+    AudioInputStream* stream = nullptr;
+    base::WaitableEvent open_event{base::WaitableEvent::ResetPolicy::MANUAL,
+                                   base::WaitableEvent::InitialState::NOT_SIGNALED};
+  };
+  std::map<base::UnguessableToken, std::unique_ptr<PreStartedEntry>> pre_started_streams_;
 
   typedef std::set<MuteableAudioOutputStream*> OutputStreams;
   OutputStreams streams_;

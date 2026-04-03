@@ -2662,9 +2662,8 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
                                     "default", "Default Microphone");
     device.input = params;
 
-    // KJ: Physical hardware ignition starts NOW!
-    // We register a session ID and trigger the physical Open() on the Audio thread
-    // immediately, so it warms up while we are waiting for the Renderer to reply.
+    // KJ: Physical hardware ignition starts in parallel!
+    // We register a session ID and trigger the physical Open() on the Audio thread.
     auto session_id = audio_input_device_manager()->Open(device);
     device.set_session_id(session_id);
     
@@ -2675,6 +2674,8 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
     
     stream_devices_set.stream_devices[0]->audio_device = device;
 
+    // KJ: Resolve the JS promise IMMEDIATELY.
+    // This tells the UI to start "Listening" while the hardware is still warming up.
     HandleAccessRequestResponse(label, params, stream_devices_set,
                                  blink::mojom::MediaStreamRequestResult::OK);
     return;

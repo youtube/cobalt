@@ -217,19 +217,28 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   
   // KJ: Check if we have a pre-started stream for this device.
-  // Note: Standard Chromium doesn't pass session_id here, but for Cobalt 
-  // we assume the 'device_id' contains the session information or we use 
-  // the most recent pre-started stream if it matches.
-  // For this POC, we'll just take the first one available since there's 
-  // usually only one mic request at a time.
+  // We use the first one available or wait for it to finish opening.
   {
     base::AutoLock lock(pre_started_streams_lock_);
     if (!pre_started_streams_.empty()) {
       auto it = pre_started_streams_.begin();
-      AudioInputStream* stream = it->second;
-      pre_started_streams_.erase(it);
-      LOG(INFO) << "KJ: Re-using PRE-STARTED hardware stream";
-      return stream;
+      
+      // Keep a raw pointer to the entry so we can wait on it.
+      PreStartedEntry* entry = it->second.get();
+      
+      LOG(INFO) << "KJ: Re-using PRE-STARTED hardware stream. Waiting for it to finish opening...";
+      
+      {
+        base::AutoUnlock unlock(pre_started_streams_lock_);
+        entry->open_event.Wait();
+      }
+      
+      AudioInputStream* stream = entry->stream;
+      if (stream) {
+        pre_started_streams_.erase(it);
+        LOG(INFO) << "KJ: Successfully re-used PRE-STARTED stream";
+        return stream;
+      }
     }
   }
 
@@ -263,7 +272,7 @@ void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
   {
     base::AutoLock lock(pre_started_streams_lock_);
     for (auto it = pre_started_streams_.begin(); it != pre_started_streams_.end(); ++it) {
-      if (it->second == stream) {
+      if (it->second->stream == stream) {
         pre_started_streams_.erase(it);
         break;
       }
@@ -376,6 +385,13 @@ void AudioManagerAndroid::PreStartStream(const base::UnguessableToken& session_i
     return;
   }
 
+  // Create the entry and park it in the map before starting the slow Open() call.
+  // This allows MakeAudioInputStream to find it and WAIT for it.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_[session_id] = std::make_unique<PreStartedEntry>();
+  }
+
   // KJ: Use the base class factory method so the stream is properly registered 
   // in the AudioManagerBase::input_streams_ list. This prevents the ReleaseInputStream crash.
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
@@ -383,18 +399,26 @@ void AudioManagerAndroid::PreStartStream(const base::UnguessableToken& session_i
   
   if (!stream) {
     LOG(ERROR) << "KJ: Failed to create hardware stream for pre-start";
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_.erase(session_id);
     return;
   }
 
   if (stream->Open() == AudioInputStream::OpenOutcome::kSuccess) {
     base::AutoLock lock(pre_started_streams_lock_);
-    pre_started_streams_[session_id] = stream;
+    pre_started_streams_[session_id]->stream = stream;
+    pre_started_streams_[session_id]->open_event.Signal();
     LOG(INFO) << "KJ: Hardware stream PRE-STARTED and PARKED for session=" << session_id.ToString();
   } else {
     LOG(ERROR) << "KJ: Failed to pre-start hardware stream";
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_.erase(session_id);
     ReleaseInputStream(stream);
   }
 }
+
+AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
+AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
 
 // static
 bool AudioManagerAndroid::SupportsPerformanceModeForOutput() {
