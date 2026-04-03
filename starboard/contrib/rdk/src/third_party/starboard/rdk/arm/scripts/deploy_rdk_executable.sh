@@ -21,17 +21,18 @@ set -e
 # Handle Device ID from argument
 RDK_DEVICE_ID="$1"
 
-if [ -z "${RDK_DEVICE_ID}" ]; then
+if [[ -z "${RDK_DEVICE_ID}" ]]; then
   echo "Usage: $0 <device_id>"
-  echo "Error: Device ID is required (obtain via 'adb devices')."
+  echo "Error: Device ID is required (obtain via 'adb devices')." >&2
   exit 1
 fi
 
 # Automatically determine the repository root
-REPO_DIR=$(git rev-parse --show-toplevel 2>/dev/null || realpath "$(dirname "$0")/../../../../../../../../")
+# Correct depth for starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/ is 9 levels up.
+REPO_DIR=$(git rev-parse --show-toplevel 2>/dev/null || realpath "$(dirname "$0")/../../../../../../../../../")
 
-if [ ! -d "${REPO_DIR}/cobalt" ]; then
-  echo "Error: Could not determine repository root. Please run this script from within the Cobalt source tree."
+if [[ ! -d "${REPO_DIR}/cobalt" ]]; then
+  echo "Error: Could not determine repository root. Please run this script from within the Cobalt source tree." >&2
   exit 1
 fi
 
@@ -51,7 +52,10 @@ echo "=== Building Cobalt Executable (loader_app) ==="
 autoninja -C "${OUT_DIR}" loader_app cobalt_loader
 
 echo "=== Packaging artifacts ==="
-tar -czvf "${ARCHIVE_NAME}" -C "${OUT_DIR}" -T "${OUT_DIR}/cobalt_loader.runtime_deps" gen/build_info.json
+# Stage build_info.json inside OUT_DIR to ensure tar can find it with -C
+mkdir -p "${OUT_DIR}/gen"
+cp "gen/build_info.json" "${OUT_DIR}/gen/"
+tar -czvf "${ARCHIVE_NAME}" -C "${OUT_DIR}" -T "${OUT_DIR}/cobalt_loader.runtime_deps" "gen/build_info.json"
 
 echo "=== Deploying to device (${RDK_DEVICE_ID}) via ADB ==="
 adb -s "${RDK_DEVICE_ID}" shell "mkdir -p ${REMOTE_DIR}"
@@ -61,7 +65,17 @@ adb -s "${RDK_DEVICE_ID}" push "${ARCHIVE_NAME}" "${REMOTE_DIR}/" && rm "${ARCHI
 # which is required to set up critical environment variables like WAYLAND_DISPLAY,
 # LD_PRELOAD, and XDG_RUNTIME_DIR for display and graphics support.
 echo "=== Extracting and running on device via ADB ==="
-adb -s "${RDK_DEVICE_ID}" shell "bash -l -c 'cd ${REMOTE_DIR} && tar -xzvf ${ARCHIVE_NAME} && rm ${ARCHIVE_NAME} && rdkDisplay remove || true && sleep 2 && rdkDisplay create && sleep 2 && ./loader_app && rdkDisplay remove'"
+REMOTE_COMMANDS="cd ${REMOTE_DIR} && \
+  tar -xzvf ${ARCHIVE_NAME} && \
+  rm ${ARCHIVE_NAME} && \
+  rdkDisplay remove || true && \
+  sleep 2 && \
+  rdkDisplay create && \
+  sleep 2 && \
+  ./loader_app && \
+  rdkDisplay remove"
+
+adb -s "${RDK_DEVICE_ID}" shell "bash -l -c '${REMOTE_COMMANDS}'"
 
 echo ""
 echo "------------------------------------------------------------------------------------------------"
