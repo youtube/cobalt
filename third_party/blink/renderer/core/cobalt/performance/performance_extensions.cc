@@ -93,9 +93,7 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
   // TODO - b/487001977: Implement startup time measurement for tvOS.
   resolver->Reject(MakeGarbageCollected<DOMException>(
       DOMExceptionCode::kNotSupportedError, "Not implemented on iOS/tvOS."));
-  return promise;
-#endif
-
+#else
   int64_t startup_timestamp = 0;
   BindRemotePerformance(script_state)
       ->GetAppStartupTimeStamp(&startup_timestamp);
@@ -105,6 +103,7 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
       base::TimeTicks::FromInternalValue(startup_timestamp),
       true /* allow_negative_value */,
       context->CrossOriginIsolatedCapability()));
+#endif
 
   return promise;
 }
