@@ -108,7 +108,7 @@ if (rdk_enable_ocdm) {
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
-  data_deps = [ ":rdk_cobalt_content" , ":loader_app_rdk_exe" ]
+  data_deps = [ ":rdk_cobalt_content"]
 }
 
 static_library("starboard_platform_sources") {
@@ -387,9 +387,18 @@ copy("rdk_cobalt_keymap") {
   outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
 }
 
+# These changes are temporary for backward compatibility.
+# TODO: b/499089012 - Remove this group once we fully transition to the new
+# plugin method (libloader_app.so) as part of b/491573728.
+group("loader_app_rdk_executable") {
+  data_deps = [":loader_app($starboard_toolchain)"]
+}
+
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  executable("loader_app_rdk_exe") {
-    output_name = "loader_app"
+# These changes are temporary for backward compatibility.
+# TODO: b/499089012 - Remove once
+# we move to the new plugin method (libloader_app.so) as part of b/491573728.
+  executable("loader_app") {
     check_includes = false
     output_dir = root_build_dir
     sources = [
