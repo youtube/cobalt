@@ -81,9 +81,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
       std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
-  // Blocks until the DRM system is ready or the timeout expires.
-  // Returns true if the system is ready, false on timeout.
-  bool WaitForDrmSystemReady(int64_t timeout_us) override;
+  bool WaitForMediaCryptoSessionCreated(int64_t timeout_us) override;
 
   void OnInsufficientOutputProtection();
 
@@ -125,6 +123,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void UpdateSessionWithAppProvisioning(int ticket,
                                         std::string_view key,
                                         std::string_view session_id);
+  void NotifyMediaCryptoSessionCreated();
 
   // From Thread.
   void Run() override;

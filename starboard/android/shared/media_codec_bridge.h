@@ -86,7 +86,7 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
-  using DrmSystemReadyCb = std::function<bool(int64_t timeout_us)>;
+  using WaitForMediaCryptoSessionCreatedCb = std::function<bool(int64_t)>;
 
   // The methods are called on the default Looper.  They won't get called after
   // Flush() is returned.
@@ -116,7 +116,7 @@ class MediaCodecBridge {
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
       jobject j_media_crypto,
-      DrmSystemReadyCb drm_system_ready_cb);
+      WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb);
 
   static NonNullResult<std::unique_ptr<MediaCodecBridge>>
   CreateVideoMediaCodecBridge(
@@ -133,7 +133,7 @@ class MediaCodecBridge {
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
-      DrmSystemReadyCb drm_system_ready_cb,
+      WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb,
       const SbMediaColorMetadata* color_metadata,
       bool require_secured_decoder,
       bool require_software_codec,
@@ -192,15 +192,15 @@ class MediaCodecBridge {
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
-  explicit MediaCodecBridge(Handler* handler,
-                            DrmSystemReadyCb drm_system_ready_cb);
+  explicit MediaCodecBridge(
+      Handler* handler,
+      WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb);
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* const handler_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
-  const DrmSystemReadyCb drm_system_ready_cb_;
-  std::atomic_bool drm_system_ready_;
+  const WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb_;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

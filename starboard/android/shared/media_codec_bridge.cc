@@ -113,7 +113,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
     Handler* handler,
     jobject j_media_crypto,
-    DrmSystemReadyCb drm_system_ready_cb) {
+    WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb) {
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
@@ -143,7 +143,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   }
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
-      new MediaCodecBridge(handler, std::move(drm_system_ready_cb)));
+      new MediaCodecBridge(handler,
+                           std::move(wait_for_media_crypto_session_cb)));
   ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
   ScopedJavaLocalRef<jstring> j_decoder_name(
       env, env->NewStringUTF(decoder_name.c_str()));
@@ -179,7 +180,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
-    DrmSystemReadyCb drm_system_ready_cb,
+    WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb,
     const SbMediaColorMetadata* color_metadata,
     bool require_secured_decoder,
     bool require_software_codec,
@@ -275,7 +276,8 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       Java_CreateMediaCodecBridgeResult_Constructor(env));
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
-      new MediaCodecBridge(handler, std::move(drm_system_ready_cb)));
+      new MediaCodecBridge(handler,
+                           std::move(wait_for_media_crypto_session_cb)));
   ScopedJavaLocalRef<jobject> j_surface_local(env, env->NewLocalRef(j_surface));
   ScopedJavaLocalRef<jobject> j_media_crypto_local(
       env, env->NewLocalRef(j_media_crypto));
@@ -343,19 +345,17 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
       presentation_time_microseconds, flags, is_decode_only);
 }
 
-jint MediaCodecBridge::QueueSecureInputBuffer(
+int MediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
     jlong presentation_time_microseconds,
     jboolean is_decode_only) {
-  if (!drm_system_ready_.load()) {
-    SB_CHECK(drm_system_ready_cb_);
-    if (!drm_system_ready_cb_(kDrmSystemReadyTimeoutUs)) {
-      SB_LOG(ERROR) << "Timed out waiting for DRM system to be ready.";
-      return MEDIA_CODEC_ERROR;
-    }
-    drm_system_ready_.store(true);
+  SB_CHECK(wait_for_media_crypto_session_cb_);
+  if (!wait_for_media_crypto_session_cb_(kDrmSystemReadyTimeoutUs)) {
+    SB_LOG(ERROR) << "Timed out waiting for drm system to be ready for "
+                     "QueueSecureInputBuffer.";
+    return MEDIA_CODEC_NO_KEY;
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -505,11 +505,12 @@ void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
-MediaCodecBridge::MediaCodecBridge(Handler* handler,
-                                   DrmSystemReadyCb drm_system_ready_cb)
+MediaCodecBridge::MediaCodecBridge(
+    Handler* handler,
+    WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb)
     : handler_(handler),
-      drm_system_ready_cb_(std::move(drm_system_ready_cb)),
-      drm_system_ready_(!drm_system_ready_cb_) {
+      wait_for_media_crypto_session_cb_(
+          std::move(wait_for_media_crypto_session_cb)) {
   SB_CHECK(handler_);
 }
 
