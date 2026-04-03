@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/numerics/safe_conversions.h"
 #include "starboard/common/storage.h"
 #import "starboard/tvos/shared/storage_internal.h"
 
@@ -31,7 +32,9 @@ int64_t SbStorageReadRecord(SbStorageRecord record,
       return 0;
     }
 
-    if (data_size > recordData.length) {
+    // There is no need to check if data_size is < 0 here because the check is
+    // already performed above.
+    if (base::saturated_cast<NSUInteger>(data_size) > recordData.length) {
       data_size = recordData.length;
     }
     [recordData getBytes:out_data length:data_size];
