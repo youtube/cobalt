@@ -330,7 +330,6 @@ ReadAndParseLegacyStorageRecord() {
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
     if (!record->IsValid()) {
-      ;
       bool fallback =
           partition_key == GetApplicationKey(GURL(::switches::kDefaultURL));
       if (!fallback) {
