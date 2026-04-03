@@ -419,7 +419,7 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   uint64_t encoded_memory_bytes =
       media::MediaClient::GetMediaSourceTotalAllocatedMemory();
-  base::UmaHistogramMemoryMB("Media.Memory.EncodedBuffer.Allocated",
+  base::UmaHistogramMemoryMB("Memory.Media.AllocatedEncodedBuffer",
                              static_cast<int>(encoded_memory_bytes / kMiB));
 #endif
 

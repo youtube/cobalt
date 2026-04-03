@@ -189,7 +189,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
 
   // media decoder buffer memory metrics
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  EXPECT_TRUE(check_histogram("Media.Memory.EncodedBuffer.Allocated"));
+  EXPECT_TRUE(check_histogram("Memory.Media.AllocatedEncodedBuffer"));
 #endif
 
   // Check for the specific regions requested by the user.

@@ -312,7 +312,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Media.Memory.EncodedBuffer.Allocated"
+<histogram name="Memory.Media.AllocatedEncodedBuffer"
     unit="MB" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>

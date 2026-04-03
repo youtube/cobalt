@@ -588,11 +588,11 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   EXPECT_GE(
-      histogram_tester.GetAllSamples("Media.Memory.EncodedBuffer.Allocated")
+      histogram_tester.GetAllSamples("Memory.Media.AllocatedEncodedBuffer")
           .size(),
       1u);
   EXPECT_GE(histogram_tester.GetBucketCount(
-                "Media.Memory.EncodedBuffer.Allocated", 2),
+                "Memory.Media.AllocatedEncodedBuffer", 2),
             1);
 #endif
 }
