@@ -14,8 +14,6 @@
 
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
-#include <numeric>
-
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
@@ -53,12 +51,45 @@ class MigrationManagerTest : public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
+TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
+  // Test no data to migrate.
+  auto state = base::MakeRefCounted<MigrationState>();
+  state->has_data_to_migrate = false;
+  state->read_result = StorageReadResult::kSuccess;
+  EXPECT_EQ(MigrationOutcome::kSkipped, state->GetOutcome());
+
+  state->read_result = StorageReadResult::kRecordInvalid;
+  EXPECT_EQ(MigrationOutcome::kSkipped, state->GetOutcome());
+
+  state->read_result = StorageReadResult::kParseError;
+  EXPECT_EQ(MigrationOutcome::kFailed, state->GetOutcome());
+
+  // Test data to migrate.
+  state->has_data_to_migrate = true;
+
+  // Initial success state.
+  EXPECT_EQ(MigrationOutcome::kSuccess, state->GetOutcome());
+
+  // Error taking precedence over Success.
+  state->UpdateCookieResult(InjectionResult::kError);
+  EXPECT_EQ(MigrationOutcome::kFailed, state->GetOutcome());
+
+  // Timeout taking precedence over Error.
+  state->UpdateLocalStorageResult(InjectionResult::kTimeout);
+  EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
+
+  // Verify that an attempt to log a Success doesn't downgrade a Timeout.
+  state->UpdateCookieResult(InjectionResult::kSuccess);
+  state->UpdateLocalStorageResult(InjectionResult::kSuccess);
+  EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
+}
+
 // TODO(b/399166308): Add more test cases for specific migration tasks.
 TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   constexpr uint32_t kTaskCount = 100;
   std::vector<Task> tasks;
   std::vector<int> collected_values;
-  for (size_t i = 0; i < kTaskCount; i++) {
+  for (int i = 0; i < kTaskCount; i++) {
     tasks.push_back(base::BindOnce(
         [](std::vector<int>& collected_values, int i,
            base::OnceClosure callback) {
@@ -104,7 +135,7 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
   source_cookies.push_back(cookie2);
 
   auto cookies = ToCanonicalCookies(storage);
-  EXPECT_EQ(2u, cookies.size());
+  EXPECT_EQ(2, cookies.size());
   for (size_t i = 0; i < 2; i++) {
     EXPECT_EQ(source_cookies[i]->name(), cookies[i]->Name());
     EXPECT_EQ(source_cookies[i]->value(), cookies[i]->Value());
@@ -125,6 +156,7 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
     EXPECT_EQ(source_cookies[i]->http_only(), cookies[i]->IsHttpOnly());
     EXPECT_EQ(net::CookieSameSite::NO_RESTRICTION, cookies[i]->SameSite());
     EXPECT_TRUE(cookies[i]->Priority());
+    EXPECT_FALSE(cookies[i]->IsSameParty());
     EXPECT_FALSE(cookies[i]->IsPartitioned());
     EXPECT_FALSE(cookies[i]->PartitionKey().has_value());
     EXPECT_EQ(net::CookieSourceScheme::kUnset, cookies[i]->SourceScheme());
@@ -175,7 +207,7 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
 
   auto actual1 = ToLocalStorageItems(
       url::Origin::Create(GURL("https://example1.com")), storage);
-  EXPECT_EQ(4u, actual1.size());
+  EXPECT_EQ(4, actual1.size());
   EXPECT_EQ("local_storage1_entry1_key", actual1[0]->first);
   EXPECT_EQ("local_storage1_entry1_value", actual1[0]->second);
   EXPECT_EQ("local_storage1_entry2_key", actual1[1]->first);
@@ -187,7 +219,7 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
 
   auto actual2 = ToLocalStorageItems(
       url::Origin::Create(GURL("https://example2.com")), storage);
-  EXPECT_EQ(2u, actual2.size());
+  EXPECT_EQ(2, actual2.size());
   EXPECT_EQ("local_storage2_entry1_key", actual2[0]->first);
   EXPECT_EQ("local_storage2_entry1_value", actual2[0]->second);
   EXPECT_EQ("local_storage2_entry2_key", actual2[1]->first);

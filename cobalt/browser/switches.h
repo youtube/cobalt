@@ -46,6 +46,9 @@ constexpr char kUseQAUpdateServer[] = "use_qa_update_server";
 // Sets the interval for memory and CPU metrics collection in seconds.
 constexpr char kMetricsInterval[] = "metrics-interval";
 
+// Disables migration of legacy Starboard storage.
+constexpr char kDisableStorageMigration[] = "disable-storage-migration";
+
 }  // namespace switches
 }  // namespace cobalt
 
