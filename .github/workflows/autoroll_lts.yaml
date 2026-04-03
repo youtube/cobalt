@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Setup Git user
         run: |
@@ -70,7 +71,7 @@ jobs:
         if: steps.autoroll.outputs.pr_links != ''
         env:
           TARGET_BRANCH: 27.lts
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           PR_LINKS: ${{ steps.autoroll.outputs.pr_links }}
         run: |
           set -x

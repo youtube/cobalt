@@ -23,7 +23,7 @@ bool SbStorageCloseRecord(SbStorageRecord record) {
   @autoreleasepool {
     // Transfer ownership to ARC. The object will be released when this
     // variable goes out of scope.
-    NSString* recordName = (__bridge_transfer NSString*)record;
+    [[maybe_unused]] NSString* recordName = (__bridge_transfer NSString*)record;
   }
   return true;
 }

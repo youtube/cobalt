@@ -26,6 +26,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
+#include "media/base/media_client.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
@@ -325,7 +326,10 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_total_kb += pmd.os_dump().private_footprint_kb;
     shared_footprint_total_kb += pmd.os_dump().shared_footprint_kb;
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
+#if !BUILDFLAG(IS_IOS_TVOS)
+    // TODO: b/497706115 - This field does not exist on tvOS.
     private_footprint_swap_total_kb += pmd.os_dump().private_footprint_swap_kb;
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
     vm_size_total_kb += pmd.os_dump().vm_size_kb;
 
     // Manually calculate fragmentation for individual processes as it may not
@@ -410,6 +414,14 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
       static_cast<int>(private_footprint_swap_total_kb / kKiB));
   base::UmaHistogramMemoryLargeMB("Memory.Total.VmSize",
                                   static_cast<int>(vm_size_total_kb / kKiB));
+
+  // UMA metrics for media buffer memory usage
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  uint64_t encoded_memory_bytes =
+      media::MediaClient::GetMediaSourceTotalAllocatedMemory();
+  base::UmaHistogramMemoryMB("Memory.Media.AllocatedEncodedBuffer",
+                             static_cast<int>(encoded_memory_bytes / kMiB));
+#endif
 
   global_dump_ = nullptr;
 
