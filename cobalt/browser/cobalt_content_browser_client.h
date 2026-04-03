@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
@@ -58,7 +59,8 @@ class CobaltWebContentsObserver;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
-  explicit CobaltContentBrowserClient(const std::string& deep_link,
+  explicit CobaltContentBrowserClient(absl::optional<int64_t> startup_timestamp,
+                                      const std::string& deep_link,
                                       bool is_visible = true);
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
@@ -147,7 +149,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void DispatchEvent(const std::string&, base::OnceClosure);
   void OnSbWindowCreated(SbWindow window);
   void OnSbWindowDestroyed(SbWindow window);
-
+  const absl::optional<int64_t> startup_timestamp_;
   const std::string deep_link_;
   bool is_visible_;
 
