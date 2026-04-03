@@ -15,6 +15,12 @@ if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+} else {
+  use_starboard_media = false
+}
+
 # This flag sets defaults for the current generation of cast devices.
 is_cast_media_device = is_castos || is_cast_android
 
