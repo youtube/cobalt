@@ -310,10 +310,6 @@ public class ImeAdapterImpl
         return isTextInputType(mTextInputType);
     }
 
-    private static boolean isTextInputType(int type) {
-        return type != TextInputType.NONE && !InputDialogContainer.isDialogInputType(type);
-    }
-
     private boolean isHardwareKeyboardAttached() {
         return mCurrentConfig.keyboard != Configuration.KEYBOARD_NOKEYS;
     }
@@ -755,6 +751,10 @@ public class ImeAdapterImpl
         if (mInputConnectionFactory != null) {
             mInputConnectionFactory.onViewFocusChanged(gainFocus);
         }
+    }
+
+    private static boolean isTextInputType(int type) {
+        return type != TextInputType.NONE && !InputDialogContainer.isDialogInputType(type);
     }
 
     /**
