@@ -16,8 +16,7 @@
   "targets": [
     "libloader_app.so",
     "elf_loader_sandbox",
-    "elf_loader_sys_sandbox",
-    "loader_app_rdk_exe",
+    "loader_app",
     "cobalt:gn_all"
   ],
   "includes": [

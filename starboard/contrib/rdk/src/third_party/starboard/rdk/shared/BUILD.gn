@@ -108,7 +108,7 @@ if (rdk_enable_ocdm) {
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
-  data_deps = [ ":rdk_cobalt_content"]
+  data_deps = [ ":rdk_cobalt_content" ]
 }
 
 static_library("starboard_platform_sources") {
