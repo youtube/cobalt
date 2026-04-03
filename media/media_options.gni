@@ -13,6 +13,12 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/libaom/options.gni")
 import("//third_party/libgav1/options.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+} else {
+  use_starboard_media = false
+}
+
 # This flag sets defaults for the current generation of cast devices.
 is_cast_media_device = is_castos || is_cast_android
 

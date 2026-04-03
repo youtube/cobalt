@@ -131,6 +131,9 @@ void AudioManagerAndroid::GetAudioInputDeviceNames(
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return;
+#else
   // Get list of available audio devices.
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobjectArray> j_device_array =
@@ -156,6 +159,7 @@ void AudioManagerAndroid::GetAudioInputDeviceNames(
     DVLOG(1) << "device_name: " << d.device_name;
     DVLOG(1) << "unique_id: " << d.unique_id;
   }
+#endif
 }
 
 void AudioManagerAndroid::GetAudioOutputDeviceNames(
@@ -219,6 +223,11 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // For Cobalt, we use SbMicrophone which handles its own presets (e.g.
+  // VOICE_RECOGNITION) and doesn't need the global Android communication mode
+  // which causes Binder broadcast storms and performance degradation.
+#else
   // By default, the audio manager for Android creates streams intended for
   // real-time VoIP sessions and therefore sets the audio mode to
   // MODE_IN_COMMUNICATION. However, the user might have asked for a special
@@ -229,6 +238,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     communication_mode_is_on_ = true;
     SetCommunicationAudioModeOn(true);
   }
+#endif
   return stream;
 }
 
@@ -242,12 +252,14 @@ void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   AudioManagerBase::ReleaseInputStream(stream);
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Restore the audio mode which was used before the first communication-
   // mode stream was created.
   if (HasNoAudioInputStreams() && communication_mode_is_on_) {
     communication_mode_is_on_ = false;
     SetCommunicationAudioModeOn(false);
   }
+#endif
 }
 
 AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
@@ -299,7 +311,11 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   // needs it.
   DLOG_IF(ERROR, !device_id.empty()) << "Not implemented!";
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return new AudioInputStreamStarboard(this, params);
+#else
   return new OpenSLESInputStream(this, params);
+#endif
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
@@ -322,7 +338,11 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
 
   // Create a new audio input stream and enable or disable all audio effects
   // given |params.effects()|.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return new AudioInputStreamStarboard(this, params);
+#else
   return new OpenSLESInputStream(this, params);
+#endif
 }
 
 // static
@@ -417,22 +437,29 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
         base::android::AttachCurrentThread(),
         reinterpret_cast<intptr_t>(this)));
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
     // Prepare the list of audio devices and register receivers for device
     // notifications.
     Java_AudioManagerAndroid_init(base::android::AttachCurrentThread(),
                                   j_audio_manager_);
+#endif
   }
   return j_audio_manager_;
 }
 
 void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
   DVLOG(1) << __FUNCTION__ << ": " << on;
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   Java_AudioManagerAndroid_setCommunicationAudioModeOn(
       base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
+#endif
 }
 
 bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
   DVLOG(1) << __FUNCTION__ << ": " << device_id;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return true;
+#else
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   // Send the unique device ID to the Java audio manager and make the
@@ -444,6 +471,7 @@ bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
                                                                  : device_id);
   return Java_AudioManagerAndroid_setDevice(env, GetJavaAudioManager(),
                                             j_device_id);
+#endif
 }
 
 int AudioManagerAndroid::GetNativeOutputSampleRate() {

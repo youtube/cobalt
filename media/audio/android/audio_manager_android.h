@@ -7,9 +7,13 @@
 
 #include <set>
 
+#include "build/build_config.h"
 #include "base/android/jni_android.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/audio/android/audio_input_stream_starboard.h"
+#endif
 #include "media/audio/audio_manager_base.h"
 
 namespace media {

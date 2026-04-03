@@ -257,6 +257,14 @@ source_set("audio") {
       "android/opensles_wrapper.cc",
     ]
 
+    if (use_starboard_media) {
+      sources += [
+        "android/audio_input_stream_starboard.cc",
+        "android/audio_input_stream_starboard.h",
+      ]
+      deps += [ "//starboard:starboard_headers_only" ]
+    }
+
     deps += [
       ":aaudio_stubs",
       "//media/base/android:media_jni_headers",
