@@ -44,6 +44,8 @@ constexpr int64_t kBackgroundDownloadSizeThreshold = 10'000'000; /*10 MB*/
 constexpr int64_t kBackgroundDownloadSizeThreshold = 0;
 #endif
 
+
+
 #if !BUILDFLAG(IS_STARBOARD)
 bool CanDoBackgroundDownload(bool is_foreground,
                              bool background_downloads_enabled,
@@ -100,6 +102,9 @@ void DownloadComplete(
     scoped_refptr<CrxDownloader> crx_downloader,
     scoped_refptr<Cancellation> cancellation,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+#if defined(IN_MEMORY_UPDATES)
+    std::string* crx_str,
+#endif
 #if BUILDFLAG(IS_STARBOARD)
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
@@ -138,9 +143,11 @@ void DownloadComplete(
   OperationResult result;
 #if defined(IN_MEMORY_UPDATES)
   result.installation_dir = download_result.installation_dir;
+  result.crx_str = crx_str;
+#else
+  result.response = download_result.response;
 #endif
   result.installation_index = download_result.installation_index;
-  result.response = download_result.response;
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), result));
 #else
@@ -195,7 +202,12 @@ void HandleAvailableSpace(
       crx_str,
 #endif
       base::BindOnce(&DownloadComplete, crx_downloader, cancellation,
+#if defined(IN_MEMORY_UPDATES)
+                     event_adder, crx_str, std::move(callback))));
+#else
                      event_adder, std::move(callback))));
+
+#endif
 }
 
 }  // namespace
