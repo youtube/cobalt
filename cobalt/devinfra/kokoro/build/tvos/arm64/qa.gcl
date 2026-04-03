@@ -1,0 +1,19 @@
+// -*- protobuffer -*-
+// proto-file: google3/devtools/kokoro/config/proto/build.proto
+// proto-message: BuildConfig
+// validation: gcl --message=kokoro.BuildConfig --objtype=config qa.gcl appendascii
+
+import 'common.gcl' as common
+
+config build = common.build {
+  env_vars = super.env_vars + [
+    {
+      key = 'CONFIG'
+      value = 'qa'
+    },
+    {
+      key = 'TARGET'
+      value = 'default'
+    },
+  ]
+}
