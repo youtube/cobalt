@@ -595,7 +595,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
 
   // Wait for the dump to be processed.
   task_environment_.FastForwardBy(base::Seconds(3));
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   EXPECT_GE(
