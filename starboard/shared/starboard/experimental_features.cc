@@ -77,6 +77,8 @@ void SetExperimentalFeaturesForCurrentThread(
 
   experiment_features.enable_av1_startup_optimization =
       extension_features->enable_av1_startup_optimization;
+  experiment_features.enable_codec_output_checker =
+      extension_features->enable_codec_output_checker;
   experiment_features.disable_low_performance_sw_decoder =
       extension_features->disable_low_performance_sw_decoder;
   experiment_features.flush_decoder_during_reset =

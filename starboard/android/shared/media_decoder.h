@@ -104,6 +104,7 @@ class MediaDecoder final
                int max_video_input_size,
                int64_t flush_delay_usec,
                std::optional<bool> use_dual_threads,
+               bool enable_output_checker,
                std::string* error_message);
   ~MediaDecoder();
 
