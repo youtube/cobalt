@@ -5,6 +5,7 @@
 #include "cc/base/switches.h"
 
 #include "base/command_line.h"
+#include "build/build_config.h"
 
 namespace cc {
 namespace switches {
@@ -118,6 +119,11 @@ const char kCCLayerTreeTestLongTimeout[] = "cc-layer-tree-test-long-timeout";
 // Controls the duration of the scroll animation curve.
 const char kCCScrollAnimationDurationForTesting[] =
     "cc-scroll-animation-duration-in-seconds";
+
+#if BUILDFLAG(IS_COBALT)
+// Avoid reuse resource.
+const char kAvoidCCReuseResource[] = "avoid-cc-reuse-resource";
+#endif
 
 }  // namespace switches
 }  // namespace cc
