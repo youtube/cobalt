@@ -134,6 +134,12 @@ class GPU_EXPORT MappedMemoryManager {
   // to be reclaimed before allocating more memory.
   MappedMemoryManager(CommandBufferHelper* helper,
                       size_t unused_memory_reclaim_limit);
+#if BUILDFLAG(IS_STARBOARD)
+  MappedMemoryManager(CommandBufferHelper* helper,
+                      size_t unused_memory_reclaim_limit,
+                      size_t allocated_bytes_cleanup_threshold);
+#endif
+
 
   MappedMemoryManager(const MappedMemoryManager&) = delete;
   MappedMemoryManager& operator=(const MappedMemoryManager&) = delete;
@@ -230,6 +236,16 @@ class GPU_EXPORT MappedMemoryManager {
   // A process-unique ID used for disambiguating memory dumps from different
   // mapped memory manager.
   int tracing_id_;
+#if BUILDFLAG(IS_STARBOARD)
+  // The threshold for total in-flight mapped memory that triggers
+  // backpressure. When the total size of all allocated memory chunks exceeds
+  // this value, the client will wait for the GPU to finish processing commands
+  // and release memory before allocating any more. This mechanism prevents
+  // excessive memory consumption by queueing up too much work on the GPU.
+  // It is a tunable trade-off between memory usage and performance.
+  // A value of 0 (SharedMemoryLimits::kNoLimit) means no limit.
+  size_t allocated_bytes_cleanup_threshold_;
+#endif
 };
 
 // A class that will manage the lifetime of a mapped memory allocation
