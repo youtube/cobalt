@@ -2454,11 +2454,19 @@ void RunPartialTileDecodeCheck(std::unique_ptr<LayerTreeHostImpl> host_impl,
 // Ensures that the tile manager successfully reuses tiles when partial
 // raster is enabled.
 TEST_F(PartialRasterTileManagerTest, PartialRasterSuccessfullyEnabled) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support partial tile raster.";
+#else
   RunPartialRasterCheck(TakeHostImpl(), true /* partial_raster_enabled */);
+#endif
 }
 
 TEST_F(PartialRasterTileManagerTest, PartialTileImageDecode) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support partial tile raster.";
+#else
   RunPartialTileDecodeCheck(TakeHostImpl(), true /* partial_raster_enabled */);
+#endif
 }
 
 TEST_F(PartialRasterTileManagerTest, CompleteTileImageDecode) {
