@@ -42,7 +42,7 @@
 
 #ifdef ABSL_INTERNAL_HAVE_FUTEX
 #error ABSL_INTERNAL_HAVE_FUTEX may not be set on the command line
-#elif defined(__BIONIC__)
+#elif defined(__BIONIC__) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // Bionic supports all the futex operations we need even when some of the futex
 // definitions are missing.
 #define ABSL_INTERNAL_HAVE_FUTEX
