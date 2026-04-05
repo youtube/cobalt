@@ -211,7 +211,7 @@ source_set("cobalt_crash_annotations") {
     "//base",
     "//third_party/crashpad/crashpad/client",
   ]
-  if (is_android) {
+  if (is_android && !use_evergreen) {
     sources += [ "crash_annotator/crash_annotator_jni.cc" ]
     deps += [ "//cobalt/android:jni_headers" ]
   }
