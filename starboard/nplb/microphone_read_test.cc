@@ -121,7 +121,7 @@ TEST(SbMicrophoneReadTest, RainyDayAudioBufferIsNULL) {
     EXPECT_TRUE(SbMicrophoneOpen(microphone));
 
     int read_bytes = SbMicrophoneRead(microphone, NULL, 0);
-    EXPECT_EQ(read_bytes, 0);
+    EXPECT_EQ(read_bytes, -1);
 
     EXPECT_TRUE(SbMicrophoneClose(microphone));
     SbMicrophoneDestroy(microphone);
