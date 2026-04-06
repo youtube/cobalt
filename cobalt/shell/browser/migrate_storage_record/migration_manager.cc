@@ -553,18 +553,6 @@ std::vector<std::unique_ptr<net::CanonicalCookie>>
 MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   for (auto& c : storage.cookies()) {
-<<<<<<< HEAD
-    cookies.push_back(net::CanonicalCookie::FromStorage(
-        c.name(), c.value(), c.domain(), c.path(),
-        base::Time::FromInternalValue(c.creation_time_us()),
-        base::Time::FromInternalValue(c.expiration_time_us()),
-        base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), true,
-        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
-        net::CookieSourceType::kUnknown));
-=======
     // CRITICAL for M138: SameSite=None MUST be Secure.
     // We force is_secure to true because legacy Cobalt cookies
     // often lack this bit but require cross-site access.
@@ -605,7 +593,6 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
                  << "name=" << c.name() << " domain=" << c.domain()
                  << " path=" << c.path();
     }
->>>>>>> 83f57824c8 (cobalt: Rework storage migration for early execution (#9418) (#9762))
   }
   return cookies;
 }
