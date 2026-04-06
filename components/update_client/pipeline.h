@@ -20,6 +20,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/files/file_path.h"
+#include "starboard/extension/installation_manager.h"
 #else
 namespace base {
 class FilePath;
@@ -33,11 +34,13 @@ class CrxCache;
 
 #if BUILDFLAG(IS_STARBOARD)
 struct OperationResult {
-  base::FilePath response;
 #if defined(IN_MEMORY_UPDATES)
   base::FilePath installation_dir;
+  base::raw_ptr<const std::string> crx_str;
+#else
+  base::FilePath response;
 #endif
-  int installation_index = -1;
+  int installation_index = IM_EXT_INVALID_INDEX;
 };
 
 using Operation = base::OnceCallback<base::OnceClosure(
