@@ -98,6 +98,18 @@ runs:
         fi
         gclient validate
 
+    - name: Configure Git for GoB
+      shell: bash
+      env:
+        METADATA_BASE_URL: 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default'
+        METADATA_HEADER: 'Metadata-Flavor: Google'
+      run: |
+        SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
+        ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
+        echo "::add-mask::${ACCESS_TOKEN}"
+        (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > ~/.gitcookies)
+        git config --global http.cookiefile ~/.gitcookies
+
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
       env:
