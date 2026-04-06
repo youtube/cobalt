@@ -25,6 +25,7 @@
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "third_party/blink/public/common/switches.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -76,6 +77,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Disable QUIC to save CPU budgets on m114.
       // Remove below if Cobalt rebase to m138+.
       switches::kDisableQuic,
+      // Force to use dark mode.
+      switches::kForceDarkMode,
 });
 
 // Map of switches with parameters and their defaults.
