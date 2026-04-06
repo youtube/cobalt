@@ -107,6 +107,7 @@ runs:
         SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
         ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
         echo "::add-mask::${ACCESS_TOKEN}"
+        echo "Authenticating with ${SERVICE_ACCOUNT}"
         (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > ~/.gitcookies)
         git config --global http.cookiefile ~/.gitcookies
 
