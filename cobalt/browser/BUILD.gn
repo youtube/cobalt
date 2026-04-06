@@ -100,7 +100,10 @@ source_set("browser") {
   }
 
   if (is_ios && target_platform == "tvos") {
-    deps += [ "//cobalt/browser/tvos:network_error_handler" ]
+    deps += [
+      "//cobalt/browser:cobalt_crash_annotations",
+      "//cobalt/browser/tvos:network_error_handler",
+    ]
   }
 
   if (is_starboard) {
