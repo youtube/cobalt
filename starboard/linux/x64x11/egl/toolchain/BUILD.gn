@@ -18,7 +18,6 @@ import("//build/toolchain/gcc_toolchain.gni")
 clang_toolchain("native_target") {
   toolchain_args = {
     is_starboard = false
-    is_native_target_build = true
     current_os = "linux"
     current_cpu = "x64"
   }
