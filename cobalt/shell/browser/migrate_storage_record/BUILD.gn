@@ -20,6 +20,7 @@ source_set("migrate_storage_record") {
     "//net",
     "//services/network/public/mojom:cookies_mojom",
     "//starboard/common",
+    "//third_party/blink/public/mojom:mojom_platform",
     "//url",
   ]
   public_deps = [
