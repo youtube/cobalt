@@ -51,16 +51,49 @@ class MigrationManagerTest : public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
+TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
+  // Test no data to migrate.
+  auto state = base::MakeRefCounted<MigrationState>();
+  state->has_data_to_migrate = false;
+  state->read_result = StorageReadResult::kSuccess;
+  EXPECT_EQ(MigrationOutcome::kSkipped, state->GetOutcome());
+
+  state->read_result = StorageReadResult::kRecordInvalid;
+  EXPECT_EQ(MigrationOutcome::kSkipped, state->GetOutcome());
+
+  state->read_result = StorageReadResult::kParseError;
+  EXPECT_EQ(MigrationOutcome::kFailed, state->GetOutcome());
+
+  // Test data to migrate.
+  state->has_data_to_migrate = true;
+
+  // Initial success state.
+  EXPECT_EQ(MigrationOutcome::kSuccess, state->GetOutcome());
+
+  // Error taking precedence over Success.
+  state->UpdateCookieResult(InjectionResult::kError);
+  EXPECT_EQ(MigrationOutcome::kFailed, state->GetOutcome());
+
+  // Timeout taking precedence over Error.
+  state->UpdateLocalStorageResult(InjectionResult::kTimeout);
+  EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
+
+  // Verify that an attempt to log a Success doesn't downgrade a Timeout.
+  state->UpdateCookieResult(InjectionResult::kSuccess);
+  state->UpdateLocalStorageResult(InjectionResult::kSuccess);
+  EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
+}
+
 // TODO(b/399166308): Add more test cases for specific migration tasks.
 TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   constexpr uint32_t kTaskCount = 100;
   std::vector<Task> tasks;
   std::vector<int> collected_values;
-  for (size_t i = 0; i < kTaskCount; i++) {
+  for (uint32_t i = 0; i < kTaskCount; i++) {
     tasks.push_back(base::BindOnce(
-        [](std::vector<int>& collected_values, int i,
+        [](std::vector<int>& collected_values, uint32_t i,
            base::OnceClosure callback) {
-          collected_values.push_back(i);
+          collected_values.push_back(static_cast<int>(i));
           std::move(callback).Run();
         },
         std::ref(collected_values), i));
@@ -69,7 +102,7 @@ TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   Task grouped_task = GroupTasks(std::move(tasks));
   std::move(grouped_task).Run(base::DoNothing());
   base::RunLoop().RunUntilIdle();
-  std::vector<int> expected_values(kTaskCount);
+  std::vector<int> expected_values(static_cast<size_t>(kTaskCount));
   std::iota(expected_values.begin(), expected_values.end(), 0);
   EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
 }
@@ -103,7 +136,7 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
 
   auto cookies = ToCanonicalCookies(storage);
   EXPECT_EQ(2u, cookies.size());
-  for (size_t i = 0; i < 2; i++) {
+  for (size_t i = 0; i < cookies.size(); i++) {
     EXPECT_EQ(source_cookies[i]->name(), cookies[i]->Name());
     EXPECT_EQ(source_cookies[i]->value(), cookies[i]->Value());
     EXPECT_EQ(source_cookies[i]->domain(), cookies[i]->Domain());

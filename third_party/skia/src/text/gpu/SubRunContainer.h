@@ -124,7 +124,7 @@ public:
             SkScalar depth) const = 0;
 #endif
 
-    virtual void testingOnly_packedGlyphIDToGlyph(StrikeCache* cache) const = 0;
+    virtual void testingOnly_packedGlyphIDToGlyph(StrikeCache* cache, skgpu::MaskFormat) const = 0;
 
 protected:
 #if defined(SK_GRAPHITE)
