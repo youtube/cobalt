@@ -18,14 +18,33 @@
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/files/file_path.h"
+#else
 namespace base {
 class FilePath;
 }
+#endif
 
 namespace update_client {
 
 class Configurator;
 class CrxCache;
+
+#if BUILDFLAG(IS_STARBOARD)
+struct OperationResult {
+  base::FilePath response;
+#if defined(IN_MEMORY_UPDATES)
+  base::FilePath installation_dir;
+#endif
+  int installation_index = -1;
+};
+
+using Operation = base::OnceCallback<base::OnceClosure(
+    const OperationResult&,
+    base::OnceCallback<void(
+        base::expected<OperationResult, CategorizedError>)>)>;
+#endif
 
 using PipelineStartCallback = base::OnceCallback<base::OnceClosure(
     base::OnceCallback<void(const CategorizedError&)>)>;

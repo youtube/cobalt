@@ -75,7 +75,7 @@ struct SharedMemoryLimits {
     return limits;
   }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
   static SharedMemoryLimits ForDisplayCompositor(const gfx::Size& screen_size) {
     DCHECK(!screen_size.IsEmpty());
 

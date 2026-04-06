@@ -17,6 +17,10 @@
 #include "components/update_client/crx_cache.h"
 #include "components/update_client/update_client.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace base {
 class FilePath;
 }
@@ -43,8 +47,13 @@ base::OnceClosure InstallOperation(
     CrxInstaller::ProgressCallback progress_callback,
     base::OnceCallback<void(const CrxInstaller::Result&)>
         install_result_callback,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& crx_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& crx_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback);
 
 }  // namespace update_client

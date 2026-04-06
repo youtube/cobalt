@@ -40,7 +40,9 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_settings_impl.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
@@ -68,6 +70,8 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/service_manager/public/cpp/binder_registry.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -168,8 +172,9 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
-    const std::string& deep_link)
-    : deep_link_(deep_link) {
+    const std::string& deep_link,
+    bool is_visible)
+    : deep_link_(deep_link), is_visible_(is_visible) {
   COBALT_DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
@@ -196,7 +201,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto browser_main_parts =
-      std::make_unique<CobaltBrowserMainParts>(deep_link_);
+      std::make_unique<CobaltBrowserMainParts>(deep_link_, is_visible_);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
@@ -369,6 +374,17 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   PopulateCobaltFrameBinders(render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
+}
+
+void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
+    service_manager::BinderRegistry* registry,
+    blink::AssociatedInterfaceRegistry* associated_registry,
+    content::RenderProcessHost* render_process_host) {
+  ShellContentBrowserClient::ExposeInterfacesToRenderer(
+      registry, associated_registry, render_process_host);
+  registry->AddInterface<cobalt::mojom::H5vccSettings>(
+      base::BindRepeating(&H5vccSettingsImpl::Create),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 
 void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
