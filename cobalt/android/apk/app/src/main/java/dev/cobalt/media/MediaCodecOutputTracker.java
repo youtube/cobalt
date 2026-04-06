@@ -91,7 +91,7 @@ public class MediaCodecOutputTracker {
     long totalMemory = getTotalOutputMemoryUsage();
     if (totalMemory > 0) {
       RecordHistogram.recordMemoryMediumMBHistogram(
-          "Media.Memory.DecodedBuffer.Estimated", (int) (totalMemory / BYTES_PER_MIB));
+          "Memory.Media.EstimatedDecodedBuffer", (int) (totalMemory / BYTES_PER_MIB));
     }
   }
 
