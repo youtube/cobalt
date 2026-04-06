@@ -495,10 +495,7 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   }
 }
 
-void Shell::PrimaryMainDocumentElementAvailable() {
-  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-      web_contents());
-}
+void Shell::PrimaryMainDocumentElementAvailable() {}
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
