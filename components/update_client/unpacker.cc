@@ -108,19 +108,19 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
     required_keys.push_back(pk_hash);
   }
   const crx_file::VerifierResult result = crx_file::Verify(
-  #if defined(IN_MEMORY_UPDATES)
+#if defined(IN_MEMORY_UPDATES)
       *result_.crx_str, crx_format, required_keys, std::vector<uint8_t>(),
       &public_key_,
-  #else
+#else
       path_, crx_format, required_keys, std::vector<uint8_t>(), &public_key_,
-  #endif
+#endif
       /*crx_id=*/nullptr, &compressed_verified_contents_);
   if (result != crx_file::VerifierResult::OK_FULL) {
     EndUnpacking(UnpackerError::kInvalidFile, static_cast<int>(result));
     return;
   }
 #if defined(IN_MEMORY_UPDATES)
-  VLOG(1) << "Verification successful";
+  VLOG(2) << "Verification successful";
 #else
   VLOG(2) << "Verification successful: " << path_.value();
 #endif
