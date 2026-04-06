@@ -41,7 +41,8 @@ public class MediaCodecOutputTracker {
         @Override
         public void run() {
           synchronized (MediaCodecOutputTracker.this) {
-            if (!mIsReporting) {
+            if (!mIsReporting || mBridges.isEmpty()) {
+              mIsReporting = false;
               return;
             }
             reportMetrics();
@@ -95,7 +96,7 @@ public class MediaCodecOutputTracker {
     }
   }
 
-  public long getTotalOutputMemoryUsage() {
+  private long getTotalOutputMemoryUsage() {
     long totalMemory = 0;
     synchronized (mBridges) {
       for (MediaCodecBridge bridge : mBridges) {

@@ -30,7 +30,6 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.SparseIntArray;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
@@ -118,7 +117,7 @@ class MediaCodecBridge {
 
   private FrameRateEstimator mFrameRateEstimator = null;
   private final AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);
-  private MediaFormatWrapper mActiveFormat = null;
+  private volatile MediaFormatWrapper mActiveFormat = null;
 
   int getCurrentMediaFormatDimension() {
     if (mActiveFormat == null) {
