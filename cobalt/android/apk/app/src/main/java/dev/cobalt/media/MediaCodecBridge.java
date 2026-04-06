@@ -39,9 +39,8 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Locale;
-import org.chromium.base.metrics.RecordHistogram;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -117,13 +116,20 @@ class MediaCodecBridge {
     }
   }
 
-  private static AtomicLong sGlobalTotalMemoryUsage = new AtomicLong(0L);
   private FrameRateEstimator mFrameRateEstimator = null;
-  private final OutputMemoryTracker mOutputMemoryTracker = null;
-  private static AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);  
+  private final AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);
   private MediaFormatWrapper mActiveFormat = null;
-  private boolean mDecodesToSurface = false;
-  private static final int BYTES_PER_MIB = 1024 * 1024;
+
+  int getCurrentMediaFormatDimension() {
+    if (mActiveFormat == null) {
+      return 0;
+    }
+    return mActiveFormat.width() * mActiveFormat.height();
+  }
+
+  int sizeOfActiveOutputBuffers() {
+    return mActiveOutputBuffers.get();
+  }
 
    /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
@@ -325,9 +331,7 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
-              if (mOutputMemoryTracker != null) {
-                mOutputMemoryTracker.add(index, info.size);
-              }
+              mActiveOutputBuffers.incrementAndGet();
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
                 int fps = mFrameRateEstimator.getEstimatedFrameRate();
@@ -461,9 +465,9 @@ class MediaCodecBridge {
 
     MediaCodecBridge bridge =
         new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
+    MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
-    mOutputMemoryTracker = new OutputMemoryTracker();
 
     boolean shouldConfigureHdr =
         colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
@@ -663,7 +667,7 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
     } finally {
-      mOutputMemoryTracker.reset();
+      mActiveOutputBuffers.set(0);
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
@@ -673,14 +677,10 @@ class MediaCodecBridge {
 
   @CalledByNative
   public void release() {
+    MediaCodecOutputTracker.get().unregister(this);
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
-
-    // Collect output buffer total memory usage before releasing
-    RecordHistogram.recordMemoryMediumMBHistogram(
-        "Media.Memory.DecodedBuffer.Allocated",
-        (int)(sGlobalTotalMemoryUsage.get() / BYTES_PER_MIB));
 
     // We skip calling stop() on Android 11, as this version has a race condition
     // if an error occurs during stop(). See b/369372033 for details.
@@ -691,11 +691,6 @@ class MediaCodecBridge {
         mMediaCodec.get().stop();
       } catch (Exception e) {
         Log.w(TAG, "Failed to stop MediaCodec. Proceeding with release", e);
-      } finally {
-        if (mOutputMemoryTracker != null) {
-          mOutputMemoryTracker.reset();
-          mActiveOutputBuffers.addAndGet(-1);
-        }
       }
     }
 
@@ -837,10 +832,8 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
-      if (mOutputMemoryTracker != null) {
-        mOutputMemoryTracker.remove(index);
-      }
       mMediaCodec.get().releaseOutputBuffer(index, render);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -850,10 +843,8 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
-      if (mOutputMemoryTracker != null) {
-        mOutputMemoryTracker.remove(index);
-      }
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -885,7 +876,6 @@ class MediaCodecBridge {
       }
 
       maybeSetMaxVideoInputSize(format);
-      mDecodesToSurface = true;
       mMediaCodec.get().configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;

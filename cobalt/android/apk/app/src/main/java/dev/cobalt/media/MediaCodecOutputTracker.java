@@ -11,56 +11,102 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// Copyright 2013 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
 
 package dev.cobalt.media;
 
-private class OutputMemoryTracker {
-    private final SparseIntArray mBufferSizes = new SparseIntArray();
-    private long mTotalMemoryUsage = 0;
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
+import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.SequencedTaskRunner;
+import org.chromium.base.task.TaskTraits;
 
-    public synchronized void add(int index, int size) {
-      int oldSize = mBufferSizes.get(index, -1);
-      if (oldSize != -1) {
-        mTotalMemoryUsage -= oldSize;
-        sGlobalTotalMemoryUsage.addAndGet(-oldSize);
-      }
-      int trackedSize = size;
-      if (mDecodesToSurface) {
-        try {
-          if (mActiveFormat != null) {
-            int width = mActiveFormat.width();
-            int height = mActiveFormat.height();
-            if (width > 0 && height > 0) {
-              // This is an estimated size assuming YUV420 format
-              // width * height * 1.5
-              trackedSize = width * height * 3 / 2;
+/**
+ * Memory tracker for MediaCodecBridge instances to estimate video memory usage.
+ * Reports metrics periodically (1 minute) while bridges are active.
+ */
+public class MediaCodecOutputTracker {
+  private static MediaCodecOutputTracker sInstance;
+  private static final int BYTES_PER_MIB = 1024 * 1024;
+  private static final long DEFAULT_REPORT_INTERVAL_MS = 60000; // 1 minute
+
+  private final Set<MediaCodecBridge> mBridges =
+      Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
+  private final SequencedTaskRunner mTaskRunner =
+      PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT);
+  private final Runnable mReportRunnable =
+      new Runnable() {
+        @Override
+        public void run() {
+          synchronized (MediaCodecOutputTracker.this) {
+            if (!mIsReporting) {
+              return;
             }
+            reportMetrics();
+            mTaskRunner.postDelayedTask(this, DEFAULT_REPORT_INTERVAL_MS);
           }
-        } catch (Exception e) {
-          trackedSize = 0;
         }
-      }
-      mBufferSizes.put(index, trackedSize);
-      mTotalMemoryUsage += trackedSize;
-      sGlobalTotalMemoryUsage.addAndGet(trackedSize);
-    }
+      };
 
-    public synchronized void remove(int index) {
-      int size = mBufferSizes.get(index, -1);
-      if (size != -1) {
-        mTotalMemoryUsage -= size;
-        sGlobalTotalMemoryUsage.addAndGet(-size); 
-        mBufferSizes.delete(index);
-      }
-    }
+  private boolean mIsReporting;
 
-    public synchronized void reset() {
-      mBufferSizes.clear();
-      sGlobalTotalMemoryUsage.addAndGet(-mTotalMemoryUsage);
-      mTotalMemoryUsage = 0;
+  private MediaCodecOutputTracker() {}
+
+  public static synchronized MediaCodecOutputTracker get() {
+    if (sInstance == null) {
+      sInstance = new MediaCodecOutputTracker();
+    }
+    return sInstance;
+  }
+
+
+  public synchronized void register(MediaCodecBridge bridge) {
+    if (mBridges.isEmpty()) {
+      startReporting();
+    }
+    mBridges.add(bridge);
+  }
+
+  public synchronized void unregister(MediaCodecBridge bridge) {
+    mBridges.remove(bridge);
+    if (mBridges.isEmpty()) {
+      stopReporting();
     }
   }
+
+  private void startReporting() {
+    if (!mIsReporting) {
+      mIsReporting = true;
+      mTaskRunner.postDelayedTask(mReportRunnable, DEFAULT_REPORT_INTERVAL_MS);
+    }
+  }
+
+  private void stopReporting() {
+    mIsReporting = false;
+  }
+
+  private void reportMetrics() {
+    long totalMemory = getTotalOutputMemoryUsage();
+    if (totalMemory > 0) {
+      RecordHistogram.recordMemoryMediumMBHistogram(
+          "Media.Memory.DecodedBuffer.Estimated", (int) (totalMemory / BYTES_PER_MIB));
+    }
+  }
+
+  public long getTotalOutputMemoryUsage() {
+    long totalMemory = 0;
+    synchronized (mBridges) {
+      for (MediaCodecBridge bridge : mBridges) {
+        int dimension = bridge.getCurrentMediaFormatDimension();
+        int activeBuffers = bridge.sizeOfActiveOutputBuffers();
+        if (dimension > 0 && activeBuffers > 0) {
+          // Estimate memory based on YUV420 format: width * height * 1.5
+          totalMemory += (long) dimension * 3 / 2 * activeBuffers;
+        }
+      }
+    }
+    return totalMemory;
+  }
+}
