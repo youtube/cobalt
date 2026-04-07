@@ -69,7 +69,8 @@ class AppEventRunnerImpl : public AppEventRunner {
   void CreateMainDelegate(bool is_visible,
                           const char* initial_deep_link) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-        false /* is_content_browsertests */, is_visible, initial_deep_link);
+        absl::nullopt /* startup_timestamp */, initial_deep_link,
+        false /* is_content_browsertests */, is_visible);
   }
 
   cobalt::CobaltMainDelegate* GetMainDelegate() override {
