@@ -104,17 +104,42 @@ runs:
         METADATA_BASE_URL: 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default'
         METADATA_HEADER: 'Metadata-Flavor: Google'
       run: |
+        # Configure Git for authenticating with googlesource.com using a .netrc file.
+        # This uses the service account email and an OAuth access token from the metadata server.
         SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
         ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
+
+        if [[ -z "${SERVICE_ACCOUNT}" || -z "${ACCESS_TOKEN}" ]]; then
+          echo "::error::Failed to retrieve service account or access token from metadata server."
+          exit 1
+        fi
+
         echo "::add-mask::${ACCESS_TOKEN}"
         echo "Authenticating with ${SERVICE_ACCOUNT}"
-        (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > ~/.gitcookies)
-        git config --global http.cookiefile ~/.gitcookies
+
+        # Configure .netrc for the main googlesource hosts.
+        # Format: machine <host> login <username> password <token>
+        cat <<EOF > ~/.netrc
+        machine chromium.googlesource.com
+          login git-${SERVICE_ACCOUNT}
+          password ${ACCESS_TOKEN}
+        machine googlesource.com
+          login git-${SERVICE_ACCOUNT}
+          password ${ACCESS_TOKEN}
+        EOF
+        chmod 600 ~/.netrc
+
+        # Verify .netrc was created
+        if [[ ! -f ~/.netrc ]]; then
+          echo "::error::Failed to create .netrc file."
+          exit 1
+        fi
 
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
       env:
         REF: ${{ github.sha }}
+        GIT_TRACE: 1
       run: |
         cd cobalt
         gclient sync \
