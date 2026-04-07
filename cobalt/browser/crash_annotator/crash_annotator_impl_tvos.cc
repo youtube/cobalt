@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "cobalt/browser/cobalt_crash_annotations.h"
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 
 namespace crash_annotator {
 
-CrashAnnotatorImpl::CrashAnnotatorImpl(
-    content::RenderFrameHost& render_frame_host,
-    mojo::PendingReceiver<mojom::CrashAnnotator> receiver)
-    : content::DocumentService<mojom::CrashAnnotator>(render_frame_host,
-                                                      std::move(receiver)) {}
-
-void CrashAnnotatorImpl::Create(
-    content::RenderFrameHost* render_frame_host,
-    mojo::PendingReceiver<mojom::CrashAnnotator> receiver) {
-  new CrashAnnotatorImpl(*render_frame_host, std::move(receiver));
+void CrashAnnotatorImpl::SetString(const std::string& key,
+                                   const std::string& value,
+                                   SetStringCallback callback) {
+  cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(key,
+                                                                        value);
+  std::move(callback).Run(true);
 }
 
 }  // namespace crash_annotator

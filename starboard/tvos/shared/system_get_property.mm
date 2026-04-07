@@ -17,6 +17,7 @@
 #import <UIKit/UIKit.h>
 #include <sys/utsname.h>
 
+#include "base/numerics/safe_conversions.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -57,12 +58,13 @@ const char kSystemIntegrator[] = "YouTube";
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
-  if (strlen(from_value) + 1 > value_length) {
+  if (strlen(from_value) + 1 > base::saturated_cast<size_t>(value_length)) {
     return false;
   }
   starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -166,6 +168,4 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         return false;
     }
   }
-
-  return false;
 }
