@@ -30,7 +30,12 @@ component("memory_instrumentation") {
   }
 
   if (is_android || is_linux || is_chromeos) {
-    sources += [ "os_metrics_linux.cc" ]
+    sources += [
+      "os_metrics_linux.cc",
+      "smaps_categorizer.cc",
+      "smaps_categorizer.h",
+      "smaps_categorizer_patterns.h",
+    ]
   }
 
   if (is_fuchsia) {

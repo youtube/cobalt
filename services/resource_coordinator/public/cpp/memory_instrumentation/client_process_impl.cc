@@ -10,6 +10,7 @@
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
@@ -144,10 +145,12 @@ void ClientProcessImpl::RequestGlobalMemoryDump_NoCallback(
 void ClientProcessImpl::RequestOSMemoryDump(
     mojom::MemoryMapOption mmap_option,
     const std::vector<base::ProcessId>& pids,
+    bool want_detailed_stats,
     RequestOSMemoryDumpCallback callback) {
   OSMemoryDumpArgs args;
   args.mmap_option = mmap_option;
   args.pids = pids;
+  args.want_detailed_stats = want_detailed_stats;
   args.callback = std::move(callback);
 
 #if BUILDFLAG(IS_MAC)
@@ -165,25 +168,60 @@ void ClientProcessImpl::RequestOSMemoryDump(
   PerformOSMemoryDump(std::move(args));
 }
 
-void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
-  bool global_success = true;
+namespace {
+struct OSMemoryDumpsResult {
+  bool global_success;
   base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results;
-  for (const base::ProcessId& pid : args.pids) {
-    mojom::RawOSMemDumpPtr result = mojom::RawOSMemDump::New();
-    result->platform_private_footprint = mojom::PlatformPrivateFootprint::New();
-    bool success = OSMetrics::FillOSMemoryDump(pid, result.get());
-    if (args.mmap_option != mojom::MemoryMapOption::NONE) {
-      success = success && OSMetrics::FillProcessMemoryMaps(
-                               pid, args.mmap_option, result.get());
+};
+
+OSMemoryDumpsResult FillOSMemoryDumpsInBackground(
+    std::vector<base::ProcessId> pids,
+    mojom::MemoryMapOption mmap_option,
+    bool want_detailed_stats) {
+  OSMemoryDumpsResult result;
+  result.global_success = true;
+  for (const base::ProcessId& pid : pids) {
+    mojom::RawOSMemDumpPtr dump = mojom::RawOSMemDump::New();
+    dump->platform_private_footprint = mojom::PlatformPrivateFootprint::New();
+    bool success =
+        OSMetrics::FillOSMemoryDump(pid, dump.get(), want_detailed_stats);
+    if (mmap_option != mojom::MemoryMapOption::NONE) {
+      success = success &&
+                OSMetrics::FillProcessMemoryMaps(pid, mmap_option, dump.get());
     }
     if (success) {
-      results[pid] = std::move(result);
+      result.results[pid] = std::move(dump);
     } else {
       DLOG(ERROR) << "OS memory dump failed for pid " << pid;
     }
-    global_success = global_success && success;
+    result.global_success = result.global_success && success;
   }
-  std::move(args.callback).Run(global_success, std::move(results));
+  return result;
+}
+}  // namespace
+
+void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
+      base::BindOnce(&FillOSMemoryDumpsInBackground, std::move(args.pids),
+                     args.mmap_option, args.want_detailed_stats),
+      base::BindOnce(
+          [](base::WeakPtr<ClientProcessImpl> self,
+             RequestOSMemoryDumpCallback callback, OSMemoryDumpsResult result) {
+            if (self) {
+              self->OnOSMemoryDumpDone(std::move(callback),
+                                       result.global_success,
+                                       std::move(result.results));
+            }
+          },
+          weak_ptr_factory_.GetWeakPtr(), std::move(args.callback)));
+}
+
+void ClientProcessImpl::OnOSMemoryDumpDone(
+    RequestOSMemoryDumpCallback callback,
+    bool success,
+    base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results) {
+  std::move(callback).Run(success, std::move(results));
 }
 
 ClientProcessImpl::OSMemoryDumpArgs::OSMemoryDumpArgs() = default;

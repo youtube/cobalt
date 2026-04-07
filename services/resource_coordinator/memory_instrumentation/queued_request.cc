@@ -12,14 +12,16 @@ QueuedRequest::Args::Args(MemoryDumpType dump_type,
                           const std::vector<std::string>& allocator_dump_names,
                           bool add_to_trace,
                           base::ProcessId pid,
-                          bool memory_footprint_only)
+                          bool memory_footprint_only,
+                          bool want_detailed_stats)
     : dump_type(dump_type),
       level_of_detail(level_of_detail),
       determinism(determinism),
       allocator_dump_names(allocator_dump_names),
       add_to_trace(add_to_trace),
       pid(pid),
-      memory_footprint_only(memory_footprint_only) {}
+      memory_footprint_only(memory_footprint_only),
+      want_detailed_stats(want_detailed_stats) {}
 QueuedRequest::Args::Args(const Args& args) = default;
 QueuedRequest::Args::~Args() = default;
 

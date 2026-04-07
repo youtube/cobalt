@@ -38,7 +38,8 @@ struct QueuedRequest {
          const std::vector<std::string>& allocator_dump_names,
          bool add_to_trace,
          base::ProcessId pid,
-         bool memory_footprint_only);
+         bool memory_footprint_only,
+         bool want_detailed_stats);
     Args(const Args&);
     ~Args();
 
@@ -52,6 +53,8 @@ struct QueuedRequest {
     // If this member is |true|, then no MemoryDumpProviders are queried. The
     // only other relevant member is |pid|.
     const bool memory_footprint_only;
+
+    const bool want_detailed_stats;
   };
 
   struct PendingResponse {

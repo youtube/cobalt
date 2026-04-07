@@ -146,6 +146,26 @@ struct PlatformPrivateFootprint {
   //   TBD: https://crbug.com/714961
 };
 
+// Cobalt-specific memory metrics start
+[Extensible]
+enum CobaltMemoryCategory {
+  [Default] kUnknown = 0,
+  kLibChrobalt,
+  kPartitionAlloc,
+  kV8,
+  kMalloc,
+  kCodeOther,
+  kFonts,
+  kAshmemJit,
+  kAndroidRuntime,
+  kStacks
+};
+
+struct DetailedMemoryStats {
+  map<CobaltMemoryCategory, uint32> categories_kb;
+};
+// Cobalt-specific memory metrics end
+
 struct RawOSMemDump {
   uint32 resident_set_kb = 0;
   // peak_resident_set_kb is an experimental field. Please do not use it until
@@ -193,6 +213,11 @@ struct RawOSMemDump {
   // RSS for thread stacks.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 stacks_rss_kb = 0;
+
+  [MinVersion=1, EnableIf=is_cobalt_with_libchrobalt_metrics]
+  DetailedMemoryStats? detailed_stats;
+  [MinVersion=1, EnableIf=is_cobalt_with_libchrobalt_metrics]
+  mojo_base.mojom.TimeTicks? last_detailed_dump_time;
   // Cobalt-specific memory metrics end
 };
 
@@ -258,6 +283,11 @@ struct OSMemDump {
   // RSS for thread stacks.
   [EnableIf=is_cobalt_with_libchrobalt_metrics]
   uint32 stacks_rss_kb = 0;
+
+  [MinVersion=1, EnableIf=is_cobalt_with_libchrobalt_metrics]
+  DetailedMemoryStats? detailed_stats;
+  [MinVersion=1, EnableIf=is_cobalt_with_libchrobalt_metrics]
+  mojo_base.mojom.TimeTicks? last_detailed_dump_time;
   // Cobalt-specific memory metrics end
 };
 
@@ -337,7 +367,7 @@ interface ClientProcess {
   // On Linux we call this once on the browser process ClientProcess passing
   // the pids for all processes.
   // See crbug.com/461788
-  RequestOSMemoryDump(MemoryMapOption option, array<mojo_base.mojom.ProcessId> pids) =>
+  RequestOSMemoryDump(MemoryMapOption option, array<mojo_base.mojom.ProcessId> pids, [MinVersion=1] bool want_detailed_stats) =>
       (bool success, map<mojo_base.mojom.ProcessId, RawOSMemDump> dumps);
 };
 

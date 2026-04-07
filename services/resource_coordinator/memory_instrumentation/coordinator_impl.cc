@@ -64,6 +64,7 @@ class StringWrapper : public base::trace_event::ConvertableToTraceFormat {
 CoordinatorImpl::CoordinatorImpl()
     : next_dump_id_(0),
       client_process_timeout_(base::Seconds(15)),
+      last_detailed_dump_time_(base::TimeTicks()),
       use_proto_writer_(!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kUseMemoryTrackingJsonWriter)),
       write_proto_heap_profile_(
@@ -135,10 +136,19 @@ void CoordinatorImpl::RequestGlobalMemoryDump(
     std::move(callback).Run(success, std::move(global_memory_dump));
   };
 
+  bool want_detailed_stats = false;
+  if ((level_of_detail == MemoryDumpLevelOfDetail::DETAILED ||
+       level_of_detail == MemoryDumpLevelOfDetail::BACKGROUND) &&
+      (base::TimeTicks::Now() - last_detailed_dump_time_) > base::Minutes(30)) {
+    want_detailed_stats = true;
+    last_detailed_dump_time_ = base::TimeTicks::Now();
+  }
+
   QueuedRequest::Args args(dump_type, level_of_detail, determinism,
                            allocator_dump_names, false /* add_to_trace */,
                            base::kNullProcessId,
-                           /*memory_footprint_only=*/false);
+                           /*memory_footprint_only=*/false,
+                           want_detailed_stats);
   RequestGlobalMemoryDumpInternal(args,
                                   base::BindOnce(adapter, std::move(callback)));
 }
@@ -167,7 +177,7 @@ void CoordinatorImpl::RequestGlobalMemoryDumpForPid(
       base::trace_event::MemoryDumpLevelOfDetail::BACKGROUND,
       base::trace_event::MemoryDumpDeterminism::NONE, allocator_dump_names,
       false /* add_to_trace */, pid,
-      /*memory_footprint_only=*/false);
+      /*memory_footprint_only=*/false, false /* want_detailed_stats */);
   RequestGlobalMemoryDumpInternal(args,
                                   base::BindOnce(adapter, std::move(callback)));
 }
@@ -187,7 +197,8 @@ void CoordinatorImpl::RequestPrivateMemoryFootprint(
       base::trace_event::MemoryDumpType::SUMMARY_ONLY,
       base::trace_event::MemoryDumpLevelOfDetail::BACKGROUND,
       base::trace_event::MemoryDumpDeterminism::NONE, {},
-      false /* add_to_trace */, pid, /*memory_footprint_only=*/true);
+      false /* add_to_trace */, pid, /*memory_footprint_only=*/true,
+      false /* want_detailed_stats */);
   RequestGlobalMemoryDumpInternal(args,
                                   base::BindOnce(adapter, std::move(callback)));
 }
@@ -206,7 +217,8 @@ void CoordinatorImpl::RequestGlobalMemoryDumpAndAppendToTrace(
 
   QueuedRequest::Args args(dump_type, level_of_detail, determinism, {},
                            true /* add_to_trace */, base::kNullProcessId,
-                           /*memory_footprint_only=*/false);
+                           /*memory_footprint_only=*/false,
+                           false /* want_detailed_stats */);
   RequestGlobalMemoryDumpInternal(args,
                                   base::BindOnce(adapter, std::move(callback)));
 }

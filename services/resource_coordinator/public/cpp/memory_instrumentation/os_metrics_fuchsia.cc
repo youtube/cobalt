@@ -19,7 +19,8 @@ namespace memory_instrumentation {
 
 // static
 bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
-                                 mojom::RawOSMemDump* dump) {
+                                 mojom::RawOSMemDump* dump,
+                                 bool want_detailed_stats) {
   base::Process process = pid == base::kNullProcessId
                               ? base::Process::Current()
                               : base::Process::Open(pid);

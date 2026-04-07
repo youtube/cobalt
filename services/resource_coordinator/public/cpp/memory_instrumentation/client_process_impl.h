@@ -7,6 +7,8 @@
 
 #include "base/compiler_specific.h"
 #include "base/component_export.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_manager.h"
@@ -70,6 +72,7 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   // mojom::ClientProcess implementation. The Coordinator calls this.
   void RequestOSMemoryDump(mojom::MemoryMapOption mmap_option,
                            const std::vector<base::ProcessId>& ids,
+                           bool want_detailed_stats,
                            RequestOSMemoryDumpCallback callback) override;
 
   struct OSMemoryDumpArgs {
@@ -78,9 +81,13 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
     ~OSMemoryDumpArgs();
     mojom::MemoryMapOption mmap_option;
     std::vector<base::ProcessId> pids;
+    bool want_detailed_stats;
     RequestOSMemoryDumpCallback callback;
   };
   void PerformOSMemoryDump(OSMemoryDumpArgs args);
+  void OnOSMemoryDumpDone(RequestOSMemoryDumpCallback callback,
+                          bool success,
+                          base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results);
 
   // Map containing pending chrome memory callbacks indexed by dump guid.
   // This must be destroyed after |binding_|.
@@ -106,6 +113,8 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   // MemoryDumpManager in each process. Setting up MemoryDumpManager should
   // be moved away from TracingObserver.
   std::unique_ptr<TracingObserver> tracing_observer_;
+
+  base::WeakPtrFactory<ClientProcessImpl> weak_ptr_factory_{this};
 };
 
 }  // namespace memory_instrumentation

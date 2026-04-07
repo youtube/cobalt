@@ -25,8 +25,11 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/smaps_categorizer.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/smaps_categorizer_patterns.h"
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "base/metrics/histogram_functions.h"
 #include "third_party/abseil-cpp/absl/strings/match.h"
 #include "third_party/abseil-cpp/absl/strings/numbers.h"
 #include "third_party/abseil-cpp/absl/strings/string_view.h"
@@ -281,29 +284,6 @@ class ScopedProcessSetDumpable {
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 namespace {
-constexpr char kLibChrobaltPattern[] = "libchrobalt.so";
-constexpr char kPartitionAllocPattern[] = "partition_alloc";
-constexpr char kV8Pattern[] = "v8";
-constexpr char kScudoPattern[] = "scudo";
-constexpr char kHeapPattern[] = "[heap]";
-constexpr char kSoExtension[] = ".so";
-constexpr char kApkExtension[] = ".apk";
-constexpr char kDexExtension[] = ".dex";
-constexpr char kTtfExtension[] = ".ttf";
-constexpr char kTtcExtension[] = ".ttc";
-constexpr char kFontsPath[] = "fonts/";
-constexpr char kAshmemPath[] = "/dev/ashmem/";
-constexpr char kMemfdJitPattern[] = "memfd:jit";
-constexpr char kArtExtension[] = ".art";
-constexpr char kOatExtension[] = ".oat";
-constexpr char kVdexExtension[] = ".vdex";
-constexpr char kOdexExtension[] = ".odex";
-constexpr char kJarExtension[] = ".jar";
-constexpr char kHybExtension[] = ".hyb";
-constexpr char kDalvikPrefix[] = "dalvik-";
-constexpr char kStackAndTlsPattern[] = "stack_and_tls";
-constexpr char kStackPattern[] = "[stack]";
-
 enum class RegionType {
   kNone,
   kLibChrobalt,
@@ -318,49 +298,29 @@ enum class RegionType {
 };
 
 RegionType GetRegionType(const char* line) {
-  if (absl::StrContains(line, kLibChrobaltPattern)) {
-    return RegionType::kLibChrobalt;
+  mojom::CobaltMemoryCategory category = GetMemoryCategoryForMappedFile(line);
+  switch (category) {
+    case mojom::CobaltMemoryCategory::kLibChrobalt:
+      return RegionType::kLibChrobalt;
+    case mojom::CobaltMemoryCategory::kPartitionAlloc:
+      return RegionType::kPartitionAlloc;
+    case mojom::CobaltMemoryCategory::kV8:
+      return RegionType::kV8;
+    case mojom::CobaltMemoryCategory::kMalloc:
+      return RegionType::kMalloc;
+    case mojom::CobaltMemoryCategory::kFonts:
+      return RegionType::kFonts;
+    case mojom::CobaltMemoryCategory::kAshmemJit:
+      return RegionType::kAshmemJit;
+    case mojom::CobaltMemoryCategory::kAndroidRuntime:
+      return RegionType::kAndroidRuntime;
+    case mojom::CobaltMemoryCategory::kStacks:
+      return RegionType::kStacks;
+    case mojom::CobaltMemoryCategory::kCodeOther:
+      return RegionType::kCodeOther;
+    default:
+      return RegionType::kNone;
   }
-  if (absl::StrContains(line, kPartitionAllocPattern)) {
-    return RegionType::kPartitionAlloc;
-  }
-  if (absl::StrContains(line, kV8Pattern)) {
-    return RegionType::kV8;
-  }
-  if (absl::StrContains(line, kScudoPattern) ||
-      absl::StrContains(line, kHeapPattern)) {
-    return RegionType::kMalloc;
-  }
-  if (absl::StrContains(line, kTtfExtension) ||
-      absl::StrContains(line, kTtcExtension) ||
-      absl::StrContains(line, kFontsPath)) {
-    return RegionType::kFonts;
-  }
-  if (absl::StrContains(line, kAshmemPath) ||
-      absl::StrContains(line, kMemfdJitPattern)) {
-    return RegionType::kAshmemJit;
-  }
-  if (absl::StrContains(line, kArtExtension) ||
-      absl::StrContains(line, kOatExtension) ||
-      absl::StrContains(line, kVdexExtension) ||
-      absl::StrContains(line, kOdexExtension) ||
-      absl::StrContains(line, kJarExtension) ||
-      absl::StrContains(line, kHybExtension) ||
-      absl::StrContains(line, kDalvikPrefix)) {
-    return RegionType::kAndroidRuntime;
-  }
-  if (absl::StrContains(line, kStackAndTlsPattern) ||
-      absl::StrContains(line, kStackPattern)) {
-    return RegionType::kStacks;
-  }
-  if (absl::StrContains(line, kSoExtension) ||
-      absl::StrContains(line, kApkExtension) ||
-      absl::StrContains(line, kDexExtension)) {
-    // Catch-all for other executable code and read-only data mappings
-    // from system libraries, GPU drivers, and the Android package.
-    return RegionType::kCodeOther;
-  }
-  return RegionType::kNone;
 }
 }  // namespace
 
@@ -481,9 +441,73 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
   g_proc_smaps_for_testing = f;
 }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+namespace {
+enum class ValidationFailure {
+  kPssMismatch = 1,
+  kParserError = 2,
+  kTimeout = 3,
+  kKernelInconsistency = 4,
+  kMaxValue = kKernelInconsistency,
+};
+
+uint32_t GetPssTotalFromRollup(base::ProcessId pid) {
+  base::FilePath rollup_path = GetProcPidDir(pid).Append("smaps_rollup");
+  return SmapsCategorizer::ParseSmapsMetric(rollup_path, "Pss:");
+}
+}  // namespace
+
+void PopulateCobaltDetailedMetrics(base::ProcessId pid,
+                                   mojom::RawOSMemDump* dump) {
+  base::FilePath smaps_path = GetProcPidDir(pid).Append("smaps");
+
+  class CobaltDelegate : public SmapsCategorizer::Delegate {
+   public:
+    mojom::CobaltMemoryCategory GetCategory(
+        const std::string& mapped_file) const override {
+      return GetMemoryCategoryForMappedFile(mapped_file);
+    }
+  };
+
+  CobaltDelegate delegate;
+  mojom::DetailedMemoryStats stats =
+      SmapsCategorizer::ParseSmaps(smaps_path, delegate);
+
+  uint32_t rollup_pss_kb = GetPssTotalFromRollup(pid);
+  uint32_t categorized_pss_kb = 0;
+  for (const auto& kv : stats.categories_kb) {
+    categorized_pss_kb += kv.second;
+  }
+
+  // Validation: sum of categorized PSS must match rollup PSS within 5% or 2MB.
+  bool pss_mismatch = false;
+  if (rollup_pss_kb > 0) {
+    uint32_t abs_diff = (rollup_pss_kb > categorized_pss_kb)
+                            ? (rollup_pss_kb - categorized_pss_kb)
+                            : (categorized_pss_kb - rollup_pss_kb);
+    if (abs_diff > 2048 && abs_diff > rollup_pss_kb * 0.05) {
+      pss_mismatch = true;
+    }
+  }
+
+  if (pss_mismatch) {
+    base::UmaHistogramEnumeration("Memory.Experimental.ValidationFailure",
+                                  ValidationFailure::kPssMismatch);
+  } else {
+    dump->detailed_stats =
+        mojom::DetailedMemoryStats::New(std::move(stats.categories_kb));
+    dump->last_detailed_dump_time = base::TimeTicks::Now();
+  }
+
+  // Also populate the old fields for backward compatibility.
+  PopulateCobaltSmapsMetrics(pid, dump);
+}
+#endif
+
 // static
 bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
-                                 mojom::RawOSMemDump* dump) {
+                                 mojom::RawOSMemDump* dump,
+                                 bool want_detailed_stats) {
   // TODO(chiniforooshan): There is no need to read both /statm and /status
   // files. Refactor to get everything from /status using ProcessMetric.
   auto statm_file = GetProcPidDir(pid).Append("statm");
@@ -517,7 +541,11 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(pid);
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  PopulateCobaltSmapsMetrics(pid, dump);
+  if (want_detailed_stats) {
+    PopulateCobaltDetailedMetrics(pid, dump);
+  } else {
+    PopulateCobaltSmapsMetrics(pid, dump);
+  }
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

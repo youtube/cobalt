@@ -55,6 +55,11 @@ source_set("tests") {
     "public/cpp/memory_instrumentation/tracing_observer_proto_unittest.cc",
   ]
 
+  if (is_android || is_linux || is_chromeos) {
+    sources +=
+        [ "public/cpp/memory_instrumentation/smaps_categorizer_unittest.cc" ]
+  }
+
   deps = [
     ":lib",
     "//base",

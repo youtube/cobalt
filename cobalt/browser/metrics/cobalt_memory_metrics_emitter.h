@@ -54,6 +54,12 @@ class CobaltMemoryMetricsEmitter
     kIgnored
   };
 
+  enum class CalculationType {
+    kValue,
+    kFragmentation,
+    kWasted,
+  };
+
   struct MetricRange {
     const int min;
     const int max;
@@ -66,6 +72,7 @@ class CobaltMemoryMetricsEmitter
     const char* const metric;
     const EmitTo target;
     const MetricRange range;
+    const CalculationType calculation_type = CalculationType::kValue;
   };
 
   CobaltMemoryMetricsEmitter();

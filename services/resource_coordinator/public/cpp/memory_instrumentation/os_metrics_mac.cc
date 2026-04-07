@@ -251,7 +251,8 @@ void AddRegionByteStats(VMRegion* dest, const VMRegion& source) {
 
 // static
 bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
-                                 mojom::RawOSMemDump* dump) {
+                                 mojom::RawOSMemDump* dump,
+                                 bool want_detailed_stats) {
   task_vm_info info;
   mach_msg_type_number_t count = ChromeTaskVMInfoCount;
   kern_return_t result =

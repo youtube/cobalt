@@ -98,6 +98,9 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
   os_dump->ashmem_jit_rss_kb = internal_os_dump.ashmem_jit_rss_kb;
   os_dump->android_runtime_rss_kb = internal_os_dump.android_runtime_rss_kb;
   os_dump->stacks_rss_kb = internal_os_dump.stacks_rss_kb;
+
+  os_dump->detailed_stats = internal_os_dump.detailed_stats.Clone();
+  os_dump->last_detailed_dump_time = internal_os_dump.last_detailed_dump_time;
   // Cobalt-specific memory metrics end
 #endif
 #endif
@@ -278,9 +281,10 @@ void QueuedRequestDispatcher::SetUpAndDispatch(
 // so ask each process to do so Linux is special see below.
 #if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
     request->pending_responses.insert({client_info.pid, ResponseType::kOSDump});
-    client->RequestOSMemoryDump(request->memory_map_option(),
-                                {base::kNullProcessId},
-                                base::BindOnce(os_callback, client_info.pid));
+    client->RequestOSMemoryDump(
+        request->memory_map_option(), {base::kNullProcessId},
+        request->args.want_detailed_stats,
+        base::BindOnce(os_callback, client_info.pid));
 #endif  // !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
 
     // If we are in the single pid case, then we've already found the only
@@ -314,6 +318,7 @@ void QueuedRequestDispatcher::SetUpAndDispatch(
         {browser_client_pid, ResponseType::kOSDump});
     auto callback = base::BindOnce(os_callback, browser_client_pid);
     browser_client->RequestOSMemoryDump(request->memory_map_option(), pids,
+                                        request->args.want_detailed_stats,
                                         std::move(callback));
   }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -357,7 +362,7 @@ void QueuedRequestDispatcher::SetUpAndDispatchVmRegionRequest(
   request->responses[browser_client_pid].process_id = browser_client_pid;
   auto callback = base::BindOnce(os_callback, browser_client_pid);
   browser_client->RequestOSMemoryDump(mojom::MemoryMapOption::MODULES,
-                                      desired_pids, std::move(callback));
+                                      desired_pids, false, std::move(callback));
 #else
   for (const auto& client_info : clients) {
     if (base::Contains(desired_pids, client_info.pid)) {
@@ -367,7 +372,7 @@ void QueuedRequestDispatcher::SetUpAndDispatchVmRegionRequest(
       request->responses[client_info.pid].service_name =
           client_info.service_name;
       client->RequestOSMemoryDump(mojom::MemoryMapOption::MODULES,
-                                  {base::kNullProcessId},
+                                  {base::kNullProcessId}, false,
                                   base::BindOnce(os_callback, client_info.pid));
     }
   }

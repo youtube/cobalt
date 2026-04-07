@@ -187,6 +187,8 @@ class CoordinatorImpl : public Registry,
   // Timeout for registered client processes to respond to dump requests.
   base::TimeDelta client_process_timeout_;
 
+  base::TimeTicks last_detailed_dump_time_;
+
   // When not null, can be queried for heap dumps.
   mojo::Remote<mojom::HeapProfiler> heap_profiler_;
   mojo::Receiver<mojom::HeapProfilerHelper> heap_profiler_helper_receiver_{

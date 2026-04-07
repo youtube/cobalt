@@ -35,7 +35,8 @@ std::string MakeDebugID(const GUID& guid, DWORD age) {
 
 // static
 bool OSMetrics::FillOSMemoryDump(base::ProcessId pid,
-                                 mojom::RawOSMemDump* dump) {
+                                 mojom::RawOSMemDump* dump,
+                                 bool want_detailed_stats) {
   // Creating process metrics for child processes in mac or windows requires
   // additional information like ProcessHandle or port provider.
   DCHECK_EQ(base::kNullProcessId, pid);

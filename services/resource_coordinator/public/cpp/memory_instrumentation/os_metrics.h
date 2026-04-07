@@ -39,7 +39,9 @@ class COMPONENT_EXPORT(
   // restrictions on |pid|. |dump.platform_private_footprint| must be allocated
   // before calling this function. If |pid| is null, the pid of the current
   // process is used
-  static bool FillOSMemoryDump(base::ProcessId pid, mojom::RawOSMemDump* dump);
+  static bool FillOSMemoryDump(base::ProcessId pid,
+                               mojom::RawOSMemDump* dump,
+                               bool want_detailed_stats);
   static bool FillProcessMemoryMaps(base::ProcessId,
                                     mojom::MemoryMapOption,
                                     mojom::RawOSMemDump*);
