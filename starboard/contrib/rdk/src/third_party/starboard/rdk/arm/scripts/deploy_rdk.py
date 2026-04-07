@@ -210,9 +210,9 @@ def main():
             remote_cmds += [
                 "rdkDisplay remove || true",
                 "sleep 2",
-                f'curl http://127.0.0.1:9998/jsonrpc -d "{rpc_deactivate}"',
+                f"curl http://127.0.0.1:9998/jsonrpc -d '{rpc_deactivate}'",
                 "sleep 2",
-                f'curl http://127.0.0.1:9998/jsonrpc -d "{rpc_activate}"'
+                f"curl http://127.0.0.1:9998/jsonrpc -d '{rpc_activate}'"
             ]
         else:
             remote_cmds += ["rdkDisplay remove || true", "sleep 2"]
