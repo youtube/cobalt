@@ -66,10 +66,11 @@ class AppEventRunnerImpl : public AppEventRunner {
     exit_manager_ = std::make_unique<base::AtExitManager>();
   }
 
-  void CreateMainDelegate(bool is_visible,
+  void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+                          bool is_visible,
                           const char* initial_deep_link) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
-        absl::nullopt /* startup_timestamp */, initial_deep_link,
+        startup_timestamp, initial_deep_link,
         false /* is_content_browsertests */, is_visible);
   }
 
@@ -89,10 +90,10 @@ class AppEventRunnerImpl : public AppEventRunner {
 #endif
 
     if (data) {
-      Run(is_visible(), data->argument_count,
+      Run(event->timestamp, is_visible(), data->argument_count,
           const_cast<const char**>(data->argument_values), data->link);
     } else {
-      Run(is_visible(), 0, nullptr, nullptr);
+      Run(event->timestamp, is_visible(), 0, nullptr, nullptr);
     }
 
 #if BUILDFLAG(USE_EVERGREEN)
@@ -256,11 +257,12 @@ class AppEventRunnerImpl : public AppEventRunner {
   }
 
  private:
-  int Run(bool is_visible,
+  int Run(absl::optional<int64_t> startup_timestamp,
+          bool is_visible,
           int argc,
           const char** argv,
           const char* initial_deep_link) {
-    CreateMainDelegate(is_visible, initial_deep_link);
+    CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
 
     content::ContentMainParams params(GetMainDelegate());
 
