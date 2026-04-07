@@ -53,12 +53,45 @@ class MigrationManagerTest : public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
+TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
+  // Test no data to migrate.
+  auto state = base::MakeRefCounted<MigrationState>();
+  state->has_data_to_migrate = false;
+  state->read_result = StorageReadResult::kSuccess;
+  EXPECT_EQ(MigrationOutcome::kSkipped, state->GetOutcome());
+
+  state->read_result = StorageReadResult::kRecordInvalid;
+  EXPECT_EQ(MigrationOutcome::kSkipped, state->GetOutcome());
+
+  state->read_result = StorageReadResult::kParseError;
+  EXPECT_EQ(MigrationOutcome::kFailed, state->GetOutcome());
+
+  // Test data to migrate.
+  state->has_data_to_migrate = true;
+
+  // Initial success state.
+  EXPECT_EQ(MigrationOutcome::kSuccess, state->GetOutcome());
+
+  // Error taking precedence over Success.
+  state->UpdateCookieResult(InjectionResult::kError);
+  EXPECT_EQ(MigrationOutcome::kFailed, state->GetOutcome());
+
+  // Timeout taking precedence over Error.
+  state->UpdateLocalStorageResult(InjectionResult::kTimeout);
+  EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
+
+  // Verify that an attempt to log a Success doesn't downgrade a Timeout.
+  state->UpdateCookieResult(InjectionResult::kSuccess);
+  state->UpdateLocalStorageResult(InjectionResult::kSuccess);
+  EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
+}
+
 // TODO(b/399166308): Add more test cases for specific migration tasks.
 TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   constexpr uint32_t kTaskCount = 100;
   std::vector<Task> tasks;
   std::vector<int> collected_values;
-  for (size_t i = 0; i < kTaskCount; i++) {
+  for (uint32_t i = 0; i < kTaskCount; i++) {
     tasks.push_back(base::BindOnce(
         [](std::vector<int>& collected_values, int i,
            base::OnceClosure callback) {
@@ -127,8 +160,8 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
     EXPECT_TRUE(cookies[i]->Priority());
     EXPECT_FALSE(cookies[i]->IsPartitioned());
     EXPECT_FALSE(cookies[i]->PartitionKey().has_value());
-    EXPECT_EQ(net::CookieSourceScheme::kUnset, cookies[i]->SourceScheme());
-    EXPECT_EQ(-1, cookies[i]->SourcePort());
+    EXPECT_EQ(net::CookieSourceScheme::kSecure, cookies[i]->SourceScheme());
+    EXPECT_EQ(443, cookies[i]->SourcePort());
     EXPECT_TRUE(cookies[i]->IsDomainCookie());
     EXPECT_FALSE(cookies[i]->IsHostCookie());
   }
