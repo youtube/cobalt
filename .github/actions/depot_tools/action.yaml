@@ -106,6 +106,12 @@ runs:
       run: |
         # Configure Git for authenticating with googlesource.com using a .gitcookies file.
         # This uses the service account email and an OAuth access token from the metadata server.
+        # We only perform this if the metadata server is reachable (i.e., on a GCP VM).
+        if ! curl -s -m 2 -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email" > /dev/null; then
+          echo "Metadata server not reachable. Skipping GoB authentication setup."
+          exit 0
+        fi
+
         SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
         ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
 
@@ -136,7 +142,6 @@ runs:
       if: inputs.run_sync == 'true'
       env:
         REF: ${{ github.sha }}
-        GIT_TRACE: 1
       run: |
         cd cobalt
         gclient sync \
@@ -147,6 +152,7 @@ runs:
           --force \
           --delete_unversioned_trees \
           --revision "${REF}"
+
       shell: bash
 
     - name: Run gclient runhooks
