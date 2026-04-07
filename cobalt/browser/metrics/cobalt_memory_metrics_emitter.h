@@ -104,6 +104,13 @@ class CobaltMemoryMetricsEmitter
 
   void CollateResults();
 
+  memory_instrumentation::HistogramProcessType GetProcessType(
+      memory_instrumentation::mojom::ProcessType type);
+
+  void EmitProcessMetrics(
+      memory_instrumentation::HistogramProcessType ptype,
+      const memory_instrumentation::GlobalMemoryDump::ProcessDump& pmd);
+
   bool memory_dump_in_progress_ = false;
   std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump_;
 
