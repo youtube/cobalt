@@ -14,8 +14,9 @@
 
 package dev.cobalt.media;
 
+import java.util.Collections;
 import java.util.Set;
-import java.util.HashSet;
+import java.util.WeakHashMap;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.SequencedTaskRunner;
@@ -29,19 +30,20 @@ public class MediaCodecOutputTracker {
   private static MediaCodecOutputTracker sInstance;
   private static final int BYTES_PER_MIB = 1024 * 1024;
   private static final long DEFAULT_REPORT_INTERVAL_MS = 60000; // 1 minute
-  private static final Object mTrackerLock = new Object();
+  private static final Object sTrackerLock = new Object();
 
-  private final Set<MediaCodecBridge> mBridges = new HashSet<>();
+  private final Set<MediaCodecBridge> mBridges =
+        Collections.newSetFromMap(new WeakHashMap<>());
 
   private final SequencedTaskRunner mTaskRunner =
-    PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT);
+        PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT);
 
   private boolean mIsReporting = false;
 
   private MediaCodecOutputTracker() {}
 
   public static MediaCodecOutputTracker get() {
-    synchronized (mTrackerLock) {
+    synchronized (sTrackerLock) {
       if (sInstance == null) {
         sInstance = new MediaCodecOutputTracker();
       }
@@ -50,7 +52,7 @@ public class MediaCodecOutputTracker {
   }
 
   public void register(MediaCodecBridge bridge) {
-    synchronized (mTrackerLock) {
+    synchronized (sTrackerLock) {
       if (mBridges.isEmpty()) {
         startReporting();
       }
@@ -59,7 +61,7 @@ public class MediaCodecOutputTracker {
   }
 
   public void unregister(MediaCodecBridge bridge) {
-    synchronized (mTrackerLock) {
+    synchronized (sTrackerLock) {
       mBridges.remove(bridge);
       if (mBridges.isEmpty()) {
         stopReporting();
@@ -70,14 +72,14 @@ public class MediaCodecOutputTracker {
   private void postReportTask() {
     mTaskRunner.postDelayedTask(
       () -> {
-        synchronized (mTrackerLock) {
+        synchronized (sTrackerLock) {
           if (!mIsReporting || mBridges.isEmpty()) {
             mIsReporting = false;
             return;
           }
-          reportMetrics();
-          postReportTask();
         }
+        reportMetrics();
+        postReportTask();
       },
       DEFAULT_REPORT_INTERVAL_MS);
   }
@@ -102,17 +104,20 @@ public class MediaCodecOutputTracker {
   }
 
   private long getTotalOutputMemoryUsage() {
-    synchronized (mTrackerLock) {
-      long totalMemory = 0;
-      for (MediaCodecBridge bridge : mBridges) {
-        int dimension = bridge.getCurrentMediaFormatDimension();
-        int activeBuffers = bridge.sizeOfActiveOutputBuffers();
-        if (dimension > 0 && activeBuffers > 0) {
-          // Estimate memory based on YUV420 format: width * height * 1.5
-          totalMemory += (long) dimension * 3 / 2 * activeBuffers;
-        }
-      }
-      return totalMemory;
+    MediaCodecBridge[] bridges;
+    synchronized (sTrackerLock) {
+      bridges = mBridges.toArray(new MediaCodecBridge[0]);
     }
+
+    long totalMemory = 0;
+    for (MediaCodecBridge bridge : bridges) {
+      int dimension = bridge.getCurrentMediaFormatDimension();
+      int activeBuffers = bridge.sizeOfActiveOutputBuffers();
+      if (dimension > 0 && activeBuffers > 0) {
+        // Estimate memory based on YUV420 format: width * height * 1.5
+        totalMemory += (long) dimension * 3 / 2 * activeBuffers;
+      }
+    }
+    return totalMemory;
   }
 }
