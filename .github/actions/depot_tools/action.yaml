@@ -55,22 +55,29 @@ runs:
       run: build_telemetry opt-out
       shell: bash
 
+    - name: Restore gclient cache via rsync
+      if: inputs.run_sync == 'true' && steps.cache-path.outputs.path != ''
+      env:
+        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+      run: |
+        if [[ -d "${CACHE_PATH}/gclient-src" ]]; then
+          echo "Restoring gclient working trees from cache..."
+          rsync -a "${CACHE_PATH}/gclient-src/" cobalt/
+        else
+          echo "No existing gclient cache found at ${CACHE_PATH}/gclient-src."
+        fi
+      shell: bash
+
     - name: Run gclient config
       env:
         RBE_INSTANCE: ${{ inputs.rbe_instance }}
         REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
-        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
       run: |
         set -x
         cd cobalt
 
-        CACHE_ARG=()
-        if [[ -n "${CACHE_PATH}" ]]; then
-          CACHE_ARG=(--cache-dir="${CACHE_PATH}"/git-cache)
-        fi
         gclient config \
           --name=src \
-          "${CACHE_ARG[@]}" \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           "${REPOSITORY}"
       shell: bash
@@ -140,6 +147,43 @@ runs:
           --force \
           --delete_unversioned_trees \
           --revision "${REF}"
+      shell: bash
+
+    - name: Save gclient cache via atomic rsync
+      if: inputs.run_sync == 'true' && steps.cache-path.outputs.path != ''
+      env:
+        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+      run: |
+        set -euo pipefail
+        cd cobalt
+        if [[ ! -f ".gclient_entries" ]]; then
+          echo "No .gclient_entries file found. Skipping cache update."
+          exit 0
+        fi
+
+        GCLIENT_LIST=$(mktemp)
+        trap 'rm -f "${GCLIENT_LIST}"' EXIT
+
+        python3 -c "
+        import ast, os
+        entries = ast.literal_eval(open('.gclient_entries').read())
+        print('\n'.join(['.gclient', '.gclient_entries'] + [p for p in entries if p == 'src' or p.startswith('src/')]))
+        " > "${GCLIENT_LIST}"
+
+        TMP_CACHE="${CACHE_PATH}/gclient-src.tmp.${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        echo "Syncing targeted gclient submodules to ${TMP_CACHE}..."
+        mkdir -p "${TMP_CACHE}"
+
+        LINK_DEST_ARG=()
+        if [[ -d "${CACHE_PATH}/gclient-src" ]]; then
+          LINK_DEST_ARG=(--link-dest="${CACHE_PATH}/gclient-src")
+        fi
+        rsync -a --delete "${LINK_DEST_ARG[@]}" --exclude='out/' --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
+
+        echo "Safely replacing old cache via atomic move..."
+        mv "${CACHE_PATH}/gclient-src" "${CACHE_PATH}/gclient-src.old" || true
+        mv "${TMP_CACHE}" "${CACHE_PATH}/gclient-src"
+        rm -rf "${CACHE_PATH}/gclient-src.old"
       shell: bash
 
     - name: Run gclient runhooks
