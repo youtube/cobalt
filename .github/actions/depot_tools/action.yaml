@@ -136,7 +136,7 @@ runs:
         # TEMPORARY DEBUG
         git version --build-options
         git config -l
-        sed 's/1\/.*/REDACTED/g' ~/.gitcookies
+        sed 's/1\/.*/REDACTED/g' /tmp/gitcookies
         date
 
         export GIT_DAPPER_TRACE=1
