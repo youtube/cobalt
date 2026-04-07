@@ -45,7 +45,8 @@ class AppEventRunner {
   virtual void InitializeSystem() = 0;
 
   // Creates the main delegate for the content process.
-  virtual void CreateMainDelegate(bool is_visible,
+  virtual void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+                                  bool is_visible,
                                   const char* initial_deep_link) = 0;
 
   // Returns the main delegate.
