@@ -280,7 +280,8 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
   video_mime_type_ = mime_type;
   video_stream_info_.mime = video_mime_type_.c_str();
   video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
-  LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
+  LOG(INFO) << "TEST Converted to SbMediaVideoStreamInfo -- "
+            << video_stream_info_;
 }
 
 void SbPlayerBridge::WriteBuffers(
@@ -306,6 +307,11 @@ void SbPlayerBridge::WriteBuffers(
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
+  if (video_stream_info_.codec == kSbMediaVideoCodecVp9) {
+    LOG(INFO) << "TEST we have VP9!";
+  } else if (video_stream_info_.codec == kSbMediaVideoCodecH264) {
+    LOG(INFO) << "TEST we have H264!";
+  }
   WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
 

@@ -185,11 +185,19 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                              TimeDelta time_ahead_of_playback,
                              bool is_preroll);
 
-  void OnBufferingStateChange(BufferingState state);
+  void OnBufferingStateChange(BufferingState buffering_state);
 
+  void RecreatePlayerBridge(TimeDelta seek_time);
+
+  // The following member variables are only accessed on |task_runner_|.
   State state_;
-  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  const std::unique_ptr<MediaLog> media_log_;
+
+  // Used to signal that a video codec change is in progress.
+  bool video_codec_change_pending_ = false;
+
+  // Callbacks and objects passed in during initialization.
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  std::unique_ptr<MediaLog> media_log_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
   const TimeDelta audio_write_duration_local_;

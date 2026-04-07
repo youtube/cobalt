@@ -171,6 +171,8 @@ class SbPlayerBridge {
     set_drm_system_ready_cb_time_ = timestamp;
   }
 
+  const VideoDecoderConfig& video_config() const { return video_config_; }
+
  private:
   enum State {
     kPlaying,
