@@ -37,11 +37,17 @@ def get_commits(origin, target, start):
 def cherry_pick(sha, num, title):
   ps = get_out(['git', 'show', '-s', '--format=%P', sha]).split()
   info = get_out(['git', 'log', '-1', '--format=%ad%n%b', sha])
-  date, body = info.split('\n', 1)
-  msg = f'Cherry pick PR #{num}: {title}\n\n'
-  msg += f'Refer to original PR: #{num}\n\n{body}'
+  parts = info.split('\n', 1)
+  date = parts[0]
+  body = parts[1] if len(parts) > 1 else ''
 
-  cmd = ['git', 'cherry-pick', '-x', '--no-commit']
+  msg = f'Cherry pick PR #{num}: {title}\n\n'
+  msg += f'Refer to original PR: #{num}\n\n'
+  if body:
+    msg += f'{body}\n\n'
+  msg += f'(cherry picked from commit {sha})'
+
+  cmd = ['git', 'cherry-pick', '--no-commit']
   if len(ps) > 1:
     cmd.append('--mainline=1')
   subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
