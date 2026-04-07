@@ -12,14 +12,6 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 24.lts.1+
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -30,3 +22,4 @@ jobs:
           gh workflow run win32_24.lts.1+ --ref 24.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}

@@ -12,14 +12,6 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 23.lts.1+
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -29,19 +21,12 @@ jobs:
           gh workflow run raspi-2_23.lts.1+ --ref 23.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
   trigger_22:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 22.lts.1+
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -51,19 +36,12 @@ jobs:
           gh workflow run raspi-2_22.lts.1+ --ref 22.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
   trigger_21:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 21.lts.1+
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -72,19 +50,12 @@ jobs:
           gh workflow run raspi-2_21.lts.1+ --ref 21.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
   trigger_20:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 20.lts.1+
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -92,19 +63,12 @@ jobs:
           gh workflow run raspi-2_20.lts.1+ --ref 20.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
   trigger_19:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 19.lts.1+
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -112,19 +76,12 @@ jobs:
           gh workflow run raspi-2_19.lts.1+ --ref 19.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
   trigger_rc_11:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: rc_11
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -132,19 +89,12 @@ jobs:
           gh workflow run raspi-2_rc_11 --ref rc_11 -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
   trigger_cobalt_9:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: COBALT_9
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -152,3 +102,4 @@ jobs:
           gh workflow run raspi-2_COBALT_9 --ref COBALT_9 -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}

@@ -12,14 +12,6 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 26.android
-          persist-credentials: false
-          filter: blob:none
-          sparse-checkout: .github
       - name: Trigger Nightly
         run: |
           set -x
@@ -27,3 +19,4 @@ jobs:
           gh workflow run linux_26.android --ref 26.android -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
