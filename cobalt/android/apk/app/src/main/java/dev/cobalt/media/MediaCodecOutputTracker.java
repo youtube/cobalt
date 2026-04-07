@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
 
 package dev.cobalt.media;
 
-import java.util.Collections;
 import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.HashSet;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.SequencedTaskRunner;
@@ -30,62 +29,57 @@ public class MediaCodecOutputTracker {
   private static MediaCodecOutputTracker sInstance;
   private static final int BYTES_PER_MIB = 1024 * 1024;
   private static final long DEFAULT_REPORT_INTERVAL_MS = 60000; // 1 minute
+  private static final Object mTrackerLock = new Object();
 
-  private final Set<MediaCodecBridge> mBridges =
-      Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+  private final Set<MediaCodecBridge> mBridges = new HashSet<>();
 
   private final SequencedTaskRunner mTaskRunner =
-      PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT);
-  private final Runnable mReportRunnable =
-      new Runnable() {
-        @Override
-        public void run() {
-          synchronized (MediaCodecOutputTracker.this) {
-            if (!mIsReporting || mBridges.isEmpty()) {
-              mIsReporting = false;
-              return;
-            }
-            reportMetrics();
-            mTaskRunner.postDelayedTask(this, DEFAULT_REPORT_INTERVAL_MS);
-          }
-        }
-      };
+    PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT);
 
-  private boolean mIsReporting;
+  private boolean mIsReporting = false;
 
   private MediaCodecOutputTracker() {}
 
-  public static synchronized MediaCodecOutputTracker get() {
-    if (sInstance == null) {
-      sInstance = new MediaCodecOutputTracker();
-    }
-    return sInstance;
-  }
-
-
-  public synchronized void register(MediaCodecBridge bridge) {
-    if (mBridges.isEmpty()) {
-      startReporting();
-    }
-    mBridges.add(bridge);
-  }
-
-  public synchronized void unregister(MediaCodecBridge bridge) {
-    mBridges.remove(bridge);
-    if (mBridges.isEmpty()) {
-      stopReporting();
+  public static MediaCodecOutputTracker get() {
+    synchronized (mTrackerLock) {
+      if (sInstance == null) {
+        sInstance = new MediaCodecOutputTracker();
+      }
+      return sInstance;
     }
   }
 
-  private void startReporting() {
-    if (!mIsReporting) {
-      mIsReporting = true;
-      mTaskRunner.postDelayedTask(mReportRunnable, DEFAULT_REPORT_INTERVAL_MS);
+  public void register(MediaCodecBridge bridge) {
+    synchronized (mTrackerLock) {
+      if (mBridges.isEmpty()) {
+        startReporting();
+      }
+      mBridges.add(bridge);
     }
   }
 
-  private void stopReporting() {
-    mIsReporting = false;
+  public void unregister(MediaCodecBridge bridge) {
+    synchronized (mTrackerLock) {
+      mBridges.remove(bridge);
+      if (mBridges.isEmpty()) {
+        stopReporting();
+      }
+    }
+  }
+
+  private void postReportTask() {
+    mTaskRunner.postDelayedTask(
+      () -> {
+        synchronized (mTrackerLock) {
+          if (!mIsReporting || mBridges.isEmpty()) {
+            mIsReporting = false;
+            return;
+          }
+          reportMetrics();
+          postReportTask();
+        }
+      },
+      DEFAULT_REPORT_INTERVAL_MS);
   }
 
   private void reportMetrics() {
@@ -96,9 +90,20 @@ public class MediaCodecOutputTracker {
     }
   }
 
+  private void startReporting() {
+    if (!mIsReporting) {
+      mIsReporting = true;
+      postReportTask();
+    }
+  }
+
+  private void stopReporting() {
+    mIsReporting = false;
+  }
+
   private long getTotalOutputMemoryUsage() {
-    long totalMemory = 0;
-    synchronized (mBridges) {
+    synchronized (mTrackerLock) {
+      long totalMemory = 0;
       for (MediaCodecBridge bridge : mBridges) {
         int dimension = bridge.getCurrentMediaFormatDimension();
         int activeBuffers = bridge.sizeOfActiveOutputBuffers();
@@ -107,7 +112,7 @@ public class MediaCodecOutputTracker {
           totalMemory += (long) dimension * 3 / 2 * activeBuffers;
         }
       }
+      return totalMemory;
     }
-    return totalMemory;
   }
 }
