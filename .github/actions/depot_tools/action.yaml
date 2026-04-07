@@ -165,9 +165,10 @@ runs:
         trap 'rm -f "${GCLIENT_LIST}"' EXIT
 
         python3 -c "
-        import ast, os
-        entries = ast.literal_eval(open('.gclient_entries').read())
-        print('\n'.join(['.gclient', '.gclient_entries'] + [p for p in entries if p == 'src' or p.startswith('src/')]))
+        gclient_globals = {}
+        exec(open('.gclient_entries').read(), gclient_globals)
+        entries = gclient_globals.get('entries', {})
+        print('\n'.join(['.gclient', '.gclient_entries'] + [p for p in entries if p != 'src' and p.startswith('src/')]))
         " > "${GCLIENT_LIST}"
 
         TMP_CACHE="${CACHE_PATH}/gclient-src.tmp.${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -178,7 +179,7 @@ runs:
         if [[ -d "${CACHE_PATH}/gclient-src" ]]; then
           LINK_DEST_ARG=(--link-dest="${CACHE_PATH}/gclient-src")
         fi
-        rsync -a --delete "${LINK_DEST_ARG[@]}" --exclude='out/' --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
+        rsync -a --delete --ignore-missing-args "${LINK_DEST_ARG[@]}" --exclude='out/' --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
 
         echo "Safely replacing old cache via atomic move..."
         mv "${CACHE_PATH}/gclient-src" "${CACHE_PATH}/gclient-src.old" || true
