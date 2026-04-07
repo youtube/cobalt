@@ -21,6 +21,7 @@ Requires PyGithub to run:
 import argparse
 import github
 import os
+import typing
 
 _GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
 assert _GITHUB_TOKEN != '', (
@@ -77,7 +78,7 @@ def initialize_repo_connection():
   return g.get_repo(TARGET_REPO)
 
 
-def get_checks_for_branch(repo, branch: str):
+def get_checks_for_branch(repo, branch: str) -> typing.Iterable[typing.Any]:
   # The 'merged' sort order is not listed in public docs but still works.
   # If this functionality is removed the alternative is to loop through all
   # PRs and use the 'merged_at' property to determine which is the latest one.
@@ -93,7 +94,7 @@ def get_checks_for_branch(repo, branch: str):
       if checks_complete:
         return checks
 
-  return []
+  raise RuntimeError(f'Could not find any completed checks for branch {branch}')
 
 
 def should_include_run(check_run) -> bool:
