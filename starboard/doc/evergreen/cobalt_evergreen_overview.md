@@ -272,7 +272,7 @@ directory tree,
 we would use the following command to run NPLB:
 
 ```sh
-.../elf_loader_sandbox --evergreen_library=libnplb.so
+.../elf_loader_sandbox --evergreen_library=app/nplb/content/libnplb.so
                        --evergreen_content=app/nplb/content
 ```
 
@@ -505,7 +505,8 @@ Image required for all slot configurations:
 │           │   └── libcobalt.lz4 <--(System image version of Cobalt Core)
 │           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
-└── crashpad_handler <--(Cobalt crash handler)
+└── native_target
+    ├── crashpad_handler <--(Cobalt crash handler)
 ```
 
 Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen

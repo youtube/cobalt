@@ -312,6 +312,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Media.AllocatedEncodedBuffer"
+    unit="MB" expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records the memory allocated by media decoder buffer for video and audio.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Total.PrivateFootprintSwap" units="MB"
     expires_after="never">
   <owner>tasunny@google.com</owner>

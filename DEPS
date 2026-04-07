@@ -308,7 +308,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': 'b40c5631f5d789a9370067e0f492795c0b05bbef',
+  'v8_revision': '5968722334b4bc3876bbaf1e0b48aae785d6ca08',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -320,7 +320,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling PDFium
   # and whatever else without interference from each other.
-  'pdfium_revision': 'cf433ae5520d061db56391155b59b34e67484f39',
+  'pdfium_revision': '6b490ca2247fd99fffaf9da344d88a26016cda0e',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling BoringSSL
   # and whatever else without interference from each other.

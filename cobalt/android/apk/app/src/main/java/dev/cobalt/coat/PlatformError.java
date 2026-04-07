@@ -21,6 +21,7 @@ import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -63,6 +64,9 @@ public class PlatformError
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
   private static final int DISMISS_BUTTON = 3;
+
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final String RETRY_PARAM_VALUE = "1";
 
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
@@ -165,7 +169,26 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           mDialog.dismiss();
-          reloadWebContents(cobaltActivity);
+          // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
+          // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
+          // still processed.
+          if (cobaltActivity != null) {
+            WebContents webContents = cobaltActivity.getActiveWebContents();
+            if (webContents == null) {
+              Log.e(TAG, "WebContents is null and not available to reload the URL.");
+            } else {
+              String currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+
+              // Reloading the web contents as a fallback if the URL is empty to attempt a fresh navigation.
+              // Otherwise, add a param to the URL to indicate a bootstrap request with a retry from the network dialog
+              if (currentUrl.isEmpty()) {
+                Log.i(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
+                webContents.getNavigationController().reload(/*param=*/true);
+              } else {
+                cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl));
+              }
+            }
+          }
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
@@ -191,16 +214,18 @@ public class PlatformError
     void sendResponse(@PlatformError.Response int response, long data);
   }
 
-  /** Reloads the web contents if available */
-  private void reloadWebContents(CobaltActivity cobaltActivity) {
-    if (cobaltActivity != null) {
-      WebContents webContents = cobaltActivity.getActiveWebContents();
-      if (webContents != null) {
-        webContents.getNavigationController().reload(true);
-      } else {
-        Log.e(TAG, "WebContents is null and not available to reload the application.");
-      }
+  //TODO(b/496219065): Add unit tests for retry URL param logic
+  /** Adds a retry param to the URL if not already present to differentiate
+   *  bootstrap requests that originate from a network dialog retry.
+   */
+  private String addRetryUrlParam(String url) {
+    Uri parsedUri = Uri.parse(url);
+    if (parsedUri.getQueryParameter(RETRY_PARAM_KEY) == null) {
+      Uri.Builder uriBuilder = parsedUri.buildUpon();
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, RETRY_PARAM_VALUE);
+      return uriBuilder.build().toString();
     }
+    return url;
   }
 
 }

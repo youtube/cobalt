@@ -15,6 +15,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_PERFORMANCE_EXTENSIONS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_PERFORMANCE_EXTENSIONS_H_
 
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -35,9 +36,9 @@ class CORE_EXPORT PerformanceExtensions final {
   static uint64_t measureUsedSwapMemory(ScriptState*, const Performance&);
   static uint64_t measureReservedVirtualMemory(ScriptState*,
                                                const Performance&);
-  static ScriptPromise<IDLLongLong> getAppStartupTime(ScriptState*,
-                                                      const Performance&,
-                                                      ExceptionState&);
+  static ScriptPromise<IDLDouble> getAppStartupTimeStamp(ScriptState*,
+                                                         const Performance&,
+                                                         ExceptionState&);
 };
 
 }  // namespace blink
