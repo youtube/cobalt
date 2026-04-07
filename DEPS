@@ -285,18 +285,18 @@ vars = {
   # download libvpx test data
   'download_libvpx_testdata': False,
 
-  'android_git': 'https://android.googlesource.com',
-  'aomedia_git': 'https://aomedia.googlesource.com',
-  'boringssl_git': 'https://boringssl.googlesource.com',
-  'chrome_git': 'https://chrome-internal.googlesource.com',
-  'chromium_git': 'https://chromium.googlesource.com',
-  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com',
-  'dawn_git': 'https://dawn.googlesource.com',
-  'pdfium_git': 'https://pdfium.googlesource.com',
-  'quiche_git': 'https://quiche.googlesource.com',
-  'skia_git': 'https://skia.googlesource.com',
-  'swiftshader_git': 'https://swiftshader.googlesource.com',
-  'webrtc_git': 'https://webrtc.googlesource.com',
+  'android_git': 'https://android.googlesource.com/a',
+  'aomedia_git': 'https://aomedia.googlesource.com/a',
+  'boringssl_git': 'https://boringssl.googlesource.com/a',
+  'chrome_git': 'https://chrome-internal.googlesource.com/a',
+  'chromium_git': 'https://chromium.googlesource.com/a',
+  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com/a',
+  'dawn_git': 'https://dawn.googlesource.com/a',
+  'pdfium_git': 'https://pdfium.googlesource.com/a',
+  'quiche_git': 'https://quiche.googlesource.com/a',
+  'skia_git': 'https://skia.googlesource.com/a',
+  'swiftshader_git': 'https://swiftshader.googlesource.com/a',
+  'webrtc_git': 'https://webrtc.googlesource.com/a',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
