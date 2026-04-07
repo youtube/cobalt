@@ -5,8 +5,6 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.url.GURL;
 
-import dev.cobalt.util.StartupGuard;
-
 /**
  * An observer that monitors web content navigation to disarm the StartupGuard
  * once the primary page has successfully loaded or begun navigating.
@@ -20,7 +18,8 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
      * @param webContents The WebContents to observe.
      */
     public StartupGuardNavigationObserver(WebContents webContents) {
-        super(webContents);
+        // In M138, we explicitly call observe to attach to the WebContents.
+        observe(webContents);
     }
 
     @Override
@@ -42,7 +41,7 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
         // Network-specific errors (e.g., DNS failure, offline) are handled by
         // separate error-handling logic, so we disarm the guard here.
         StartupGuard.getInstance().disarm();
-        destroy();
+        observe(null);
     }
 
     @Override
@@ -68,6 +67,6 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
         }
 
         StartupGuard.getInstance().disarm();
-        destroy();
+        observe(null);
     }
 }

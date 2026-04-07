@@ -509,8 +509,6 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
 #endif
-  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-      web_contents());
 }
 
 void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,

@@ -29,9 +29,6 @@
 #include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
 #include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
 #include "starboard/android/shared/file_internal.h"
-#include "starboard/android/shared/input_events_generator.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
@@ -42,10 +39,6 @@
 #include "starboard/key.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-
-namespace {
-// (cobalt b/372559388) Update namespace to jni_zero.
-}  // namespace
 
 namespace starboard {
 

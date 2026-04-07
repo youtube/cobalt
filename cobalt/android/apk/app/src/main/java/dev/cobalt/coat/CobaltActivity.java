@@ -46,7 +46,7 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.shell.ShellManagerJni;
-import dev.cobalt.util.StartupGuard;
+import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
@@ -249,14 +249,11 @@ public abstract class CobaltActivity extends Activity {
     }
 
     // META_DATA_APP_URL is configured to be the same as hardcoded YOUTUBE_URL.
-    // However, if the app is used to start other web applications e.g google.com, we should not disarm Startup Guard.
+    // If the app is used to start other web applications e.g google.com, because there will have no Kabuki web application code to call h5vcc.system.HideSplashScreen().
+    // We should disarm Startup Guard now.
     if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
       Log.i(TAG, "Non-Youtube startup URL detected.");
       StartupGuard.getInstance().disarm();
-    }
-
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
     }
 
     StartupGuard.getInstance().setStartupMilestone(8);
