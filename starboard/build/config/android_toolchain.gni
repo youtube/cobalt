@@ -14,13 +14,11 @@
 
 # Identifies the toolchain that should be used for Android-specific targets
 # (JNI code generation, Android tools, etc.).
-#
-# In Cobalt modular builds with separate toolchains, the default_toolchain is
+# This variable is meant to replace `default_toolchain` in upstream Android GN
+# files where it is used to avoid duplicate builds by secondary toolchains.
+# In Cobalt modular builds with separate toolchains, the `default_toolchain` is
 # a Linux/Evergreen toolchain where is_android=false. Android targets must be
-# evaluated in the starboard toolchain which has current_os="android".
-# For all other builds (including vanilla Chromium), this is simply the
-# default_toolchain.
-
+# evaluated in the starboard toolchain where current_os="android".
 if (is_cobalt && build_with_separate_cobalt_toolchain) {
   android_toolchain = starboard_toolchain
 } else {
