@@ -29,6 +29,7 @@
 #include "base/location.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
+#include "base/json/string_escape.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -128,6 +129,75 @@ bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
   }
 
   return false;
+}
+
+bool GetQueryParamValue(const GURL& url,
+                        std::string_view key,
+                        std::string* value) {
+  if (!url.is_valid() || !url.has_query()) {
+    return false;
+  }
+
+  for (net::QueryIterator it(url); !it.IsAtEnd(); it.Advance()) {
+    if (it.GetKey() == key) {
+      *value = it.GetUnescapedValue();
+      return true;
+    }
+  }
+  return false;
+}
+
+bool HasYtsSessionContext(const GURL& url) {
+  std::string value;
+  return GetQueryParamValue(url, "yts_server", &value) &&
+         GetQueryParamValue(url, "yts_agent_id", &value);
+}
+
+bool IsYoutubeTvUrl(const GURL& url) {
+  return url.is_valid() &&
+         (url.host_piece() == "www.youtube.com" ||
+          url.host_piece() == "youtube.com") &&
+         base::StartsWith(url.path_piece(), "/tv");
+}
+
+bool IsYtsAgentPage(const GURL& url) {
+  return url.is_valid() &&
+         url.host_piece() == "yts.devicecertification.youtube" &&
+         base::StartsWith(url.path_piece(), "/agent/");
+}
+
+bool IsYtsStickyCandidate(const GURL& url) {
+  std::string value;
+  return (GetQueryParamValue(url, "loader", &value) && value == "yts") ||
+         (GetQueryParamValue(url, "rloader", &value) && value == "yts") ||
+         GetQueryParamValue(url, "stick", &value) ||
+         GetQueryParamValue(url, "hrld", &value);
+}
+
+GURL MaybeRestoreYtsSessionContext(const GURL& current_url,
+                                   const GURL& previous_url) {
+  if (!IsYtsStickyCandidate(current_url) || !HasYtsSessionContext(previous_url)) {
+    return current_url;
+  }
+
+  if (!IsYoutubeTvUrl(current_url)) {
+    return current_url;
+  }
+
+  GURL updated_url = current_url;
+  for (const char* key : {"loader", "launch", "yts_server", "yts_agent_id"}) {
+    std::string current_value;
+    if (GetQueryParamValue(updated_url, key, &current_value)) {
+      continue;
+    }
+
+    std::string previous_value;
+    if (GetQueryParamValue(previous_url, key, &previous_value)) {
+      updated_url = net::AppendQueryParameter(updated_url, key, previous_value);
+    }
+  }
+
+  return updated_url;
 }
 
 // Null until/unless the default main message loop is running.
@@ -498,7 +568,35 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 void Shell::PrimaryMainDocumentElementAvailable() {}
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
-  LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
+  content::RenderFrameHost* render_frame_host =
+      navigation_handle->GetRenderFrameHost();
+
+  // Inject stashed yts.prior_connection into agent pages regardless of whether
+  // they are the primary main frame.  The sticky-loader redirect opens the
+  // agent page in a subframe.
+  if (IsYtsAgentPage(navigation_handle->GetURL()) &&
+      !yts_prior_connection_stash_.empty() && render_frame_host) {
+    std::string escaped;
+    base::EscapeJSONString(yts_prior_connection_stash_, true, &escaped);
+    std::string js =
+        "try { if (!window.localStorage.getItem('yts.prior_connection')) {"
+        " window.localStorage.setItem('yts.prior_connection', " +
+        escaped + ");} } catch(e) {}";
+    render_frame_host->ExecuteJavaScript(base::UTF8ToUTF16(js),
+                                         base::DoNothing());
+  }
+
+  if (!navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+
+  const GURL updated_url = MaybeRestoreYtsSessionContext(
+      navigation_handle->GetURL(),
+      navigation_handle->GetPreviousPrimaryMainFrameURL());
+  if (updated_url != navigation_handle->GetURL()) {
+    LoadURL(updated_url);
+    return;
+  }
 }
 
 void Shell::DidStopLoading() {
@@ -525,7 +623,6 @@ void Shell::DidStopLoading() {
 }
 
 void Shell::RegisterInjectedJavaScript() {
-  // Get the embedded header resource
   GeneratedResourceMap resource_map;
   CobaltJavaScriptPolyfill::GenerateMap(resource_map);
 
@@ -534,14 +631,12 @@ void Shell::RegisterInjectedJavaScript() {
     std::string js(reinterpret_cast<const char*>(file_contents.data),
                    file_contents.size);
 
-    // Inject a script at document start for all origins
     const std::u16string script(base::UTF8ToUTF16(js));
     const std::vector<std::string> allowed_origins({"*"});
     auto result = js_communication_host_->AddDocumentStartJavaScript(
         script, allowed_origins);
 
     if (result.error_message.has_value()) {
-      // error_message contains a value
       LOG(WARNING) << "Failed to register JS injection for:" << file_name
                    << ", error message: " << result.error_message.value();
     }
@@ -903,6 +998,15 @@ bool Shell::DidAddMessageToConsole(WebContents* source,
                                    const std::u16string& message,
                                    int32_t line_no,
                                    const std::u16string& source_id) {
+  // Fallback when the WebMessageListener bridge is unavailable.
+  static constexpr std::string_view kSetItemPrefix =
+      "[cobalt-yts-bridge] setItem key=yts.prior_connection value=";
+
+  std::string msg = base::UTF16ToUTF8(message);
+  if (msg.starts_with(kSetItemPrefix)) {
+    yts_prior_connection_stash_ = msg.substr(kSetItemPrefix.size());
+    return true;
+  }
   return false;
 }
 

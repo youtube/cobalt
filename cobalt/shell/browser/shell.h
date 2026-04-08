@@ -292,6 +292,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 
+  // Stash for yts.prior_connection captured from the session-bridge polyfill
+  // and re-injected after cross-origin sticky-loader navigation.
+  std::string yts_prior_connection_stash_;
+
   // TODO: (cobalt b/468059482) each shell holds a single WebContents.
   std::unique_ptr<SplashScreenWebContentsObserver>
       splash_screen_web_contents_observer_;
