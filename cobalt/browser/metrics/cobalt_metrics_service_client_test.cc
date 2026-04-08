@@ -107,13 +107,37 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     auto malloc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
     malloc_dump->numeric_entries["effective_size"] = 10 * 1024 * 1024;
     malloc_dump->numeric_entries["allocated_objects_size"] = 8 * 1024 * 1024;
+    malloc_dump->numeric_entries["syscalls_per_minute"] = 100;
     browser_dump->chrome_allocator_dumps["malloc"] = std::move(malloc_dump);
 
+    auto malloc_pa_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    malloc_pa_dump->numeric_entries["virtual_committed_size"] =
+        12 * 1024 * 1024;
+    malloc_pa_dump->numeric_entries["wasted"] = 2 * 1024 * 1024;
+    malloc_pa_dump->numeric_entries["fragmentation"] = 16;
+    browser_dump->chrome_allocator_dumps["malloc/partitions/allocator"] =
+        std::move(malloc_pa_dump);
+
+    auto malloc_tc_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    malloc_tc_dump->numeric_entries["size"] = 1 * 1024 * 1024;
+    browser_dump
+        ->chrome_allocator_dumps["malloc/partitions/allocator/thread_cache"] =
+        std::move(malloc_tc_dump);
+
+    auto malloc_q_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
+    malloc_q_dump->numeric_entries["size_in_bytes"] = 512 * 1024;
+    browser_dump->chrome_allocator_dumps
+        ["malloc/partitions/allocator/scheduler_loop_quarantine"] =
+        std::move(malloc_q_dump);
+
     // Add Skia Glyph Cache dump
-    auto skia_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    skia_dump->numeric_entries["size"] = 2 * 1024 * 1024;
+    auto skia_glyph_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    skia_glyph_dump->numeric_entries["size"] = 2 * 1024 * 1024;
     browser_dump->chrome_allocator_dumps["skia/sk_glyph_cache"] =
-        std::move(skia_dump);
+        std::move(skia_glyph_dump);
 
     // Add Font Caches dump
     auto font_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
@@ -123,22 +147,23 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
 
     // Add blink_objects dumps
     auto doc_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    doc_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 3;
+    doc_dump->numeric_entries["object_count"] = 3;
     browser_dump->chrome_allocator_dumps["blink_objects/Document"] =
         std::move(doc_dump);
 
     auto frame_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    frame_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 1;
+    frame_dump->numeric_entries["object_count"] = 1;
     browser_dump->chrome_allocator_dumps["blink_objects/Frame"] =
         std::move(frame_dump);
 
-    auto layout_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    layout_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 10;
+    auto layout_dump_obj =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    layout_dump_obj->numeric_entries["object_count"] = 10;
     browser_dump->chrome_allocator_dumps["blink_objects/LayoutObject"] =
-        std::move(layout_dump);
+        std::move(layout_dump_obj);
 
     auto node_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    node_dump->numeric_entries[MemoryAllocatorDump::kNameObjectCount] = 50;
+    node_dump->numeric_entries["object_count"] = 50;
     browser_dump->chrome_allocator_dumps["blink_objects/Node"] =
         std::move(node_dump);
 
@@ -164,6 +189,42 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     pa_allocated_dump->numeric_entries["effective_size"] = 12 * 1024 * 1024;
     browser_dump->chrome_allocator_dumps["partition_alloc/allocated_objects"] =
         std::move(pa_allocated_dump);
+
+    auto pa_fast_malloc_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    pa_fast_malloc_dump->numeric_entries["size"] = 4 * 1024 * 1024;
+    pa_fast_malloc_dump->numeric_entries["virtual_committed_size"] =
+        5 * 1024 * 1024;
+    pa_fast_malloc_dump->numeric_entries["fragmentation"] = 20;
+    browser_dump
+        ->chrome_allocator_dumps["partition_alloc/partitions/fast_malloc"] =
+        std::move(pa_fast_malloc_dump);
+
+    auto pa_buffer_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    pa_buffer_dump->numeric_entries["size"] = 2 * 1024 * 1024;
+    pa_buffer_dump->numeric_entries["virtual_committed_size"] = 3 * 1024 * 1024;
+    pa_buffer_dump->numeric_entries["fragmentation"] = 33;
+    browser_dump->chrome_allocator_dumps["partition_alloc/partitions/buffer"] =
+        std::move(pa_buffer_dump);
+
+    auto pa_array_buffer_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    pa_array_buffer_dump->numeric_entries["size"] = 8 * 1024 * 1024;
+    pa_array_buffer_dump->numeric_entries["virtual_committed_size"] =
+        10 * 1024 * 1024;
+    pa_array_buffer_dump->numeric_entries["fragmentation"] = 20;
+    browser_dump
+        ->chrome_allocator_dumps["partition_alloc/partitions/array_buffer"] =
+        std::move(pa_array_buffer_dump);
+
+    auto pa_layout_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    pa_layout_dump->numeric_entries["size"] = 1 * 1024 * 1024;
+    pa_layout_dump->numeric_entries["virtual_committed_size"] = 2 * 1024 * 1024;
+    pa_layout_dump->numeric_entries["fragmentation"] = 50;
+    browser_dump->chrome_allocator_dumps["partition_alloc/partitions/layout"] =
+        std::move(pa_layout_dump);
 
     // Add Skia dump (total)
     auto skia_total_dump =
@@ -596,7 +657,86 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
             0);
   EXPECT_GT(
       histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.Tiny.Malloc.SyscallsPerMinute", 100),
+      0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.Malloc.Allocator.CommittedSize", 12),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Malloc.Allocator.Wasted", 2),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.Malloc.Allocator.Fragmentation", 16),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.Small.Malloc.ThreadCache", 1024),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.Small.Malloc.SchedulerLoopQuarantine",
+          512),
+      0);
+
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc", 16),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
           "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects", 12),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc.FastMalloc", 4),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Experimental.Browser2."
+                                      "PartitionAlloc.FastMalloc.CommittedSize",
+                                      5),
+      0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount("Memory.Experimental.Browser2."
+                                      "PartitionAlloc.FastMalloc.Fragmentation",
+                                      20),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc.Buffer", 2),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.PartitionAlloc.Buffer.CommittedSize",
+          3),
+      0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.PartitionAlloc.Buffer.Fragmentation",
+          33),
+      0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc.ArrayBuffer", 8),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc.ArrayBuffer."
+                "CommittedSize",
+                10),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc.ArrayBuffer."
+                "Fragmentation",
+                20),
+            0);
+  EXPECT_GT(histogram_tester.GetBucketCount(
+                "Memory.Experimental.Browser2.PartitionAlloc.Layout", 1),
+            0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.PartitionAlloc.Layout.CommittedSize",
+          2),
+      0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.PartitionAlloc.Layout.Fragmentation",
+          50),
       0);
   EXPECT_GT(
       histogram_tester.GetBucketCount("Memory.Experimental.Browser2.Skia", 2),
