@@ -92,6 +92,9 @@ public class JavaSwitches {
   /** Force GPU memory available. Value type: Integer (MB) */
   public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
 
+  /** Avoid reuse resource. */
+  public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
@@ -208,6 +211,10 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--force-gpu-mem-available-mb="
               + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
+      extraCommandLineArgs.add("--avoid-cc-reuse-resource");
     }
 
     return extraCommandLineArgs;

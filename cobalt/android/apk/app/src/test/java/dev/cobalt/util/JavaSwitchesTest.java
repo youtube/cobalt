@@ -110,4 +110,14 @@ public class JavaSwitchesTest {
 
     assertThat(args).doesNotContain("--js-flags=--optimize-for-size");
   }
+
+  @Test
+  public void getExtraCommandLineArgs_AvoidCCReuseResource() {
+    Map<String, String> javaSwitches = new HashMap<>();
+    javaSwitches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "true");
+
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(javaSwitches);
+
+    assertThat(args).contains("--avoid-cc-reuse-resource");
+  }
 }
