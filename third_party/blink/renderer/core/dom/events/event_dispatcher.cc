@@ -27,6 +27,7 @@
 
 #include "third_party/blink/renderer/core/dom/events/event_dispatcher.h"
 
+#include "base/time/time.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
@@ -63,6 +64,8 @@
 #include "ui/events/keycodes/dom/keycode_converter.h"
 
 namespace blink {
+
+base::TimeTicks g_selet_keydown_time;
 
 DispatchEventResult EventDispatcher::DispatchEvent(Node& node, Event& event) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("blink.debug"),
@@ -174,6 +177,25 @@ void EventDispatcher::DispatchSimulatedEnterEvent(
 
 // https://dom.spec.whatwg.org/#dispatching-events
 DispatchEventResult EventDispatcher::Dispatch() {
+  if (event_->type() == event_type_names::kKeydown) {
+    if (event_->IsKeyboardEvent()) {
+      auto* key_event = To<KeyboardEvent>(event_);
+      if (key_event->keyCode() == VKEY_RETURN) {
+        g_selet_keydown_time = base::TimeTicks::Now();
+        LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keydown keyCode="
+                  << key_event->keyCode();
+      }
+    }
+  }
+  if (event_->type() == event_type_names::kKeyup) {
+    if (event_->IsKeyboardEvent()) {
+      auto* key_event = To<KeyboardEvent>(event_);
+      if (key_event->keyCode() == VKEY_RETURN) {
+        LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keyup keyCode="
+                  << key_event->keyCode();
+      }
+    }
+  }
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("blink.debug"),
                "EventDispatcher::dispatch");
 

@@ -16,6 +16,7 @@
 #include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "media/base/audio_parameters.h"
@@ -63,6 +64,8 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace blink {
+
+extern base::TimeTicks g_selet_keydown_time;
 
 using blink::mojom::MediaStreamRequestResult;
 using blink::mojom::MediaStreamType;
@@ -581,6 +584,11 @@ UserMediaRequest* UserMediaProcessor::CurrentRequest() {
 
 void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
                                         base::OnceClosure callback) {
+  if (!g_selet_keydown_time.is_null()) {
+    base::TimeDelta elapsed = base::TimeTicks::Now() - g_selet_keydown_time;
+    LOG(INFO) << "KJ: UserMediaProcessor::ProcessRequest: latency(msec)="
+              << elapsed.InMilliseconds();
+  }
   DCHECK(!request_completed_cb_);
   DCHECK(!current_request_info_);
   request_completed_cb_ = std::move(callback);
@@ -1748,6 +1756,12 @@ void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
     int32_t request_id,
     MediaStreamDescriptorVector* components,
     UserMediaRequest* user_media_request) {
+  if (!g_selet_keydown_time.is_null()) {
+    base::TimeDelta elapsed = base::TimeTicks::Now() - g_selet_keydown_time;
+    LOG(INFO) << "KJ: UserMediaProcessor::DelayedGetUserMediaRequestSucceeded: "
+                 "latency(msec)="
+              << elapsed.InMilliseconds();
+  }
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SendLogMessage(base::StringPrintf(
       "DelayedGetUserMediaRequestSucceeded({request_id=%d}, {result=%s})",
