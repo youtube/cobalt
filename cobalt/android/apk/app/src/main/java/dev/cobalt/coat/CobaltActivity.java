@@ -85,8 +85,6 @@ public abstract class CobaltActivity extends Activity {
 
   // How many seconds before the app exits if it fails to land YouTube home page.
   private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
-  public static final String SPLASH_ARGS_KEY = "disableNativeSplash";
-  private boolean disableNativeSplash;
 
   // The probability (between 0.0 and 1.0) that the StartupGuard's hang-detection
   // logic will be activated for a given session.
@@ -117,9 +115,8 @@ public abstract class CobaltActivity extends Activity {
   private boolean mIsCobaltUsingAndroidOverlay;
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
 
+  private boolean mEnableSplashScreen;
   private String mStartDeepLink;
-
-  private CobaltConnectivityDetector mCobaltConnectivityDetector;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -433,7 +430,6 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "StartupGuard skipped by random 25% rollout check.");
     }
 
-    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();

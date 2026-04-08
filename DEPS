@@ -304,11 +304,11 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
-  'skia_revision': '1676032e80246cdaa04f7e2187cb4e038c0fdd05',
+  'skia_revision': '8dae1b3c5291f42b592a85f211a4eb8b31b28729',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '5968722334b4bc3876bbaf1e0b48aae785d6ca08',
+  'v8_revision': '5823043f8e2da00502febe9379a26ab0ac898ee1',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -2952,7 +2952,7 @@ deps = {
 
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + 'e4445e46a910eb407571ec0b0b8b7043562678cf',
+#    Var('webrtc_git') + '/src.git' + '@' + '34ba9daafd9c7e27bcd7534b4d008b4664a9f989',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
