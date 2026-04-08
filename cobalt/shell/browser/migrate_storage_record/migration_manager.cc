@@ -738,7 +738,13 @@ Task MigrationManager::LocalStorageTask(
             [](content::StoragePartition* partition,
                base::OnceClosure next_step) {
               LOG(INFO) << "LocalStorage Puts complete. Flushing...";
-              partition->GetLocalStorageControl()->Flush(std::move(next_step));
+              partition->GetLocalStorageControl()->Flush(base::BindOnce(
+                  [](base::OnceClosure next_step) {
+                    LOG(INFO) << "LocalStorage Flush complete callback "
+                                 "executed successfully.";
+                    std::move(next_step).Run();
+                  },
+                  std::move(next_step)));
             },
             base::Unretained(partition), std::move(purge_memory_step));
 
