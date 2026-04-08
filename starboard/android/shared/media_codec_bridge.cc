@@ -153,7 +153,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (j_media_crypto != nullptr) {
     SB_CHECK(wait_for_media_crypto_session_cb);
     if (!wait_for_media_crypto_session_cb(kDrmSystemReadyTimeoutUs)) {
-      SB_LOG(ERROR) << "Timed out waiting for drm system to be ready in "
+      SB_LOG(ERROR) << "Timed out waiting for MediaCrypto to be ready in "
                        "CreateAudioMediaCodecBridge.";
       return nullptr;
     }
@@ -292,7 +292,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
   if (j_media_crypto != nullptr) {
     SB_CHECK(wait_for_media_crypto_session_cb);
     if (!wait_for_media_crypto_session_cb(kDrmSystemReadyTimeoutUs)) {
-      SB_LOG(ERROR) << "Timed out waiting for drm system to be ready in "
+      SB_LOG(ERROR) << "Timed out waiting for MediaCrypto to be ready in "
                        "CreateVideoMediaCodecBridge.";
       return nullptr;
     }
