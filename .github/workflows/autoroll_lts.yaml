@@ -42,6 +42,7 @@ jobs:
           cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
 
           # Ensure we have local branches for the target branch
+          git fetch origin main:main
           git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from the target branch.
@@ -91,7 +92,8 @@ jobs:
           PR_STATE=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
 
           if [[ "$PR_STATE" == "OPEN" ]]; then
-            gh pr edit "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
+            PR_NUMBER=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json number --jq .number)
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")"
           else
             gh pr create --base "${TARGET_BRANCH}" --head "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
           fi
