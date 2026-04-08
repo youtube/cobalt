@@ -34,23 +34,25 @@ def get_commits(origin, target, start):
   return get_out(cmd).splitlines()
 
 
-def cherry_pick(sha):
+def cherry_pick(sha, num, title):
   ps = get_out(['git', 'show', '-s', '--format=%P', sha]).split()
+  info = get_out(['git', 'log', '-1', '--format=%ad%n%b', sha])
+  parts = info.split('\n', 1)
+  date = parts[0]
+  body = parts[1] if len(parts) > 1 else ''
+
+  msg = f'Cherry pick PR #{num}: {title}\n\n'
+  msg += f'Refer to original PR: #{num}\n\n'
+  if body:
+    msg += f'{body}\n\n'
+  msg += f'(cherry picked from commit {sha})'
+
   cmd = ['git', 'cherry-pick', '--no-commit']
   if len(ps) > 1:
     cmd.append('--mainline=1')
   subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
 
-
-def commit_pick(sha, num, title):
-  info = get_out(['git', 'log', '-1', '--format=%an <%ae>%n%ad%n%b', sha])
-  auth, date, body = info.split('\n', 2)
-  msg = f'Cherry pick PR #{num}: {title}\n\n'
-  msg += f'Refer to original PR: #{num}\n\n{body}'
-  cmd = [
-      'git', 'commit', '--no-verify', f'--author={auth}', f'--date={date}',
-      '-m', msg
-  ]
+  cmd = ['git', 'commit', '--no-verify', f'--date={date}', '-m', msg]
   subprocess.run(cmd, check=True, stdout=sys.stderr)
 
 
@@ -82,8 +84,7 @@ def main():
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
       if not get_out(
           ['git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:', 'HEAD']):
-        cherry_pick(sha)
-        commit_pick(sha, num, title)
+        cherry_pick(sha, num, title)
 
       links.append(f'- #{num}')
 
