@@ -140,11 +140,6 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
     });
   }
-  if (name == "DecoderBuffer.EnableInPlaceReuseAllocatorBase") {
-    return ProcessSettingAsEnableOnly(context, [] {
-      ::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase();
-    });
-  }
   // "DecoderBuffer." settings must be handled before this catch-all block.
   if (name.StartsWith("DecoderBuffer.")) {
     return Reject(context, name + " isn't a supported setting.");
