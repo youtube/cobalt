@@ -224,6 +224,8 @@ AAudioStreamWrapper::~AAudioStreamWrapper() {
 }
 
 bool AAudioStreamWrapper::Open() {
+  LOG(INFO) << "KJ: AAudioStreamWrapper::Open type=" << (stream_type_ == StreamType::kInput ? "Input" : "Output")
+            << " sample_rate=" << params_.sample_rate() << " channels=" << params_.channels();
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!is_closed_);
 
@@ -260,10 +262,13 @@ bool AAudioStreamWrapper::Open() {
     // We do not use AAUDIO_INPUT_PRESET_UNPROCESSED, even if
     // `params_.effects() == AudioParameters::NO_EFFECTS` because the lack of
     // automatic gain control results in quiet, sometimes silent, streams.
-    AAudioStreamBuilder_setInputPreset(
-        builder, params_.effects() & AudioParameters::ECHO_CANCELLER
+    aaudio_input_preset_t preset = params_.effects() & AudioParameters::ECHO_CANCELLER
                      ? AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION
-                     : AAUDIO_INPUT_PRESET_CAMCORDER);
+                     : AAUDIO_INPUT_PRESET_CAMCORDER;
+    LOG(INFO) << "KJ: AAudioStreamBuilder_setInputPreset: " << (int)preset 
+              << " effects=" << params_.effects() 
+              << " has_aec=" << (bool)(params_.effects() & AudioParameters::ECHO_CANCELLER);
+    AAudioStreamBuilder_setInputPreset(builder, preset);
   }
 
   // Callbacks
@@ -272,8 +277,11 @@ bool AAudioStreamWrapper::Open() {
   AAudioStreamBuilder_setErrorCallback(builder, OnStreamErrorCallback,
                                        destruction_helper_.get());
 
-  result = AAudioStreamBuilder_openStream(builder,
-                                          &aaudio_stream_.AsEphemeralRawAddr());
+  {
+    TRACE_EVENT0("media", "AAudioStreamBuilder_openStream");
+    result = AAudioStreamBuilder_openStream(builder,
+                                            &aaudio_stream_.AsEphemeralRawAddr());
+  }
 
   AAudioStreamBuilder_delete(builder);
 
@@ -305,6 +313,10 @@ bool AAudioStreamWrapper::Open() {
   int32_t size_requested = frames_per_burst * (frames_per_burst < 128 ? 3 : 2);
   AAudioStream_setBufferSizeInFrames(aaudio_stream_, size_requested);
 
+  LOG(INFO) << "KJ: AAudioStreamWrapper::Open SUCCESS. DeviceId=" << AAudioStream_getDeviceId(aaudio_stream_)
+            << " PerformanceMode=" << AAudioStream_getPerformanceMode(aaudio_stream_)
+            << " SharingMode=" << AAudioStream_getSharingMode(aaudio_stream_);
+
   TRACE_EVENT2("audio", "AAudioStreamWrapper::Open", "params",
                params_.AsHumanReadableString(), "requested buffer size",
                size_requested);
@@ -328,11 +340,17 @@ void AAudioStreamWrapper::Close() {
 }
 
 bool AAudioStreamWrapper::Start() {
+  LOG(INFO) << "KJ: AAudioStreamWrapper::Start";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(aaudio_stream_);
   CHECK(!is_closed_);
 
-  auto result = AAudioStream_requestStart(aaudio_stream_);
+  aaudio_result_t result;
+  {
+    TRACE_EVENT0("media", "AAudioStream_requestStart");
+    result = AAudioStream_requestStart(aaudio_stream_);
+  }
+  LOG(INFO) << "KJ: AAudioStream_requestStart returned: " << AAudio_convertResultToText(result);
   if (result != AAUDIO_OK) {
     DLOG(ERROR) << "Failed to start audio stream, result: "
                 << AAudio_convertResultToText(result);
@@ -433,12 +451,18 @@ base::TimeTicks AAudioStreamWrapper::GetCaptureTimestamp() {
 aaudio_data_callback_result_t AAudioStreamWrapper::OnAudioDataRequested(
     void* audio_data,
     int32_t num_frames) {
+  static bool first_callback_logged = false;
+  if (!first_callback_logged) {
+    LOG(INFO) << "KJ: AAudioStreamWrapper::OnAudioDataRequested - FIRST CALLBACK RECEIVED";
+    first_callback_logged = true;
+  }
   return callback_->OnAudioDataRequested(audio_data, num_frames)
              ? AAUDIO_CALLBACK_RESULT_CONTINUE
              : AAUDIO_CALLBACK_RESULT_STOP;
 }
 
 void AAudioStreamWrapper::OnStreamError(aaudio_result_t error) {
+  LOG(INFO) << "KJ: AAudioStreamWrapper::OnStreamError: " << AAudio_convertResultToText(error);
   if (error == AAUDIO_ERROR_DISCONNECTED) {
     callback_->OnDeviceChange();
   } else {

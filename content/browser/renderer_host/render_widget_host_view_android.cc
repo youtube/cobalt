@@ -31,6 +31,9 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "cc/base/math_util.h"
 #include "cc/slim/layer.h"
 #include "components/input/events_helper.h"
@@ -114,6 +117,8 @@
 #include "content/public/android/content_jni_headers/RenderWidgetHostViewImpl_jni.h"
 
 namespace content {
+
+base::TimeTicks g_select_keydown_time;
 
 namespace {
 
@@ -2462,6 +2467,15 @@ void RenderWidgetHostViewAndroid::OnPointerLockRelease() {
 
 void RenderWidgetHostViewAndroid::SendKeyEvent(
     const input::NativeWebKeyboardEvent& event) {
+  if (event.windows_key_code == 13) {
+    if (event.GetType() == input::NativeWebKeyboardEvent::Type::kRawKeyDown ||
+        event.GetType() == input::NativeWebKeyboardEvent::Type::kKeyDown) {
+      g_select_keydown_time = base::TimeTicks::Now();
+      uint64_t id = g_select_keydown_time.since_origin().InMicroseconds();
+      TRACE_EVENT("media", "RecordLatency::BrowserKeyEvent", perfetto::Flow::ProcessScoped(id));
+    }
+    LOG(INFO) << "KJ: RenderWidgetHostViewAndroid::SendKeyEvent windows_key_code=" << event.windows_key_code;
+  }
   if (!host())
     return;
 

@@ -287,6 +287,9 @@ bool ImeAdapterAndroid::SendKeyEvent(
     int scan_code,
     bool is_system_key,
     int unicode_char) {
+  if (key_code == 13) {
+    LOG(INFO) << "KJ: ImeAdapterAndroid::SendKeyEvent key_code=" << key_code << " type=" << type;
+  }
   if (!rwhva_)
     return false;
   input::NativeWebKeyboardEvent event = NativeWebKeyboardEventFromKeyEvent(

@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
@@ -73,6 +76,8 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
+namespace content { extern base::TimeTicks g_select_keydown_time; }
+
 namespace blink {
 
 BASE_FEATURE(kEnumerateDevicesRequestAudioCapabilities,
@@ -104,6 +109,13 @@ class PromiseResolverCallbacks final : public UserMediaRequest::Callbacks {
 
   void OnSuccess(const MediaStreamVector& streams,
                  CaptureController* capture_controller) override {
+    if (!::content::g_select_keydown_time.is_null()) {
+      uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+      TRACE_EVENT("media", "RecordLatency::JS_getUserMedia_Success", perfetto::Flow::ProcessScoped(id));
+      base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+      LOG(INFO) << "KJ: PromiseResolverCallbacks::OnSuccess: latency(msec)="
+                << elapsed.InMilliseconds();
+    }
     OnSuccessImpl<IDLResolvedType>(streams, capture_controller);
     if (tracer_) {
       tracer_->End();
@@ -431,6 +443,15 @@ MediaDevices::~MediaDevices() = default;
 ScriptPromise<IDLSequence<MediaDeviceInfo>> MediaDevices::enumerateDevices(
     ScriptState* script_state,
     ExceptionState& exception_state) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::JS_EnumerateDevices", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: MediaDevices::enumerateDevices: latency(msec)="
+              << elapsed.InMilliseconds();
+  } else {
+    LOG(INFO) << "KJ: MediaDevices::enumerateDevices";
+  }
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   UpdateWebRTCMethodCount(RTCAPIName::kEnumerateDevices);
   if (!script_state->ContextIsValid()) {
@@ -469,6 +490,15 @@ ScriptPromise<MediaStream> MediaDevices::getUserMedia(
     ScriptState* script_state,
     const UserMediaStreamConstraints* options,
     ExceptionState& exception_state) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::JS_getUserMedia", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia: latency(msec)="
+              << elapsed.InMilliseconds();
+  } else {
+    LOG(INFO) << "KJ: MediaDevices::getUserMedia";
+  }
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto tracer =

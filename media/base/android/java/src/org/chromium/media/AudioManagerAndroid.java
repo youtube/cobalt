@@ -274,10 +274,13 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private boolean setCommunicationDevice(String deviceId) {
+        Log.i(TAG, "KJ: AudioManagerAndroid.setCommunicationDevice: " + deviceId
+            + " isMicrophoneMute=" + mAudioManager.isMicrophoneMute());
         if (DEBUG) logd("setCommunicationDevice: " + deviceId);
         if (!mIsInitialized) return false;
 
         boolean hasRecordAudioPermission = hasPermission(android.Manifest.permission.RECORD_AUDIO);
+        Log.i(TAG, "KJ: hasRecordAudioPermission=" + hasRecordAudioPermission);
         if (!mHasModifyAudioSettingsPermission || !hasRecordAudioPermission) {
             Log.w(
                     TAG,
@@ -297,6 +300,7 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private AudioDevice @Nullable [] getDevices(boolean inputs) {
+        Log.i(TAG, "KJ: AudioManagerAndroid.getDevices: inputs=" + inputs);
         if (DEBUG) logd("getDevices");
 
         AudioDeviceInfo[] deviceInfos =

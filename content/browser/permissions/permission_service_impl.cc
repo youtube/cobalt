@@ -28,7 +28,12 @@
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-shared.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "url/origin.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 using blink::mojom::EmbeddedPermissionControlClient;
 using blink::mojom::EmbeddedPermissionControlResult;
@@ -241,6 +246,12 @@ void PermissionServiceImpl::RequestPermission(
     PermissionDescriptorPtr permission,
     bool user_gesture,
     PermissionStatusCallback callback) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::BrowserRequestPermission", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: PermissionServiceImpl::RequestPermission latency(msec)=" << elapsed.InMilliseconds();
+  }
   std::vector<PermissionDescriptorPtr> permissions;
   permissions.push_back(std::move(permission));
   RequestPermissions(std::move(permissions), user_gesture,
@@ -330,6 +341,12 @@ void PermissionServiceImpl::OnRequestPermissionsResponse(
 
 void PermissionServiceImpl::HasPermission(PermissionDescriptorPtr permission,
                                           PermissionStatusCallback callback) {
+  if (!::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::BrowserHasPermission", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: PermissionServiceImpl::HasPermission latency(msec)=" << elapsed.InMilliseconds();
+  }
   std::move(callback).Run(GetPermissionStatus(permission));
 }
 

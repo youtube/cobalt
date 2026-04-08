@@ -8,6 +8,8 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_fifo.h"
@@ -15,6 +17,8 @@
 #include "media/base/audio_timestamp_helper.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 namespace blink {
 
@@ -112,6 +116,13 @@ void WebAudioMediaStreamAudioSink::OnReadyStateChanged(
 void WebAudioMediaStreamAudioSink::OnData(
     const media::AudioBus& audio_bus,
     base::TimeTicks estimated_capture_time) {
+  if (!first_sink_ondata_logged_ && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::WebAudioSinkFIFO", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: WebAudioMediaStreamAudioSink::OnData - ENTERED WEBAUDIO SINK FIFO. latency(msec)=" << latency.InMilliseconds();
+    first_sink_ondata_logged_ = true;
+  }
   NON_REENTRANT_SCOPE(capture_reentrancy_checker_);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                "WebAudioMediaStreamAudioSink::OnData", "this",
@@ -209,6 +220,13 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
     media::AudioBus* audio_bus,
     uint32_t frames_delayed,
     const media::AudioGlitchInfo& glitch_info) NO_THREAD_SAFETY_ANALYSIS {
+  if (!first_sink_provide_logged_ && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::WebAudioConsume", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: WebAudioMediaStreamAudioSink::ProvideInput - DATA CONSUMED BY WEBAUDIO. latency(msec)=" << latency.InMilliseconds();
+    first_sink_provide_logged_ = true;
+  }
   lock_.AssertAcquired();
   CHECK(fifo_);
   TRACE_EVENT(
