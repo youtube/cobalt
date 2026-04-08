@@ -41,8 +41,7 @@ jobs:
           # Copy the script from the main branch before switching branches.
           cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
 
-          # Ensure we have local branches for the target branch
-          git fetch origin main:main
+          # Ensure we have local branches for the target branch.
           git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from the target branch.
@@ -51,6 +50,9 @@ jobs:
           else
             git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
           fi
+
+          # Ensure latest main.
+          git fetch origin main:main
 
           # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
