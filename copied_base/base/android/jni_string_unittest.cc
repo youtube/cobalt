@@ -14,7 +14,7 @@ namespace android {
 
 TEST(JniString, BasicConversionsUTF8) {
   const std::string kSimpleString = "SimpleTest8";
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::string result =
       ConvertJavaStringToUTF8(ConvertUTF8ToJavaString(env, kSimpleString));
   EXPECT_EQ(kSimpleString, result);
@@ -22,7 +22,7 @@ TEST(JniString, BasicConversionsUTF8) {
 
 TEST(JniString, BasicConversionsUTF16) {
   const std::u16string kSimpleString = u"SimpleTest16";
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::u16string result =
       ConvertJavaStringToUTF16(ConvertUTF16ToJavaString(env, kSimpleString));
   EXPECT_EQ(kSimpleString, result);
@@ -30,7 +30,7 @@ TEST(JniString, BasicConversionsUTF16) {
 
 TEST(JniString, EmptyConversionUTF8) {
   const std::string kEmptyString;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::string result =
       ConvertJavaStringToUTF8(ConvertUTF8ToJavaString(env, kEmptyString));
   EXPECT_EQ(kEmptyString, result);
@@ -38,7 +38,7 @@ TEST(JniString, EmptyConversionUTF8) {
 
 TEST(JniString, EmptyConversionUTF16) {
   const std::u16string kEmptyString;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::u16string result =
       ConvertJavaStringToUTF16(ConvertUTF16ToJavaString(env, kEmptyString));
   EXPECT_EQ(kEmptyString, result);

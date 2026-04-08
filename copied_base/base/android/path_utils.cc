@@ -16,7 +16,7 @@ namespace base {
 namespace android {
 
 bool GetDataDirectory(FilePath* result) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path = Java_PathUtils_getDataDirectory(env);
   FilePath data_path(ConvertJavaStringToUTF8(path));
   *result = data_path;
@@ -24,7 +24,7 @@ bool GetDataDirectory(FilePath* result) {
 }
 
 bool GetCacheDirectory(FilePath* result) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path = Java_PathUtils_getCacheDirectory(env);
   FilePath cache_path(ConvertJavaStringToUTF8(path));
   *result = cache_path;
@@ -32,7 +32,7 @@ bool GetCacheDirectory(FilePath* result) {
 }
 
 bool GetThumbnailCacheDirectory(FilePath* result) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getThumbnailCacheDirectory(env);
   FilePath thumbnail_cache_path(ConvertJavaStringToUTF8(path));
@@ -41,7 +41,7 @@ bool GetThumbnailCacheDirectory(FilePath* result) {
 }
 
 bool GetDownloadsDirectory(FilePath* result) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path = Java_PathUtils_getDownloadsDirectory(env);
   FilePath downloads_path(ConvertJavaStringToUTF8(path));
   *result = downloads_path;
@@ -50,7 +50,7 @@ bool GetDownloadsDirectory(FilePath* result) {
 
 std::vector<FilePath> GetAllPrivateDownloadsDirectories() {
   std::vector<std::string> dirs;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   auto jarray = Java_PathUtils_getAllPrivateDownloadsDirectories(env);
   base::android::AppendJavaStringArrayToStringVector(env, jarray, &dirs);
 
@@ -62,7 +62,7 @@ std::vector<FilePath> GetAllPrivateDownloadsDirectories() {
 
 std::vector<FilePath> GetSecondaryStorageDownloadDirectories() {
   std::vector<std::string> dirs;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   auto jarray = Java_PathUtils_getExternalDownloadVolumesNames(env);
   base::android::AppendJavaStringArrayToStringVector(env, jarray, &dirs);
 
@@ -73,7 +73,7 @@ std::vector<FilePath> GetSecondaryStorageDownloadDirectories() {
 }
 
 bool GetNativeLibraryDirectory(FilePath* result) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getNativeLibraryDirectory(env);
   FilePath library_path(ConvertJavaStringToUTF8(path));
@@ -82,7 +82,7 @@ bool GetNativeLibraryDirectory(FilePath* result) {
 }
 
 bool GetExternalStorageDirectory(FilePath* result) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getExternalStorageDirectory(env);
   FilePath storage_path(ConvertJavaStringToUTF8(path));

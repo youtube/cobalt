@@ -12,7 +12,7 @@ JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   // don't need very much Java code, we enable selective JNI registration on the
   // Java side and only register a subset of JNI methods.
   base::android::InitVM(vm);
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   if (!RegisterNatives(env)) {
     return -1;

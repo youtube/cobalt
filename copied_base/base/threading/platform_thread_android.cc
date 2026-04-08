@@ -59,7 +59,7 @@ bool SetCurrentThreadTypeForPlatform(ThreadType thread_type,
   // On Android, we set the Audio priority through JNI as Audio priority
   // will also allow the process to run while it is backgrounded.
   if (thread_type == ThreadType::kRealtimeAudio) {
-    JNIEnv* env = base::android::AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     Java_ThreadUtils_setThreadPriorityAudio(env, PlatformThread::CurrentId());
     return true;
   }
@@ -76,7 +76,7 @@ bool SetCurrentThreadTypeForPlatform(ThreadType thread_type,
 
 absl::optional<ThreadPriorityForTest>
 GetCurrentThreadPriorityForPlatformForTest() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   if (Java_ThreadUtils_isThreadPriorityAudio(
       env, PlatformThread::CurrentId())) {
     return absl::make_optional(ThreadPriorityForTest::kRealtimeAudio);

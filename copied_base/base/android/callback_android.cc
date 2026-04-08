@@ -15,43 +15,43 @@ namespace android {
 
 void RunObjectCallbackAndroid(const JavaRef<jobject>& callback,
                               const JavaRef<jobject>& arg) {
-  Java_Helper_onObjectResultFromNative(AttachCurrentThread(), callback, arg);
+  Java_Helper_onObjectResultFromNative(jni_zero::AttachCurrentThread(), callback, arg);
 }
 
 void RunBooleanCallbackAndroid(const JavaRef<jobject>& callback, bool arg) {
-  Java_Helper_onBooleanResultFromNative(AttachCurrentThread(), callback,
+  Java_Helper_onBooleanResultFromNative(jni_zero::AttachCurrentThread(), callback,
                                         static_cast<jboolean>(arg));
 }
 
 void RunIntCallbackAndroid(const JavaRef<jobject>& callback, int32_t arg) {
-  Java_Helper_onIntResultFromNative(AttachCurrentThread(), callback, arg);
+  Java_Helper_onIntResultFromNative(jni_zero::AttachCurrentThread(), callback, arg);
 }
 
 void RunLongCallbackAndroid(const JavaRef<jobject>& callback, int64_t arg) {
-  Java_Helper_onLongResultFromNative(AttachCurrentThread(), callback, arg);
+  Java_Helper_onLongResultFromNative(jni_zero::AttachCurrentThread(), callback, arg);
 }
 
 void RunTimeCallbackAndroid(const JavaRef<jobject>& callback, base::Time time) {
-  Java_Helper_onTimeResultFromNative(AttachCurrentThread(), callback,
+  Java_Helper_onTimeResultFromNative(jni_zero::AttachCurrentThread(), callback,
                                      time.ToJavaTime());
 }
 
 void RunStringCallbackAndroid(const JavaRef<jobject>& callback,
                               const std::string& arg) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> java_string = ConvertUTF8ToJavaString(env, arg);
   Java_Helper_onObjectResultFromNative(env, callback, java_string);
 }
 
 void RunByteArrayCallbackAndroid(const JavaRef<jobject>& callback,
                                  const std::vector<uint8_t>& arg) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_bytes = ToJavaByteArray(env, arg);
   Java_Helper_onObjectResultFromNative(env, callback, j_bytes);
 }
 
 void RunRunnableAndroid(const JavaRef<jobject>& runnable) {
-  Java_Helper_runRunnable(AttachCurrentThread(), runnable);
+  Java_Helper_runRunnable(jni_zero::AttachCurrentThread(), runnable);
 }
 
 }  // namespace android

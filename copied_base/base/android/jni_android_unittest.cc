@@ -33,7 +33,7 @@ int MethodIDCall(JNIEnv* env, jclass clazz, jmethodID id, int p) {
 }  // namespace
 
 TEST(JNIAndroidMicrobenchmark, MethodId) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jclass> clazz(GetClass(env, "java/lang/Math"));
   base::Time start_lazy = base::Time::Now();
   int o = 0;

@@ -14,7 +14,7 @@ namespace android {
 
 bool OnJNIOnLoadInit() {
   InitAtExitManager();
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   base::android::InitGlobalClassLoader(env);
   return true;
 }

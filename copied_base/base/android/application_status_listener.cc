@@ -50,7 +50,7 @@ class ApplicationStatusListenerImpl : public ApplicationStatusListener {
     g_observers.Get().AddObserver(this);
 
     Java_ApplicationStatus_registerThreadSafeNativeApplicationStateListener(
-        AttachCurrentThread());
+        jni_zero::AttachCurrentThread());
   }
 
   ~ApplicationStatusListenerImpl() override {
@@ -108,7 +108,7 @@ void ApplicationStatusListener::NotifyApplicationStateChange(
 // static
 ApplicationState ApplicationStatusListener::GetState() {
   return static_cast<ApplicationState>(
-      Java_ApplicationStatus_getStateForApplication(AttachCurrentThread()));
+      Java_ApplicationStatus_getStateForApplication(jni_zero::AttachCurrentThread()));
 }
 
 static void JNI_ApplicationStatus_OnApplicationStateChange(
@@ -120,7 +120,7 @@ static void JNI_ApplicationStatus_OnApplicationStateChange(
 
 // static
 bool ApplicationStatusListener::HasVisibleActivities() {
-  return Java_ApplicationStatus_hasVisibleActivities(AttachCurrentThread());
+  return Java_ApplicationStatus_hasVisibleActivities(jni_zero::AttachCurrentThread());
 }
 
 }  // namespace android

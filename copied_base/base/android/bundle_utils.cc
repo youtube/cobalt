@@ -44,7 +44,7 @@ const void* ReadRelPtr(const int32_t* relptr) {
 // static
 std::string BundleUtils::ResolveLibraryPath(const std::string& library_name,
                                             const std::string& split_name) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> java_path = Java_BundleUtils_getNativeLibraryPath(
       env, ConvertUTF8ToJavaString(env, library_name),
       ConvertUTF8ToJavaString(env, split_name));
@@ -57,7 +57,7 @@ std::string BundleUtils::ResolveLibraryPath(const std::string& library_name,
 
 // static
 bool BundleUtils::IsBundle() {
-  return Java_BundleUtils_isBundleForNative(AttachCurrentThread());
+  return Java_BundleUtils_isBundleForNative(jni_zero::AttachCurrentThread());
 }
 
 // static

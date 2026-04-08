@@ -49,7 +49,7 @@ class ScopedJavaRefTest : public testing::Test {
   void SetUp() override {
     g_local_refs = 0;
     g_global_refs = 0;
-    JNIEnv* env = AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     g_previous_functions = env->functions;
     hooked_functions = *g_previous_functions;
     env->functions = &hooked_functions;
@@ -62,7 +62,7 @@ class ScopedJavaRefTest : public testing::Test {
   }
 
   void TearDown() override {
-    JNIEnv* env = AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     env->functions = g_previous_functions;
   }
   // From JellyBean release, the instance of this struct provided in JNIEnv is
@@ -72,7 +72,7 @@ class ScopedJavaRefTest : public testing::Test {
 
 // The main purpose of this is testing the various conversions compile.
 TEST_F(ScopedJavaRefTest, Conversions) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> str = ConvertUTF8ToJavaString(env, "string");
   ScopedJavaGlobalRef<jstring> global(str);
 
@@ -187,7 +187,7 @@ TEST_F(ScopedJavaRefTest, Conversions) {
 }
 
 TEST_F(ScopedJavaRefTest, RefCounts) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> str;
   // The ConvertJavaStringToUTF8 below creates a new string that would normally
   // return a local ref. We simulate that by starting the g_local_refs count at
@@ -235,7 +235,7 @@ TEST_F(ScopedJavaRefTest, RefCounts) {
 class JavaObjectArrayReaderTest : public testing::Test {
  protected:
   void SetUp() override {
-    JNIEnv* env = AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     int_class_ = GetClass(env, "java/lang/Integer");
     int_constructor_ = MethodID::Get<MethodID::TYPE_INSTANCE>(
         env, int_class_.obj(), "<init>", "(I)V");
@@ -253,7 +253,7 @@ class JavaObjectArrayReaderTest : public testing::Test {
 
   // Make an Integer[] with len elements, all initialized to null.
   ScopedJavaLocalRef<jobjectArray> MakeArray(jsize len) {
-    JNIEnv* env = AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     jobjectArray array = env->NewObjectArray(len, int_class_.obj(), nullptr);
     EXPECT_NE(array, nullptr);
     return ScopedJavaLocalRef<jobjectArray>::Adopt(env, array);
@@ -280,7 +280,7 @@ TEST_F(JavaObjectArrayReaderTest, ZeroLengthArray) {
 TEST_F(JavaObjectArrayReaderTest, InputIteratorRequirements) {
   typedef JavaObjectArrayReader<jobject>::iterator It;
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   JavaObjectArrayReader<jobject> reader(array_);
   It i = reader.begin();
 
@@ -327,7 +327,7 @@ TEST_F(JavaObjectArrayReaderTest, InputIteratorRequirements) {
 
 // Check that range-based for and the convenience function work as expected.
 TEST_F(JavaObjectArrayReaderTest, RangeBasedFor) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   int i = 0;
   for (ScopedJavaLocalRef<jobject> element : array_.ReadElements<jobject>()) {

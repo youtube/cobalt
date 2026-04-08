@@ -19,7 +19,7 @@
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
 
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 namespace base {
 
@@ -30,8 +30,8 @@ JavaHandlerThread::JavaHandlerThread(const char* name,
     : JavaHandlerThread(
           name,
           Java_JavaHandlerThread_create(
-              AttachCurrentThread(),
-              ConvertUTF8ToJavaString(AttachCurrentThread(), name),
+              jni_zero::AttachCurrentThread(),
+              ConvertUTF8ToJavaString(jni_zero::AttachCurrentThread(), name),
               base::internal::ThreadTypeToNiceValue(thread_type))) {}
 
 JavaHandlerThread::JavaHandlerThread(
@@ -40,7 +40,7 @@ JavaHandlerThread::JavaHandlerThread(
     : name_(name), java_thread_(obj) {}
 
 JavaHandlerThread::~JavaHandlerThread() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   DCHECK(!Java_JavaHandlerThread_isAlive(env, java_thread_));
   DCHECK(!state_ || state_->pump->IsAborted());
   // TODO(mthiesse): We shouldn't leak the MessageLoop as this could affect
@@ -59,7 +59,7 @@ void JavaHandlerThread::Start() {
   // Check the thread has not already been started.
   DCHECK(!state_);
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   base::WaitableEvent initialize_event(
       WaitableEvent::ResetPolicy::AUTOMATIC,
       WaitableEvent::InitialState::NOT_SIGNALED);
@@ -77,7 +77,7 @@ void JavaHandlerThread::Stop() {
   task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&JavaHandlerThread::StopOnThread, base::Unretained(this)));
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   Java_JavaHandlerThread_joinThread(env, java_thread_);
 }
 
@@ -117,20 +117,20 @@ void JavaHandlerThread::StopSequenceManagerForTesting() {
 
 void JavaHandlerThread::JoinForTesting() {
   DCHECK(!task_runner()->BelongsToCurrentThread());
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   Java_JavaHandlerThread_joinThread(env, java_thread_);
 }
 
 void JavaHandlerThread::ListenForUncaughtExceptionsForTesting() {
   DCHECK(!task_runner()->BelongsToCurrentThread());
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   Java_JavaHandlerThread_listenForUncaughtExceptionsForTesting(env,
                                                                java_thread_);
 }
 
 ScopedJavaLocalRef<jthrowable> JavaHandlerThread::GetUncaughtExceptionIfAny() {
   DCHECK(!task_runner()->BelongsToCurrentThread());
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return Java_JavaHandlerThread_getUncaughtExceptionIfAny(env, java_thread_);
 }
 
@@ -150,7 +150,7 @@ void JavaHandlerThread::StopOnThread() {
 
 void JavaHandlerThread::QuitThreadSafely() {
   DCHECK(task_runner()->BelongsToCurrentThread());
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   Java_JavaHandlerThread_quitThreadSafely(env, java_thread_,
                                           reinterpret_cast<intptr_t>(this));
 }

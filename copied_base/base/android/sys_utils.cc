@@ -16,18 +16,18 @@ namespace base {
 namespace android {
 
 bool SysUtils::IsLowEndDeviceFromJni() {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return Java_SysUtils_isLowEndDevice(env);
 }
 
 bool SysUtils::IsCurrentlyLowMemory() {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return Java_SysUtils_isCurrentlyLowMemory(env);
 }
 
 // static
 int SysUtils::AmountOfPhysicalMemoryKB() {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return Java_SysUtils_amountOfPhysicalMemoryKB(env);
 }
 

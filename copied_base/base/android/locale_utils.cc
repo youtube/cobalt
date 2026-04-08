@@ -12,19 +12,19 @@ namespace base {
 namespace android {
 
 std::string GetDefaultCountryCode() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return ConvertJavaStringToUTF8(Java_LocaleUtils_getDefaultCountryCode(env));
 }
 
 std::string GetDefaultLocaleString() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> locale =
       Java_LocaleUtils_getDefaultLocaleString(env);
   return ConvertJavaStringToUTF8(locale);
 }
 
 std::string GetDefaultLocaleListString() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> locales =
       Java_LocaleUtils_getDefaultLocaleListString(env);
   return ConvertJavaStringToUTF8(locales);

@@ -14,7 +14,7 @@ using base::android::ScopedJavaLocalRef;
 namespace base {
 
 FilePath InsertImageIntoMediaStore(const FilePath& path) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_path =
       base::android::ConvertUTF8ToJavaString(env, path.value());
   ScopedJavaLocalRef<jstring> j_uri =

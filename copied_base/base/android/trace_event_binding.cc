@@ -35,7 +35,7 @@ class TraceEnabledObserver
 
   // trace_event::TraceLog::EnabledStateObserver:
   void OnTraceLogEnabled() override {
-    JNIEnv* env = base::android::AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     base::android::Java_TraceEvent_setEnabled(env, true);
     if (base::trace_event::TraceLog::GetInstance()
             ->GetCurrentTraceConfig()
@@ -44,7 +44,7 @@ class TraceEnabledObserver
     }
   }
   void OnTraceLogDisabled() override {
-    JNIEnv* env = base::android::AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     base::android::Java_TraceEvent_setEnabled(env, false);
     base::android::Java_TraceEvent_setEventNameFilteringEnabled(env, false);
   }

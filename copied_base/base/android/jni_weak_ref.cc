@@ -8,7 +8,7 @@
 
 #include "base/android/jni_android.h"
 
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 JavaObjectWeakGlobalRef::JavaObjectWeakGlobalRef() : obj_(nullptr) {}
 
@@ -48,7 +48,7 @@ void JavaObjectWeakGlobalRef::operator=(JavaObjectWeakGlobalRef&& rhs) {
 
 void JavaObjectWeakGlobalRef::reset() {
   if (obj_) {
-    AttachCurrentThread()->DeleteWeakGlobalRef(obj_);
+    jni_zero::AttachCurrentThread()->DeleteWeakGlobalRef(obj_);
     obj_ = nullptr;
   }
 }
@@ -70,7 +70,7 @@ void JavaObjectWeakGlobalRef::Assign(const JavaObjectWeakGlobalRef& other) {
   if (&other == this)
     return;
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   if (obj_)
     env->DeleteWeakGlobalRef(obj_);
 

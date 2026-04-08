@@ -32,7 +32,7 @@ LazyInstance<JavaExceptionFilter>::Leaky g_java_exception_filter =
 }  // namespace
 
 void InitJavaExceptionReporter() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   // Since JavaExceptionReporter#installHandler will chain through to the
   // default handler, the default handler should cause a crash as if it's a
   // normal java exception. Prefer to crash the browser process in java rather
@@ -45,7 +45,7 @@ void InitJavaExceptionReporter() {
 }
 
 void InitJavaExceptionReporterForChildProcess() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   constexpr bool crash_after_report = true;
   SetJavaExceptionFilter(
       base::BindRepeating([](const JavaRef<jthrowable>&) { return true; }));

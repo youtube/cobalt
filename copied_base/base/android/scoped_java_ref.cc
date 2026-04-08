@@ -42,9 +42,9 @@ JavaRef<jobject>::JavaRef(JNIEnv* env, jobject obj) : obj_(obj) {
 
 JNIEnv* JavaRef<jobject>::SetNewLocalRef(JNIEnv* env, jobject obj) {
   if (!env) {
-    env = AttachCurrentThread();
+    env = jni_zero::AttachCurrentThread();
   } else {
-    DCHECK_EQ(env, AttachCurrentThread());  // Is |env| on correct thread.
+    DCHECK_EQ(env, jni_zero::AttachCurrentThread());  // Is |env| on correct thread.
   }
   if (obj)
     obj = env->NewLocalRef(obj);
@@ -56,9 +56,9 @@ JNIEnv* JavaRef<jobject>::SetNewLocalRef(JNIEnv* env, jobject obj) {
 
 void JavaRef<jobject>::SetNewGlobalRef(JNIEnv* env, jobject obj) {
   if (!env) {
-    env = AttachCurrentThread();
+    env = jni_zero::AttachCurrentThread();
   } else {
-    DCHECK_EQ(env, AttachCurrentThread());  // Is |env| on correct thread.
+    DCHECK_EQ(env, jni_zero::AttachCurrentThread());  // Is |env| on correct thread.
   }
   if (obj)
     obj = env->NewGlobalRef(obj);
@@ -69,7 +69,7 @@ void JavaRef<jobject>::SetNewGlobalRef(JNIEnv* env, jobject obj) {
 
 void JavaRef<jobject>::ResetLocalRef(JNIEnv* env) {
   if (obj_) {
-    DCHECK_EQ(env, AttachCurrentThread());  // Is |env| on correct thread.
+    DCHECK_EQ(env, jni_zero::AttachCurrentThread());  // Is |env| on correct thread.
     env->DeleteLocalRef(obj_);
     obj_ = nullptr;
   }
@@ -77,7 +77,7 @@ void JavaRef<jobject>::ResetLocalRef(JNIEnv* env) {
 
 void JavaRef<jobject>::ResetGlobalRef() {
   if (obj_) {
-    AttachCurrentThread()->DeleteGlobalRef(obj_);
+    jni_zero::AttachCurrentThread()->DeleteGlobalRef(obj_);
     obj_ = nullptr;
   }
 }

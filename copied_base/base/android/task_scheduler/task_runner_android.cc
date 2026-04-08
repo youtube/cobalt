@@ -41,7 +41,7 @@ void RunJavaTask(base::android::ScopedJavaGlobalRef<jobject> task,
         base::StrCat({"JniPostTask: ", runnable_class_name});
     ctx.event()->set_name(event_name.c_str());
   });
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   JNI_Runnable::Java_Runnable_run(env, task);
   if (UNLIKELY(base::android::HasException(env))) {
     // We can only return control to Java on UI threads (eg. JavaHandlerThread

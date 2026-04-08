@@ -36,7 +36,7 @@ int GetIntParam(const std::vector<std::string>& params, size_t index) {
 
 struct BuildInfoSingletonTraits {
   static BuildInfo* New() {
-    JNIEnv* env = AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     ScopedJavaLocalRef<jobjectArray> params_objs = Java_BuildInfo_getAll(env);
     std::vector<std::string> params;
     AppendJavaStringArrayToStringVector(env, params_objs, &params);

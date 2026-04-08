@@ -60,7 +60,7 @@ constexpr uint64_t kTryNativeWorkBeforeIdleBit = uint64_t(1) << 32;
 }  // namespace
 
 MessagePumpForUI::MessagePumpForUI()
-    : env_(base::android::AttachCurrentThread()) {
+    : env_(jni_zero::AttachCurrentThread()) {
   // The Android native ALooper uses epoll to poll our file descriptors and wake
   // us up. We use a simple level-triggered eventfd to signal that non-delayed
   // work is available, and a timerfd to signal when delayed work is ready to

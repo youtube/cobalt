@@ -20,7 +20,7 @@ int OpenApkAsset(const std::string& file_path,
                  base::MemoryMappedFile::Region* region) {
   // The AssetManager API of the NDK does not expose a method for accessing raw
   // resources :(
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jlongArray> jarr =
       Java_ApkAssets_open(env, ConvertUTF8ToJavaString(env, file_path),
                           ConvertUTF8ToJavaString(env, split_name));

@@ -15,7 +15,7 @@ namespace {
 RadioUtils::OverrideForTesting* g_overrider_for_tests = nullptr;
 
 bool InitializeIsSupported() {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return Java_RadioUtils_isSupported(env);
 }
 }  // namespace
@@ -43,7 +43,7 @@ RadioConnectionType RadioUtils::GetConnectionType() {
   if (!IsSupported())
     return RadioConnectionType::kUnknown;
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   if (Java_RadioUtils_isWifiConnected(env)) {
     return RadioConnectionType::kWifi;
   } else {
@@ -55,7 +55,7 @@ absl::optional<RadioSignalLevel> RadioUtils::GetCellSignalLevel() {
   if (!IsSupported())
     return absl::nullopt;
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   int signal_level = Java_RadioUtils_getCellSignalLevel(env);
   if (signal_level < 0) {
     return absl::nullopt;
@@ -68,7 +68,7 @@ absl::optional<RadioDataActivity> RadioUtils::GetCellDataActivity() {
   if (!IsSupported())
     return absl::nullopt;
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return static_cast<RadioDataActivity>(
       Java_RadioUtils_getCellDataActivity(env));
 }

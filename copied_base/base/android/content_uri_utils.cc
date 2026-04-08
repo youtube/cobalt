@@ -14,14 +14,14 @@ using base::android::ScopedJavaLocalRef;
 namespace base {
 
 bool ContentUriExists(const FilePath& content_uri) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_uri =
       ConvertUTF8ToJavaString(env, content_uri.value());
   return Java_ContentUriUtils_contentUriExists(env, j_uri);
 }
 
 File OpenContentUriForRead(const FilePath& content_uri) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_uri =
       ConvertUTF8ToJavaString(env, content_uri.value());
   jint fd = Java_ContentUriUtils_openContentUriForRead(env, j_uri);
@@ -31,7 +31,7 @@ File OpenContentUriForRead(const FilePath& content_uri) {
 }
 
 std::string GetContentUriMimeType(const FilePath& content_uri) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_uri =
       ConvertUTF8ToJavaString(env, content_uri.value());
   ScopedJavaLocalRef<jstring> j_mime =
@@ -49,7 +49,7 @@ bool MaybeGetFileDisplayName(const FilePath& content_uri,
 
   DCHECK(file_display_name);
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_uri =
       ConvertUTF8ToJavaString(env, content_uri.value());
   ScopedJavaLocalRef<jstring> j_display_name =
@@ -64,7 +64,7 @@ bool MaybeGetFileDisplayName(const FilePath& content_uri,
 
 bool DeleteContentUri(const FilePath& content_uri) {
   DCHECK(content_uri.IsContentUri());
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_uri =
       ConvertUTF8ToJavaString(env, content_uri.value());
 
@@ -72,7 +72,7 @@ bool DeleteContentUri(const FilePath& content_uri) {
 }
 
 FilePath GetContentUriFromFilePath(const FilePath& file_path) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_file_path =
       ConvertUTF8ToJavaString(env, file_path.value());
   ScopedJavaLocalRef<jstring> j_content_uri =

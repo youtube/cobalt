@@ -11,7 +11,7 @@ namespace base {
 namespace android {
 
 TEST(UnguessableTokenAndroid, BasicCreateToken) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   uint64_t high = 0x1234567812345678;
   uint64_t low = 0x0583503029282304;
   base::UnguessableToken token =
@@ -26,7 +26,7 @@ TEST(UnguessableTokenAndroid, BasicCreateToken) {
 }
 
 TEST(UnguessableTokenAndroid, ParcelAndUnparcel) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   uint64_t high = 0x1234567812345678;
   uint64_t low = 0x0583503029282304;
   base::UnguessableToken token =

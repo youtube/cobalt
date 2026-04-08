@@ -12,7 +12,7 @@ namespace partition_alloc::internal::base {
 void InitThreading() {}
 
 void TerminateOnThread() {
-  // partition alloc tests don't use AttachCurrentThread(), because
+  // partition alloc tests don't use jni_zero::AttachCurrentThread(), because
   // the tests don't set / get any thread priority. So no need to do
   // "base::android::DetachFromVM();" here.
 }

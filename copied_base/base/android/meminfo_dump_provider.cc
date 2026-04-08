@@ -64,7 +64,7 @@ bool MeminfoDumpProvider::OnMemoryDump(
   dump->AddScalar(kIsStaleName, "bool", stale_data);
 
   last_collection_time_ = now;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> memory_info =
       Java_MemoryInfoBridge_getActivityManagerMemoryInfoForSelf(env);
   // Tell the manager that collection failed. Since this is likely not a

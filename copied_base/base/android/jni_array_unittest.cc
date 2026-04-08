@@ -23,7 +23,7 @@ namespace base::android {
 TEST(JniArray, GetLength) {
   const uint8_t bytes[] = {0, 1, 2, 3};
   const size_t len = std::size(bytes);
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_bytes = ToJavaByteArray(env, bytes, len);
   ASSERT_TRUE(j_bytes);
   ASSERT_EQ(4U, SafeGetArrayLength(env, j_bytes));
@@ -37,7 +37,7 @@ TEST(JniArray, GetLength) {
 TEST(JniArray, BasicConversions) {
   const uint8_t kBytes[] = {0, 1, 2, 3};
   const size_t kLen = std::size(kBytes);
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> bytes = ToJavaByteArray(env, kBytes, kLen);
   ASSERT_TRUE(bytes);
 
@@ -67,7 +67,7 @@ TEST(JniArray, BasicConversions) {
 }
 
 TEST(JniArray, ByteArrayStringConversions) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::string inputString("hello\0world");
   ScopedJavaLocalRef<jbyteArray> bytesFromString =
       ToJavaByteArray(env, inputString);
@@ -98,7 +98,7 @@ TEST(JniArray, BoolConversions) {
   const bool kBools[] = {false, true, false};
   const size_t kLen = std::size(kBools);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   CheckBoolConversion(env, kBools, kLen, ToJavaBooleanArray(env, kBools, kLen));
 }
 
@@ -124,7 +124,7 @@ TEST(JniArray, IntConversions) {
                        std::numeric_limits<int32_t>::max()};
   const size_t kLen = std::size(kInts);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   CheckIntConversion(env, kInts, kLen, ToJavaIntArray(env, kInts, kLen));
 
   const std::vector<int> vec(kInts, kInts + kLen);
@@ -152,7 +152,7 @@ TEST(JniArray, LongConversions) {
                             std::numeric_limits<int64_t>::max()};
   const size_t kLen = std::size(kLongs);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   CheckLongConversion(env, kLongs, kLen, ToJavaLongArray(env, kLongs, kLen));
 
   const std::vector<int64_t> vec(kLongs, kLongs + kLen);
@@ -202,7 +202,7 @@ TEST(JniArray, ArrayOfStringArrayConversionUTF8) {
   std::vector<std::vector<std::string>> kArrays = {
       {"a", "f"}, {"a", ""}, {}, {""}, {"今日は"}};
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobjectArray> joa = ToJavaArrayOfStringArray(env, kArrays);
 
   std::vector<std::vector<std::string>> out;
@@ -214,7 +214,7 @@ TEST(JniArray, ArrayOfStringArrayConversionUTF16) {
   std::vector<std::vector<std::u16string>> kArrays = {
       {u"a", u"f"}, {u"a", u""}, {}, {u""}};
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobjectArray> joa = ToJavaArrayOfStringArray(env, kArrays);
 
   std::vector<std::vector<std::u16string>> out;
@@ -226,7 +226,7 @@ TEST(JniArray, FloatConversions) {
   const float kFloats[] = { 0.0f, 1.0f, -10.0f};
   const size_t kLen = std::size(kFloats);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   CheckFloatConversion(env, kFloats, kLen,
                        ToJavaFloatArray(env, kFloats, kLen));
 
@@ -238,7 +238,7 @@ TEST(JniArray, JavaBooleanArrayToBoolVector) {
   const bool kBools[] = {false, true, false};
   const size_t kLen = std::size(kBools);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jbooleanArray> jbooleans(env, env->NewBooleanArray(kLen));
   ASSERT_TRUE(jbooleans);
 
@@ -261,7 +261,7 @@ TEST(JniArray, JavaIntArrayToIntVector) {
   const int kInts[] = {0, 1, -1};
   const size_t kLen = std::size(kInts);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jintArray> jints(env, env->NewIntArray(kLen));
   ASSERT_TRUE(jints);
 
@@ -283,7 +283,7 @@ TEST(JniArray, JavaLongArrayToInt64Vector) {
   const int64_t kInt64s[] = {0LL, 1LL, -1LL};
   const size_t kLen = std::size(kInt64s);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jlongArray> jlongs(env, env->NewLongArray(kLen));
   ASSERT_TRUE(jlongs);
 
@@ -311,7 +311,7 @@ TEST(JniArray, JavaLongArrayToLongVector) {
   const int64_t kInt64s[] = {0LL, 1LL, -1LL};
   const size_t kLen = std::size(kInt64s);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jlongArray> jlongs(env, env->NewLongArray(kLen));
   ASSERT_TRUE(jlongs);
 
@@ -338,7 +338,7 @@ TEST(JniArray, JavaFloatArrayToFloatVector) {
   const float kFloats[] = {0.0, 0.5, -0.5};
   const size_t kLen = std::size(kFloats);
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jfloatArray> jfloats(env, env->NewFloatArray(kLen));
   ASSERT_TRUE(jfloats);
 
@@ -364,7 +364,7 @@ TEST(JniArray, JavaFloatArrayToFloatVector) {
 TEST(JniArray, JavaDoubleArrayToDoubleVector) {
   const std::vector<double> kDoubles = {0.0, 0.5, -0.5,
                                         std::numeric_limits<double>::min()};
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jdoubleArray> jdoubles(
       env, env->NewDoubleArray(kDoubles.size()));
   ASSERT_TRUE(jdoubles);
@@ -380,7 +380,7 @@ TEST(JniArray, JavaDoubleArrayToDoubleVector) {
 
 TEST(JniArray, JavaArrayOfByteArrayToStringVector) {
   const int kMaxItems = 50;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   // Create a byte[][] object.
   ScopedJavaLocalRef<jclass> byte_array_clazz(env, env->FindClass("[B"));
@@ -417,7 +417,7 @@ TEST(JniArray, JavaArrayOfByteArrayToStringVector) {
 TEST(JniArray, JavaArrayOfByteArrayToBytesVector) {
   const size_t kMaxItems = 50;
   const uint8_t kStep = 37;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   // Create a byte[][] object.
   ScopedJavaLocalRef<jclass> byte_array_clazz(env, env->FindClass("[B"));
@@ -458,7 +458,7 @@ TEST(JniArray, JavaArrayOfStringArrayToVectorOfStringVector) {
   const std::vector<std::vector<std::u16string>> kArrays = {
       {u"a", u"f"}, {u"a", u""}, {}, {u""}};
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   ScopedJavaLocalRef<jobjectArray> array(
       env, env->NewObjectArray(kArrays.size(),
@@ -493,7 +493,7 @@ TEST(JniArray, JavaArrayOfStringArrayToVectorOfStringVector) {
 
 TEST(JniArray, JavaArrayOfIntArrayToIntVector) {
   const size_t kNumItems = 4;
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   // Create an int[][] object.
   ScopedJavaLocalRef<jclass> int_array_clazz(env, env->FindClass("[I"));
@@ -537,7 +537,7 @@ TEST(JniArray, JavaArrayOfIntArrayToIntVector) {
 }
 
 TEST(JniArray, ToJavaArrayOfObjectsOfClass) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   std::vector<ScopedJavaLocalRef<jobject>> objects = {
       ScopedJavaLocalRef<jobject>(ConvertUTF8ToJavaString(env, "one")),
@@ -567,7 +567,7 @@ TEST(JniArray, ToJavaArrayOfObjectsOfClass) {
 }
 
 TEST(JniArray, ToJavaArrayOfObjectLocalRef) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   std::vector<ScopedJavaLocalRef<jobject>> objects = {
       ScopedJavaLocalRef<jobject>(ConvertUTF8ToJavaString(env, "one")),
@@ -596,7 +596,7 @@ TEST(JniArray, ToJavaArrayOfObjectLocalRef) {
 }
 
 TEST(JniArray, ToJavaArrayOfObjectGlobalRef) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   std::vector<ScopedJavaGlobalRef<jobject>> objects = {
       ScopedJavaGlobalRef<jobject>(ConvertUTF8ToJavaString(env, "one")),
