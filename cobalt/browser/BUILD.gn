@@ -180,6 +180,7 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
+    ":features",
     ":switches",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
