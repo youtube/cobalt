@@ -416,17 +416,6 @@ void DrmSystem::OnKeyStatusChange(
                                  drm_key_ids.data(), drm_key_statuses.data());
 }
 
-bool DrmSystem::WaitForMediaCryptoSessionCreated(int64_t timeout_us) {
-  if (created_media_crypto_session_.load()) {
-    return true;
-  }
-
-  std::unique_lock lock(mutex_);
-  return created_media_crypto_session_cv_.wait_for(
-      lock, std::chrono::microseconds(timeout_us),
-      [this] { return created_media_crypto_session_.load(); });
-}
-
 void DrmSystem::OnInsufficientOutputProtection() {
   // HDCP has lost, update the statuses of all keys in all known sessions to be
   // restricted.
@@ -450,6 +439,17 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
                                    static_cast<int>(drm_key_ids.size()),
                                    drm_key_ids.data(), drm_key_statuses.data());
   }
+}
+
+bool DrmSystem::WaitForMediaCryptoSessionCreated(int64_t timeout_us) {
+  if (created_media_crypto_session_.load()) {
+    return true;
+  }
+
+  std::unique_lock lock(mutex_);
+  return created_media_crypto_session_cv_.wait_for(
+      lock, std::chrono::microseconds(timeout_us),
+      [this] { return created_media_crypto_session_.load(); });
 }
 
 bool DrmSystem::IsReady() {

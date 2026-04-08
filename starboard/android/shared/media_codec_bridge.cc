@@ -143,13 +143,21 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   }
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
-      new MediaCodecBridge(handler,
-                           std::move(wait_for_media_crypto_session_cb)));
+      new MediaCodecBridge(handler));
   ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
   ScopedJavaLocalRef<jstring> j_decoder_name(
       env, env->NewStringUTF(decoder_name.c_str()));
   ScopedJavaLocalRef<jobject> j_media_crypto_local(
       env, env->NewLocalRef(j_media_crypto));
+
+  if (j_media_crypto != nullptr) {
+    SB_CHECK(wait_for_media_crypto_session_cb);
+    if (!wait_for_media_crypto_session_cb(kDrmSystemReadyTimeoutUs)) {
+      SB_LOG(ERROR) << "Timed out waiting for drm system to be ready in "
+                       "CreateAudioMediaCodecBridge.";
+      return nullptr;
+    }
+  }
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge =
       Java_MediaCodecBridgeBuilder_createAudioDecoder(
@@ -276,11 +284,19 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
       Java_CreateMediaCodecBridgeResult_Constructor(env));
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
-      new MediaCodecBridge(handler,
-                           std::move(wait_for_media_crypto_session_cb)));
+      new MediaCodecBridge(handler));
   ScopedJavaLocalRef<jobject> j_surface_local(env, env->NewLocalRef(j_surface));
   ScopedJavaLocalRef<jobject> j_media_crypto_local(
       env, env->NewLocalRef(j_media_crypto));
+
+  if (j_media_crypto != nullptr) {
+    SB_CHECK(wait_for_media_crypto_session_cb);
+    if (!wait_for_media_crypto_session_cb(kDrmSystemReadyTimeoutUs)) {
+      SB_LOG(ERROR) << "Timed out waiting for drm system to be ready in "
+                       "CreateVideoMediaCodecBridge.";
+      return nullptr;
+    }
+  }
 
   Java_MediaCodecBridge_createVideoMediaCodecBridge(
       env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
@@ -351,13 +367,6 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     const SbDrmSampleInfo& drm_sample_info,
     jlong presentation_time_microseconds,
     jboolean is_decode_only) {
-  SB_CHECK(wait_for_media_crypto_session_cb_);
-  if (!wait_for_media_crypto_session_cb_(kDrmSystemReadyTimeoutUs)) {
-    SB_LOG(ERROR) << "Timed out waiting for drm system to be ready for "
-                     "QueueSecureInputBuffer.";
-    return MEDIA_CODEC_NO_KEY;
-  }
-
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_iv =
@@ -505,12 +514,7 @@ void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
-MediaCodecBridge::MediaCodecBridge(
-    Handler* handler,
-    WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb)
-    : handler_(handler),
-      wait_for_media_crypto_session_cb_(
-          std::move(wait_for_media_crypto_session_cb)) {
+MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
   SB_CHECK(handler_);
 }
 

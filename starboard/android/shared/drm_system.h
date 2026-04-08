@@ -81,7 +81,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
       std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
-  bool WaitForMediaCryptoSessionCreated(int64_t timeout_us) override;
 
   void OnInsufficientOutputProtection();
 
@@ -90,6 +89,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     return IsWidevineL1(key_system_.c_str());
   }
 
+  bool WaitForMediaCryptoSessionCreated(int64_t timeout_us);
   // Return true when the drm system is ready for secure input buffers.
   bool IsReady();
 

@@ -192,15 +192,11 @@ class MediaCodecBridge {
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
-  explicit MediaCodecBridge(
-      Handler* handler,
-      WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb);
+  explicit MediaCodecBridge(Handler* handler);
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* const handler_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
-
-  const WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb_;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

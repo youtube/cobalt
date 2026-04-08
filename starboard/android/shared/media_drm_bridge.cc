@@ -41,8 +41,6 @@ using base::android::ToJavaByteArray;
 
 using DrmOperationResult = MediaDrmBridge::OperationResult;
 
-constexpr int64_t kMediaCryptoSessionCreatedTimeoutUs = 500'000;
-
 // Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
@@ -219,11 +217,6 @@ DrmOperationResult MediaDrmBridge::UpdateSession(
     int ticket,
     std::string_view key,
     std::string_view session_id) const {
-  if (!IsMediaCryptoSessionCreated(__FUNCTION__)) {
-    return {DRM_OPERATION_STATUS_OPERATION_FAILED,
-            "Media crypto session not created."};
-  }
-
   JNIEnv* env = AttachCurrentThread();
 
   auto j_session_id = ToScopedJavaByteArray(env, session_id);
@@ -235,10 +228,6 @@ DrmOperationResult MediaDrmBridge::UpdateSession(
 }
 
 void MediaDrmBridge::CloseSession(std::string_view session_id) const {
-  if (!IsMediaCryptoSessionCreated(__FUNCTION__)) {
-    return;
-  }
-
   JNIEnv* env = AttachCurrentThread();
 
   auto j_session_id = ToScopedJavaByteArray(env, session_id);
@@ -247,11 +236,6 @@ void MediaDrmBridge::CloseSession(std::string_view session_id) const {
 }
 
 const void* MediaDrmBridge::GetMetrics(int* size) {
-  if (!IsMediaCryptoSessionCreated(__FUNCTION__)) {
-    *size = 0;
-    return nullptr;
-  }
-
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_metrics =
@@ -335,18 +319,6 @@ bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
 // static
 bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
-}
-
-bool MediaDrmBridge::IsMediaCryptoSessionCreated(
-    std::string_view caller_name) const {
-  if (!host_->WaitForMediaCryptoSessionCreated(
-          kMediaCryptoSessionCreatedTimeoutUs)) {
-    SB_LOG(ERROR)
-        << "Timed out waiting for MediaCrypto session to be created for "
-        << caller_name << ".";
-    return false;
-  }
-  return true;
 }
 
 std::ostream& operator<<(std::ostream& os, DrmOperationStatus status) {
