@@ -75,6 +75,20 @@ std::string g_migration_status_param;
 // A thread-safe, reference-counted wrapper around a base::OnceClosure.
 // This is used to ensure a callback is executed exactly once, even if
 // multiple async paths (like an IPC response and a timeout) attempt to run it.
+//
+// Timeout Behavior Summary:
+// If a 2-second timeout fires during LocalStorageTask or CookieTask, this
+// state guarantees the application startup callback is executed immediately
+// to prevent blocking. The Mojo IPC connections are kept alive by the pending
+// callbacks.
+// - If the background thread eventually succeeds: the data is successfully
+//   written to disk, UMA metrics are recorded, but this state swallows the
+//   late callback (a no-op) to prevent running the startup callback twice.
+//   The MigrationState ignores the late success, remaining as 'kTimeout'.
+// - If the background thread hangs indefinitely: the thread remains blocked,
+//   consuming resources or preventing further storage operations. The closures
+//   and Mojo pipes are leaked for the lifetime of the application, but the
+//   main thread remains unblocked and the application continues running.
 struct SharedClosureState : public base::RefCounted<SharedClosureState> {
   base::OnceClosure cb;
   // Keeps the StorageArea Mojo connection alive during the injection process.
@@ -446,6 +460,11 @@ std::string MigrationManager::GetMigrationStatusUrlParameter() {
 }
 
 // static
+void MigrationManager::ResetMigrationStatusForTesting() {
+  g_migration_status_param.clear();
+}
+
+// static
 // Groups multiple sequential asynchronous tasks into a single chain of
 // callbacks. When the returned Task is invoked, it will execute the first task,
 // which in turn will trigger the second, and so on, until all tasks are run.
@@ -745,8 +764,10 @@ Task MigrationManager::LocalStorageTask(
 
         GetLocalStorageArea(partition, origin, shared_state->storage_area);
 
-        // STEP 2: Flush step.
+        // STEP 2 & 3: Flush and Purge memory handles.
         // Tells the Storage Service to commit the LevelDB transactions to disk.
+        // Then force the Storage Service to drop its handle for this origin so that
+        // the newly spawned Renderer process sees the updated disk state.
         // We use BindOnce with shared_state to ensure it is kept alive.
         base::OnceClosure flush_step = base::BindOnce(
             [](content::StoragePartition* partition,
@@ -754,6 +775,10 @@ Task MigrationManager::LocalStorageTask(
                scoped_refptr<SharedClosureState> shared_state) {
               LOG(INFO) << "LocalStorage Puts complete. Flushing...";
               partition->GetLocalStorageControl()->Flush();
+
+              LOG(INFO) << "Purging Storage Service handles to force "
+                           "Renderer synchronization.";
+              partition->GetLocalStorageControl()->PurgeMemory();
 
               // Proceed immediately. Flush() is non-blocking and we don't need
               // to wait for disk IO to complete before starting the app.
@@ -797,6 +822,23 @@ Task MigrationManager::LocalStorageTask(
                   },
                   barrier, key_str, state, shared_state));
         }
+
+        // Hard timeout fallback: if the whole chain hangs, resume app startup.
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](scoped_refptr<SharedClosureState> shared_state,
+                   scoped_refptr<MigrationState> migration_state) {
+                  if (shared_state->cb) {
+                    LOG(ERROR) << "LocalStorage migration timed out "
+                                  "after 2 seconds. Proceeding anyway.";
+                    migration_state->UpdateLocalStorageResult(
+                        InjectionResult::kTimeout);
+                    shared_state->Run();
+                  }
+                },
+                shared_state, state),
+            base::Seconds(2));
       },
       partition, origin, std::move(pairs), state);
 }
