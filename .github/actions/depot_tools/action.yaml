@@ -132,18 +132,14 @@ runs:
         REF: ${{ github.sha }}
       run: |
         cd cobalt
-        # 1. Use -j to limit simultaneous connections (try 2 or 4 instead of default 8+)
-        # 2. Add --no-tags to stop fetching historical markers you don't need for CI
         gclient sync \
           --verbose \
           --shallow \
           --no-history \
-          --no-tags \
           --nohooks \
           --force \
           --delete_unversioned_trees \
-          --revision "${REF}" \
-          -j 4
+          --revision "${REF}"
       shell: bash
 
     - name: Run gclient runhooks
