@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <sys/mman.h>
+#include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
@@ -290,6 +291,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(write);
 
   // Linux APIs
+  REGISTER_SYMBOL(getrandom);
   REGISTER_SYMBOL(recvmmsg);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
