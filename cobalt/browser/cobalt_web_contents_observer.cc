@@ -82,7 +82,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", true);
-    base::UmaHistogramSparse("Cobalt.WebContentsObserver.FailedNavigationError", -net_error_code);
+    base::UmaHistogramSparse("Cobalt.WebContentsObserver.FailedNavigationError",
+                             -net_error_code);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
     RaisePlatformError();
