@@ -26,8 +26,6 @@ H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
       remote_h5vcc_runtime_(window.GetExecutionContext()),
       deep_link_receiver_(this, window.GetExecutionContext()) {
   EnsureRemoteIsBound();
-  remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link_);
-  LOG(INFO) << "H5vccRuntime initial DeepLink: " << initial_deep_link_;
 }
 
 void H5vccRuntime::ContextDestroyed() {
@@ -36,6 +34,14 @@ void H5vccRuntime::ContextDestroyed() {
 }
 
 String H5vccRuntime::initialDeepLink() {
+  if (initial_deep_link_.empty()) {
+    String latest_deep_link;
+    EnsureRemoteIsBound();
+    remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&latest_deep_link);
+    if (!latest_deep_link.empty()) {
+      initial_deep_link_ = latest_deep_link;
+    }
+  }
   return initial_deep_link_;
 }
 
