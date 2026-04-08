@@ -26,33 +26,28 @@ const void* SbSystemGetExtension(const char* name) {
   ...
 
   if (SbStringCompareAll(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::GetCrashHandlerApi();
+    return starboard::common::GetCrashHandlerApi();
   }
   return NULL;
 }
 ```
 
-3. Calling the `crashpad::InstallCrashpadHandler()` hook
+3. Calling the `third_party::crashpad::wrapper::InstallCrashpadHandler()` hook
 directly after installing system crash handlers. On linux, for example, this
 could look like:
 
 ```
-#include "starboard/crashpad_wrapper/wrapper.h"
+#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
 int main(int argc, char** argv) {
   ...
-  starboard::InstallCrashSignalHandlers();
-  starboard::InstallSuspendSignalHandlers();
+  starboard::shared::signal::InstallCrashSignalHandlers();
+  starboard::shared::signal::InstallSuspendSignalHandlers();
 
-  std::string ca_certificates_path = starboard::GetCACertificatesPath();
-  crashpad::InstallCrashpadHandler(ca_certificates_path);
+  std::string ca_certificates_path = starboard::common::GetCACertificatesPath();
+  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
 
   int result = application.Run(argc, argv);
   ...
 }
 ```
-
-NOTE: platforms using Evergreen should not call
-`crashpad::InstallCrashpadHandler()` from their own application code. Starting
-with Cobalt 26, this function is now called from shared Evergreen code linked
-into the `loader_app`.

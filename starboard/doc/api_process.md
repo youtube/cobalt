@@ -1,13 +1,13 @@
 # Starboard API Review Process
 
 ## Why do we need a process?
-The Starboard API is the contract between Starboard applications and
-implementers of the Starboard API. Changing existing APIs and adding new
-required APIs breaks that contract and increases the cost of implementers
+The Starboard 18 API is the contract between Starboard 18 applications and
+implementors of the Starboard 18 API. Changing existing APIs and adding new
+required APIs breaks that contract and increases the cost of implementors
 keeping their Starboard port up-to-date. Pushing a release to the Open Source
-repository signals to Starboard implementers that any non-experimental APIs in
-that version will not change for as long as that version of Starboard is
-supported by the Starboard applications. We cannot change those newly frozen
+repository signals to Starboard implementors that any non-experimental APIs in
+that version will not change for as long as that version of Starboard 18 is
+supported by the Starboard 18 applications. We cannot change those newly frozen
 APIs without causing a potentially significant disruption to any partners who
 have already implemented them, or are in the process of implementing them.
 
@@ -19,7 +19,7 @@ consistency with existing APIs design principles. Unnecessary churn on the
 Starboard API creates more work for Starboard application developers and may
 discourage porters from keeping Starboard applications up-to-date on their
 platforms. This process is intended to save time and effort for both Starboard
-application developers and Starboard implementers in the long run, and
+application developers and Starboard implementors in the long run, and
 illustrates the complexity of dealing with a wide variety of platforms
 simultaneously.
 
@@ -29,7 +29,9 @@ Gerrit. This works well for small-ish changes. For larger changes, consider
 writing a design document up front before defining the new API.
 
 ### Who does the review?
-Send a message to the public cobalt-dev group to request a review.
+Send a message to the public cobalt-dev group to request a review. Note that
+Starboard 18 emphasizes convergence with standard POSIX APIs to simplify
+porting.
 
 ### What is the process?
 Developers are strongly encouraged to create the interface and upload that to

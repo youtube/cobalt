@@ -47,10 +47,11 @@ Here are the main goals of Starboard, stack-ranked from most-to-least important.
   * **G10** Maintain a loose binding between a Starboard Platform Implementation
     and a Starboard Client Application, such that they can be updated
     independently at a source level.
-  * **G11** Avoid the pitfalls of trying to emulate POSIX, including, but not
-    limited to: auto-included headers, global defines of short and common
-    symbols, wrapping misbehaving or misprototyped system APIs, using custom
-    toolchain facilities, and conflicts with platform headers.
+  * **G11** Embrace standard POSIX APIs for common functionality while avoiding
+    header pollution. While Starboard 18 increasingly relies on POSIX, it still
+    aims to avoid the pitfalls of direct emulation, such as: auto-included
+    headers, global defines of short and common symbols, and conflicts with
+    platform headers.
 
 ## Principles
 
@@ -58,7 +59,8 @@ Here are the main goals of Starboard, stack-ranked from most-to-least important.
 
 APIs can generally be augmented without serious backwards-compatibility
 consequences, but they can not be changed or pruned so easily, so it is better
-to **err on the side of providing less**.
+to **err on the side of providing less**. This remains true as Starboard 18
+converges with POSIX.
 
 #### Corollary: Implementation details should be as hidden as possible.
 
@@ -71,7 +73,7 @@ to **err on the side of providing less**.
 ### Specify public APIs concretely and narrowly.
 
 A broader specification of the behavior of an API function makes life easier for
-the implementer, but more difficult for anyone attempting to use the API. An API
+the implementor, but more difficult for anyone attempting to use the API. An API
 can be so weakly specified that it is not usable across platforms. It can also
 be so strictly specified that it is not implementable across platforms. **Err on
 the side of narrower specifications**, requiring generality only when
