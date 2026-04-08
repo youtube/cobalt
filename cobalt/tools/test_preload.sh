@@ -17,6 +17,7 @@
 # Verifies that Cobalt starts in a hidden state and reveals on SIGCONT.
 
 PORT=9223
+HOST=${TEST_PRELOAD_HOST:-"localhost"}
 LOG_FILE="preload_run.log"
 EXECUTABLE=${TEST_PRELOAD_EXECUTABLE:-"./out/linux-x64x11-modular_devel/cobalt_loader"}
 
@@ -42,26 +43,61 @@ if [ -n "$OTHER_TEST_PIDS" ] || [ -n "$WAITER_PIDS" ] || [ -n "$COBALT_PIDS" ]; 
   exit 1
 fi
 
-echo "[TEST] Starting cobalt_loader in preload mode with DevTools on port $PORT..."
+echo "[TEST] Starting cobalt_loader in preload mode with DevTools on $HOST:$PORT..."
 rm -f $LOG_FILE
 
 $EXECUTABLE --preload --remote-debugging-port=$PORT --no-sandbox > $LOG_FILE 2>&1 &
 COBALT_PID=$!
 
 echo "[TEST] Launched PID: $COBALT_PID. Waiting for DevTools..."
-sleep 5
+if ! vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT --wait --wait-total 60 | grep -q "SUCCESS"; then
+  echo "FAILURE: DevTools did not become ready in time."
+  kill -9 $COBALT_PID
+  exit 1
+fi
 
-echo "[TEST] Verifying initial preloaded state (Hidden & Not Focused)..."
-# In preload mode, the app should be hidden and not have focus.
-bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 120 || exit 1
-bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "False" $PORT 120 || exit 1
+execute_js() {
+  vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT "$1"
+}
+
+# Inject event logger.
+echo "[TEST] Injecting event logger..."
+execute_js "window.event_log = [];
+            document.addEventListener('visibilitychange', () => {
+              window.event_log.push({type: 'visibilitychange', visibility: document.visibilityState});
+            });"
+
+echo "[TEST] Verifying initial preloaded state (Hidden)..."
+# In preload mode, the app should be hidden.
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 120 $HOST || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "False" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Sending SIGCONT to reveal application..."
 kill -SIGCONT $COBALT_PID
 
-echo "[TEST] Verifying revealed state (Visible & Focused)..."
-bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 || exit 1
-bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 || exit 1
+echo "[TEST] Verifying revealed state (Visible)..."
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 $HOST || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 $HOST || exit 1
+
+echo "[TEST] Verifying event sequence..."
+# Expected: visibilitychange (visible)
+EXPECTED_LOG='"type":"visibilitychange","visibility":"visible"}'
+bash cobalt/tools/wait_for_state.sh "JSON.stringify(window.event_log)" "$EXPECTED_LOG" $PORT 60 $HOST || exit 1
+
+echo "[TEST] Testing conceal/reveal cycle after initial reveal..."
+execute_js "window.event_log = [];"
+
+echo "[TEST] Sending SIGUSR1 to conceal..."
+kill -SIGUSR1 $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT 120 $HOST || exit 1
+
+echo "[TEST] Sending SIGCONT to reveal..."
+kill -SIGCONT $COBALT_PID
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 $HOST || exit 1
+
+echo "[TEST] Verifying cycle events..."
+EXPECTED_CYCLE_LOG='"type":"visibilitychange","visibility":"hidden"},{"type":"visibilitychange","visibility":"visible"}'
+bash cobalt/tools/wait_for_state.sh "JSON.stringify(window.event_log)" "$EXPECTED_CYCLE_LOG" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Sending SIGPWR (STOP)..."
 kill -SIGPWR $COBALT_PID

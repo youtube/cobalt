@@ -388,6 +388,14 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
 
+void CobaltContentBrowserClient::
+    RegisterMojoBinderPoliciesForSameOriginPrerendering(
+        content::MojoBinderPolicyMap& policy_map) {
+  cobalt::RegisterCobaltMojoBinderPolicies(policy_map);
+  ShellContentBrowserClient::
+      RegisterMojoBinderPoliciesForSameOriginPrerendering(policy_map);
+}
+
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     content::BrowserContext* browser_context,
     content::RenderFrameHost* frame,

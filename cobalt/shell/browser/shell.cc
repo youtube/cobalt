@@ -461,6 +461,9 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
   create_params.initially_hidden = !is_visible;
+#if BUILDFLAG(IS_COBALT)
+  create_params.is_initial_prerender = false;
+#endif
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;

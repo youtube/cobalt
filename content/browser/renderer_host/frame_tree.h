@@ -261,7 +261,21 @@ class CONTENT_EXPORT FrameTree {
   FrameTreeNode* root() { return &root_; }
   const FrameTreeNode* root() const { return &root_; }
 
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt-specific modification: Include is_initial_prerender_ in the
+  // prerendering check. This allows the primary frame tree to be in a
+  // prerendering state for Single-View Prerendering.
+  bool is_prerendering() const {
+    return type_ == FrameTree::Type::kPrerender || is_initial_prerender_;
+  }
+
+  bool is_initial_prerender() const { return is_initial_prerender_; }
+  void set_is_initial_prerender(bool is_initial_prerender) {
+    is_initial_prerender_ = is_initial_prerender;
+  }
+#else
   bool is_prerendering() const { return type_ == FrameTree::Type::kPrerender; }
+#endif
 
   // Returns true if this frame tree is a portal.
   //
@@ -646,6 +660,13 @@ class CONTENT_EXPORT FrameTree {
   // cross-SiteInstanceGroup main-frame navigations, so all main-frame
   // navigations use speculative RenderViewHost.
   base::WeakPtr<RenderViewHostImpl> speculative_render_view_host_;
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt-specific modification: True if this frame tree is in an initial
+  // prerendering state. This is used to force the primary frame tree into the
+  // kPrerendering lifecycle state for Single-View Prerendering.
+  bool is_initial_prerender_ = false;
+#endif
 
   // Indicates type of frame tree.
   const Type type_;

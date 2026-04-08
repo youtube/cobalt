@@ -34,6 +34,7 @@
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
+#include "content/public/browser/mojo_binder_policy_map.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
@@ -150,6 +151,27 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_platform_service::
                               H5vccPlatformServiceManagerImpl::GetOrCreate));
 #endif
+}
+
+void RegisterCobaltMojoBinderPolicies(
+    content::MojoBinderPolicyMap& policy_map) {
+  // Allow these interfaces during prerendering so that the application can
+  // perform telemetry and check capabilities before being revealed.
+  policy_map.SetNonAssociatedPolicy<
+      h5vcc_accessibility::mojom::H5vccAccessibilityBrowser>(
+      content::MojoBinderNonAssociatedPolicy::kGrant);
+  policy_map.SetNonAssociatedPolicy<h5vcc_experiments::mojom::H5vccExperiments>(
+      content::MojoBinderNonAssociatedPolicy::kGrant);
+  policy_map.SetNonAssociatedPolicy<h5vcc_metrics::mojom::H5vccMetrics>(
+      content::MojoBinderNonAssociatedPolicy::kGrant);
+  policy_map.SetNonAssociatedPolicy<h5vcc_system::mojom::H5vccSystem>(
+      content::MojoBinderNonAssociatedPolicy::kGrant);
+  policy_map.SetNonAssociatedPolicy<h5vcc_runtime::mojom::H5vccRuntime>(
+      content::MojoBinderNonAssociatedPolicy::kGrant);
+  policy_map.SetNonAssociatedPolicy<h5vcc_storage::mojom::H5vccStorage>(
+      content::MojoBinderNonAssociatedPolicy::kGrant);
+  policy_map.SetNonAssociatedPolicy<performance::mojom::CobaltPerformance>(
+      content::MojoBinderNonAssociatedPolicy::kGrant);
 }
 
 }  // namespace cobalt
