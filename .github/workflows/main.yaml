@@ -415,6 +415,23 @@ jobs:
       DEPOT_TOOLS_METRICS: 0
       IS_CI: 1
     steps:
+      - name: Check Runner Cache
+        id: check-runner-cache
+        shell: bash
+        run: |
+          if [ -d "/runner-cache/git-cache" ] && [ "$(ls -A /runner-cache/git-cache 2>/dev/null)" ]; then
+            echo "cache_hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "cache_hit=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Runner Cache Hot
+        if: steps.check-runner-cache.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Runner cache is populated."
+      - name: Runner Cache Cold
+        if: steps.check-runner-cache.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Runner cache is empty."
       - name: Set TMPDIR
         shell: bash
         run: |
@@ -762,7 +779,23 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-
+      - name: Check Runner Cache
+        id: check-runner-cache
+        shell: bash
+        run: |
+          if [ -d "/runner-cache/git-cache" ] && [ "$(ls -A /runner-cache/git-cache 2>/dev/null)" ]; then
+            echo "cache_hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "cache_hit=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Runner Cache Hot
+        if: steps.check-runner-cache.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Runner cache is populated."
+      - name: Runner Cache Cold
+        if: steps.check-runner-cache.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Runner cache is empty."
       - name: Checkout
         uses: ./.github/actions/checkout
         with:
