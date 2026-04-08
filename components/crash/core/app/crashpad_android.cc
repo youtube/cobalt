@@ -576,6 +576,14 @@ class HandlerStarter {
     }
 
     if (use_java_handler_ || !handler_trampoline_.empty()) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+      // Cobalt on Android TV skips the Java fallback handler for API 24-28.
+      // Reporting is not supported on these versions due to engineering cost
+      // and low traffic.
+      if (use_java_handler_) {
+        return database_path;
+      }
+#endif
       std::vector<std::string> env;
       if (!BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return database_path;
@@ -628,6 +636,14 @@ class HandlerStarter {
     }
 
     if (use_java_handler_ || !handler_trampoline_.empty()) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+      // Cobalt on Android TV skips the Java fallback handler for API 24-28.
+      // Reporting is not supported on these versions due to engineering cost
+      // and low traffic.
+      if (use_java_handler_) {
+        return false;
+      }
+#endif
       std::vector<std::string> env;
       if (!BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return false;
