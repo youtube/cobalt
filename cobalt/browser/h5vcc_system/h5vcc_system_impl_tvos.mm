@@ -32,14 +32,26 @@ namespace h5vcc_system {
 
 namespace {
 
+bool g_tracking_authorized_for_test = false;
+std::string g_advertising_id_for_test;
+
 void GetAdvertisingIdShared(
     H5vccSystemImpl::GetAdvertisingIdCallback callback) {
+  if (g_tracking_authorized_for_test) {
+    std::move(callback).Run(g_advertising_id_for_test);
+    return;
+  }
+
   NSString* advertising_id =
       [[ASIdentifierManager sharedManager].advertisingIdentifier UUIDString];
   std::move(callback).Run(base::SysNSStringToUTF8(advertising_id));
 }
 
 bool GetLimitAdTrackingShared() {
+  if (g_tracking_authorized_for_test) {
+    return false;
+  }
+
   return [ATTrackingManager trackingAuthorizationStatus] !=
          ATTrackingManagerAuthorizationStatusAuthorized;
 }
@@ -61,6 +73,19 @@ std::string GetTrackingAuthorizationStatusShared() {
 }
 
 }  // namespace
+
+void H5vccSystemImpl::ResetTestState() {
+  g_tracking_authorized_for_test = false;
+  g_advertising_id_for_test.clear();
+}
+
+void H5vccSystemImpl::SetTrackingAuthorizationForTest(bool authorized) {
+  g_tracking_authorized_for_test = authorized;
+}
+
+void H5vccSystemImpl::SetAdvertisingIdForTest(const std::string& id) {
+  g_advertising_id_for_test = id;
+}
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);

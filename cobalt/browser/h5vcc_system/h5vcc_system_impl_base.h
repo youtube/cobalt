@@ -38,6 +38,12 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   static void Create(content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::H5vccSystem> receiver);
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  static void ResetTestState();
+  static void SetTrackingAuthorizationForTest(bool authorized);
+  static void SetAdvertisingIdForTest(const std::string& id);
+#endif
+
   H5vccSystemImpl(const H5vccSystemImpl&) = delete;
   H5vccSystemImpl& operator=(const H5vccSystemImpl&) = delete;
 

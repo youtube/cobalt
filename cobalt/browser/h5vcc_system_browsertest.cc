@@ -19,12 +19,24 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"  // nogncheck
+#endif
+
 namespace cobalt {
 
 class H5vccSystemBrowserTest : public content::ContentBrowserTest {
  public:
   H5vccSystemBrowserTest() = default;
   ~H5vccSystemBrowserTest() override = default;
+
+#if BUILDFLAG(IS_IOS_TVOS)
+ protected:
+  void TearDown() override {
+    h5vcc_system::H5vccSystemImpl::ResetTestState();
+    content::ContentBrowserTest::TearDown();
+  }
+#endif
 };
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifyApiPresence) {
@@ -71,5 +83,52 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifySystemProperties) {
   EXPECT_TRUE(
       content::EvalJs(shell()->web_contents(), check_strategy).ExtractBool());
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, GetAdvertisingId) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  static const std::string fallback_id = "00000000-0000-0000-0000-000000000000";
+  static const std::string test_id = "12345678-1234-1234-1234-123456789000";
+
+  // Verify that advertisingId returns the fallback value when the tracking
+  // authorization is not granted.
+  EXPECT_EQ(fallback_id, content::EvalJs(shell()->web_contents(),
+                                         "window.h5vcc.system.advertisingId")
+                             .ExtractString());
+
+  // Allow tracking authorization and set the test value.
+  h5vcc_system::H5vccSystemImpl::SetTrackingAuthorizationForTest(true);
+  h5vcc_system::H5vccSystemImpl::SetAdvertisingIdForTest(test_id);
+
+  // Check if advertisingId matches the test value.
+  EXPECT_EQ(test_id, content::EvalJs(shell()->web_contents(),
+                                     "window.h5vcc.system.advertisingId")
+                         .ExtractString());
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, GetLimitAdTracking) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  // Verify that limitAdTracking returns true when  when the tracking
+  // authorization is not granted.
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "window.h5vcc.system.limitAdTracking")
+                  .ExtractBool());
+
+  // Allow the tracking authorization for testing.
+  h5vcc_system::H5vccSystemImpl::SetTrackingAuthorizationForTest(true);
+
+  // Check if limitAdTracking returns false after the tracking authorization is
+  // granted.
+  EXPECT_FALSE(content::EvalJs(shell()->web_contents(),
+                               "window.h5vcc.system.limitAdTracking")
+                   .ExtractBool());
+}
+#endif
 
 }  // namespace cobalt

@@ -396,7 +396,10 @@ test("cobalt_browsertests") {
       ":cobalt_shell_pak_bundle_data",
       ":cobalt_test_bundle_data",
     ]
-    deps += [ "//starboard/common:common" ]
+    deps += [
+      "//cobalt/browser/h5vcc_system",
+      "//starboard/common:common",
+    ]
   }
 
   if (is_android) {
