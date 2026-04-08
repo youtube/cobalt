@@ -50,7 +50,6 @@ AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
       // This part of the code should only be reached if an unknown SbEventType
       // is received.
       NOTREACHED() << "Unexpected SbEventType: " << type;
-      return AppEventDelegate::ApplicationState::kInitial;
   }
 }
 }  // namespace
@@ -221,7 +220,6 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
         case ApplicationState::kStopped:
           // Cannot transition out of Stopped.
           NOTREACHED();
-          return;
         case ApplicationState::kFrozen:
           runner_->OnUnfreeze();
           application_state_ = ApplicationState::kConcealed;
@@ -249,7 +247,6 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
       // Prevent infinite loop if something goes wrong. This will break out of
       // the loop if application_state_ was not changed.
       NOTREACHED();
-      break;
     }
   }
 }

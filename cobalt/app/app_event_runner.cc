@@ -301,9 +301,12 @@ class AppEventRunnerImpl : public AppEventRunner {
     params.argc = argc;
     params.argv = argv;
 #endif
-#endif
+
     main_runner_ = GetContentMainRunner();
     return content::ContentMain(std::move(params));
+#else
+    return 0;
+#endif
   }
 
   std::unique_ptr<base::AtExitManager> exit_manager_;
