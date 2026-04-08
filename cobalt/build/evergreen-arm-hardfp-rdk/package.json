@@ -10,21 +10,29 @@
             "files": [
                 "app/cobalt/lib/libcobalt.lz4",
                 "cobalt_shell.pak",
+                "cobalt_shell_resources.pak",
                 "fonts/fonts.xml",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
                 "libcobalt.so",
                 "libloader_app.so",
-                "elf_loader_sandbox",
                 "loader_app",
                 {
                     "from_file": "cobalt_shell.pak",
                     "to_file": "content/cobalt_shell.pak"
                 },
                 {
+                    "from_file": "cobalt_shell_resources.pak",
+                    "to_file": "content/cobalt_shell_resources.pak"
+                },
+                {
                     "from_file": "libcobalt.so",
                     "to_file": "lib/libcobalt.so"
+                },
+                {
+                    "from_file": "libloader_app.so",
+                    "to_file": "lib/libloader_app.so"
                 }
             ],
             "rename_files": [
@@ -52,6 +60,7 @@
             "dirs": [
                 "app",
                 "fonts",
+                "native_target",
                 {
                     "from_dir": "app/cobalt/content/ssl",
                     "to_dir": "content/ssl"
