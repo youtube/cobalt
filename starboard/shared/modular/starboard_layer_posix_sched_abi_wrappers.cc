@@ -19,6 +19,9 @@
 
 #include <cstring>
 
+#include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"  // musl_sched_param, MUSL_SCHED_*
+
 int __abi_wrap_sched_getaffinity(musl_pid_t pid,
                                  size_t cpusetsize,
                                  musl_cpu_set_t* mask) {
@@ -42,4 +45,41 @@ int __abi_wrap_sched_getaffinity(musl_pid_t pid,
   memset(mask, 0, cpusetsize);
   memcpy(mask, &platform_mask, platform_cpusetsize);
   return 0;
+}
+
+int __abi_wrap_sched_setscheduler(musl_pid_t pid,
+                                  int policy,
+                                  const musl_sched_param* param) {
+  if (!param || pid < 0) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  int native_policy;
+  switch (policy) {
+    case MUSL_SCHED_FIFO:
+      native_policy = SCHED_FIFO;
+      break;
+    case MUSL_SCHED_RR:
+      native_policy = SCHED_RR;
+      break;
+    case MUSL_SCHED_OTHER:
+      native_policy = SCHED_OTHER;
+      break;
+    case MUSL_SCHED_BATCH:
+      native_policy = SCHED_BATCH;
+      break;
+    case MUSL_SCHED_IDLE:
+      native_policy = SCHED_IDLE;
+      break;
+    default:
+      errno = EINVAL;
+      return -1;
+  }
+
+  struct sched_param native_param;
+  native_param.sched_priority = param->sched_priority;
+
+  return sched_setscheduler(static_cast<pid_t>(pid), native_policy,
+                            &native_param);
 }
