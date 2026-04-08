@@ -23,6 +23,7 @@
 #include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
@@ -37,6 +38,7 @@
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/network_service_instance.h"
 #include "net/base/network_change_notifier_passive.h"
 
@@ -255,6 +257,22 @@ class AppEventRunnerImpl : public AppEventRunner {
           event->type == kSbEventTypeOsNetworkConnected
               ? net::NetworkChangeNotifier::SUBTYPE_UNKNOWN
               : net::NetworkChangeNotifier::SUBTYPE_NONE;
+      if (event->type == kSbEventTypeOsNetworkConnected) {
+        passive_notifier->OnIPAddressChanged();
+        content::GetUIThreadTaskRunner({})->PostTask(
+            FROM_HERE, base::BindOnce([]() {
+              for (auto* shell : content::Shell::windows()) {
+                content::NavigationEntry* entry = shell->web_contents()
+                                                      ->GetController()
+                                                      .GetLastCommittedEntry();
+                if (entry &&
+                    (entry->GetPageType() == content::PAGE_TYPE_ERROR ||
+                     entry->IsInitialEntry())) {
+                  shell->Reload();
+                }
+              }
+            }));
+      }
       passive_notifier->OnConnectionChanged(type);
       passive_notifier->OnConnectionSubtypeChanged(type, subtype);
     }
