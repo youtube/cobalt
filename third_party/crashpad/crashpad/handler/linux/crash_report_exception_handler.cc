@@ -129,7 +129,7 @@ bool CrashReportExceptionHandler::HandleException(
   Metrics::ExceptionEncountered();
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(WARNING) << "Freeze detection: Crashpad handler processing exception for PID: " << client_process_id;
+  LOG(INFO) << "Freeze detection: Crashpad handler processing exception for PID: " << client_process_id;
 #endif
 
   DirectPtraceConnection connection;
@@ -234,7 +234,7 @@ bool CrashReportExceptionHandler::WriteMinidumpToDatabase(
   }
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(WARNING) << "Freeze detection: Minidump successfully written to database. ReportID: " << new_report->ReportID().ToString();
+  LOG(INFO) << "Freeze detection: Minidump successfully written to database. ReportID: " << new_report->ReportID().ToString();
 #endif
 
   bool write_minidump_to_log_succeed = false;

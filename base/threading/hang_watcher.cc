@@ -385,7 +385,7 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type) {
     return;
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(WARNING) << "Freeze detection: HangWatcher initialized";
+  LOG(INFO) << "Freeze detection: HangWatcher initialized";
 #endif
 
   // Retrieve thread-specific config for hang watching.
@@ -702,7 +702,7 @@ HangWatcher* HangWatcher::GetInstance() {
 // static
 void HangWatcher::RecordHang() {
 #if BUILDFLAG(IS_COBALT)
-  LOG(WARNING) << "Freeze detection: start reporting";
+  LOG(INFO) << "Freeze detection: start reporting";
 #endif
   base::debug::DumpWithoutCrashing();
   NO_CODE_FOLDING();
@@ -950,7 +950,7 @@ void HangWatcher::DoDumpWithoutCrashing(
   TRACE_EVENT("base", "HangWatcher::DoDumpWithoutCrashing");
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(WARNING) << "Freeze detection: Triggering DumpWithoutCrashing" << watch_state_snapshot.IsActionable();
+  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing" << watch_state_snapshot.IsActionable();
 #endif
 
   capture_in_progress_.store(true, std::memory_order_relaxed);
@@ -1003,7 +1003,7 @@ void HangWatcher::DoDumpWithoutCrashing(
         g_hang_watcher_delegate->IsHangReportingEnabled()) {
       RecordHang();
     } else {
-      LOG(WARNING) << "Freeze detection: RecordHang() skipped due to reporting disabled.";
+      LOG(INFO) << "Freeze detection: RecordHang() skipped due to reporting disabled.";
     }
 #else
     RecordHang();

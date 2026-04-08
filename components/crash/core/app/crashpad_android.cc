@@ -298,22 +298,22 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_Q) {
 #if BUILDFLAG(IS_COBALT)
-    LOG(WARNING) << "Freeze detection: SDK version below Q: No linker support.";
+    LOG(INFO) << "Freeze detection: SDK version below Q: No linker support.";
 #endif
     return false;
   }
 
   Dl_info info;
-  if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0) {
-    return false;
-  }
-
 #if BUILDFLAG(IS_COBALT)
   // Cobalt on Android TV uses a standalone ELF executable instead of a
   // library-based trampoline. We only need dladdr to succeed so we can
   // identify the APK mount point from info.dli_fname.
+  if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0) {
+    return false;
+  }
 #else
-  if (dlsym(dlopen(info.dli_fname, RTLD_NOLOAD | RTLD_LAZY),
+  if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0 ||
+      dlsym(dlopen(info.dli_fname, RTLD_NOLOAD | RTLD_LAZY),
             "CrashpadHandlerMain") == nullptr) {
     return false;
   }
@@ -341,7 +341,7 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
 #endif
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(WARNING) << "Freeze detection: trampoline = " << local_handler_trampoline;
+  LOG(INFO) << "Freeze detection: trampoline = " << local_handler_trampoline;
 #endif
 
   handler_trampoline->swap(local_handler_trampoline);
@@ -485,7 +485,7 @@ bool GetHandlerPath(base::FilePath* exe_dir, base::FilePath* handler_path) {
   }
   *handler_path = exe_dir->Append("libchrome_crashpad_handler.so");
 #if BUILDFLAG(IS_COBALT)
-  LOG(WARNING) << "Freeze detection: GetHandlerPath: " << *handler_path;
+  LOG(INFO) << "Freeze detection: GetHandlerPath: " << *handler_path;
 #endif
   return true;
 }
@@ -650,7 +650,7 @@ class HandlerStarter {
       // and low traffic.
       if (use_java_handler_) {
 #if BUILDFLAG(IS_COBALT)
-        LOG(WARNING) << "Freeze detection: Skipping Java handler for client on Cobalt ATV.";
+        LOG(INFO) << "Freeze detection: Skipping Java handler for client on Cobalt ATV.";
 #endif
         return false;
       }
@@ -661,7 +661,7 @@ class HandlerStarter {
       }
 
 #if BUILDFLAG(IS_COBALT)
-      LOG(WARNING) << "Freeze detection: Launching handler " << (use_java_handler_ ? "with Java" : "with Linker") << " for client.";
+      LOG(INFO) << "Freeze detection: Launching handler " << (use_java_handler_ ? "with Java" : "with Linker") << " for client.";
 #endif
       bool result =
           use_java_handler_
@@ -680,7 +680,7 @@ class HandlerStarter {
     }
 
 #if BUILDFLAG(IS_COBALT)
-    LOG(WARNING) << "Freeze detection: Launching standard handler for client.";
+    LOG(INFO) << "Freeze detection: Launching standard handler for client.";
 #endif
     return GetCrashpadClient().StartHandlerForClient(
         handler_path, database_path, metrics_path, url, process_annotations,
