@@ -85,10 +85,5 @@ TEST(MemFdMediaBufferPoolTest, RepeatedExpand) {
   pool->ShrinkToZero();
 }
 
-TEST(MemFdMediaBufferPoolTest, Fail) {
-  // Just trying to see if the trybots can pick up this failure.
-  ASSERT_TRUE(false);
-}
-
 }  // namespace
 }  // namespace starboard
