@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 command = [
-    os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
+    {runner_args}os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
     '--evergreen_content=.', '--evergreen_library={library}.so'
 ] + sys.argv[1:]
 try:
@@ -26,36 +26,9 @@ except Exception as e:
     sys.exit(1)
 """
 
-_BROWSERTEST_TEMPLATE = """#!/usr/bin/env python3
-import os
-import subprocess
-import sys
-
-# The run_browser_tests.py script is copied to the output directory as
-# 'cobalt_browsertests_runner' at the build time.
-run_browser_tests = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__),
-        'cobalt_browsertests_runner'
-    )
-)
-
-elf_loader = os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox')
-library_args = ['--evergreen_content=.', '--evergreen_library={library}.so']
-
-# Pass the elf_loader as the "binary" argument to the runner script,
-# followed by the required library args, and then the rest of sys.argv
-command = [sys.executable, run_browser_tests, elf_loader] + library_args + sys.argv[1:]
-try:
-    result = subprocess.run(command, check=False)
-    sys.exit(result.returncode)
-except subprocess.CalledProcessError:
-    # A subprocess failed, so don't log the python traceback.
-    raise SystemExit(1)
-except Exception as e:
-    print("An unexpected error occurred: " + str(e), file=sys.stderr)
-    sys.exit(1)
-"""
+_BROWSERTEST_RUNNER_ARGS = (
+    'sys.executable, '
+    'os.path.join(os.path.dirname(__file__), "cobalt_browsertests_runner"), ')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=str, required=True)
@@ -64,9 +37,12 @@ args = parser.parse_args()
 
 with open(args.output, 'w', encoding='utf-8') as f:
   if args.library == 'libcobalt_browsertests':
-    f.write(_BROWSERTEST_TEMPLATE.format(library=args.library))
+    runner_args = _BROWSERTEST_RUNNER_ARGS
   else:
-    f.write(_TEMPLATE.format(library=args.library))
+    runner_args = ''
+
+  f.write(_TEMPLATE.format(runner_args=runner_args, library=args.library))
+
 current_permissions = stat.S_IMODE(os.stat(args.output).st_mode)
 new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
 os.chmod(args.output, new_permissions)
