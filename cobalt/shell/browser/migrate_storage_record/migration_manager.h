@@ -112,7 +112,8 @@ struct MigrationState : public base::RefCountedThreadSafe<MigrationState> {
   MigrationOutcome GetOutcome() const {
     if (!has_data_to_migrate) {
       if (read_result == StorageReadResult::kSuccess ||
-          read_result == StorageReadResult::kRecordInvalid) {
+          read_result == StorageReadResult::kRecordInvalid ||
+          read_result == StorageReadResult::kSizeTooSmall) {
         return MigrationOutcome::kSkipped;
       }
       return MigrationOutcome::kFailed;

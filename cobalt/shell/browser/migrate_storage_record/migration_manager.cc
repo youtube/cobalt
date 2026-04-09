@@ -344,6 +344,8 @@ ReadAndParseLegacyStorageRecord() {
       }
     }
 
+    // Ensure the record is large enough to contain at least the 'SAV1' header.
+    // Small or empty records typically indicate a fresh installation.
     if (record->GetSize() < static_cast<int64_t>(kRecordHeaderSize)) {
       result = StorageReadResult::kSizeTooSmall;
       return;
