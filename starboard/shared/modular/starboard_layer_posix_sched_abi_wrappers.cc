@@ -66,12 +66,16 @@ int __abi_wrap_sched_setscheduler(musl_pid_t pid,
     case MUSL_SCHED_OTHER:
       native_policy = SCHED_OTHER;
       break;
+#ifdef SCHED_BATCH
     case MUSL_SCHED_BATCH:
       native_policy = SCHED_BATCH;
       break;
+#endif
+#ifdef SCHED_IDLE
     case MUSL_SCHED_IDLE:
       native_policy = SCHED_IDLE;
       break;
+#endif
     default:
       errno = EINVAL;
       return -1;
