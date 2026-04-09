@@ -25,6 +25,8 @@
 #include "base/threading/platform_thread.h"
 #include "cobalt/app/app_event_runner.h"
 #include "content/public/browser/browser_thread.h"
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 
@@ -61,8 +63,11 @@ AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
 }
 }  // namespace
 
-AppEventDelegate::AppEventDelegate(std::unique_ptr<AppEventRunner> runner)
-    : runner_(std::move(runner)) {
+AppEventDelegate::AppEventDelegate(
+    std::unique_ptr<AppEventRunner> runner,
+    const CobaltExtensionCrashHandlerApi* crash_handler_extension)
+    : runner_(std::move(runner)),
+      crash_handler_extension_(crash_handler_extension) {
   base::AutoLock lock(lock_);
   application_state_ = ApplicationState::kInitial;
   target_state_ = ApplicationState::kInitial;
@@ -70,6 +75,13 @@ AppEventDelegate::AppEventDelegate(std::unique_ptr<AppEventRunner> runner)
     // If a special runner wasn't provided, use the default.
     runner_ = AppEventRunner::Create();
   }
+  if (!crash_handler_extension_) {
+    // If a special extension implementation wasn't provided, use the default.
+    crash_handler_extension_ =
+        static_cast<const CobaltExtensionCrashHandlerApi*>(
+            SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  }
+  SetApplicationStateAnnotation(application_state_);
 }
 
 AppEventDelegate::~AppEventDelegate() {}
@@ -145,6 +157,7 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
         runner_->OnStart(event);
         application_state_ = SbEventToTargetApplicationState(event->type);
         target_state_ = application_state_;
+        SetApplicationStateAnnotation(application_state_);
         return;
       default:
         // Robustly handle events received before the application has started or
@@ -220,6 +233,7 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       runner_->OnStop();
       application_state_ = ApplicationState::kStopped;
       target_state_ = ApplicationState::kStopped;
+      SetApplicationStateAnnotation(application_state_);
       break;
     case kSbEventTypeInput:
       runner_->OnInput(event);
@@ -317,6 +331,7 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
   }
 
   application_state_ = next_state;
+  SetApplicationStateAnnotation(application_state_);
 
   if (schedule_next_step) {
     content::GetUIThreadTaskRunner({})->PostTask(
@@ -399,6 +414,37 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
         }
       }
     }
+  }
+}
+
+// static
+const char* AppEventDelegate::GetStateString(ApplicationState state) {
+  switch (state) {
+    case ApplicationState::kInitial:
+      return "kInitial";
+    case ApplicationState::kStarted:
+      return "kStarted";
+    case ApplicationState::kBlurred:
+      return "kBlurred";
+    case ApplicationState::kConcealed:
+      return "kConcealed";
+    case ApplicationState::kFrozen:
+      return "kFrozen";
+    case ApplicationState::kStopped:
+      return "kStopped";
+  }
+}
+
+void AppEventDelegate::SetApplicationStateAnnotation(ApplicationState state) {
+  if (!crash_handler_extension_ || crash_handler_extension_->version < 2) {
+    LOG(WARNING)
+        << "Crash handler extension not implemented or version too low.";
+    return;
+  }
+
+  if (!crash_handler_extension_->SetString("application_state",
+                                           GetStateString(state))) {
+    LOG(WARNING) << "Failed to set application_state annotation.";
   }
 }
 

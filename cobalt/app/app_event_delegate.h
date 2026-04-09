@@ -27,6 +27,7 @@
 #include "build/build_config.h"
 #include "cobalt/app/app_event_runner.h"
 #include "starboard/event.h"
+#include "starboard/extension/crash_handler.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
@@ -60,7 +61,9 @@ class AppEventDelegate {
     kStopped = 5
   };
 
-  explicit AppEventDelegate(std::unique_ptr<AppEventRunner> runner = nullptr);
+  explicit AppEventDelegate(
+      std::unique_ptr<AppEventRunner> runner = nullptr,
+      const CobaltExtensionCrashHandlerApi* crash_handler_extension = nullptr);
   ~AppEventDelegate();
 
   AppEventDelegate(const AppEventDelegate&) = delete;
@@ -77,8 +80,12 @@ class AppEventDelegate {
   ApplicationState GetState() const;
 
  private:
+  static const char* GetStateString(ApplicationState state);
+
   void HandleEventLocked(const SbEvent* event);
   void TransitionToLifeCycleState(ApplicationState state);
+
+  void SetApplicationStateAnnotation(ApplicationState state);
 
   // Helper that executes a single lifecycle step on the UI thread and then
   // schedules the next step if the target state has not yet been reached.
@@ -94,6 +101,7 @@ class AppEventDelegate {
   mutable base::Lock lock_;
 
   std::unique_ptr<AppEventRunner> runner_;
+  const CobaltExtensionCrashHandlerApi* crash_handler_extension_ = nullptr;
   ApplicationState application_state_ = ApplicationState::kInitial;
   ApplicationState target_state_ = ApplicationState::kInitial;
   bool is_transitioning_ = false;
