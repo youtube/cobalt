@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/build/toolchain/linux/strip.gni")
+import("//cobalt/build/toolchain/linux/strip.gni")
 
 clang_toolchain("clang_x64") {
   # Output linker map files for binary size analysis.
