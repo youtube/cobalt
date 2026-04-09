@@ -23,9 +23,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/trace_event/trace_event.h"
-#include "base/trace_event/typed_macros.h"
-#include "perfetto/tracing/track_event_args.h"
 #include "base/task/bind_post_task.h"
 
 #include "base/task/sequenced_task_runner.h"
@@ -70,7 +67,6 @@
 #include "media/audio/audio_system.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/audio/audio_manager.h"
-#include "services/audio/audio_manager_power_user.h"
 #endif
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
@@ -2589,7 +2585,6 @@ void MediaStreamManager::PostRequestToUI(
     const std::string& label,
     const MediaDeviceEnumeration& enumeration,
     const absl::optional<media::AudioParameters>& output_parameters) {
-  TRACE_EVENT("media", "RecordLatency::MSM_PostRequestToUI");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(!output_parameters || output_parameters->IsValid());
   DeviceRequest* request = FindRequest(label);
@@ -2626,7 +2621,6 @@ void MediaStreamManager::PostRequestToUI(
 }
 
 void MediaStreamManager::SetUpRequest(const std::string& label) {
-  TRACE_EVENT("media", "RecordLatency::MSM_SetUpRequest");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const DeviceRequests::const_iterator request_it = FindRequestIterator(label);
