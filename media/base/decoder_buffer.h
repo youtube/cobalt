@@ -30,7 +30,7 @@
 #include "media/base/demuxer_stream.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_export.h"
-#include "starboard/common/experimental/media_buffer_pool.h"
+#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"

@@ -14,7 +14,7 @@
 #include "base/types/pass_key.h"
 #include "media/base/subsample_entry.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/common/experimental/media_buffer_pool.h"
+#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
