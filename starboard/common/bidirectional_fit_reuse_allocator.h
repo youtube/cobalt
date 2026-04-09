@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
-#define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#ifndef STARBOARD_COMMON_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#define STARBOARD_COMMON_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 
 #include <algorithm>
 #include <cstddef>
 
-#include "base/check.h"
-#include "base/logging.h"
 #include "starboard/common/allocator.h"
+#include "starboard/common/log.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/configuration.h"
 
-namespace media {
+namespace starboard {
 
 // This class uses first-fit allocation strategy to allocate memory block whose
 // size is greater than the |small_allocation_threshold|.  It uses last-fit
@@ -59,10 +58,9 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
                                   FreeBlockIterator begin,
                                   FreeBlockIterator end,
                                   bool* allocate_from_front) override {
-    DCHECK(allocate_from_front);
+    SB_DCHECK(allocate_from_front);
 
     *allocate_from_front = size > small_allocation_threshold_;
-
     if (*allocate_from_front) {
       // Start looking through the free list from the front.
       for (FreeBlockIterator it = begin; it != end; ++it) {
@@ -88,6 +86,6 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   std::size_t small_allocation_threshold_;
 };
 
-}  // namespace media
+}  // namespace starboard
 
-#endif  // MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#endif  // STARBOARD_COMMON_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
