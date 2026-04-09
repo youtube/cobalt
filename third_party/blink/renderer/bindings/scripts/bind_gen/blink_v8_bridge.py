@@ -437,13 +437,12 @@ def native_value_tag(idl_type, argument=None, apply_optional_to_last_arg=True):
             and not (idl_type.is_nullable or argument.default_value)
             and (apply_optional_to_last_arg
                  or argument != argument.owner.arguments[-1])):
-        return "IDLOptional<{}>".format(
-            _native_value_tag_impl(idl_type, argument))
+        return "IDLOptional<{}>".format(_native_value_tag_impl(idl_type))
 
-    return _native_value_tag_impl(idl_type, argument)
+    return _native_value_tag_impl(idl_type)
 
 
-def _pass_as_span_conversion_arguments(idl_type, support_reentry):
+def _pass_as_span_conversion_arguments(idl_type):
     real_type = idl_type.unwrap(typedef=True)
     types = real_type.flattened_member_types if real_type.is_union else [
         real_type
@@ -481,18 +480,15 @@ def _pass_as_span_conversion_arguments(idl_type, support_reentry):
         "AllowShared" in t.effective_annotations for t in types)
     if allow_shared:
         flags.append("PassAsSpanMarkerBase::Flags::kAllowShared")
-    if support_reentry:
-        flags.append("PassAsSpanMarkerBase::Flags::kSupportReentry")
 
     return [
         " | ".join(flags) or "PassAsSpanMarkerBase::Flags::kNone", native_type
     ]
 
 
-def _native_value_tag_impl(idl_type, argument=None):
+def _native_value_tag_impl(idl_type):
     """Returns the tag type of NativeValueTraits."""
     assert isinstance(idl_type, web_idl.IdlType)
-    assert argument is None or isinstance(argument, web_idl.Argument)
 
     if idl_type.is_event_handler:
         return "IDL{}".format(idl_type.identifier)
@@ -500,12 +496,7 @@ def _native_value_tag_impl(idl_type, argument=None):
     real_type = idl_type.unwrap(typedef=True)
 
     if "PassAsSpan" in idl_type.effective_annotations:
-        assert argument, "PassAsSpan can only appear on an argument"
-        # TODO(caseq): This works for now. Refine this to check no args
-        # involving JS calls (strings, dicts) is passed after this one.
-        support_reentry = "NoAllocDirectCall" not in argument.owner.extended_attributes
-        conversion_arguments = _pass_as_span_conversion_arguments(
-            idl_type, support_reentry)
+        conversion_arguments = _pass_as_span_conversion_arguments(idl_type)
         return "PassAsSpan<{}>".format(", ".join(conversion_arguments))
 
     if (real_type.is_boolean or real_type.is_numeric or real_type.is_string
