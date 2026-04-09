@@ -19,7 +19,8 @@
 # In Cobalt modular builds with separate toolchains, the `default_toolchain` is
 # a Linux/Evergreen toolchain where is_android=false. Android targets must be
 # evaluated in the starboard toolchain where current_os="android".
-if (is_cobalt && build_with_separate_cobalt_toolchain) {
+if (is_cobalt && build_with_separate_cobalt_toolchain &&
+    !(target_os == "android" && !use_evergreen)) {
   android_toolchain = starboard_toolchain
 } else {
   android_toolchain = default_toolchain
