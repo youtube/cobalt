@@ -21,7 +21,7 @@ Requires PyGithub to run:
 import argparse
 from typing import List
 
-from github import Github
+import github
 
 # Issue a Personal Access Token with 'repo' permission on
 # https://github.com/settings/tokens.
@@ -30,34 +30,30 @@ assert YOUR_GITHUB_TOKEN != '', 'YOUR_GITHUB_TOKEN must be set.'
 
 TARGET_REPO = 'youtube/cobalt'
 
-EXCLUDED_CHECK_PATTERNS = [
-    # Excludes non build/test checks.
-    'feedback/copybara',
-    'prepare_branch_list',
-    'cherry_pick',
-    'assign-reviewer',
-    'import/copybara',
-    'upload-release-artifacts',
+INCLUDED_CHECK_PATTERNS = [
+    # Main pipeline steps.
+    'initialize',
+    'docker-build-image',
+    'docker-unittest-image',
+    'docker-webtest-image',
+    '_debug',
+    '_devel',
+    '_gold',
+    '_qa',
+    '_e2e_tests',
+    '_web_tests',
+    '_tests_passing',
 
-    # Excludes coverage and test reports.
-    'linux-coverage',
-    'codecov',
-    'on-host-unit-test-report',
+    # Other tests/checks.
+    'cla/google',
+    'Scorecard',
+    'Bug ID Check',
+    'Pre-Commit',
+    'python-test',
 
-    # Excludes blackbox, web platform, and unit tests run on-device.
-    '_on_device_',
-
-    # Excludes slow and flaky evergreen tests.
-    'evergreen-as-blackbox_test',
-    'evergreen_test',
-
-    # Excludes templated check names.
-    '${{',
-
-    # Old compiler versions have started failing due to node/glibc
-    # incompatibilities.
-    'linux-clang-3-9',
-    'linux-gcc-6-3',
+    # Legacy test jobs.
+    '_unit_test',
+    '_integration_test',
 ]
 
 # Exclude rc_11 and COBALT_9 releases.
@@ -69,11 +65,13 @@ def get_protected_branches() -> List[str]:
   branches = ['main']
   for i in range(MINIMUM_LTS_RELEASE, LATEST_LTS_RELEASE + 1)[:-1]:
     branches.append(f'{i}.lts.1+')
+  branches.append('26.android')
+  branches.append('26.eap')
   return branches
 
 
 def initialize_repo_connection():
-  g = Github(YOUR_GITHUB_TOKEN)
+  g = github.Github(auth=github.Auth.Token(YOUR_GITHUB_TOKEN))
   return g.get_repo(TARGET_REPO)
 
 
@@ -97,10 +95,13 @@ def get_checks_for_branch(repo, branch: str) -> None:
 
 
 def should_include_run(check_run) -> bool:
-  for pattern in EXCLUDED_CHECK_PATTERNS:
+  # Exclude matrix template jobs.
+  if '${{ matrix.name }}' in check_run.name:
+    return False
+  for pattern in INCLUDED_CHECK_PATTERNS:
     if pattern in check_run.name:
-      return False
-  return True
+      return True
+  return False
 
 
 def get_required_checks_for_branch(repo, branch: str) -> List[str]:
