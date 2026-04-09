@@ -23,7 +23,14 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/task/bind_post_task.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace content { extern base::TimeTicks g_select_keydown_time; }
+#endif
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
@@ -64,6 +71,10 @@
 #include "crypto/hmac.h"
 #include "media/audio/audio_device_description.h"
 #include "media/audio/audio_system.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/audio/audio_manager.h"
+#include "services/audio/audio_manager_power_user.h"
+#endif
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
 #include "media/base/media_switches.h"
@@ -2581,6 +2592,7 @@ void MediaStreamManager::PostRequestToUI(
     const std::string& label,
     const MediaDeviceEnumeration& enumeration,
     const absl::optional<media::AudioParameters>& output_parameters) {
+  TRACE_EVENT("media", "RecordLatency::MSM_PostRequestToUI");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(!output_parameters || output_parameters->IsValid());
   DeviceRequest* request = FindRequest(label);
@@ -2617,6 +2629,7 @@ void MediaStreamManager::PostRequestToUI(
 }
 
 void MediaStreamManager::SetUpRequest(const std::string& label) {
+  TRACE_EVENT("media", "RecordLatency::MSM_SetUpRequest");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const DeviceRequests::const_iterator request_it = FindRequestIterator(label);
@@ -2632,6 +2645,47 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
 
   request->SetAudioType(request->stream_controls().audio.stream_type);
   request->SetVideoType(request->stream_controls().video.stream_type);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // KJ: FAST-TRACK for Cobalt Android Audio Capture
+  // This bypasses the asynchronous device enumeration and UI permission round-trips
+  // to start the hardware immediately.
+  if (request->audio_type() == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
+      request->video_type() == MediaStreamType::NO_SERVICE) {
+    LOG(INFO) << "KJ: SetUpRequest: FAST-TRACKING Cobalt Audio Request";
+    
+    // Manually construct the device list and jump to response handling.
+    blink::mojom::StreamDevicesSet stream_devices_set;
+    stream_devices_set.stream_devices.emplace_back(blink::mojom::StreamDevices::New());
+    
+    // Hardcode 16kHz Mono parameters (Starboard spec).
+    media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                                  media::ChannelLayoutConfig::Mono(),
+                                  16000, 128);
+    
+    blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
+                                    "default", "Default Microphone");
+    device.input = params;
+
+    // KJ: Physical hardware ignition starts in parallel!
+    // We register a session ID and trigger the physical Open() on the Audio thread.
+    auto session_id = audio_input_device_manager()->Open(device);
+    device.set_session_id(session_id);
+    
+    media::AudioManager* audio_manager = media::AudioManager::Get();
+    if (audio_manager) {
+      audio_manager->PreStartStream(session_id, params);
+    }
+    
+    stream_devices_set.stream_devices[0]->audio_device = device;
+
+    // KJ: Resolve the JS promise IMMEDIATELY.
+    // This tells the UI to start "Listening" while the hardware is still warming up.
+    HandleAccessRequestResponse(label, params, stream_devices_set,
+                                 blink::mojom::MediaStreamRequestResult::OK);
+    return;
+  }
+#endif
 
   const bool is_display_capture =
       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||

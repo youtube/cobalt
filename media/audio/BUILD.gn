@@ -259,8 +259,8 @@ source_set("audio") {
 
     if (use_starboard_media) {
       sources += [
-        "android/audio_input_stream_starboard.cc",
-        "android/audio_input_stream_starboard.h",
+        "android/starboard_audio_input_stream.cc",
+        "android/starboard_audio_input_stream.h",
       ]
       deps += [ "//starboard:starboard_headers_only" ]
     }
