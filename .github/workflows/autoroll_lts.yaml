@@ -23,11 +23,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Setup Git user
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Release Automation"
+          git config --global user.email "github@google.com"
 
       - name: Cherry Pick merged PRs
         id: autoroll
@@ -40,7 +41,7 @@ jobs:
           # Copy the script from the main branch before switching branches.
           cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
 
-          # Ensure we have local branches for the target branch
+          # Ensure we have local branches for the target branch.
           git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from the target branch.
@@ -49,6 +50,9 @@ jobs:
           else
             git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
           fi
+
+          # Ensure latest main.
+          git fetch origin main:main
 
           # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
@@ -70,7 +74,7 @@ jobs:
         if: steps.autoroll.outputs.pr_links != ''
         env:
           TARGET_BRANCH: 27.lts
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           PR_LINKS: ${{ steps.autoroll.outputs.pr_links }}
         run: |
           set -x
@@ -90,7 +94,8 @@ jobs:
           PR_STATE=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json state --template '{{.state}}' 2>/dev/null || echo "NOT_FOUND")
 
           if [[ "$PR_STATE" == "OPEN" ]]; then
-            gh pr edit "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
+            PR_NUMBER=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json number --jq .number)
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")"
           else
             gh pr create --base "${TARGET_BRANCH}" --head "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
           fi
