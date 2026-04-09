@@ -320,7 +320,7 @@ Always run the pretty print utility on this file after editing:
     buffer by Android MediaCodec.
   </summary>
 </histogram>
-
+    
 <histogram name="Memory.Media.AllocatedEncodedBuffer"
     unit="MB" expires_after="never">
   <owner>tasunny@google.com</owner>

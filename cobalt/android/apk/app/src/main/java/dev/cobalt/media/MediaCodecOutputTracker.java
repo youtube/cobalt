@@ -29,7 +29,7 @@ import org.chromium.base.task.TaskTraits;
 public class MediaCodecOutputTracker {
   private static MediaCodecOutputTracker sInstance;
   private static final int BYTES_PER_MIB = 1024 * 1024;
-  private static final long DEFAULT_REPORT_INTERVAL_MS = 60000; // 1 minute
+  private static final long DEFAULT_REPORT_INTERVAL_MS = 300000; // 5 minutes
   private static final Object sTrackerLock = new Object();
 
   private final Set<MediaCodecBridge> mBridges =
@@ -121,3 +121,4 @@ public class MediaCodecOutputTracker {
     return totalMemory;
   }
 }
+// TODO(500811958): Add junit tests for OutputTracker class
