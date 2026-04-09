@@ -427,6 +427,12 @@ jobs:
           else
             echo "TMPDIR=${{ runner.temp }}" >> $GITHUB_ENV
           fi
+      - name: Set GITHUB_WORKSPACE to host-mounted volume
+        run: |
+          rm -rf /runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+          mkdir -p /runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+          echo "GITHUB_WORKSPACE=/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_ENV
+
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
