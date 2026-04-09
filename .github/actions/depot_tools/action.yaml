@@ -65,7 +65,6 @@ runs:
           echo "Restoring gclient working trees from cache..."
           du -sh "${CACHE_PATH}/gclient-src"
           rsync -av --stats "${CACHE_PATH}/gclient-src/" cobalt/
-          du -sh cobalt
         else
           echo "No existing gclient cache found at ${CACHE_PATH}/gclient-src."
           ls -la "${CACHE_PATH}" || true
@@ -176,9 +175,6 @@ runs:
         print('\n'.join(['.gclient', '.gclient_entries'] + [p for p in entries if p != 'src' and p.startswith('src/')]))
         " > "${GCLIENT_LIST}"
 
-        echo "Files to be cached:"
-        cat "${GCLIENT_LIST}"
-
         TMP_CACHE="${CACHE_PATH}/gclient-src.tmp.${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
         echo "Syncing targeted gclient submodules to ${TMP_CACHE}..."
         mkdir -p "${TMP_CACHE}"
@@ -187,8 +183,7 @@ runs:
         if [[ -d "${CACHE_PATH}/gclient-src" ]]; then
           LINK_DEST_ARG=(--link-dest="${CACHE_PATH}/gclient-src")
         fi
-        du -sh .
-        rsync -arv --stats --delete --ignore-missing-args "${LINK_DEST_ARG[@]}" --exclude='out/' --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
+        rsync -ar --stats --ignore-missing-args "${LINK_DEST_ARG[@]}" --exclude='out/' --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
         du -sh "${TMP_CACHE}"
 
         echo "Safely replacing old cache via atomic move..."
