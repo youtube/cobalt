@@ -35,8 +35,8 @@
 namespace starboard {
 namespace {
 
-using ::starboard::common::experimental::IsPointerAnnotated;
-using ::starboard::common::experimental::UnannotatePointer;
+using ::starboard::experimental::IsPointerAnnotated;
+using ::starboard::experimental::UnannotatePointer;
 
 int CreateReliableCacheFd(const char* name, size_t size) {
   int fd = -1;

@@ -170,7 +170,7 @@ void DecoderBufferAllocator::Write(Handle handle,
   // The lock adds overhead to the cases where |handle| is a pointer, so we take
   // a short cut to ensure that there is no overhead adding to our existing
   // logic.
-  using ::starboard::common::experimental::IsPointerAnnotated;
+  using ::starboard::experimental::IsPointerAnnotated;
 
   if (!IsPointerAnnotated(handle)) {
     memcpy(reinterpret_cast<void*>(handle), data, size);
@@ -273,7 +273,7 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
 
   if (media_buffer_pool_strategy_state_ ==
       MediaBufferPoolStrategyState::kEnabled) {
-    auto pool = starboard::common::experimental::MediaBufferPool::Acquire();
+    auto pool = starboard::experimental::MediaBufferPool::Acquire();
     if (pool) {
       strategy_.reset(new MediaBufferPoolDecoderBufferAllocatorStrategy(
           pool, initial_capacity_, allocation_unit_));

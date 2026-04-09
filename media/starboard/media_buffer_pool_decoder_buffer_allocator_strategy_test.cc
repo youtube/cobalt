@@ -23,7 +23,7 @@
 namespace media {
 namespace {
 
-using starboard::common::experimental::MediaBufferPool;
+using starboard::experimental::MediaBufferPool;
 
 TEST(MediaBufferPoolDecoderBufferAllocatorStrategyTest,
      AllocateHugeBufferReturnsNull) {

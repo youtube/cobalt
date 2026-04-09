@@ -59,7 +59,7 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
   static constexpr size_t kSmallAllocationThreshold = 512;
 
   StarboardMemoryAllocator fallback_allocator_;
-  starboard::common::BidirectionalFitReuseAllocator<ReuseAllocatorBase>
+  starboard::BidirectionalFitReuseAllocator<ReuseAllocatorBase>
       birectional_fit_allocator_;
 };
 

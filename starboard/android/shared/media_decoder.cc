@@ -591,8 +591,8 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     SB_DCHECK_LE(size, capacity);
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
 
-    using ::starboard::common::experimental::IsPointerAnnotated;
-    using ::starboard::common::experimental::UnannotatePointer;
+    using ::starboard::experimental::IsPointerAnnotated;
+    using ::starboard::experimental::UnannotatePointer;
 
     if (IsPointerAnnotated(data)) {
       auto* pool = MemFdMediaBufferPool::Get();

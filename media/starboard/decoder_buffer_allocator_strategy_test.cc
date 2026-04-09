@@ -26,8 +26,8 @@
 namespace media {
 namespace {
 
-using starboard::common::experimental::IsPointerAnnotated;
-using starboard::common::experimental::MediaBufferPool;
+using starboard::experimental::IsPointerAnnotated;
+using starboard::experimental::MediaBufferPool;
 
 TEST(DecoderBufferAllocatorStrategyTest, SwitchStrategyImmediatelyWhenIdle) {
   if (!MediaBufferPool::Acquire()) {
