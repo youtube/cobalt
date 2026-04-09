@@ -29,10 +29,6 @@
                 {
                     "from_file": "libcobalt.so",
                     "to_file": "lib/libcobalt.so"
-                },
-                {
-                    "from_file": "libloader_app.so",
-                    "to_file": "lib/libloader_app.so"
                 }
             ],
             "rename_files": [
@@ -60,6 +56,7 @@
             "dirs": [
                 "app",
                 "fonts",
+                "gen",
                 "native_target",
                 {
                     "from_dir": "app/cobalt/content/ssl",
