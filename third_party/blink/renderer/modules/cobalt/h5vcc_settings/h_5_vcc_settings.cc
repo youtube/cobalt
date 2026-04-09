@@ -16,6 +16,7 @@
 
 #include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
+#include "media/base/decoder_buffer.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -35,6 +36,55 @@ namespace {
 
 constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
+constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
+
+// Ideally this function should be moved to decoder_buffer.h.  It's kept here as
+// H5vccSettings will soon be deprecated and it's easier to remove from here.
+ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
+    ScriptState* script_state,
+    const WTF::String& name,
+    const V8UnionLongOrString* value,
+    ExceptionState& exception_state) {
+  DCHECK(name.StartsWith(kDecoderBufferSettingPrefix));
+
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
+
+  if (!value->IsLong()) {
+    LOG(WARNING) << "The value for " << name << " must be a number.";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(),
+        "The value for " + name + " must be a number."));
+    return promise;
+  }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
+    bool enable = (value->GetAsLong() != 0);
+    if (enable) {
+      LOG(INFO) << "Enabling " << name << ".";
+      ::media::DecoderBuffer::EnableMediaBufferPoolStrategy();
+      resolver->Resolve();
+
+      return promise;
+    }
+
+    LOG(WARNING) << name << " cannot be disabled.";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), name + " cannot be disabled."));
+
+    return promise;
+  }
+#endif
+
+  LOG(WARNING) << name << " isn't a supported setting.";
+  // An unknown setting leads to TypeError.
+  resolver->Reject(V8ThrowException::CreateTypeError(
+      script_state->GetIsolate(), name + " isn't a supported setting."));
+
+  return promise;
+}
 
 }  // namespace
 
@@ -51,6 +101,11 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     const WTF::String& name,
     const V8UnionLongOrString* value,
     ExceptionState& exception_state) {
+  if (name.StartsWith(kDecoderBufferSettingPrefix)) {
+    return ProcessDecoderBufferSettings(script_state, name, value,
+                                        exception_state);
+  }
+
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
