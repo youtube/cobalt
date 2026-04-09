@@ -120,6 +120,7 @@ runs:
           "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
 
         git config --global http.cookiefile "${GITCOOKIES_PATH}"
+
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
       env:
