@@ -66,14 +66,14 @@ runs:
         LOCAL_CACHE="/runner-cache/gclient-src"
         if [[ -d "${LOCAL_CACHE}" ]]; then
           echo "Restoring gclient cache from local cache volume via hardlinks..."
-          rsync -ar --stats --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" cobalt/
+          rsync -ar --stats --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/cobalt/"
         fi
 
         PROJECT_NAME=$(gcloud config get-value project)
         GCS_CACHE_PATH="gs://${PROJECT_NAME}-test-artifacts/gclient-cache/${GITHUB_REF_NAME}/${{ matrix.platform }}"
 
         echo "Restoring any missing or updated files from GCS..."
-        gcloud storage rsync "${GCS_CACHE_PATH}" cobalt/ --recursive > /dev/null || true
+        gcloud storage rsync "${GCS_CACHE_PATH}" "${GITHUB_WORKSPACE}/cobalt/" --recursive > /dev/null || true
       shell: bash
 
     - name: Run gclient config
