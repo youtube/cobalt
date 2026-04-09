@@ -17,9 +17,13 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/timer/timer.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
+#include "starboard/system.h"
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
@@ -34,6 +38,12 @@ const int kNavigationTimeoutSeconds = 30;
 #if BUILDFLAG(IS_ANDROIDTV)
 const int kJniErrorTypeConnectionError = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response,
+                             void* user_data) {
+  auto* observer = static_cast<CobaltWebContentsObserver*>(user_data);
+  observer->HandlePlatformErrorResponse(response);
+}
 }  // namespace
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
@@ -108,8 +118,28 @@ void CobaltWebContentsObserver::RaisePlatformError() {
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #else
-  NOTIMPLEMENTED();
+  pending_reload_callback_ = base::BindOnce(
+      [](base::WeakPtr<content::WebContents> weak_contents) {
+        if (weak_contents) {
+          weak_contents->GetController().Reload(content::ReloadType::NORMAL,
+                                                /*check_for_repost=*/true);
+        }
+      },
+      web_contents()->GetWeakPtr());
+  SbSystemRaisePlatformError(kSbSystemPlatformErrorTypeConnectionError,
+                             OnPlatformErrorResponse, this);
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+}
+
+void CobaltWebContentsObserver::HandlePlatformErrorResponse(
+    SbSystemPlatformErrorResponse response) {
+  if (response == kSbSystemPlatformErrorResponsePositive) {
+    if (pending_reload_callback_) {
+      std::move(pending_reload_callback_).Run();
+    }
+  } else {
+    SbSystemRequestStop(0);
+  }
 }
 
 }  // namespace cobalt
