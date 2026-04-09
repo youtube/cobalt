@@ -111,12 +111,14 @@ struct MigrationState : public base::RefCountedThreadSafe<MigrationState> {
 
   MigrationOutcome GetOutcome() const {
     if (!has_data_to_migrate) {
-      if (read_result == StorageReadResult::kSuccess ||
-          read_result == StorageReadResult::kRecordInvalid ||
-          read_result == StorageReadResult::kSizeTooSmall) {
-        return MigrationOutcome::kSkipped;
+      switch (read_result) {
+        case StorageReadResult::kSuccess:
+        case StorageReadResult::kRecordInvalid:
+        case StorageReadResult::kSizeTooSmall:
+          return MigrationOutcome::kSkipped;
+        default:
+          return MigrationOutcome::kFailed;
       }
-      return MigrationOutcome::kFailed;
     }
     InjectionResult c_res = cookie_result.load(std::memory_order_relaxed);
     InjectionResult ls_res =
