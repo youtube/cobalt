@@ -212,10 +212,15 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
   append_window_end_during_append_ = append_window_end;
   timestamp_offset_during_append_ = timestamp_offset;
 
+  // Cobalt override: Increase yield limit from 128KB to 1MB to prevent 4K                                                                   
+  // VP9 fragments from over-yielding and causing Main Thread starvation. 
+  // This is for PoC.
+  constexpr int kMaxPendingBytesPerParseOverride = 1024 * 1024;
+
   // TODO(wolenetz): Curry and pass a NewBuffersCB here bound with append window
   // and timestamp offset pointer. See http://crbug.com/351454.
   StreamParser::ParseStatus result =
-      stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParse);
+      stream_parser_->Parse(kMaxPendingBytesPerParseOverride);
 
   if (result == StreamParser::ParseStatus::kFailed) {
     MEDIA_LOG(ERROR, media_log_)
