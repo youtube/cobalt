@@ -90,23 +90,40 @@ void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
 void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
                       crx_file::VerifierFormat crx_format) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if defined(IN_MEMORY_UPDATES)
+  VLOG(1) << "Verifying component";
+  if (!result_.crx_str) {
+    EndUnpacking(UnpackerError::kInvalidParams, 0);
+    return;
+  }
+#else
   VLOG(1) << "Verifying component: " << path_.value();
   if (path_.empty()) {
     EndUnpacking(UnpackerError::kInvalidParams, 0);
     return;
   }
+#endif
   std::vector<std::vector<uint8_t>> required_keys;
   if (!pk_hash.empty()) {
     required_keys.push_back(pk_hash);
   }
   const crx_file::VerifierResult result = crx_file::Verify(
+#if defined(IN_MEMORY_UPDATES)
+      *result_.crx_str, crx_format, required_keys, std::vector<uint8_t>(),
+      &public_key_,
+#else
       path_, crx_format, required_keys, std::vector<uint8_t>(), &public_key_,
+#endif
       /*crx_id=*/nullptr, &compressed_verified_contents_);
   if (result != crx_file::VerifierResult::OK_FULL) {
     EndUnpacking(UnpackerError::kInvalidFile, static_cast<int>(result));
     return;
   }
+#if defined(IN_MEMORY_UPDATES)
+  VLOG(2) << "Verification successful";
+#else
   VLOG(2) << "Verification successful: " << path_.value();
+#endif
   BeginUnzipping();
 }
 
@@ -129,8 +146,13 @@ void Unpacker::BeginUnzipping() {
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
   VLOG(1) << "Unpacking in: " << unpack_path_.value();
+#if defined(IN_MEMORY_UPDATES)
+  unzipper_->Unzip(*result_.crx_str, unpack_path_,
+                   base::BindOnce(&Unpacker::EndUnzipping, this));
+#else
   unzipper_->Unzip(path_, unpack_path_,
                    base::BindOnce(&Unpacker::EndUnzipping, this));
+#endif
 }
 
 void Unpacker::EndUnzipping(bool result) {
