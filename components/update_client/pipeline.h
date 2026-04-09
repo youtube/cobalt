@@ -20,6 +20,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
 #include "starboard/extension/installation_manager.h"
 #else
 namespace base {
