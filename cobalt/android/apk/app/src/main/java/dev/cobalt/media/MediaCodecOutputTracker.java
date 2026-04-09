@@ -14,6 +14,7 @@
 
 package dev.cobalt.media;
 
+import androidx.annotation.VisibleForTesting;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -121,15 +122,19 @@ public class MediaCodecOutputTracker {
     return totalMemory;
   }
 
-  public static void resetForTesting() {
-    if (sInstance != null) {
-      sInstance.stopReporting();
-      sInstance.mBridges.clear();
+  @VisibleForTesting
+  static void resetForTesting() {
+    synchronized (sTrackerLock) {
+      if (sInstance != null) {
+        sInstance.stopReporting();
+        sInstance.mBridges.clear();
+      }
+      sInstance = null;
     }
-    sInstance = null;
   }
 
-  public void forceReportForTesting() {
+  @VisibleForTesting
+  void forceReportForTesting() {
     reportMetrics();
   }
 
