@@ -81,7 +81,7 @@ int __abi_wrap_sched_setscheduler(musl_pid_t pid,
       return -1;
   }
 
-  struct sched_param native_param;
+  struct sched_param native_param = {};
   native_param.sched_priority = param->sched_priority;
 
   return sched_setscheduler(static_cast<pid_t>(pid), native_policy,

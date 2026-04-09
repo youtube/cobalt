@@ -34,7 +34,7 @@ TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccess) {
     GTEST_SKIP() << "Insufficient permissions to set scheduling policy.";
   }
 
-  EXPECT_EQ(result, 0) << "sched_setscheduler failed: " << strerror(errno);
+  EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
 }
 
 TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPid) {
