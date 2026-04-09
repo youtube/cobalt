@@ -1,14 +1,11 @@
 {
   "failing_tests": [
-    "ValidationIntegrationTest.*",
     "ValidationTest.*",
     "MessagePipeTest.DataPipeConsumerHandlePingPong",
     "MessagePipeTest.DataPipeProducerHandlePingPong",
     "FileTest.*",
     "DirectReceiverTest.*",
-    "PlatformChannelServerTest.*",
     "DataPipeProducerTest.*",
-    "FileDataSourceCppTest.*",
     "FileStreamDataSourceCppTest.*",
     "All/PlatformHandleTest.*"
   ]
