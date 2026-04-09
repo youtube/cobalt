@@ -125,21 +125,6 @@ runs:
           "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
 
         git config --global http.cookiefile "${GITCOOKIES_PATH}"
-
-    - name: Configure Git to use GitHub mirrors
-      shell: bash
-      run: |
-        git config --global url."https://github.com/chromium/".insteadOf "https://chromium.googlesource.com/"
-        git config --global url."https://github.com/aosp-mirror/".insteadOf "https://android.googlesource.com/"
-        git config --global url."https://github.com/google/skia".insteadOf "https://skia.googlesource.com/skia"
-        git config --global url."https://github.com/google/boringssl".insteadOf "https://boringssl.googlesource.com/boringssl"
-        git config --global url."https://github.com/google/quiche".insteadOf "https://quiche.googlesource.com/quiche"
-        git config --global url."https://github.com/google/swiftshader".insteadOf "https://swiftshader.googlesource.com/SwiftShader"
-        git config --global url."https://github.com/chromium/pdfium".insteadOf "https://pdfium.googlesource.com/pdfium"
-        git config --global url."https://github.com/google/dawn".insteadOf "https://dawn.googlesource.com/dawn"
-        git config --global url."https://github.com/AliveTeam/".insteadOf "https://aomedia.googlesource.com/"
-        git config --global url."https://github.com/haiyangwu/webrtc-mirror".insteadOf "https://webrtc.googlesource.com/src"
-
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
       env:
