@@ -432,6 +432,8 @@ const char* AppEventDelegate::GetStateString(ApplicationState state) {
       return "kFrozen";
     case ApplicationState::kStopped:
       return "kStopped";
+    default:
+      NOTREACHED();
   }
 }
 

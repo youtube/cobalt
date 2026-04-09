@@ -128,8 +128,8 @@ class AppEventDelegateTest : public ::testing::Test {
     }));
 
     // The constructor calls SetApplicationStateAnnotation(kInitial).
-    // We set a baseline expectation that ignores the exact count of SetString calls
-    // globally, so individual tests can focus on specific transitions.
+    // We set a baseline expectation that ignores the exact count of SetString
+    // calls globally, so individual tests can focus on specific transitions.
     EXPECT_CALL(mock_crash_handler_, SetString(testing::_, testing::_))
         .Times(testing::AnyNumber());
 
@@ -411,19 +411,25 @@ TEST_F(AppEventDelegateTest,
        SynthesisStopFromStartedReflectedInCrashAnnotations) {
   delegate_.reset();  // Restart lifecycle to verify the kInitial transition.
   InSequence s;
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kInitial")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kInitial")));
   CreateDelegate(/*nice_runner=*/true);
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kStarted")));
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kBlurred")));
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kConcealed")));
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kFrozen")));
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kStopped")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kStarted")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kBlurred")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kConcealed")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kFrozen")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kStopped")));
 
   SendEvent(kSbEventTypeStart);
   SendEvent(kSbEventTypeStop);
@@ -434,25 +440,31 @@ TEST_F(AppEventDelegateTest,
   delegate_.reset();  // Restart lifecycle to verify the kInitial transition.
   InSequence s;
   // 1. Arrange: get the app into a Frozen state.
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kInitial")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kInitial")));
   CreateDelegate(/*nice_runner=*/true);
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kConcealed")));
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kFrozen")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kConcealed")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kFrozen")));
 
   SendEvent(kSbEventTypePreload);  // kInitial -> kConcealed
   SendEvent(kSbEventTypeFreeze);   // kConcealed -> kFrozen
 
   // 2. Act and verify: transition from Frozen to Started (via Focus).
   // This should trigger: kFrozen -> kConcealed -> kBlurred -> kStarted.
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kConcealed")));
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kBlurred")));
-  EXPECT_CALL(mock_crash_handler_, SetString(testing::StrEq("application_state"),
-                                             testing::StrEq("kStarted")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kConcealed")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kBlurred")));
+  EXPECT_CALL(mock_crash_handler_,
+              SetString(testing::StrEq("application_state"),
+                        testing::StrEq("kStarted")));
 
   SendEvent(kSbEventTypeFocus);
 }
