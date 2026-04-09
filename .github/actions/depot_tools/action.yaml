@@ -64,13 +64,8 @@ runs:
         set -x
         cd cobalt
 
-        CACHE_ARG=()
-        if [[ -n "${CACHE_PATH}" ]]; then
-          CACHE_ARG=(--cache-dir="${CACHE_PATH}"/git-cache)
-        fi
         gclient config \
           --name=src \
-          "${CACHE_ARG[@]}" \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           "${REPOSITORY}"
       shell: bash
