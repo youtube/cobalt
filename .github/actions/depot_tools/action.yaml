@@ -55,20 +55,19 @@ runs:
       run: build_telemetry opt-out
       shell: bash
 
-    - name: Restore gclient cache via rsync
-      if: inputs.run_sync == 'true' && steps.cache-path.outputs.path != ''
-      env:
-        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+    - name: Set up Cloud SDK
+      if: inputs.run_sync == 'true'
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+
+    - name: Restore gclient cache from GCS
+      if: inputs.run_sync == 'true'
       run: |
         set -x
-        if [[ -d "${CACHE_PATH}/gclient-src" ]]; then
-          echo "Restoring gclient working trees from cache..."
-          du -sh "${CACHE_PATH}/gclient-src"
-          rsync -av --stats "${CACHE_PATH}/gclient-src/" cobalt/
-        else
-          echo "No existing gclient cache found at ${CACHE_PATH}/gclient-src."
-          ls -la "${CACHE_PATH}" || true
-        fi
+        PROJECT_NAME=$(gcloud config get-value project)
+        GCS_CACHE_PATH="gs://${PROJECT_NAME}-test-artifacts/gclient-cache/${GITHUB_REF_NAME}/${{ matrix.platform }}"
+
+        echo "Restoring gclient working trees from GCS..."
+        gcloud storage rsync "${GCS_CACHE_PATH}" cobalt/ --recursive || true
       shell: bash
 
     - name: Run gclient config
@@ -152,10 +151,8 @@ runs:
           --revision "${REF}"
       shell: bash
 
-    - name: Save gclient cache via atomic rsync
-      if: inputs.run_sync == 'true' && steps.cache-path.outputs.path != ''
-      env:
-        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+    - name: Save gclient cache to GCS
+      if: inputs.run_sync == 'true'
       run: |
         set -euxo pipefail
         cd cobalt
@@ -172,24 +169,21 @@ runs:
         gclient_globals = {}
         exec(open('.gclient_entries').read(), gclient_globals)
         entries = gclient_globals.get('entries', {})
-        print('\n'.join(['.gclient', '.gclient_entries'] + [p for p in entries if p != 'src' and p.startswith('src/')]))
+        print('\n'.join([p for p in entries if p != 'src' and p.startswith('src/')]))
         " > "${GCLIENT_LIST}"
 
-        TMP_CACHE="${CACHE_PATH}/gclient-src.tmp.${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-        echo "Syncing targeted gclient submodules to ${TMP_CACHE}..."
+        TMP_CACHE="$(pwd)/.gclient-cache-staging"
         mkdir -p "${TMP_CACHE}"
 
-        LINK_DEST_ARG=()
-        if [[ -d "${CACHE_PATH}/gclient-src" ]]; then
-          LINK_DEST_ARG=(--link-dest="${CACHE_PATH}/gclient-src")
-        fi
-        rsync -ar --stats --ignore-missing-args "${LINK_DEST_ARG[@]}" --exclude='out/' --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
-        du -sh "${TMP_CACHE}"
+        rsync -ar --stats --ignore-missing-args --exclude='out/' --link-dest="$(pwd)" --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
 
-        echo "Safely replacing old cache via atomic move..."
-        mv "${CACHE_PATH}/gclient-src" "${CACHE_PATH}/gclient-src.old" || true
-        mv "${TMP_CACHE}" "${CACHE_PATH}/gclient-src"
-        rm -rf "${CACHE_PATH}/gclient-src.old"
+        PROJECT_NAME=$(gcloud config get-value project)
+        GCS_CACHE_PATH="gs://${PROJECT_NAME}-test-artifacts/gclient-cache/${GITHUB_REF_NAME}/${{ matrix.platform }}"
+
+        echo "Syncing cache to GCS..."
+        gcloud storage rsync "${TMP_CACHE}" "${GCS_CACHE_PATH}" --recursive
+
+        rm -rf "${TMP_CACHE}"
       shell: bash
 
     - name: Run gclient runhooks
