@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/heap_array.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -352,6 +353,7 @@ class SoftwareVideoEncoderTest
 };
 
 class H264VideoEncoderTest : public SoftwareVideoEncoderTest {};
+class Vpx10BitVideoEncoderTest : public SoftwareVideoEncoderTest {};
 class SVCVideoEncoderTest : public SoftwareVideoEncoderTest {};
 class ManualSVCVideoEncoderTest : public SoftwareVideoEncoderTest {};
 
@@ -594,6 +596,46 @@ TEST_P(SoftwareVideoEncoderTest, EncodeAndDecode) {
   RunUntilQuit();
   DecodeAndWaitForStatus(DecoderBuffer::CreateEOSBuffer());
   EXPECT_EQ(total_decoded_frames, total_frames_count);
+}
+
+TEST_P(Vpx10BitVideoEncoderTest, EncodeDifferentMemoryTypes) {
+  VideoEncoder::Options options = CreateDefaultOptions();
+  options.frame_size = gfx::Size(2000, 2000);
+
+  encoder_->Initialize(profile_, options, /*info_cb=*/base::DoNothing(),
+                       /*output_cb=*/base::DoNothing(),
+                       ValidateStatusThenQuitCB());
+  RunUntilQuit();
+
+  VideoPixelFormat format1 = (profile_ == VP9PROFILE_PROFILE2)
+                                 ? PIXEL_FORMAT_YUV420P10
+                                 : PIXEL_FORMAT_YUV444P10;
+  VideoPixelFormat format2 =
+      (profile_ == VP9PROFILE_PROFILE2) ? PIXEL_FORMAT_I420 : PIXEL_FORMAT_I444;
+
+  // Encode a frame that doesn't need its own memory wrapper allocation.
+  auto frame1 = media::VideoFrame::CreateZeroInitializedFrame(
+      format1, options.frame_size, gfx::Rect(options.frame_size),
+      options.frame_size, base::Seconds(1));
+  encoder_->Encode(std::move(frame1), VideoEncoder::EncodeOptions(true),
+                   ValidateStatusThenQuitCB());
+  ASSERT_NO_FATAL_FAILURE(RunUntilQuit());
+
+  // Encode a frame that DOES need its own memory wrapper allocation.
+  auto frame2 = media::VideoFrame::CreateZeroInitializedFrame(
+      format2, options.frame_size, gfx::Rect(options.frame_size),
+      options.frame_size, base::Seconds(2));
+  encoder_->Encode(std::move(frame2), VideoEncoder::EncodeOptions(false),
+                   ValidateStatusThenQuitCB());
+  ASSERT_NO_FATAL_FAILURE(RunUntilQuit());
+
+  // Encode the first format again.
+  auto frame3 = media::VideoFrame::CreateZeroInitializedFrame(
+      format1, options.frame_size, gfx::Rect(options.frame_size),
+      options.frame_size, base::Seconds(3));
+  encoder_->Encode(std::move(frame3), VideoEncoder::EncodeOptions(false),
+                   ValidateStatusThenQuitCB());
+  ASSERT_NO_FATAL_FAILURE(RunUntilQuit());
 }
 
 TEST_P(SoftwareVideoEncoderTest, EncodeAndDecodeWithEnablingDrop) {
@@ -1099,6 +1141,42 @@ TEST_P(SVCVideoEncoderTest, ChangeLayers) {
   EXPECT_EQ(chunks.size(), total_frames_count);
 }
 
+TEST_P(SoftwareVideoEncoderTest, EncodeFrameWithMismatchedStrides) {
+  VideoEncoder::Options options = CreateDefaultOptions();
+  options.frame_size = gfx::Size(64, 64);
+
+  encoder_->Initialize(profile_, options, /*info_cb=*/base::DoNothing(),
+                       /*output_cb=*/base::DoNothing(),
+                       ValidateStatusThenQuitCB());
+  RunUntilQuit();
+
+  // Create a frame with mismatched strides
+  gfx::Size size(64, 64);
+  size_t y_stride = 64;
+  size_t u_stride = 65536;  // Large U stride
+  size_t v_stride = 32;
+
+  // We allocate memory for the data. To cause an OOB read crash if the U
+  // stride is used for the V plane, we allocate a small buffer for the V plane.
+  auto y_data = base::HeapArray<uint8_t>::WithSize(y_stride * size.height());
+  auto u_data =
+      base::HeapArray<uint8_t>::WithSize(u_stride * (size.height() / 2));
+  auto v_data =
+      base::HeapArray<uint8_t>::WithSize(v_stride * (size.height() / 2));
+
+  auto frame = VideoFrame::WrapExternalYuvData(
+      PIXEL_FORMAT_I420, size, gfx::Rect(size), size, y_stride, u_stride,
+      v_stride, y_data, u_data, v_data, base::TimeDelta());
+  frame->AddDestructionObserver(
+      base::BindOnce([](base::HeapArray<uint8_t>, base::HeapArray<uint8_t>,
+                        base::HeapArray<uint8_t>) {},
+                     std::move(y_data), std::move(u_data), std::move(v_data)));
+
+  encoder_->Encode(std::move(frame), VideoEncoder::EncodeOptions(false),
+                   ValidateStatusThenQuitCB());
+  RunUntilQuit();
+}
+
 TEST_P(SoftwareVideoEncoderTest, ReconfigureWithResizingNumberOfThreads) {
   int outputs_count = 0;
   VideoEncoder::Options options = CreateDefaultOptions();
@@ -1490,6 +1568,15 @@ INSTANTIATE_TEST_SUITE_P(VpxGeneric,
                          ::testing::ValuesIn(kVpxParams),
                          PrintTestParams);
 
+SwVideoTestParams kVpx10BitParams[] = {
+    {VideoCodec::kVP9, VP9PROFILE_PROFILE2, PIXEL_FORMAT_I420},
+    {VideoCodec::kVP9, VP9PROFILE_PROFILE3, PIXEL_FORMAT_I420}};
+
+INSTANTIATE_TEST_SUITE_P(Vpx10BitSpecific,
+                         Vpx10BitVideoEncoderTest,
+                         ::testing::ValuesIn(kVpx10BitParams),
+                         PrintTestParams);
+
 SwVideoTestParams kVpxSVCParams[] = {
     {VideoCodec::kVP9, VP9PROFILE_PROFILE0, PIXEL_FORMAT_I420, std::nullopt},
     {VideoCodec::kVP9, VP9PROFILE_PROFILE0, PIXEL_FORMAT_I420,
@@ -1552,6 +1639,7 @@ INSTANTIATE_TEST_SUITE_P(Av1ManualSvc,
 #endif  // ENABLE_LIBAOM
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(H264VideoEncoderTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(Vpx10BitVideoEncoderTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SVCVideoEncoderTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SoftwareVideoEncoderTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ManualSVCVideoEncoderTest);
