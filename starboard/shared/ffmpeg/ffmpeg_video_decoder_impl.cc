@@ -22,6 +22,7 @@
 #include <string>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 
@@ -34,11 +35,6 @@ namespace {
 // http://ffmpeg.org/doxygen/trunk/structAVFrame.html#aa52bfc6605f6a3059a0c3226cc0f6567
 // that the alignment on most modern desktop systems are 16 or 32.
 static const int kAlignment = 32;
-
-size_t AlignUp(size_t size, int alignment) {
-  SB_DCHECK_EQ((alignment & (alignment - 1)), 0);
-  return (size + alignment - 1) & ~(alignment - 1);
-}
 
 size_t GetYV12SizeInBytes(int32_t width, int32_t height) {
   return width * height * 3 / 2;
