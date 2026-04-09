@@ -24,7 +24,6 @@
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <vector>
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/check_op.h"
@@ -36,7 +35,11 @@ using starboard::android::shared::JniEnvExt;
 namespace starboard::android::shared {
 namespace {
 
+const int kSampleRateInHz = 16000;
+const int kSampleRateInMillihertz = kSampleRateInHz * 1000;
 const int kNumOfOpenSLESBuffers = 2;
+const int kSamplesPerBuffer = 128;
+const int kBufferSizeInBytes = kSamplesPerBuffer * sizeof(int16_t);
 
 bool CheckReturnValue(SLresult result) {
   return result == SL_RESULT_SUCCESS;
@@ -45,7 +48,7 @@ bool CheckReturnValue(SLresult result) {
 
 class SbMicrophoneImpl : public SbMicrophonePrivate {
  public:
-  SbMicrophoneImpl(int sample_rate_in_hz, int buffer_size_bytes);
+  SbMicrophoneImpl();
   ~SbMicrophoneImpl() override;
 
   bool Open() override;
@@ -79,60 +82,27 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   SLAndroidSimpleBufferQueueItf buffer_object_;
   SLAndroidConfigurationItf config_object_;
 
-  const int sample_rate_in_hz_;
-  const int buffer_size_bytes_;
-  const int samples_per_buffer_;
-  const int buffer_size_in_bytes_;
-
   // Keeps track of the microphone's current state.
   State state_;
-
-  // To avoid allocations in the audio callback, we use a fixed pool of buffers.
-  std::vector<int16_t*> buffer_pool_;
-  std::mutex pool_mutex_;
-  std::queue<int16_t*> free_queue_;
-
-  // Audio data that has been delivered to the OpenSL ES buffer queue.
+  // Audio data that has been delivered to the buffer queue.
   std::mutex delivered_queue_mutex_;
   std::queue<int16_t*> delivered_queue_;
-
-  // Audio data that is ready to be read by Cobalt.
+  // Audio data that is ready to be read.
   std::mutex ready_queue_mutex_;
   std::queue<int16_t*> ready_queue_;
-
-  int16_t* ready_buffer_ = nullptr;
-  int ready_buffer_offset_ = 0;
 };
 
-SbMicrophoneImpl::SbMicrophoneImpl(int sample_rate_in_hz, int buffer_size_bytes)
+SbMicrophoneImpl::SbMicrophoneImpl()
     : engine_object_(nullptr),
       engine_(nullptr),
       recorder_object_(nullptr),
       recorder_(nullptr),
       buffer_object_(nullptr),
       config_object_(nullptr),
-      sample_rate_in_hz_(sample_rate_in_hz),
-      buffer_size_bytes_(buffer_size_bytes),
-      samples_per_buffer_(sample_rate_in_hz / 100),  // 10ms per buffer
-      buffer_size_in_bytes_(samples_per_buffer_ * sizeof(int16_t)),
-      state_(kClosed) {
-  // Pre-allocate a fixed pool of buffers to avoid new/delete in real-time path.
-  // We need at least kNumOfOpenSLESBuffers plus a few extra for the ready
-  // queue.
-  const int kPoolSize = kNumOfOpenSLESBuffers + 10;
-  for (int i = 0; i < kPoolSize; ++i) {
-    int16_t* buffer = new int16_t[samples_per_buffer_];
-    buffer_pool_.push_back(buffer);
-    free_queue_.push(buffer);
-  }
-}
+      state_(kClosed) {}
 
 SbMicrophoneImpl::~SbMicrophoneImpl() {
   Close();
-  // All buffers should be back in the pool or otherwise accounted for.
-  for (int16_t* buffer : buffer_pool_) {
-    delete[] buffer;
-  }
 }
 
 bool SbMicrophoneImpl::RequestAudioPermission() {
@@ -142,7 +112,8 @@ bool SbMicrophoneImpl::RequestAudioPermission() {
           "getAudioPermissionRequester",
           "()Ldev/cobalt/coat/AudioPermissionRequester;"));
   jboolean j_permission = env->CallBooleanMethodOrAbort(
-      j_audio_permission_requester, "requestRecordAudioPermission", "()Z");
+      j_audio_permission_requester, "requestRecordAudioPermission", "(J)Z",
+      reinterpret_cast<intptr_t>(this));
   return j_permission;
 }
 
@@ -163,8 +134,9 @@ bool SbMicrophoneImpl::IsMicrophoneMute() {
 }
 
 bool SbMicrophoneImpl::Open() {
-  SB_DLOG(INFO) << "SbMicrophoneImpl::Open state=" << state_;
   if (state_ == kOpened) {
+    // The microphone has already been opened; clear the unread buffer. See
+    // starboard/microphone.h for more info.
     ClearBuffer();
     return true;
   }
@@ -174,67 +146,60 @@ bool SbMicrophoneImpl::Open() {
     return false;
   } else if (!RequestAudioPermission()) {
     state_ = kWaitPermission;
-    SB_DLOG(INFO) << "SbMicrophoneImpl::Open waiting for permission";
+    SB_DLOG(INFO) << "Waiting for audio permission.";
+    // The permission is not set; this causes the MicrophoneManager to call
+    // read() repeatedly and wait for the user's response.
     return true;
   } else if (!StartRecording()) {
-    SB_DLOG(WARNING) << "SbMicrophoneImpl::Open StartRecording FAILED";
+    SB_DLOG(WARNING) << "Error starting recording.";
     return false;
   }
 
-  SB_DLOG(INFO) << "SbMicrophoneImpl::Open SUCCESS";
+  // Successfully opened the microphone and started recording.
   state_ = kOpened;
   return true;
 }
 
 bool SbMicrophoneImpl::StartRecording() {
-  SB_DLOG(INFO) << "SbMicrophoneImpl::StartRecording";
   if (!CreateAudioRecorder()) {
     SB_DLOG(WARNING) << "Create audio recorder failed.";
     DeleteAudioRecorder();
     return false;
   }
 
-  // Enqueue initial buffers from the pool.
+  // Enqueues kNumOfOpenSLESBuffers zero buffers to start.
+  // Adds buffers to the queue before changing state to ensure that recording
+  // starts as soon as the state is modified.
   for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
-    int16_t* buffer = nullptr;
+    int16_t* buffer = new int16_t[kSamplesPerBuffer];
+    memset(buffer, 0, kBufferSizeInBytes);
     {
-      std::lock_guard lock(pool_mutex_);
-      if (!free_queue_.empty()) {
-        buffer = free_queue_.front();
-        free_queue_.pop();
-      }
+      std::lock_guard lock(delivered_queue_mutex_);
+      delivered_queue_.push(buffer);
     }
-
-    if (buffer) {
-      memset(buffer, 0, buffer_size_in_bytes_);
-      {
-        std::lock_guard lock(delivered_queue_mutex_);
-        delivered_queue_.push(buffer);
-      }
-      SLresult result =
-          (*buffer_object_)
-              ->Enqueue(buffer_object_, buffer, buffer_size_in_bytes_);
-      if (!CheckReturnValue(result)) {
-        SB_DLOG(WARNING) << "Error adding buffers to the queue.";
-        return false;
-      }
+    SLresult result =
+        (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
+    if (!CheckReturnValue(result)) {
+      SB_DLOG(WARNING) << "Error adding buffers to the queue.";
+      return false;
     }
   }
 
+  // Start the recording by setting the state to |SL_RECORDSTATE_RECORDING|.
+  // When the object is in the SL_RECORDSTATE_RECORDING state, adding buffers
+  // will implicitly start the recording process.
   SLresult result =
       (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
   if (!CheckReturnValue(result)) {
-    SB_DLOG(WARNING) << "SetRecordState(RECORDING) FAILED result=" << result;
     return false;
   }
 
-  SB_DLOG(INFO) << "SbMicrophoneImpl::StartRecording SUCCESS";
   return true;
 }
 
 bool SbMicrophoneImpl::Close() {
-  SB_DLOG(INFO) << "SbMicrophoneImpl::Close state=" << state_;
   if (state_ == kClosed) {
+    // The microphone has already been closed.
     return true;
   }
 
@@ -243,11 +208,13 @@ bool SbMicrophoneImpl::Close() {
     return false;
   }
 
+  // Successfully closed the microphone and stopped recording.
   state_ = kClosed;
   return true;
 }
 
 bool SbMicrophoneImpl::StopRecording() {
+  // Stop recording by setting the record state to |SL_RECORDSTATE_STOPPED|.
   SLresult result =
       (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
   if (!CheckReturnValue(result)) {
@@ -255,6 +222,7 @@ bool SbMicrophoneImpl::StopRecording() {
   }
 
   ClearBuffer();
+
   DeleteAudioRecorder();
 
   return true;
@@ -262,68 +230,43 @@ bool SbMicrophoneImpl::StopRecording() {
 
 int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
   if (state_ == kClosed || IsMicrophoneMute()) {
+    // No audio data is read from a stopped or muted microphone; return an
+    // error.
     return -1;
   }
 
-  if (!out_audio_data || audio_data_size == 0) {
+  if (!out_audio_data || audio_data_size == 0 || state_ == kWaitPermission) {
+    // No data to be read.
     return 0;
-  }
-
-  if (state_ == kWaitPermission) {
-    if (RequestAudioPermission()) {
-      state_ = kPermissionGranted;
-    } else {
-      return 0;
-    }
   }
 
   if (state_ == kPermissionGranted) {
     if (StartRecording()) {
       state_ = kOpened;
     } else {
+      // Could not start recording; return an error.
       state_ = kClosed;
       return -1;
     }
   }
 
-  int bytes_copied = 0;
-  uint8_t* output = static_cast<uint8_t*>(out_audio_data);
-
-  std::lock_guard lock(ready_queue_mutex_);
-
-  while (bytes_copied < audio_data_size) {
-    if (ready_buffer_ == nullptr) {
-      if (ready_queue_.empty()) {
-        break;
-      }
-      ready_buffer_ = ready_queue_.front();
+  int read_bytes = 0;
+  std::unique_ptr<int16_t> buffer;
+  {
+    std::lock_guard lock(ready_queue_mutex_);
+    // Go through the ready queue, reading and sending audio data.
+    while (!ready_queue_.empty() &&
+           audio_data_size - read_bytes >= kBufferSizeInBytes) {
+      buffer.reset(ready_queue_.front());
+      memcpy(static_cast<uint8_t*>(out_audio_data) + read_bytes, buffer.get(),
+             kBufferSizeInBytes);
       ready_queue_.pop();
-      ready_buffer_offset_ = 0;
-    }
-
-    int remaining_in_buffer = buffer_size_in_bytes_ - ready_buffer_offset_;
-    int remaining_to_copy = audio_data_size - bytes_copied;
-    int to_copy = std::min(remaining_in_buffer, remaining_to_copy);
-
-    memcpy(output + bytes_copied,
-           reinterpret_cast<uint8_t*>(ready_buffer_) + ready_buffer_offset_,
-           to_copy);
-
-    bytes_copied += to_copy;
-    ready_buffer_offset_ += to_copy;
-
-    if (ready_buffer_offset_ >= buffer_size_in_bytes_) {
-      // Return the buffer to the free pool instead of deleting it.
-      {
-        std::lock_guard lock(pool_mutex_);
-        free_queue_.push(ready_buffer_);
-      }
-      ready_buffer_ = nullptr;
-      ready_buffer_offset_ = 0;
+      read_bytes += kBufferSizeInBytes;
     }
   }
 
-  return bytes_copied;
+  buffer.reset();
+  return read_bytes;
 }
 
 void SbMicrophoneImpl::SetPermission(bool is_granted) {
@@ -339,52 +282,47 @@ void SbMicrophoneImpl::SwapAndPublishBuffer(
 }
 
 void SbMicrophoneImpl::SwapAndPublishBuffer() {
-  int16_t* filled_buffer = nullptr;
+  int16_t* buffer = nullptr;
   {
     std::lock_guard lock(delivered_queue_mutex_);
     if (!delivered_queue_.empty()) {
-      filled_buffer = delivered_queue_.front();
+      // The front item in the delivered queue already has the buffered data, so
+      // move it from the delivered queue to the ready queue for future reads.
+      buffer = delivered_queue_.front();
       delivered_queue_.pop();
     }
   }
 
-  if (filled_buffer != NULL) {
+  if (buffer != NULL) {
     std::lock_guard lock(ready_queue_mutex_);
-    ready_queue_.push(filled_buffer);
+    ready_queue_.push(buffer);
   }
 
   if (state_ == kOpened) {
-    int16_t* next_buffer = nullptr;
+    int16_t* buffer = new int16_t[kSamplesPerBuffer];
+    memset(buffer, 0, kBufferSizeInBytes);
     {
-      std::lock_guard lock(pool_mutex_);
-      if (!free_queue_.empty()) {
-        next_buffer = free_queue_.front();
-        free_queue_.pop();
-      }
+      std::lock_guard lock(delivered_queue_mutex_);
+      delivered_queue_.push(buffer);
     }
-
-    if (next_buffer) {
-      memset(next_buffer, 0, buffer_size_in_bytes_);
-      {
-        std::lock_guard lock(delivered_queue_mutex_);
-        delivered_queue_.push(next_buffer);
-      }
-      SLresult result =
-          (*buffer_object_)
-              ->Enqueue(buffer_object_, next_buffer, buffer_size_in_bytes_);
-      CheckReturnValue(result);
-    }
+    SLresult result =
+        (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
+    CheckReturnValue(result);
   }
 }
 
 bool SbMicrophoneImpl::CreateAudioRecorder() {
   SLresult result;
+  // Initializes the SL engine object with specific options.
+  // OpenSL ES for Android is designed for multi-threaded applications and
+  // is thread-safe.
   result = slCreateEngine(&engine_object_, 0, nullptr, 0, nullptr, nullptr);
   if (!CheckReturnValue(result)) {
     SB_DLOG(WARNING) << "Error creating the SL engine object.";
     return false;
   }
 
+  // Realize the SL engine object in synchronous mode.
   result = (*engine_object_)
                ->Realize(engine_object_, /* async = */ SL_BOOLEAN_FALSE);
   if (!CheckReturnValue(result)) {
@@ -392,6 +330,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
     return false;
   }
 
+  // Get the SL engine interface.
   result =
       (*engine_object_)->GetInterface(engine_object_, SL_IID_ENGINE, &engine_);
   if (!CheckReturnValue(result)) {
@@ -399,6 +338,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
     return false;
   }
 
+  // Audio source configuration; the audio source is an I/O device data locator.
   SLDataLocator_IODevice input_dev_locator = {
       SL_DATALOCATOR_IODEVICE, SL_IODEVICE_AUDIOINPUT,
       SL_DEFAULTDEVICEID_AUDIOINPUT, nullptr};
@@ -407,15 +347,13 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
   SLDataLocator_AndroidSimpleBufferQueue simple_buffer_queue = {
       SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, kNumOfOpenSLESBuffers};
 
+  // Audio sink configuration; the audio sink is a simple buffer queue. PCM is
+  // the only data format allowed with buffer queues.
   SLAndroidDataFormat_PCM_EX format = {
-      SL_ANDROID_DATAFORMAT_PCM_EX,
-      1 /* numChannels */,
-      static_cast<SLuint32>(sample_rate_in_hz_ * 1000),
-      SL_PCMSAMPLEFORMAT_FIXED_16,
-      SL_PCMSAMPLEFORMAT_FIXED_16,
-      SL_SPEAKER_FRONT_CENTER,
-      SL_BYTEORDER_LITTLEENDIAN,
-      SL_ANDROID_PCM_REPRESENTATION_SIGNED_INT};
+      SL_ANDROID_DATAFORMAT_PCM_EX, 1 /* numChannels */,
+      kSampleRateInMillihertz,      SL_PCMSAMPLEFORMAT_FIXED_16,
+      SL_PCMSAMPLEFORMAT_FIXED_16,  SL_SPEAKER_FRONT_CENTER,
+      SL_BYTEORDER_LITTLEENDIAN,    SL_ANDROID_PCM_REPRESENTATION_SIGNED_INT};
   SLDataSink audio_sink = {&simple_buffer_queue, &format};
 
   const int kCount = 2;
@@ -423,6 +361,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
                                               SL_IID_ANDROIDCONFIGURATION};
   const SLboolean kInterfaceRequired[kCount] = {SL_BOOLEAN_TRUE,
                                                 SL_BOOLEAN_TRUE};
+  // Create the audio recorder.
   result = (*engine_)->CreateAudioRecorder(engine_, &recorder_object_,
                                            &audio_source, &audio_sink, kCount,
                                            kInterfaceId, kInterfaceRequired);
@@ -431,6 +370,8 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
     return false;
   }
 
+  // Configure the audio recorder (before it is realized); get the configuration
+  // interface.
   result = (*recorder_object_)
                ->GetInterface(recorder_object_, SL_IID_ANDROIDCONFIGURATION,
                               &config_object_);
@@ -439,6 +380,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
     return false;
   }
 
+  // Use the main microphone tuned for voice recognition.
   const SLuint32 kPresetValue = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
   result =
       (*config_object_)
@@ -449,13 +391,16 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
     return false;
   }
 
+  // Realize the recorder in synchronous mode.
   result = (*recorder_object_)
                ->Realize(recorder_object_, /* async = */ SL_BOOLEAN_FALSE);
   if (!CheckReturnValue(result)) {
-    SB_DLOG(WARNING) << "Error realizing the audio recorder.";
+    SB_DLOG(WARNING) << "Error realizing the audio recorder. Double check that "
+                        "the microphone is connected to the device.";
     return false;
   }
 
+  // Get the record interface (an implicit interface).
   result = (*recorder_object_)
                ->GetInterface(recorder_object_, SL_IID_RECORD, &recorder_);
   if (!CheckReturnValue(result)) {
@@ -463,6 +408,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
     return false;
   }
 
+  // Get the buffer queue interface which was explicitly requested.
   result = (*recorder_object_)
                ->GetInterface(recorder_object_, SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
                               &buffer_object_);
@@ -471,6 +417,8 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
     return false;
   }
 
+  // Setup to receive buffer queue event callbacks for when a buffer in the
+  // queue is completed.
   result =
       (*buffer_object_)
           ->RegisterCallback(buffer_object_,
@@ -493,6 +441,7 @@ void SbMicrophoneImpl::DeleteAudioRecorder() {
   recorder_ = nullptr;
   recorder_object_ = nullptr;
 
+  // Destroy the engine object.
   if (engine_object_) {
     (*engine_object_)->Destroy(engine_object_);
   }
@@ -501,6 +450,7 @@ void SbMicrophoneImpl::DeleteAudioRecorder() {
 }
 
 void SbMicrophoneImpl::ClearBuffer() {
+  // Clear the buffer queue to get rid of old data.
   if (buffer_object_) {
     SLresult result = (*buffer_object_)->Clear(buffer_object_);
     if (!CheckReturnValue(result)) {
@@ -511,10 +461,7 @@ void SbMicrophoneImpl::ClearBuffer() {
   {
     std::lock_guard lock(delivered_queue_mutex_);
     while (!delivered_queue_.empty()) {
-      {
-        std::lock_guard lock(pool_mutex_);
-        free_queue_.push(delivered_queue_.front());
-      }
+      delete[] delivered_queue_.front();
       delivered_queue_.pop();
     }
   }
@@ -522,20 +469,8 @@ void SbMicrophoneImpl::ClearBuffer() {
   {
     std::lock_guard lock(ready_queue_mutex_);
     while (!ready_queue_.empty()) {
-      {
-        std::lock_guard lock(pool_mutex_);
-        free_queue_.push(ready_queue_.front());
-      }
+      delete[] ready_queue_.front();
       ready_queue_.pop();
-    }
-
-    if (ready_buffer_) {
-      {
-        std::lock_guard lock(pool_mutex_);
-        free_queue_.push(ready_buffer_);
-      }
-      ready_buffer_ = nullptr;
-      ready_buffer_offset_ = 0;
     }
   }
 }
@@ -545,6 +480,9 @@ void SbMicrophoneImpl::ClearBuffer() {
 int SbMicrophonePrivate::GetAvailableMicrophones(
     SbMicrophoneInfo* out_info_array,
     int info_array_size) {
+  // Note that there is no way of checking for a connected microphone/device
+  // before API 23, so GetAvailableMicrophones() will assume a microphone is
+  // connected and always return 1 on APIs < 23.
   if (starboard::android::shared::SbMicrophoneImpl::
           IsMicrophoneDisconnected()) {
     SB_DLOG(WARNING) << "No microphone connected.";
@@ -556,10 +494,13 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
   }
 
   if (out_info_array && info_array_size > 0) {
+    // Only support one microphone.
     out_info_array[0].id = reinterpret_cast<SbMicrophoneId>(1);
     out_info_array[0].type = kSbMicrophoneUnknown;
-    out_info_array[0].max_sample_rate_hz = 48000;
-    out_info_array[0].min_read_size = 128;
+    out_info_array[0].max_sample_rate_hz =
+        starboard::android::shared::kSampleRateInHz;
+    out_info_array[0].min_read_size =
+        starboard::android::shared::kSamplesPerBuffer;
   }
 
   return 1;
@@ -571,12 +512,15 @@ bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(
   if (!SbMicrophoneIdIsValid(id)) {
     return false;
   }
-  return sample_rate_in_hz >= 8000 && sample_rate_in_hz <= 48000;
+
+  return sample_rate_in_hz == starboard::android::shared::kSampleRateInHz;
 }
 
 namespace {
-const int kUnusedBufferSize = 1024 * 1024;
+const int kUnusedBufferSize = 32 * 1024;
+// Only a single microphone is supported.
 SbMicrophone s_microphone = kSbMicrophoneInvalid;
+
 }  // namespace
 
 SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
@@ -592,8 +536,7 @@ SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
     return kSbMicrophoneInvalid;
   }
 
-  s_microphone = new starboard::android::shared::SbMicrophoneImpl(
-      sample_rate_in_hz, buffer_size_bytes);
+  s_microphone = new starboard::android::shared::SbMicrophoneImpl();
   return s_microphone;
 }
 
