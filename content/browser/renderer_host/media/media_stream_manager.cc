@@ -66,6 +66,7 @@
 #include "media/audio/audio_system.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/audio/audio_manager.h"
+#include "media/audio/android/starboard_audio_input_stream.h"
 #endif
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
@@ -2651,7 +2652,8 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
     // Hardcode 16kHz Mono parameters (Starboard spec).
     media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                   media::ChannelLayoutConfig::Mono(),
-                                  16000, 128);
+                                  media::StarboardAudioInputStream::kSampleRateHz,
+                                  media::StarboardAudioInputStream::kSamplesPerBuffer);
     
     blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
                                     "default", "Default Microphone");

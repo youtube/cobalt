@@ -29,6 +29,8 @@ class StarboardAudioInputStream : public AudioInputStream {
  public:
   static const int kMaxNumOfBuffersInQueue = 2;
   static const int kSampleRateHz = 16000;
+  static const int kSamplesPerBuffer = 128;
+  static const int kDefaultBufferSizeInBytes = 1024;
 
   StarboardAudioInputStream(AudioManagerAndroid* manager,
                             const AudioParameters& params);

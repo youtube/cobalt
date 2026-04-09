@@ -11,6 +11,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
+#include "media/audio/android/starboard_audio_input_stream.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #include "base/containers/contains.h"
@@ -644,7 +645,8 @@ void UserMediaProcessor::SetupAudioInput() {
     // Construct hardcoded parameters (16kHz Mono).
     media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                   media::ChannelLayoutConfig::Mono(),
-                                  16000, 128);
+                                  media::StarboardAudioInputStream::kSampleRateHz,
+                                  media::StarboardAudioInputStream::kSamplesPerBuffer);
     
     // Force-disable all native processing to get a "Straight Pipe" at 16kHz.
     // This prevents the WebRtcAudioProcessor from forcing a downsample.
@@ -656,7 +658,7 @@ void UserMediaProcessor::SetupAudioInput() {
     // Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
     // and its default processing dependencies.
     blink::AudioCaptureSettings settings(
-        "default", /*requested_buffer_size=*/128,
+        "default", /*requested_buffer_size=*/media::StarboardAudioInputStream::kSamplesPerBuffer,
         /*disable_local_echo=*/false,
         /*enable_automatic_output_device_selection=*/false,
         blink::AudioCaptureSettings::ProcessingType::kUnprocessed,

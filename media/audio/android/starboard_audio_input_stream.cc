@@ -48,7 +48,7 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
   
   // If we couldn't scale it properly, just use a reasonable default.
   if (buffer_size_bytes_ == 0) {
-      buffer_size_bytes_ = 1024; // Reasonable fallback
+      buffer_size_bytes_ = kDefaultBufferSizeInBytes; // Reasonable fallback
   }
 
   audio_bus_ = media::AudioBus::Create(1, buffer_size_bytes_ / sizeof(int16_t));
