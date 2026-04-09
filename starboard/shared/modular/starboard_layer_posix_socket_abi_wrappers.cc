@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 
+#include <net/if.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -388,6 +389,25 @@ SB_EXPORT void __abi_wrap_freeaddrinfo(struct musl_addrinfo* ai) {
 SB_EXPORT int __abi_wrap_getifaddrs(struct ifaddrs** ifap) {
   int result = getifaddrs(ifap);
   return result;
+}
+
+SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
+  if (ifname == nullptr) {
+    // It feels like this should also set errno, but the spec doesn't require
+    // it.
+    return nullptr;
+  }
+
+  char platform_buf[IF_NAMESIZE];
+  char* res = if_indextoname(ifindex, platform_buf);
+  if (res == nullptr) {
+    return nullptr;
+  }
+  // If IF_NAMESIZE > MUSL_IF_NAMESIZE, this will truncate the interface name.
+  // At time of writing, that is fine since current uses of this function are in
+  // logging.
+  starboard::strlcpy(ifname, res, MUSL_IF_NAMESIZE);
+  return ifname;
 }
 
 SB_EXPORT int __abi_wrap_setsockopt(int socket,
