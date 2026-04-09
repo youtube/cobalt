@@ -311,6 +311,51 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
     private_footprint_total_kb += pmd.os_dump().private_footprint_kb;
     shared_footprint_total_kb += pmd.os_dump().shared_footprint_kb;
     resident_set_total_kb += pmd.os_dump().resident_set_kb;
+<<<<<<< HEAD
+=======
+#if !BUILDFLAG(IS_IOS_TVOS)
+    // TODO: b/497706115 - This field does not exist on tvOS.
+    private_footprint_swap_total_kb += pmd.os_dump().private_footprint_swap_kb;
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
+    vm_size_total_kb += pmd.os_dump().vm_size_kb;
+
+    // Manually calculate fragmentation for individual processes as it may not
+    // be present in the dump.
+    const uint64_t blink_gc_bytes =
+        pmd.GetMetric("blink_gc", kEffectiveSize).value_or(0);
+    const uint64_t blink_gc_allocated_objects_bytes =
+        pmd.GetMetric("blink_gc", kAllocatedObjectsSize).value_or(0);
+    if (blink_gc_bytes > 0) {
+      uint64_t fragmentation =
+          (blink_gc_bytes > blink_gc_allocated_objects_bytes)
+              ? blink_gc_bytes - blink_gc_allocated_objects_bytes
+              : 0;
+      int fragmentation_pct =
+          static_cast<int>(fragmentation * 100 / blink_gc_bytes);
+      static const Metric kBlinkGCFragMetric = {
+          "blink_gc",      "BlinkGC.Fragmentation", MetricSize::kPercentage,
+          "fragmentation", EmitTo::kSizeInUmaOnly,  {}};
+      EmitProcessUma(ptype, kBlinkGCFragMetric, fragmentation_pct);
+    }
+
+    const uint64_t blink_gc_main_bytes =
+        pmd.GetMetric("blink_gc/main", kEffectiveSize).value_or(0);
+    const uint64_t blink_gc_main_allocated_objects_bytes =
+        pmd.GetMetric("blink_gc/main", kAllocatedObjectsSize).value_or(0);
+    if (blink_gc_main_bytes > 0) {
+      uint64_t fragmentation =
+          (blink_gc_main_bytes > blink_gc_main_allocated_objects_bytes)
+              ? blink_gc_main_bytes - blink_gc_main_allocated_objects_bytes
+              : 0;
+      int fragmentation_pct =
+          static_cast<int>(fragmentation * 100 / blink_gc_main_bytes);
+      static const Metric kBlinkGCMainFragMetric = {
+          "blink_gc/main",         "BlinkGC.Main.Heap.Fragmentation",
+          MetricSize::kPercentage, "fragmentation",
+          EmitTo::kSizeInUmaOnly,  {}};
+      EmitProcessUma(ptype, kBlinkGCMainFragMetric, fragmentation_pct);
+    }
+>>>>>>> 9701ac6fa8 (cobalt: Fix tvOS build after recent performance and metrics cherry-picks (#9811))
 
     for (const auto& item : kAllocatorDumpNamesForMetrics) {
       std::optional<uint64_t> value =

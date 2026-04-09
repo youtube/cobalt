@@ -55,6 +55,32 @@ void PerformanceImpl::MeasureUsedCpuMemory(
   std::move(callback).Run(used_memory);
 }
 
+<<<<<<< HEAD
+=======
+void PerformanceImpl::MeasureUsedSwapMemory(
+    MeasureUsedSwapMemoryCallback callback) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/497682329 - vm_swap_bytes does not exist on tvOS.
+  std::move(callback).Run(0);
+#else
+  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+      base::GetCurrentProcessHandle());
+  auto info = process_metrics->GetMemoryInfo();
+  auto used_swap_memory = info.has_value() ? info->vm_swap_bytes : 0;
+  std::move(callback).Run(used_swap_memory);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+}
+
+void PerformanceImpl::MeasureReservedVirtualMemory(
+    MeasureReservedVirtualMemoryCallback callback) {
+  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+      base::GetCurrentProcessHandle());
+  auto info = process_metrics->GetMemoryInfo();
+  auto virtual_memory_size = info.has_value() ? info->vm_size_bytes : 0;
+  std::move(callback).Run(virtual_memory_size);
+}
+
+>>>>>>> 9701ac6fa8 (cobalt: Fix tvOS build after recent performance and metrics cherry-picks (#9811))
 void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
 #if BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
