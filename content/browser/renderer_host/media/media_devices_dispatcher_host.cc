@@ -168,7 +168,7 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
        caps->device_id = "default";
        caps->parameters = media::AudioParameters(
            media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
-           media::ChannelLayoutConfig::Mono(), 48000, 512);
+           media::ChannelLayoutConfig::Mono(), 16000, 128);
        audio_capabilities.push_back(std::move(caps));
     }
     

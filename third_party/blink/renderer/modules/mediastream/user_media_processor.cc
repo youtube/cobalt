@@ -648,13 +648,13 @@ void UserMediaProcessor::SetupAudioInput() {
                            current_request_info_->request_id()));
     
     // KJ: Bypass the Mojo call to GetAudioInputCapabilities.
-    // Construct hardcoded parameters (48kHz Mono).
+    // Construct hardcoded parameters (16kHz Mono).
     media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                   media::ChannelLayoutConfig::Mono(),
-                                  48000, 512);
+                                  16000, 128);
     
-    // KJ: Force-disable all native processing to get a "Straight Pipe" at 48kHz.
-    // This prevents the WebRtcAudioProcessor from forcing a 16kHz downsample.
+    // KJ: Force-disable all native processing to get a "Straight Pipe" at 16kHz.
+    // This prevents the WebRtcAudioProcessor from forcing a downsample.
     blink::AudioProcessingProperties properties;
     properties.DisableDefaultProperties();
     properties.echo_cancellation_type = 
@@ -663,7 +663,7 @@ void UserMediaProcessor::SetupAudioInput() {
     // KJ: Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
     // and its default processing dependencies.
     blink::AudioCaptureSettings settings(
-        "default", /*requested_buffer_size=*/512,
+        "default", /*requested_buffer_size=*/128,
         /*disable_local_echo=*/false,
         /*enable_automatic_output_device_selection=*/false,
         blink::AudioCaptureSettings::ProcessingType::kUnprocessed,
