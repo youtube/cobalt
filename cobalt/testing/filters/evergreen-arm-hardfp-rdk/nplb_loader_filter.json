@@ -1,10 +1,13 @@
 {
   "failing_tests": [
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+<<<<<<< HEAD
     "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemSymbolizeTest.SunnyDay",
+=======
+>>>>>>> 0f809c3bb5 (nplb test: Fix hang with `SbAudioSinkCreateTest.MultiSink` (#9243))
     "SbTimeZoneGetNameTest.IsIANAFormat",
     "SbLogFlushTest.DontCrashMeBro",
     "SbWindowGetSizeTest.SunnyDay",
