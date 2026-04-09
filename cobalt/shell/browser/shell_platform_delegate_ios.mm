@@ -694,8 +694,9 @@ void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   // Change the default background color to match that of the UIWindow itself,
   // otherwise there can be a white flash while the page is being loaded.
-  shell->web_contents()->GetRenderWidgetHostView()->SetBackgroundColor(
-      SK_ColorBLACK);
+  if (auto* view = shell->web_contents()->GetRenderWidgetHostView()) {
+    view->SetBackgroundColor(SK_ColorBLACK);
+  }
 }
 
 bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
