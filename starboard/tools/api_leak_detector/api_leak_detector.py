@@ -35,10 +35,6 @@ Exits with 1 if run in --submit-check mode and any leaks are either introduced
 or removed compared with the manifest, otherwise exits with 0.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import collections
 import logging
@@ -68,6 +64,7 @@ _DEFAULT_TARGET = 'cobalt'
 _DEFAULT_SB_VERSION = 17
 
 _RE_LIB = re.compile(r'lib.*\.a$')
+_RE_OBJ = re.compile(r'.*\.o$')
 _RE_FILE = re.compile(r'\/\/.*\.[hcp]+$')
 _RE_SYMBOL_AND_ANY_VERSION_INFO = re.compile(r'(([^@]+)@@?(.+))|([^@]+)')
 _RE_ALLOWED_C99_SYMBOL = re.compile(r'^\*\s(.*)$')
@@ -291,17 +288,32 @@ def FindLibraries(config_path):
   libs_to_ignore = LoadLibrariesToIgnore()
 
   libs = []
-  for root, dirs, filenames in os.walk(config_path):
-    # Only look in toplevel obj directory.
-    if root == config_path:
-      dirs[:] = [d for d in dirs if d == 'obj']
+  print(f'Searching {config_path} for static libraries', file=sys.stderr)
+  for root, _, filenames in os.walk(config_path):
     for filename in filenames:
+      abs_path = os.path.join(root, filename)
       if _RE_LIB.match(filename) and filename not in libs_to_ignore:
-        libs.append(os.path.join(root, filename))
+        libs.append(abs_path)
   return libs
 
 
-def FindLeakingSourceFiles(leaking_symbols, nm_output, config_dir):
+def ObjectFilesToIgnore(config_path):
+  """Returns all object files contained in ignored static libraries."""
+  print('Loading libraries to ignore...', file=sys.stderr)
+  libs_to_ignore = LoadLibrariesToIgnore()
+
+  objs = set()
+  print(f'Searching {config_path} for static libraries', file=sys.stderr)
+  for root, _, filenames in os.walk(config_path):
+    for filename in filenames:
+      abs_path = os.path.join(root, filename)
+      if _RE_LIB.match(filename) and filename in libs_to_ignore:
+        ar_output = RunCommand(['ar', '-t', abs_path])
+        objs.update(ar_output.splitlines())
+  return objs
+
+
+def FindLeakingSourceFiles(leaking_symbols, nm_output, config_path):
   r"""Collects and formats all filenames that have leaks in the nm output.
 
   This function works by iterating through the provided output, keeping track
@@ -310,20 +322,10 @@ def FindLeakingSourceFiles(leaking_symbols, nm_output, config_dir):
   of files that contain the specified leak. Once the entire output has been
   iterated across, the dictionary of leaks to sets of files is returned.
 
-  The absolute path of every file, such as:
-
-    /usr/local/google/home/chadduffin/cobalt/src/out/ \
-        evergreen-x64-sbversion-12_gold/obj/third_party/boringssl/src/crypto/ \
-            crypto.thread.c.o
-
-  will be stripped so that it becomes:
-
-    //third_party/boringssl/src/crypto/thread.c
-
   Args:
     leaking_symbols: A list of all of the symbols that are valid leaks.
     nm_output: The output from 'nm -u' being ran against a static library.
-    config_dir: Config build directory
+    config_path: Absolute path of the config build directory
 
   Returns:
     A dictionary that maps symbols to a set of filenames that are leaking the
@@ -332,20 +334,16 @@ def FindLeakingSourceFiles(leaking_symbols, nm_output, config_dir):
   files = {}
   filename = None
   for line in ProcessNmOutput(nm_output, True):
-    if config_dir in line:
+    if config_path in line:
 
       # See the description above to understand what the string manipulation
       # below is accomplishing.
       try:
-        filename = '//' + line.split(f'/{config_dir}/obj/')[1]
+        filename = '//' + os.path.relpath(line, paths.REPOSITORY_ROOT)
       except IndexError as e:
         print(line)
         raise e
-      if filename.endswith('.asm.o:'):
-        filename = re.sub(r':$', '', filename)
-        continue
-      filename = re.sub(r'\.o:$', '', filename)
-      filename = re.sub(r'/\w+\.', '/', filename)
+      filename = filename.removesuffix(':')
       continue
     elif filename and line and line in leaking_symbols:
       files_set = files.get(line, set())
@@ -364,51 +362,93 @@ def InversedKeys(nested_dict):
   return inverse
 
 
-def FindLeakLocations(leaked_symbols, config_path):
+def FindLeakLocations(leaked_symbols, config_path, only_grep, use_ripgrep):
   """Returns the static libraries and source files leaked APIs are used in.
 
   Args:
     leaked_symbols: The set of leaked symbols found in the Cobalt layer.
     config_path: The path to the build config directory.
+    only_grep: If true, skip searching static libraries and just look for
+               symbols in object files.
+    use_ripgrep: If true, use ripgrep instead of grep.
 
   Returns:
     A dict from leaked symbol to dict from static library to the set of source
     files using the leak.
   """
-  config_dir = os.path.basename(config_path)
   leaking_files = {}
   libs_to_symbols = {}
+  obj_files_in_libs = set()
 
-  print('Collecting static libraries...', file=sys.stderr)
-  libs = FindLibraries(config_path)
+  if only_grep:
+    # We still need to ignore files associated with ignored libraries.
+    obj_files_in_libs = ObjectFilesToIgnore(config_path)
+    print(
+        f'Found {len(obj_files_in_libs)} object files in ignored libraries.',
+        file=sys.stderr)
+  else:
+    print('Collecting static libraries...', file=sys.stderr)
+    libs = FindLibraries(config_path)
+    print(f'Found {len(libs)} static libraries.', file=sys.stderr)
 
-  print('Searching the static libraries for leaks...', file=sys.stderr)
-  for lib in libs:
-    print(lib)
-    libname = os.path.basename(lib)
-    nm_output = RunCommand(['nm', '-u', lib])
-    libs_to_symbols[libname] = set()
-    for symbol in ProcessNmOutput(nm_output):
-      if symbol not in leaked_symbols:
+    print('Searching the static libraries for leaks...', file=sys.stderr)
+    print(
+        'This may take some time. Use --only-grep to skip this step.',
+        file=sys.stderr)
+    for i, lib in enumerate(libs):
+      # Progress
+      if i > 0:
+        # Clear previous line
+        print('\x1b[1A', file=sys.stderr, end='')
+        print('\x1b[2K', file=sys.stderr, end='')
+      print(f'[{i + 1}/{len(libs)}] {os.path.basename(lib)}', file=sys.stderr)
+
+      # Get a list of .o files in the .a file so we can ignore them later.
+      ar_output = RunCommand(['ar', '-t', lib])
+      obj_files_in_libs.update(ar_output.splitlines())
+
+      # Check for undefined symbols in the lib
+      libname = os.path.basename(lib)
+      nm_output = RunCommand(['nm', '-u', lib])
+      libs_to_symbols[libname] = set()
+      for symbol in ProcessNmOutput(nm_output):
+        if symbol not in leaked_symbols:
+          continue
+        libs_to_symbols[libname].add(symbol)
+      if not libs_to_symbols[libname]:
+        del libs_to_symbols[libname]
         continue
-      libs_to_symbols[libname].add(symbol)
-    if not libs_to_symbols[libname]:
-      del libs_to_symbols[libname]
-      continue
-    leaking_files[libname] = FindLeakingSourceFiles(libs_to_symbols[libname],
-                                                    nm_output, config_dir)
-    if not leaking_files[libname]:
-      del leaking_files[libname]
+      leaking_files[libname] = FindLeakingSourceFiles(libs_to_symbols[libname],
+                                                      nm_output, config_path)
+      if not leaking_files[libname]:
+        del leaking_files[libname]
 
-  # It's possible for something that is not a Cobalt static library to
-  # contribute leaked symbols. For example, some static libraries come
-  # preinstalled on Linux.
-  leaked_with_libraries = {s for v in libs_to_symbols.values() for s in v}
-  leaked_without_libraries = leaked_symbols.difference(leaked_with_libraries)
-  if leaked_without_libraries:
-    leaking_files[_UNKNOWN_LIBRARIES] = {
-        symbol: {_UNKNOWN_SOURCE_FILES} for symbol in leaked_without_libraries
-    }
+  # Not all symbols are packaged into lib*.a files, so we also need to grep for
+  # them in .o files.
+  leaking_files[_UNKNOWN_LIBRARIES] = {}
+  if not use_ripgrep:
+    print(
+        'Tip: Install ripgrep (rg) and use the --ripgrep arg for 10x faster'
+        ' processing.',
+        file=sys.stderr)
+  for i, symbol in enumerate(leaked_symbols):
+    # Progress
+    if i > 0:
+      # Clear previous line
+      print('\x1b[1A', file=sys.stderr, end='')
+      print('\x1b[2K', file=sys.stderr, end='')
+    print(
+        f'[{i + 1}/{len(leaked_symbols)}] Searching for {symbol}...',
+        file=sys.stderr)
+    if use_ripgrep:
+      grep_output = RunCommand(
+          ['rg', '-uuu', '-l', '-a', '-g', '!{*.ninja}', symbol, config_path])
+    else:
+      grep_output = RunCommand(
+          ['grep', '-r', '-l', '-a', '--exclude=*.ninja', symbol, config_path])
+    leaking_files[_UNKNOWN_LIBRARIES][symbol] = set(
+        '//' + os.path.relpath(filename, paths.REPOSITORY_ROOT)
+        for filename in set(grep_output.splitlines()) - obj_files_in_libs)
 
   return InversedKeys(leaking_files)
 
@@ -496,6 +536,15 @@ def ParseArgs():
       help='The Starboard version',
       type=int,
       default=_DEFAULT_SB_VERSION)
+  parser.add_argument(
+      '--only-grep',
+      help='Skip nm parsing of static libraries and only grep for symbols in '
+      'object files. Output will not be grouped by library.',
+      action='store_true')
+  parser.add_argument(
+      '--ripgrep',
+      help='Use ripgrep (rg) instead of grep.',
+      action='store_true')
   return parser.parse_args()
 
 
@@ -647,8 +696,11 @@ def main():
   if args.submit_check:
     introduced, removed = DiffWithManifest(leaked_symbols, manifest_path)
     if introduced:
-      PrettyPrint(
-          {'Leaks introduced:': FindLeakLocations(introduced, obj_path)})
+      PrettyPrint({
+          'Leaks introduced:':
+              FindLeakLocations(introduced, obj_path, args.only_grep,
+                                args.ripgrep)
+      })
       print(
           '\nPlease see advice for addressing new leaks at go/cobalt-api-leaks.'
       )
@@ -668,7 +720,9 @@ def main():
 
   if args.inspect:
     if leaked_symbols:
-      PrettyPrint(FindLeakLocations(leaked_symbols, obj_path))
+      PrettyPrint(
+          FindLeakLocations(leaked_symbols, obj_path, args.only_grep,
+                            args.ripgrep))
     else:
       print('No leaks found!', file=sys.stderr)
     return 0
