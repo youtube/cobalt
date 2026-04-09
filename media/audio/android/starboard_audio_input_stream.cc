@@ -4,9 +4,6 @@
 
 #include "base/logging.h"
 #include "base/time/time.h"
-#include "base/trace_event/trace_event.h"
-#include "base/trace_event/typed_macros.h"
-#include "perfetto/tracing/track_event_args.h"
 
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
@@ -71,7 +68,6 @@ StarboardAudioInputStream::~StarboardAudioInputStream() {
 }
 
 AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
-  TRACE_EVENT("media", "RecordLatency::Starboard_Open");
   LOG(INFO) << "StarboardAudioInputStream::Open";
   DCHECK(thread_checker_.CalledOnValidThread());
   

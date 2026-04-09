@@ -13,9 +13,6 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/trace_event/trace_event.h"
-#include "base/trace_event/typed_macros.h"
-#include "perfetto/tracing/track_event_args.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/audio/android/aaudio_output.h"
 #include "media/audio/android/aaudio_stubs.h"
@@ -393,13 +390,13 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   // Note that the input device is always associated with a certain output
   // device, i.e., this selection does also switch the output device.
   // All input and output streams will be affected by the device selection.
-
-  // Create a new audio input stream and enable or disable all audio effects
-  // given |params.effects()|.
   if (!SetAudioDevice(device_id)) {
     LOG(ERROR) << "Unable to select audio device!";
     return NULL;
   }
+
+  // Create a new audio input stream and enable or disable all audio effects
+  // given |params.effects()|.
   return new OpenSLESInputStream(this, params);
 #endif
 }
