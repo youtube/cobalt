@@ -8,8 +8,6 @@
 #include "base/trace_event/typed_macros.h"
 #include "perfetto/tracing/track_event_args.h"
 
-namespace content { extern base::TimeTicks g_select_keydown_time; }
-
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
 
@@ -74,13 +72,11 @@ StarboardAudioInputStream::~StarboardAudioInputStream() {
 
 AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
   TRACE_EVENT("media", "RecordLatency::Starboard_Open");
-  LOG(INFO) << "KJ: StarboardAudioInputStream::Open";
+  LOG(INFO) << "StarboardAudioInputStream::Open";
   DCHECK(thread_checker_.CalledOnValidThread());
   
-  // KJ: Make Open() idempotent. If we've already pre-started the hardware,
-  // just return success to let the caller (InputController) proceed.
   if (engine_object_.Get()) {
-    LOG(INFO) << "KJ: StarboardAudioInputStream already Open (Pre-started)";
+    LOG(INFO) << "StarboardAudioInputStream already Open (Pre-started)";
     return AudioInputStream::OpenOutcome::kSuccess;
   }
 
@@ -89,7 +85,7 @@ AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
 
   SetupAudioBuffer();
 
-  // KJ: PRE-START hardware immediately to bypass the Mojo "Start" handshake.
+  // PRE-START hardware immediately to bypass the Mojo Start handshake.
   // This allows the hardware to warm up while the Renderer thread is busy.
   SLresult err = SL_RESULT_UNKNOWN_ERROR;
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
@@ -107,19 +103,11 @@ AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
     return AudioInputStream::OpenOutcome::kFailed;
   }
 
-  LOG(INFO) << "KJ: Hardware PRE-STARTED in Open()";
+  LOG(INFO) << "Cobalt: Hardware PRE-STARTED in Open()";
   return AudioInputStream::OpenOutcome::kSuccess;
 }
 
 void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
-  LOG(INFO) << "KJ: StarboardAudioInputStream::Start (Renderer is ready)";
-
-  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
-  TRACE_EVENT("media", "RecordLatency::StarboardStart", perfetto::Flow::ProcessScoped(id));
-  base::TimeDelta elapsed =
-      base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: RecordLatency::StarboardStart: latency(msec)="
-            << elapsed.InMilliseconds();
 
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(callback);
@@ -132,7 +120,6 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
 }
 
 void StarboardAudioInputStream::Stop() {
-  LOG(INFO) << "KJ: StarboardAudioInputStream::Stop";
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!started_)
     return;
@@ -250,16 +237,6 @@ void StarboardAudioInputStream::SimpleBufferQueueCallback(
 void StarboardAudioInputStream::ReadBufferQueue() {
   base::AutoLock lock(lock_);
 
-  buffer_count_++;
-  if (buffer_count_ == 1 && !::content::g_select_keydown_time.is_null()) {
-    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
-    TRACE_EVENT("media", "RecordLatency::StarboardFirstBuffer", perfetto::Flow::ProcessScoped(id));
-    base::TimeDelta total_elapsed =
-        base::TimeTicks::Now() - ::content::g_select_keydown_time;
-    LOG(INFO) << "KJ: RecordLatency::StarboardFirstBuffer: total_latency(msec)="
-              << total_elapsed.InMilliseconds();
-  }
-
   // If the Renderer isn't ready, we just drop the pre-warm data but keep the loop running.
   if (callback_) {
     // Convert from interleaved format to deinterleaved audio bus format.
@@ -269,10 +246,6 @@ void StarboardAudioInputStream::ReadBufferQueue() {
 
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
                       0.0, {});
-  } else {
-    if (buffer_count_ % 10 == 0) {
-      LOG(INFO) << "KJ: Pre-buffering hardware data (Renderer not ready yet)";
-    }
   }
 
   (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,

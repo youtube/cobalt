@@ -105,8 +105,6 @@ class StarboardAudioInputStream : public AudioInputStream {
   base::TimeDelta hardware_delay_;
 
   std::unique_ptr<media::AudioBus> audio_bus_;
-
-  int buffer_count_ = 0;
 };
 
 }  // namespace media

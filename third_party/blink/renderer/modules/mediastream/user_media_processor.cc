@@ -637,23 +637,23 @@ void UserMediaProcessor::SetupAudioInput() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     SendLogMessage(
         base::StringPrintf("SetupAudioInput({request_id=%d}) => "
-                           "(KJ: Shortcut handshake, hardcoding capabilities)",
+                           "(Shortcut handshake, hardcoding capabilities)",
                            current_request_info_->request_id()));
     
-    // KJ: Bypass the Mojo call to GetAudioInputCapabilities.
+    // Bypass the Mojo call to GetAudioInputCapabilities.
     // Construct hardcoded parameters (16kHz Mono).
     media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                   media::ChannelLayoutConfig::Mono(),
                                   16000, 128);
     
-    // KJ: Force-disable all native processing to get a "Straight Pipe" at 16kHz.
+    // Force-disable all native processing to get a "Straight Pipe" at 16kHz.
     // This prevents the WebRtcAudioProcessor from forcing a downsample.
     blink::AudioProcessingProperties properties;
     properties.DisableDefaultProperties();
     properties.echo_cancellation_type = 
         blink::AudioProcessingProperties::EchoCancellationType::kEchoCancellationDisabled;
 
-    // KJ: Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
+    // Manually construct the settings to bypass the SelectSettingsAudioCapture algorithm
     // and its default processing dependencies.
     blink::AudioCaptureSettings settings(
         "default", /*requested_buffer_size=*/128,

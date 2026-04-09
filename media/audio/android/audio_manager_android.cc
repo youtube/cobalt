@@ -41,10 +41,6 @@ using base::android::JavaParamRef;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-namespace content { extern base::TimeTicks g_select_keydown_time; }
-#endif
-
 using media_audio_android::InitializeStubs;
 using media_audio_android::kModuleAaudio;
 using media_audio_android::StubPathMap;
@@ -181,14 +177,7 @@ void AudioManagerAndroid::GetAudioOutputDeviceNames(
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
-  TRACE_EVENT("media", "RecordLatency::GetInputStreamParameters", perfetto::Flow::ProcessScoped(id));
-  base::TimeDelta elapsed =
-      base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: device_id=" << device_id 
-            << " latency(msec)=" << elapsed.InMilliseconds();
-
-  // Starboard POC: Hardcode Mono to bypass JNI/Probing overhead.
+  // Hardcode Mono to bypass JNI/Probing overhead.
   // This is now thread-safe and can be called from any thread to avoid hops.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
   int sample_rate = StarboardAudioInputStream::kSampleRateHz;
@@ -198,7 +187,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
                          sample_rate, buffer_size);
   params.set_effects(AudioParameters::NO_EFFECTS);
-  LOG(INFO) << "KJ: " << __func__ << "params=" << params.AsHumanReadableString();
+  LOG(INFO) << "Starboard Input Stream:" << __func__ << "params=" << params.AsHumanReadableString();
   return params;
 #else
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
@@ -253,7 +242,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // KJ: Check if we have a pre-started stream for this device.
+  // Check if we have a pre-started stream for this device.
   // We use the first one available or wait for it to finish opening.
   {
     base::AutoLock lock(pre_started_streams_lock_);
@@ -263,7 +252,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
       // Keep a raw pointer to the entry so we can wait on it.
       PreStartedEntry* entry = it->second.get();
       
-      LOG(INFO) << "KJ: Re-using PRE-STARTED hardware stream. Waiting for it to finish opening...";
+      LOG(INFO) << "Cobalt: Re-using PRE-STARTED hardware stream. Waiting for it to finish opening...";
       
       {
         base::AutoUnlock unlock(pre_started_streams_lock_);
@@ -273,7 +262,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
       AudioInputStream* stream = entry->stream;
       if (stream) {
         pre_started_streams_.erase(it);
-        LOG(INFO) << "KJ: Successfully re-used PRE-STARTED stream";
+        LOG(INFO) << "Cobalt: Successfully re-used PRE-STARTED stream";
         return stream;
       }
     }
@@ -313,7 +302,7 @@ void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // KJ: Remove from pre-started map if present.
+  // Remove from pre-started map if present.
   {
     base::AutoLock lock(pre_started_streams_lock_);
     for (auto it = pre_started_streams_.begin(); it != pre_started_streams_.end(); ++it) {
@@ -397,15 +386,6 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
-  TRACE_EVENT("media", "RecordLatency::MakeLowLatencyInputStream", perfetto::Flow::ProcessScoped(id));
-  base::TimeDelta elapsed =
-      base::TimeTicks::Now() - ::content::g_select_keydown_time;
-  LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream: "
-                "latency(msec)="
-            << elapsed.InMilliseconds();
-#endif
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
@@ -426,7 +406,7 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void AudioManagerAndroid::PreStartStream(const base::UnguessableToken& session_id,
                                          const AudioParameters& params) {
-  LOG(INFO) << "KJ: AudioManagerAndroid::PreStartStream session=" << session_id.ToString();
+  LOG(INFO) << "Cobalt: AudioManagerAndroid::PreStartStream session=" << session_id.ToString();
   
   // We must be on the audio thread to create the stream objects.
   if (!GetTaskRunner()->BelongsToCurrentThread()) {
@@ -443,13 +423,13 @@ void AudioManagerAndroid::PreStartStream(const base::UnguessableToken& session_i
     pre_started_streams_[session_id] = std::make_unique<PreStartedEntry>();
   }
 
-  // KJ: Use the base class factory method so the stream is properly registered 
+  // Use the base class factory method so the stream is properly registered 
   // in the AudioManagerBase::input_streams_ list. This prevents the ReleaseInputStream crash.
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, "default", base::DoNothing());
   
   if (!stream) {
-    LOG(ERROR) << "KJ: Failed to create hardware stream for pre-start";
+    LOG(ERROR) << "Cobalt: Failed to create hardware stream for pre-start";
     base::AutoLock lock(pre_started_streams_lock_);
     pre_started_streams_.erase(session_id);
     return;
@@ -459,9 +439,9 @@ void AudioManagerAndroid::PreStartStream(const base::UnguessableToken& session_i
     base::AutoLock lock(pre_started_streams_lock_);
     pre_started_streams_[session_id]->stream = stream;
     pre_started_streams_[session_id]->open_event.Signal();
-    LOG(INFO) << "KJ: Hardware stream PRE-STARTED and PARKED for session=" << session_id.ToString();
+    LOG(INFO) << "Cobalt: Hardware stream PRE-STARTED and PARKED for session=" << session_id.ToString();
   } else {
-    LOG(ERROR) << "KJ: Failed to pre-start hardware stream";
+    LOG(ERROR) << "Cobalt: Failed to pre-start hardware stream";
     base::AutoLock lock(pre_started_streams_lock_);
     pre_started_streams_.erase(session_id);
     ReleaseInputStream(stream);

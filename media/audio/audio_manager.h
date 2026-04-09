@@ -138,7 +138,7 @@ class MEDIA_EXPORT AudioManager {
       const LogCallback& log_callback) = 0;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // KJ: Pre-starts physical hardware recording for the given session.
+  // Pre-starts physical hardware recording for the given session.
   // Default implementation does nothing.
   virtual void PreStartStream(const base::UnguessableToken& session_id,
                               const AudioParameters& params) {}

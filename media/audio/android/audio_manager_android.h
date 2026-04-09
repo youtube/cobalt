@@ -75,7 +75,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       const LogCallback& log_callback) override;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // KJ: Pre-starts and parks a hardware stream so the Renderer can "skip" the wait.
+  // Pre-starts and parks a hardware stream for faster startup.
   void PreStartStream(const base::UnguessableToken& session_id,
                       const AudioParameters& params);
 #endif
@@ -136,7 +136,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   base::android::ScopedJavaGlobalRef<jobject> j_audio_manager_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // KJ: Map to hold pre-started streams indexed by session ID.
+  // Map to hold pre-started streams indexed by session ID.
   base::Lock pre_started_streams_lock_;
   
   struct PreStartedEntry {
