@@ -40,13 +40,14 @@ constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
 // Ideally this function should be moved to decoder_buffer.h.  It's kept here as
 // H5vccSettings will soon be deprecated and it's easier to remove from here.
-ScriptPromise ProcessDecoderBufferSettings(ScriptState* script_state,
-                                           const WTF::String& name,
-                                           const V8UnionLongOrString* value,
-                                           ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
+    ScriptState* script_state,
+    const WTF::String& name,
+    const V8UnionLongOrString* value,
+    ExceptionState& exception_state) {
   DCHECK(name.StartsWith(kDecoderBufferSettingPrefix));
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
