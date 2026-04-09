@@ -106,6 +106,8 @@ constexpr char kLocalStorageCountHistogram[] =
 constexpr char kDurationHistogram[] = "Cobalt.StorageMigration.Duration";
 constexpr char kSentinelWriteResultHistogram[] =
     "Cobalt.StorageMigration.SentinelWriteResult";
+constexpr char kDeleteLegacyRecordResultHistogram[] =
+    "Cobalt.StorageMigration.DeleteLegacyRecordResult";
 
 // ============================================================================
 // General File / Cache Utilities
@@ -191,12 +193,15 @@ void DeleteLegacyStorageFilesAsync() {
     std::string partition_key = GetApplicationKey(initial_url);
     auto record =
         std::make_unique<starboard::StorageRecord>(partition_key.c_str());
-    DeleteLegacyStorageRecord(record.get());
+    bool success = DeleteLegacyStorageRecord(record.get());
+    base::UmaHistogramBoolean(kDeleteLegacyRecordResultHistogram, success);
   }
 
   // Also attempt to delete the fallback default record.
   auto fallback_record = std::make_unique<starboard::StorageRecord>();
-  DeleteLegacyStorageRecord(fallback_record.get());
+  bool fallback_success = DeleteLegacyStorageRecord(fallback_record.get());
+  base::UmaHistogramBoolean(kDeleteLegacyRecordResultHistogram,
+                            fallback_success);
 }
 
 // Deletes legacy cache subdirectories asynchronously to free up disk space.
