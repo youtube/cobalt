@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "media/starboard/bidirectional_fit_reuse_allocator.h"
+#include "starboard/common/bidirectional_fit_reuse_allocator.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,7 +27,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace media {
+namespace starboard {
 
 struct AlignedMemoryDeleter {
   void operator()(uint8_t* p) { free(p); }
@@ -248,9 +248,10 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, AllocationsWithThreshold) {
   EXPECT_LT(reinterpret_cast<uintptr_t>(small_allocation_2),
             reinterpret_cast<uintptr_t>(small_allocation_1));
 
-  this->allocator_->Free(small_allocation_1);
   this->allocator_->Free(small_allocation_2);
   this->allocator_->Free(large_allocation_1);
+  this->allocator_->Free(small_allocation_1);
+  this->allocator_->Free(small_allocation_3);
 }
 
-}  // namespace media
+}  // namespace starboard
