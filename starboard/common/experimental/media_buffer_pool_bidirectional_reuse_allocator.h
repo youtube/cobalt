@@ -43,7 +43,7 @@ class MediaBufferPoolBidirectionalReuseAllocator : public Allocator {
                                            allocation_increment) {}
 
   ~MediaBufferPoolBidirectionalReuseAllocator() {
-    SB_DCHECK_EQ(GetAllocated(), 0);
+    SB_DCHECK_EQ(GetAllocated(), 0u);
   }
 
   void* Allocate(std::size_t size) override {
