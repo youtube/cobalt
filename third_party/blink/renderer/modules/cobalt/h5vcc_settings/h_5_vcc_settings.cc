@@ -59,6 +59,7 @@ ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
     return promise;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
     bool enable = (value->GetAsLong() != 0);
     if (enable) {
@@ -75,6 +76,7 @@ ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
 
     return promise;
   }
+#endif
 
   LOG(WARNING) << name << " isn't a supported setting.";
   // An unknown setting leads to TypeError.
