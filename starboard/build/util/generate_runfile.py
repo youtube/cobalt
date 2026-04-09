@@ -36,10 +36,9 @@ parser.add_argument('--library', type=str, required=True)
 args = parser.parse_args()
 
 with open(args.output, 'w', encoding='utf-8') as f:
+  runner_args = ''
   if args.library == 'libcobalt_browsertests':
     runner_args = _BROWSERTEST_RUNNER_ARGS
-  else:
-    runner_args = ''
 
   f.write(_TEMPLATE.format(runner_args=runner_args, library=args.library))
 
