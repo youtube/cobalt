@@ -138,6 +138,7 @@ void AudioManagerAndroid::GetAudioInputDeviceNames(
   AddDefaultDevice(device_names);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // simplfified flow - just return default.
   return;
 #else
   // Get list of available audio devices.
@@ -273,11 +274,6 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // For Cobalt, we use SbMicrophone which handles its own presets (e.g.
-  // VOICE_RECOGNITION) and doesn't need the global Android communication mode
-  // which causes Binder broadcast storms and performance degradation.
-#else
   // By default, the audio manager for Android creates streams intended for
   // real-time VoIP sessions and therefore sets the audio mode to
   // MODE_IN_COMMUNICATION. However, the user might have asked for a special
@@ -288,7 +284,6 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     communication_mode_is_on_ = true;
     SetCommunicationAudioModeOn(true);
   }
-#endif
   return stream;
 }
 
@@ -371,7 +366,7 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
-  // TODO(henrika): replace with PCM linear once StarboardAudioInputStream
+  // TODO(henrika): add support for device selection if/when any client
   // needs it.
   DLOG_IF(ERROR, !device_id.empty()) << "Not implemented!";
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
@@ -389,12 +384,18 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
-
-  // Create a new audio input stream and enable or disable all audio effects
-  // given |params.effects()|.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   return new StarboardAudioInputStream(this, params);
 #else
+  DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
+
+  // Use the device ID to select the correct input device.
+  // Note that the input device is always associated with a certain output
+  // device, i.e., this selection does also switch the output device.
+  // All input and output streams will be affected by the device selection.
+
+  // Create a new audio input stream and enable or disable all audio effects
+  // given |params.effects()|.
   if (!SetAudioDevice(device_id)) {
     LOG(ERROR) << "Unable to select audio device!";
     return NULL;

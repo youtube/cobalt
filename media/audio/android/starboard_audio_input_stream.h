@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 
 #ifndef MEDIA_AUDIO_ANDROID_STARBOARD_AUDIO_INPUT_STREAM_H_
 #define MEDIA_AUDIO_ANDROID_STARBOARD_AUDIO_INPUT_STREAM_H_

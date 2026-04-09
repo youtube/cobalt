@@ -636,7 +636,7 @@ void UserMediaProcessor::SetupAudioInput() {
   if (blink::IsDeviceMediaType(audio_controls.stream_type)) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     SendLogMessage(
-        base::StringPrintf("SetupAudioInput({request_id=%d}) => "
+        base::StringPrintf("Cobalt: SetupAudioInput({request_id=%d}) => "
                            "(Shortcut handshake, hardcoding capabilities)",
                            current_request_info_->request_id()));
     
