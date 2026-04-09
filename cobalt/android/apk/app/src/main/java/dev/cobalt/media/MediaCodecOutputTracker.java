@@ -24,7 +24,7 @@ import org.chromium.base.task.TaskTraits;
 
 /**
  * Memory tracker for MediaCodecBridge instances to estimate video memory usage.
- * Reports metrics periodically (1 minute) while bridges are active.
+ * Reports metrics periodically (5 minutes) while bridges are active.
  */
 public class MediaCodecOutputTracker {
   private static MediaCodecOutputTracker sInstance;
@@ -120,5 +120,17 @@ public class MediaCodecOutputTracker {
     }
     return totalMemory;
   }
+
+  public static void resetForTesting() {
+    if (sInstance != null) {
+      sInstance.stopReporting();
+      sInstance.mBridges.clear();
+    }
+    sInstance = null;
+  }
+
+  public void forceReportForTesting() {
+    reportMetrics();
+  }
+
 }
-// TODO(500811958): Add junit tests for OutputTracker class
