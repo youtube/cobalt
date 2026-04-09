@@ -61,6 +61,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_getrandom_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
@@ -291,7 +292,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(write);
 
   // Linux APIs
-  REGISTER_SYMBOL(getrandom);
   REGISTER_SYMBOL(recvmmsg);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
@@ -330,6 +330,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getpid);
   REGISTER_WRAPPER(getuid);
   REGISTER_WRAPPER(getpriority);
+  REGISTER_WRAPPER(getrandom);
   REGISTER_WRAPPER(getrlimit);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
