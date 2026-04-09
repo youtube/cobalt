@@ -312,6 +312,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Media.EstimatedDecodedBuffer" unit="MB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records total estimated memory allocation used for media output
+    buffer by Android MediaCodec.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Media.AllocatedEncodedBuffer"
     unit="MB" expires_after="never">
   <owner>tasunny@google.com</owner>
