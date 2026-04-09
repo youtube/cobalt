@@ -902,7 +902,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     }
 
     if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->data(), buffer, /*usage_count=*/1, sample_type);
+            buffer->handle(), buffer, /*usage_count=*/1, sample_type);
         !inserted) {
       ++iter->second.usage_count;
     }
@@ -935,7 +935,8 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     SbPlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
-    sample_info.buffer = buffer->data();
+    // Cast the handle to void* to reuse the existing SbPlayerWriteSamples().
+    sample_info.buffer = reinterpret_cast<void*>(buffer->handle());
     sample_info.buffer_size = buffer->size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
@@ -1171,7 +1172,8 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
+  DecodingBuffers::iterator iter = decoding_buffers_.find(
+      reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
   DCHECK(iter != decoding_buffers_.end());
   if (iter == decoding_buffers_.end()) {
     LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
