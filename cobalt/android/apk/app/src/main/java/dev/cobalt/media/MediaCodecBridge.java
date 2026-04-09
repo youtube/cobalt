@@ -38,6 +38,7 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Locale;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -115,6 +116,19 @@ class MediaCodecBridge {
   }
 
   private FrameRateEstimator mFrameRateEstimator = null;
+  private final AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);
+  private volatile MediaFormatWrapper mActiveFormat = null;
+
+  int getCurrentMediaFormatDimension() {
+    if (mActiveFormat == null) {
+      return 0;
+    }
+    return mActiveFormat.width() * mActiveFormat.height();
+  }
+
+  int sizeOfActiveOutputBuffers() {
+    return mActiveOutputBuffers.get();
+  }
 
    /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
@@ -316,6 +330,7 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
+              mActiveOutputBuffers.incrementAndGet();
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
                 int fps = mFrameRateEstimator.getEstimatedFrameRate();
@@ -333,6 +348,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              mActiveFormat = new MediaFormatWrapper(format);
               MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.reset();
@@ -448,6 +464,7 @@ class MediaCodecBridge {
 
     MediaCodecBridge bridge =
         new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
+    MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
@@ -649,6 +666,7 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
     } finally {
+      mActiveOutputBuffers.set(0);
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
@@ -658,6 +676,7 @@ class MediaCodecBridge {
 
   @CalledByNative
   public void release() {
+    MediaCodecOutputTracker.get().unregister(this);
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
@@ -813,6 +832,7 @@ class MediaCodecBridge {
   private void releaseOutputBuffer(int index, boolean render) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, render);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -823,6 +843,7 @@ class MediaCodecBridge {
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
