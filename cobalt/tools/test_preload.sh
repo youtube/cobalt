@@ -64,7 +64,10 @@ execute_js() {
 echo "[TEST] Injecting event logger..."
 execute_js "window.event_log = [];
             document.addEventListener('visibilitychange', () => {
-              window.event_log.push({type: 'visibilitychange', visibility: document.visibilityState});
+              window.event_log.push({type: 'visibilitychange', visibility: document.visibilityState, prerendering: document.prerendering});
+            });
+            document.addEventListener('prerenderingchange', () => {
+              window.event_log.push({type: 'prerenderingchange', visibility: document.visibilityState, prerendering: document.prerendering});
             });"
 
 echo "[TEST] Verifying initial preloaded state (Hidden)..."
@@ -80,8 +83,8 @@ bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 1
 bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Verifying event sequence..."
-# Expected: visibilitychange (visible)
-EXPECTED_LOG='"type":"visibilitychange","visibility":"visible"}'
+# Expected: visibilitychange (visible, false)
+EXPECTED_LOG='"type":"visibilitychange","visibility":"visible","prerendering":false}'
 bash cobalt/tools/wait_for_state.sh "JSON.stringify(window.event_log)" "$EXPECTED_LOG" $PORT 60 $HOST || exit 1
 
 echo "[TEST] Testing conceal/reveal cycle after initial reveal..."
@@ -96,7 +99,7 @@ kill -SIGCONT $COBALT_PID
 bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Verifying cycle events..."
-EXPECTED_CYCLE_LOG='"type":"visibilitychange","visibility":"hidden"},{"type":"visibilitychange","visibility":"visible"}'
+EXPECTED_CYCLE_LOG='"type":"visibilitychange","visibility":"hidden","prerendering":false},{"type":"visibilitychange","visibility":"visible","prerendering":false}'
 bash cobalt/tools/wait_for_state.sh "JSON.stringify(window.event_log)" "$EXPECTED_CYCLE_LOG" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Sending SIGPWR (STOP)..."

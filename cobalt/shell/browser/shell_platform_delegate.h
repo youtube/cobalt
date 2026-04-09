@@ -53,6 +53,9 @@ class ShellPlatformDelegate {
   ShellPlatformDelegate();
   virtual ~ShellPlatformDelegate();
 
+  static void SetInitialPreload(bool is_preload);
+  static bool IsInitialPreload();
+
   // Helper for one time initialization of application.
   virtual void Initialize(const gfx::Size& default_window_size,
                           bool is_visible);

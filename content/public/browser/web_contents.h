@@ -179,13 +179,6 @@ class WebContents : public PageNavigator,
     // True if the contents should be initially hidden.
     bool initially_hidden = false;
 
-#if BUILDFLAG(IS_COBALT)
-    // Cobalt-specific modification: True if the contents should be in an
-    // initial prerendering state. This is used to force the primary frame tree
-    // into the kPrerendering lifecycle state for Single-View Prerendering.
-    bool is_initial_prerender = false;
-#endif
-
     // If non-null then this WebContents will be hosted by a BrowserPlugin.
     raw_ptr<BrowserPluginGuestDelegate> guest_delegate = nullptr;
 

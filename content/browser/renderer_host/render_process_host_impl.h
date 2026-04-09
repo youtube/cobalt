@@ -1065,9 +1065,7 @@ class CONTENT_EXPORT RenderProcessHostImpl
   // ChildProcessLauncher.
   // |visible_clients_| is the count of currently visible clients.
   int32_t visible_clients_ = 0;
-
   // |frame_depth_| can be used to rank processes of the same visibility, ie it
-
   // is the lowest depth of all visible clients, or if there are no visible
   // widgets the lowest depth of all hidden clients. Initialized to max depth
   // when there are no clients.

@@ -88,10 +88,8 @@
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/page_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
-#include "content/browser/renderer_host/render_frame_host_impl.h"
-#include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/renderer_host/render_view_host_delegate_view.h"
-
 #include "content/browser/renderer_host/render_view_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_input_event_router.h"
@@ -3198,10 +3196,15 @@ void WebContentsImpl::Init(const WebContents::CreateParams& params,
     site_instance->PreventAssociationWithSpareProcess();
   }
 
-#if BUILDFLAG(IS_COBALT)
-  primary_frame_tree_.set_is_initial_prerender(params.is_initial_prerender);
-#endif
-
+  // Iniitalize the primary FrameTree.
+  // Note that GetOpener() is used here to get the opener for origin
+  // inheritance, instead of other similar functions:
+  // - GetOriginalOpener(), which would always return the main frame of the
+  // opener, which might be different from the actual opener.
+  // - FindOpenerRFH(), which will still return the opener frame if the
+  // opener is suppressed (e.g. due to 'noopener'). The opener should not
+  // be used for origin inheritance purposes in those cases, so this should
+  // not pass the opener for those cases.
   primary_frame_tree_.Init(
       site_instance.get(), params.renderer_initiated_creation,
       params.main_frame_name, GetOpener(), primary_main_frame_policy,
