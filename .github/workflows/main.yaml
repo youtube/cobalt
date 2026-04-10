@@ -428,6 +428,7 @@ jobs:
             echo "TMPDIR=${{ runner.temp }}" >> $GITHUB_ENV
           fi
       - name: Set GITHUB_WORKSPACE to host-mounted volume
+        shell: bash
         run: |
           if [[ -w "/runner-cache" ]]; then
             # Clean up workspaces older than 1 day to avoid filling up the disk.
@@ -439,6 +440,7 @@ jobs:
           fi
 
       - name: Debug Filesystem
+        shell: bash
         run: |
           echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
           df -h .
@@ -508,6 +510,7 @@ jobs:
 
       - name: Cleanup Workspace
         if: always()
+        shell: bash
         run: |
           if [[ -n "${GITHUB_WORKSPACE}" ]] && [[ "${GITHUB_WORKSPACE}" == /runner-cache/workspaces/* ]]; then
             echo "Cleaning up workspace ${GITHUB_WORKSPACE}..."

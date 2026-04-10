@@ -51,6 +51,7 @@ runs:
 
         # Initialize/update the cache from the network.
         (
+          mkdir -p "$(dirname "${cache_path}")"
           flock -x 9
           if [ ! -d "${cache_path}/.git" ]; then
             mkdir -p "$(dirname "${cache_path}")"
