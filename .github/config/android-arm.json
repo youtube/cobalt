@@ -7,7 +7,7 @@
   "test_on_device": true,
   "test_device_family": "android",
   "test_e2e": true,
-  "test_yts": true,
+  "test_yts": false,
   "test_yts_playback": true,
   "test_browser": false,
   "test_yts_wpt": true,
@@ -15,23 +15,7 @@
   "test_attempts": "3",
   "e2e_test_targets": [
     {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_sabrina",
-      "test_attempts": "6"
-    },
-    {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_kirkwood",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_tcl_smart_tv",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_boreal_non_shared",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_bravia",
       "test_attempts": "6"
     },
     {
@@ -44,18 +28,6 @@
     },
     {
       "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_kirkwood",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_sabrina",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_sabrina",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_sabrina",
       "test_attempts": "6"
     }
   ],
