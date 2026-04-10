@@ -16,10 +16,18 @@
 
 #include <memory>
 
+#include "base/check.h"
+#include "base/command_line.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
+#include "base/sequence_checker.h"
+#include "base/task/bind_post_task.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -41,10 +49,6 @@
 #endif
 
 namespace cobalt {
-
-CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
-                                               bool is_visible)
-    : ShellBrowserMainParts(deep_link, is_visible) {}
 
 namespace {
 
@@ -83,6 +87,20 @@ void InitializeBrowserMemoryInstrumentationClient() {
 
 }  // namespace
 
+void CobaltBrowserMainParts::InitializeMessageLoopContext() {
+  // On Android, we completely defer WebContents creation until the Java layer
+  // invokes ShellManager.launchShell() which reaches C++ via JNI.
+  // On Linux, we might need the base behavior.
+  // go/chrobalt-pre-initialization-storage-migration-pipeline
+#if !BUILDFLAG(IS_ANDROID)
+  ShellBrowserMainParts::InitializeMessageLoopContext();
+#endif
+}
+
+CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
+                                               bool is_visible)
+    : ShellBrowserMainParts(deep_link, is_visible) {}
+
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
 
@@ -106,7 +124,67 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
-  return ShellBrowserMainParts::PreMainMessageLoopRun();
+  int result = ShellBrowserMainParts::PreMainMessageLoopRun();
+
+  if (result != 0) {
+    LOG(ERROR) << "PreMainMessageLoopRun failed with result: " << result
+               << ". Aborting storage migration.";
+    return result;
+  }
+
+  StartStorageMigration();
+
+  return result;
+}
+
+void CobaltBrowserMainParts::StartStorageMigration() {
+  LOG(INFO) << "CobaltBrowserMainParts::StartStorageMigration started.";
+
+  // Ensure we are on the UI thread/Expected sequence before accessing the
+  // partition.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
+
+  content::StoragePartition* partition =
+      browser_context()->GetDefaultStoragePartition();
+
+  DCHECK(partition);
+
+  // M138 Change: Use base::BindPostTask to wrap the completion callback.
+  // This guarantees that regardless of which thread the MigrationManager
+  // finishes on, OnMigrationComplete will execute back on this UI sequence.
+  auto completion_callback = base::BindPostTask(
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindOnce(&CobaltBrowserMainParts::OnMigrationComplete,
+                     weak_ptr_factory_.GetWeakPtr()));
+
+  cobalt::migrate_storage_record::MigrationManager::RunMigration(
+      partition, std::move(completion_callback));
+}
+
+void CobaltBrowserMainParts::OnMigrationComplete() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
+  LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
+  migration_finished_ = true;
+  if (pending_task_) {
+    std::move(pending_task_).Run();
+  }
+}
+
+void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
+    base::OnceClosure task) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(sequence_checker_.CalledOnValidSequence());
+  if (!migration_finished_) {
+    LOG(INFO) << "Deferring launchShell until migration finishes.";
+    CHECK(!pending_task_) << "Only one storage migration task is supported.";
+    pending_task_ = std::move(task);
+  } else {
+    LOG(INFO) << "Migration already finished, running launchShell "
+                 "immediately.";
+    std::move(task).Run();
+  }
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
@@ -118,7 +196,7 @@ void CobaltBrowserMainParts::SetupMetrics() {
   metrics::MetricsService* metrics =
       GlobalFeatures::GetInstance()->metrics_service();
   metrics->InitializeMetricsRecordingState();
-  DLOG(INFO) << "Cobalt Metrics Service initialized.";
+  LOG(INFO) << "Cobalt Metrics Service initialized.";
 }
 
 void CobaltBrowserMainParts::StartMetricsRecording() {
@@ -129,7 +207,7 @@ void CobaltBrowserMainParts::StartMetricsRecording() {
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->UpdateUploadPermissions(true);
-  DLOG(INFO) << "Metrics Service is now running/recording.";
+  LOG(INFO) << "Metrics Service is now running/recording.";
 }
 
 #if BUILDFLAG(IS_ANDROIDTV)

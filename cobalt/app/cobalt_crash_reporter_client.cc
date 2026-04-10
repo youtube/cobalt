@@ -16,14 +16,22 @@
 
 #include <string>
 
+#include "base/no_destructor.h"
+#include "build/buildflag.h"
+#include "components/crash/core/app/crash_reporter_client.h"
+
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/path_utils.h"  // Needed for GetCacheDirectory
 #endif                                // BUILDFLAG(IS_ANDROID)
-#include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/version.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "base/command_line.h"
+#include "cobalt/shell/common/shell_switches.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace {
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -58,6 +66,20 @@ bool CobaltCrashReporterClient::GetCrashDumpLocation(
     return false;
   }
   *crash_dir = cache_dir.Append("crashpad");
+  return true;
+#elif BUILDFLAG(IS_IOS_TVOS)
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kCrashDumpsDir)) {
+    *crash_dir = command_line->GetSwitchValuePath(switches::kCrashDumpsDir);
+    return true;
+  }
+
+  base::FilePath cache_dir;
+  if (!base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    LOG(ERROR) << "Failed to get cache directory for Crashpad";
+    return false;
+  }
+  *crash_dir = cache_dir.Append("Crashpad");
   return true;
 #else   // BUILDFLAG(IS_ANDROID)
   // [DUMMY] Provide a default path for non-Android platforms

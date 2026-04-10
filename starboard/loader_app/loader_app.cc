@@ -100,9 +100,9 @@ void InsertVersionAnnotationFromManifest(const std::string& content_dir) {
   snprintf(manifest_path.data(), kSbFileMaxPath, "%s%s%s", content_dir.c_str(),
            kSbFileSepString, kSystemImageManifestPath);
 
-  std::vector<char> version(loader_app::kMaxEgVersionLength);
+  std::vector<char> version(loader_app::kMaxEgVersionSize);
   if (!loader_app::ReadEvergreenVersion(manifest_path, version.data(),
-                                        loader_app::kMaxEgVersionLength)) {
+                                        loader_app::kMaxEgVersionSize)) {
     SB_LOG(WARNING)
         << "Failed to read the Evergreen version for the system image, not "
         << "adding to Crashpad";

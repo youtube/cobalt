@@ -51,7 +51,6 @@ gcc_toolchain("native_target") {
 
   toolchain_args = {
     is_starboard = false
-    is_native_target_build = true
     is_clang = false
     current_cpu = "arm"
     current_os = "linux"
