@@ -193,16 +193,9 @@ runs:
         LOCAL_CACHE="/runner-cache/gclient-src"
         if [[ -w "/runner-cache" ]]; then
           echo "Updating local cache volume ${LOCAL_CACHE}..."
-          LOCAL_TMP_CACHE="/runner-cache/gclient-src.tmp.${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          mkdir -p "${LOCAL_TMP_CACHE}"
-          rsync -arv --link-dest="${TMP_CACHE}" "${TMP_CACHE}/" "${LOCAL_TMP_CACHE}/"
-
-          # Atomic swap
-          mv "${LOCAL_CACHE}" "${LOCAL_CACHE}.old" || true
-          mv "${LOCAL_TMP_CACHE}" "${LOCAL_CACHE}"
-          rm -rf "${LOCAL_CACHE}.old"
+          mkdir -p "${LOCAL_CACHE}"
+          rsync -arv --link-dest="${TMP_CACHE}" "${TMP_CACHE}/" "${LOCAL_CACHE}/"
         fi
-
         rm -rf "${TMP_CACHE}"
       shell: bash
 
