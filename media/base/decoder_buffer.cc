@@ -72,6 +72,7 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 // --- Starboard-specific Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
   if (size_ > 0) {
+    CHECK(s_allocator);
     Initialize(DemuxerStream::UNKNOWN);
   }
 }
@@ -85,6 +86,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
+  CHECK(s_allocator);
   Initialize(type);
   s_allocator->Write(allocator_data_->handle, data, size_);
 }
@@ -94,11 +96,8 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
   if (data.empty()) {
     return;
   }
-  if (s_allocator) {
-    Initialize(type);
-  } else {
-    Initialize();
-  }
+  CHECK(s_allocator);
+  Initialize(type);
   memcpy(writable_data(), data.data(), data.size());
 }
 
@@ -107,12 +106,9 @@ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
     : size_(data.size()) {
-  if (s_allocator) {
-    Initialize(DemuxerStream::UNKNOWN);
-    memcpy(writable_data(), data.data(), data.size());
-  } else {
-    data_ = std::move(data);
-  }
+  CHECK(s_allocator);
+  Initialize(DemuxerStream::UNKNOWN);
+  memcpy(writable_data(), data.data(), data.size());
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
@@ -177,11 +173,6 @@ DecoderBuffer::~DecoderBuffer() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void DecoderBuffer::Initialize() {
-  // This is used by Mojo.
-  Initialize(DemuxerStream::UNKNOWN);
-}
-
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   DCHECK(s_allocator);
   DCHECK(data_.empty());

@@ -470,7 +470,6 @@ class MEDIA_EXPORT DecoderBuffer
   const bool is_end_of_stream_ : 1 = false;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void Initialize();
   void Initialize(DemuxerStream::Type type);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
