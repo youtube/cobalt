@@ -71,10 +71,9 @@ runs:
         set -ex
 
         if [ -n "${CACHE_PATH}" ] && [ -d "${CACHE_PATH}/.git" ]; then
-          echo "Populating checkout via rsync hardlinks from ${CACHE_PATH}..."
-          ls -la "${CACHE_PATH}"
+          echo "Populating checkout via rsync from ${CACHE_PATH}..."
           mkdir -p "${GITHUB_WORKSPACE}/${DEST_PATH}"
-          rsync -arv --link-dest="${CACHE_PATH}" "${CACHE_PATH}/" "${GITHUB_WORKSPACE}/${DEST_PATH}/"
+          rsync -arv "${CACHE_PATH}/" "${GITHUB_WORKSPACE}/${DEST_PATH}/"
         else
           echo "No cache available. Performing regular git clone..."
           git clone --filter=blob:none "${REPO_URL}" "${GITHUB_WORKSPACE}/${DEST_PATH}"

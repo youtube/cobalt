@@ -65,9 +65,9 @@ runs:
         set -x
         LOCAL_CACHE="/runner-cache/gclient-src"
         if [[ -d "${LOCAL_CACHE}" ]]; then
-          echo "Restoring gclient cache from local cache volume via hardlinks..."
+          echo "Restoring gclient cache from local cache volume via rsync..."
           ls -la "${LOCAL_CACHE}" || true
-          rsync -arv --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/cobalt/"
+          rsync -arv "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/cobalt/"
         fi
 
         PROJECT_NAME=$(gcloud config get-value project)
@@ -182,7 +182,7 @@ runs:
         TMP_CACHE="$(pwd)/.gclient-cache-staging"
         mkdir -p "${TMP_CACHE}"
 
-        rsync -arv --ignore-missing-args --exclude='out/' --link-dest="$(pwd)" --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
+        rsync -arv --ignore-missing-args --exclude='out/' --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
 
         PROJECT_NAME=$(gcloud config get-value project)
         GCS_CACHE_PATH="gs://${PROJECT_NAME}-test-artifacts/gclient-cache/${GITHUB_REF_NAME}/${{ matrix.platform }}"
@@ -192,9 +192,9 @@ runs:
 
         LOCAL_CACHE="/runner-cache/gclient-src"
         if [[ -w "/runner-cache" ]]; then
-          echo "Hardlinking gclient cache to local volume ${LOCAL_CACHE}..."
+          echo "Saving gclient cache to local volume ${LOCAL_CACHE}..."
           mkdir -p "${LOCAL_CACHE}"
-          rsync -arv --link-dest="${TMP_CACHE}" "${TMP_CACHE}/" "${LOCAL_CACHE}/"
+          rsync -arv "${TMP_CACHE}/" "${LOCAL_CACHE}/"
         fi
 
         rm -rf "${TMP_CACHE}"
