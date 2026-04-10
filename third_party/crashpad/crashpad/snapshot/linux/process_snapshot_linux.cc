@@ -20,9 +20,9 @@
 #include "build/build_config.h"
 #include "util/linux/exception_information.h"
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
 #include "starboard/elf_loader/evergreen_info.h"
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif
 
 namespace crashpad {
 
@@ -56,7 +56,7 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection) {
   return true;
 }
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
 bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
                                       VMAddress evergreen_information_address) {
   INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
@@ -81,7 +81,7 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
   INITIALIZATION_STATE_SET_VALID(initialized_);
   return true;
 }
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 
 pid_t ProcessSnapshotLinux::FindThreadWithStackAddress(
     VMAddress stack_address) {
@@ -266,11 +266,11 @@ std::vector<const ModuleSnapshot*> ProcessSnapshotLinux::Modules() const {
   for (const auto& module : modules_) {
     modules.push_back(module.get());
   }
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   if (evergreen_module_) {
     modules.push_back(evergreen_module_.get());
   }
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
   return modules;
 }
 
@@ -342,7 +342,7 @@ void ProcessSnapshotLinux::InitializeModules() {
   }
 }
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
 // TODO: b/406511608 - Cobalt: this function definition is copied directly from
 // c25, but we should refactor it to share code with the zero parameter
 // definition of ProcessSnapshotLinux::InitializeModules().
@@ -382,7 +382,7 @@ void ProcessSnapshotLinux::InitializeModules(
       evergreen_info.load_size,
       build_id);
 }
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 
 void ProcessSnapshotLinux::InitializeAnnotations() {
 #if BUILDFLAG(IS_ANDROID)
