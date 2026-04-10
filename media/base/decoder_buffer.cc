@@ -106,6 +106,9 @@ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
     : size_(data.size()) {
+  if (data.empty()) {
+    return;
+  }
   CHECK(s_allocator);
   Initialize(DemuxerStream::UNKNOWN);
   memcpy(writable_data(), data.data(), data.size());
