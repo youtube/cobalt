@@ -430,9 +430,12 @@ jobs:
       - name: Set GITHUB_WORKSPACE to host-mounted volume
         run: |
           if [[ -w "/runner-cache" ]]; then
-            rm -rf /runner-cache/workspaces/*
-            mkdir -p /runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
-            echo "GITHUB_WORKSPACE=/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_ENV
+            # Clean up workspaces older than 1 day to avoid filling up the disk.
+            find /runner-cache/workspaces/ -mindepth 1 -maxdepth 1 -type d -mtime +1 -exec rm -rf {} + || true
+
+            JOB_WORKSPACE="/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${RANDOM}-${RANDOM}"
+            mkdir -p "${JOB_WORKSPACE}"
+            echo "GITHUB_WORKSPACE=${JOB_WORKSPACE}" >> $GITHUB_ENV
           fi
 
       - name: Restore CI Essentials
@@ -494,6 +497,14 @@ jobs:
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
+
+      - name: Cleanup Workspace
+        if: always()
+        run: |
+          if [[ -n "${GITHUB_WORKSPACE}" ]] && [[ "${GITHUB_WORKSPACE}" == /runner-cache/workspaces/* ]]; then
+            echo "Cleaning up workspace ${GITHUB_WORKSPACE}..."
+            rm -rf "${GITHUB_WORKSPACE}"
+          fi
 
   on-device-test:
     needs: [initialize, build]
