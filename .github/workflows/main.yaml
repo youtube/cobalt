@@ -63,7 +63,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -332,7 +331,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -357,7 +355,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -381,7 +378,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -431,22 +427,31 @@ jobs:
           else
             echo "TMPDIR=${{ runner.temp }}" >> $GITHUB_ENV
           fi
-      - name: Set GITHUB_WORKSPACE to host-mounted volume
+      - name: Set up isolated workspace
         shell: bash
         run: |
           if [[ -w "/runner-cache" ]]; then
             # Clean up workspaces older than 1 day to avoid filling up the disk.
             find /runner-cache/workspaces/ -mindepth 1 -maxdepth 1 -type d -mtime +1 -exec rm -rf {} + || true
 
-            JOB_WORKSPACE="/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${RANDOM}-${RANDOM}"
-            mkdir -p "${JOB_WORKSPACE}"
-            echo "GITHUB_WORKSPACE=${JOB_WORKSPACE}" >> $GITHUB_ENV
+            # Create a unique directory on the cache volume.
+            JOB_WORKSPACE_REAL="/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${RANDOM}-${RANDOM}"
+            mkdir -p "${JOB_WORKSPACE_REAL}"
+
+            # Link the standard workspace to the unique directory.
+            # This satisfies actions/checkout while providing isolation on the cache volume.
+            # We assume the default workspace is the current directory.
+            rm -rf "${GITHUB_WORKSPACE}"
+            ln -s "${JOB_WORKSPACE_REAL}" "${GITHUB_WORKSPACE}"
+
+            echo "Isolated workspace set up at ${JOB_WORKSPACE_REAL} and linked to ${GITHUB_WORKSPACE}"
           fi
 
       - name: Debug Filesystem
         shell: bash
         run: |
           echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+          ls -ld "${GITHUB_WORKSPACE}"
           df -h .
           df -h /runner-cache
           mount | grep "/runner-cache" || true
@@ -455,7 +460,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -546,7 +550,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -591,7 +594,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -627,7 +629,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -658,7 +659,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -692,7 +692,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -729,7 +728,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -761,7 +759,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -806,7 +803,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -859,7 +855,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -940,7 +935,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -996,7 +990,6 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
-          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
