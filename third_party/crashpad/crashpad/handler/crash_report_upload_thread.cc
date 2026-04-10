@@ -48,7 +48,7 @@
 #include "util/ios/scoped_background_task.h"
 #endif  // BUILDFLAG(IS_IOS)
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
 #include "base/files/file_path.h"
 #endif
 
@@ -93,7 +93,7 @@ class ScopedFunctionInvoker final {
 CrashReportUploadThread::CrashReportUploadThread(
     CrashReportDatabase* database,
     const std::string& url,
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
     const base::FilePath& ca_certificates_path,
 #endif
     const Options& options,
@@ -101,7 +101,7 @@ CrashReportUploadThread::CrashReportUploadThread(
     : options_(options),
       callback_(callback),
       url_(url),
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
       ca_certificates_path_(ca_certificates_path),
 #endif
       // When watching for pending reports, check every 15 minutes, even in the
@@ -375,7 +375,7 @@ CrashReportUploadThread::UploadResult CrashReportUploadThread::UploadReport(
   }
   http_transport->SetURL(url);
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   http_transport->SetRootCACertificatesDirectoryPath(ca_certificates_path_);
 #endif
 
