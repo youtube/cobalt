@@ -57,7 +57,7 @@ android_clang_toolchain("starboard") {
   }
 }
 
-android_clang_toolchain("native_target") {
+android_clang_toolchain("native") {
   toolchain_args = {
     current_cpu = "arm"
     is_starboard = false

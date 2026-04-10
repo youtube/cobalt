@@ -80,8 +80,8 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 #else  // defined(OS_ANDROID)
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // TODO: b/406511608 - we probably want to be able to expect the binary to be
-  // in the executable directory itself, without the native_target subdir.
-  handler_path.append("native_target/crashpad_handler");
+  // in the executable directory itself, without the native subdir.
+  handler_path.append("native/crashpad_handler");
 #else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   handler_path.append("crashpad_handler");
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)

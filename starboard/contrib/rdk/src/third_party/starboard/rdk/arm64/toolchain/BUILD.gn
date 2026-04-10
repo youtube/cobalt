@@ -30,7 +30,7 @@
 
 import("//third_party/starboard/rdk/shared/build/rdk_toolchain.gni")
 
-rdk_gcc_toolchain("native_target") {
+rdk_gcc_toolchain("native") {
   envprefix = ""
   toolchain_args = {
     is_starboard = false

@@ -65,7 +65,7 @@ rdk_gcc_toolchain("starboard") {
   propagates_configs = !enable_cobalt_hermetic_hacks
 }
 
-rdk_gcc_toolchain("native_target") {
+rdk_gcc_toolchain("native") {
   if (rdk_build_with_yocto) {
     envprefix = ""
   } else {
