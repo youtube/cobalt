@@ -323,8 +323,6 @@ static_library("cobalt_shell_lib") {
 # inherits from things in cobalt_shell_lib.
 static_library("cobalt_shell_app") {
   sources = [
-    "app/shell_crash_reporter_client.cc",
-    "app/shell_crash_reporter_client.h",
     "app/shell_main_delegate.cc",
     "app/shell_main_delegate.h",
   ]

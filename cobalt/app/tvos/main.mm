@@ -21,10 +21,13 @@
 #include <vector>
 
 #include "base/at_exit.h"
+#include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/task/thread_pool.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/shell/browser/shell.h"
+#include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/render_view_host.h"
@@ -77,6 +80,19 @@ static const char** g_argv = nullptr;
 }
 
 - (void)sceneDidBecomeActive:(UIScene*)scene {
+  // Triggering the processing of Crashpad intermediate dumps and the uploading
+  // of fully processed dumps only needs to happen once. Do it from another
+  // thread because processing the intermediate dumps is a blocking operation.
+  static dispatch_once_t once_token;
+  dispatch_once(&once_token, ^{
+    base::ThreadPool::PostTask(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+        base::BindOnce([]() {
+          ::crash_reporter::ProcessIntermediateDumps();
+          ::crash_reporter::StartProcessingPendingReports();
+        }));
+  });
+
   content::WebContents* web_contents = [self getWebContents];
   web_contents->GetRenderViewHost()->GetWidget()->Focus();
 }

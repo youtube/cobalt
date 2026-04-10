@@ -35,7 +35,7 @@ bool CaptureSnapshot(
     std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot) {
   std::unique_ptr<ProcessSnapshotLinux> process_snapshot(
       new ProcessSnapshotLinux());
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   if (!process_snapshot->Initialize(connection,
                                     info.evergreen_information_address)) {
 #else

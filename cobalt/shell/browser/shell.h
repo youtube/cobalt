@@ -96,7 +96,13 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static ShellPlatformDelegate* GetPlatform();
 
+  static void OnBlur();
+  static void OnFocus();
+  static void OnConceal();
   static void OnReveal();
+  static void OnFreeze();
+  static void OnUnfreeze();
+  static void OnStop();
 
   static Shell* CreateNewWindow(
       BrowserContext* browser_context,
@@ -263,6 +269,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void SwitchToMainWebContents();
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
+  void OnSplashScreenLoadComplete();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 

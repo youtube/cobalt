@@ -50,7 +50,8 @@ def find_failing_tests(
         errors = testcase.findall('error')
         if failures or errors:
           message = '\n'.join(
-              case.attrib.get('message', '') for case in failures + errors)
+              case.attrib.get('message', '').strip() + '\n' +
+              (case.text or '').strip() for case in failures + errors)
           rel_path = os.path.relpath(filename)
           failing_tests[rel_path].append((f'{suite_name}.{test_name}', message))
   return failing_tests

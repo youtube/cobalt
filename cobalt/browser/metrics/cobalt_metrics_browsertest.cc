@@ -36,7 +36,7 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
     // Set a short interval for memory metrics to verify periodic recording.
-    command_line->AppendSwitchASCII(switches::kMemoryMetricsInterval, "1");
+    command_line->AppendSwitchASCII(switches::kMetricsInterval, "1");
   }
 };
 
@@ -94,6 +94,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   EXPECT_TRUE(check_histogram("Memory.Total.ResidentSet"));
   EXPECT_TRUE(check_histogram("Memory.Total.PrivateMemoryFootprint"));
   EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
+  EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
 
   // Sub-region memory metrics
   EXPECT_TRUE(
@@ -117,6 +119,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfFrames");
   check_histogram("Memory.Experimental.Browser2.Tiny.NumberOfLayoutObjects");
   check_histogram("Memory.Experimental.Browser2.Small.NumberOfNodes");
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  check_histogram("Memory.Browser.LibChrobaltPss");
+  check_histogram("Memory.Browser.LibChrobaltRss");
+#endif
 }
 
 // TODO: b/489836051 - Investigate periodic memory metrics recording failures on
@@ -173,10 +180,17 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(check_histogram("Memory.Total.ResidentSet"));
   EXPECT_TRUE(check_histogram("Memory.Total.PrivateMemoryFootprint"));
   EXPECT_TRUE(check_histogram("Memory.Total.SharedMemoryFootprint"));
+  EXPECT_TRUE(check_histogram("Memory.Total.PrivateFootprintSwap"));
+  EXPECT_TRUE(check_histogram("Memory.Total.VmSize"));
 
   // Sub-region memory metrics
   EXPECT_TRUE(
       check_histogram("Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
+
+  // media decoder buffer memory metrics
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  EXPECT_TRUE(check_histogram("Memory.Media.AllocatedEncodedBuffer"));
+#endif
 
   // Check for the specific regions requested by the user.
   check_histogram("Memory.Experimental.Browser2.BlinkGC");
@@ -184,6 +198,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   check_histogram("Memory.Experimental.Browser2.PartitionAlloc");
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+  check_histogram("Memory.Browser.LibChrobaltPss");
+  check_histogram("Memory.Browser.LibChrobaltRss");
+#endif
 }
 
 }  // namespace cobalt
