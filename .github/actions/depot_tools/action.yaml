@@ -55,27 +55,16 @@ runs:
       run: build_telemetry opt-out
       shell: bash
 
-    - name: Set up Cloud SDK
-      if: inputs.run_sync == 'true'
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-
-    - name: Restore gclient cache from GCS and local volume
+    - name: Restore gclient cache from local volume
       if: inputs.run_sync == 'true'
       run: |
         set -x
         LOCAL_CACHE="/runner-cache/gclient-src"
         if [[ -d "${LOCAL_CACHE}" ]]; then
           echo "Restoring gclient cache from local cache volume via hardlinks..."
-          ls -la "${LOCAL_CACHE}" || true
+          mkdir -p "${GITHUB_WORKSPACE}/cobalt"
           rsync -arv --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/cobalt/"
         fi
-
-        PROJECT_NAME=$(gcloud config get-value project)
-        GCS_CACHE_PATH="gs://${PROJECT_NAME}-test-artifacts/gclient-cache/${GITHUB_REF_NAME}/${{ matrix.platform }}"
-
-        echo "Restoring any missing or updated files from GCS..."
-        mkdir -p "${GITHUB_WORKSPACE}/cobalt"
-        gcloud storage rsync "${GCS_CACHE_PATH}" "${GITHUB_WORKSPACE}/cobalt" --recursive > /dev/null || true
       shell: bash
 
     - name: Run gclient config
@@ -182,11 +171,7 @@ runs:
 
         rsync -arv --ignore-missing-args --exclude='out/' --link-dest="${GITHUB_WORKSPACE}/cobalt" --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
 
-        PROJECT_NAME=$(gcloud config get-value project)
-        GCS_CACHE_PATH="gs://${PROJECT_NAME}-test-artifacts/gclient-cache/${GITHUB_REF_NAME}/${{ matrix.platform }}"
 
-        echo "Syncing cache to GCS..."
-        gcloud storage rsync "${TMP_CACHE}" "${GCS_CACHE_PATH}" --recursive > /dev/null
 
         LOCAL_CACHE="/runner-cache/gclient-src"
         if [[ -w "/runner-cache" ]]; then
