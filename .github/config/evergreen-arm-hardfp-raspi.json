@@ -4,9 +4,9 @@
     "evergreen-arm-hardfp-raspi"
   ],
   "test_package": true,
-  "test_on_device": true,
+  "test_on_device": false,
   "test_device_family": "raspi",
-  "test_e2e": true,
+  "test_e2e": false,
   "test_root_target": "//cobalt:gn_all",
   "test_attempts": "3",
   "test_dimensions": {

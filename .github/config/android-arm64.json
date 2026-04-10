@@ -6,7 +6,12 @@
   "test_on_device": false,
   "test_package": true,
   "test_device_family": "android",
+<<<<<<< HEAD
   "test_e2e": false,
+=======
+  "test_e2e": true,
+  "test_yts": false,
+>>>>>>> bf32fafcd4 (Temporarily disable on-device tests on some devices (#9983))
   "test_root_target": "//cobalt/android:cobalt_apk",
   "test_dimensions": {
     "device_type": "nvidia_shield",
