@@ -63,6 +63,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -331,6 +332,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -355,6 +357,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -378,6 +381,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -451,6 +455,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -541,6 +546,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -585,6 +591,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -620,6 +627,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -650,6 +658,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -683,6 +692,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -719,6 +729,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -750,6 +761,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -794,6 +806,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -846,6 +859,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -926,6 +940,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
@@ -981,6 +996,7 @@ jobs:
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
+          path: ${{ env.GITHUB_WORKSPACE }}
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
