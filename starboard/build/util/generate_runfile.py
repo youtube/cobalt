@@ -31,10 +31,6 @@ except Exception as e:
     sys.exit(1)
 """
 
-_BROWSERTEST_RUNNER_ARGS = (
-    'sys.executable, '
-    'os.path.join(os.path.dirname(__file__), "cobalt_browsertests_runner"), ')
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=str, required=True)
 parser.add_argument('--library', type=str, required=True)
