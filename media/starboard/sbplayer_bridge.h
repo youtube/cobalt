@@ -200,7 +200,9 @@ class SbPlayerBridge {
     int usage_count;
     SbMediaType type;
   };
-  using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
+  using DecodingBuffers =
+      absl::flat_hash_map<const DecoderBuffer::Allocator::Handle,
+                          DecodingBuffer>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB
