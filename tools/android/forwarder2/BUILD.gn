@@ -3,8 +3,8 @@
 # found in the LICENSE file.
 
 import("//build/symlink.gni")
-import("//testing/test.gni")
 import("//starboard/build/config/android_toolchain.gni")
+import("//testing/test.gni")
 
 group("forwarder2") {
   testonly = true
