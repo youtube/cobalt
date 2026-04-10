@@ -18,7 +18,7 @@ command = [
 
 if {is_browsertest}:
   command = [sys.executable, os.path.join(os.path.dirname(__file__),
-        'cobalt_browsertests_runner'), *command]
+      'cobalt_browsertests_runner'), *command]
 
 try:
     result = subprocess.run(command, check=False)
