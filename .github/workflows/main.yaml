@@ -478,11 +478,6 @@ jobs:
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
 
-      - name: Short Circuit For Cache Testing
-        run: |
-          echo "Cache setup fully successful! Exiting early to save compilation time."
-          exit 0
-
       - name: Build Cobalt
         id: build
         uses: ./.github/actions/build
