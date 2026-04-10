@@ -69,6 +69,10 @@ runs:
         cd "$MERGED_DIR"
         export PATH="$MERGED_DIR/depot_tools:$PATH"
 
+        # Persist depot_tools and CIPD cache to the GitHub Actions environment for subsequent steps
+        echo "$MERGED_DIR/depot_tools" >> $GITHUB_PATH
+        echo "CIPD_CACHE_DIR=/runner-cache/cipd-cache" >> $GITHUB_ENV
+
         # Disable Chromium client side build telemetry
         build_telemetry opt-out
 
