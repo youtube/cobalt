@@ -1,0 +1,64 @@
+// -*- protobuffer -*-
+// proto-file: google3/devtools/kokoro/config/proto/build.proto
+// proto-message: BuildConfig
+
+import '../../common.gcl' as common
+
+build = common.build {
+  // TODO: b/495549526 - Import build_mac.sh.
+  // build_file = 'cobalt/devinfra/kokoro/bin/build_mac.sh'
+  timeout_mins = 300
+  before_action = [
+    {
+      // TODO: b/499335793 - Verify this requirement.
+      fetch_keystore = {
+        keystore_resource = [
+          {
+            keystore_config_id = 77056
+            keyname = 'yt_cobalt_cloud_service_key'
+            backend = 'blade:keystore-fastconfigpush'
+          },
+          {
+            keystore_config_id = 77805
+            keyname = "buildbot-mac-6d110bc"
+            backend = "blade:keystore-fastconfigpush"
+          },
+        ]
+      }
+    },
+  ]
+  env_vars = super.env_vars + [
+    {
+      key = 'EXTRA_GN_ARGUMENTS'
+      value = 'use_asan=false target_cpu=\"arm64\" is_internal_build=true'
+    },
+    {
+      key = 'GCLOUD_KEY_FILE_NAME'
+      value = '77805_buildbot-mac-6d110bc'
+    },
+    {
+      key = 'PLATFORM'
+      value = 'tvos-arm64'
+    },
+    {
+      key = 'SCCACHE_GCS_BUCKET'
+      value = 'cobalt-sccache-mac'
+    },
+    {
+      key = 'SCCACHE_GCS_KEY_FILE_NAME'
+      value = '77805_yt-cobalt-7ce9b610822c'
+    },
+    {
+      key = 'SCCACHE_GCS_OAUTH_URL'
+      value = 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token'
+    },
+    {
+      key = 'TARGET_PLATFORM'
+      value = 'tvos-arm64'
+    },
+    {
+      key = 'XCODE_VERSION'
+      value = '26.2'
+    },
+  ]
+}

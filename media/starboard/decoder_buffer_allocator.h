@@ -44,6 +44,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                            size_t size,
                            size_t alignment) = 0;
     virtual void Free(DemuxerStream::Type type, void* p) = 0;
+    virtual void Write(void* p, const void* data, size_t size) = 0;
 
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
@@ -59,22 +60,31 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void Resume();
 
   // DecoderBuffer::Allocator methods.
-  void* Allocate(DemuxerStream::Type type,
-                 size_t size,
-                 size_t alignment) override;
-  void Free(void* p, size_t size) override;
+  Handle Allocate(DemuxerStream::Type type,
+                  size_t size,
+                  size_t alignment) override;
+  void Free(DemuxerStream::Type type, Handle p, size_t size) override;
+  void Write(Handle handle, const void* data, size_t size) override;
 
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
-  void SetAllocateOnDemand(bool enabled) override;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
   size_t GetCurrentMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
 
+  void SetAllocateOnDemand(bool enabled) override;
+  void EnableMediaBufferPoolStrategy() override;
+
  private:
+  enum class MediaBufferPoolStrategyState {
+    kDisabled,
+    kEnabled,
+    kPendingEnabling,
+  };
+
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -87,6 +97,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   mutable base::Lock mutex_;
   std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
+  MediaBufferPoolStrategyState media_buffer_pool_strategy_state_
+      GUARDED_BY(mutex_) = MediaBufferPoolStrategyState::kDisabled;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation

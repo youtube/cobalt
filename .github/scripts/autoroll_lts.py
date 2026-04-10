@@ -16,13 +16,16 @@ _SKIP_LIST = {
         # Skia import commits, already applied in #9625 (#9624).
         'b77e86a96022541455c239778a4a62462d790c73',
         '8ed51696a04da8b51b82d6540b3b314347c43794',
+        # Change to deleted workflow file (#9670, #9934).
+        'f69b1d1e21f3340d9c963846ed4e1cbef8fa2fb9',
+        '478e5c52cf4872407ed855a100165e93b02d9eee',
     ],
 }
 
 
 def get_out(cmd):
   res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-  return res.stdout.strip()
+  return res.stdout
 
 
 def get_commits(origin, target, start):
@@ -32,21 +35,28 @@ def get_commits(origin, target, start):
   return get_out(cmd).splitlines()
 
 
-def cherry_pick(sha):
-  ps = get_out(['git', 'show', '-s', '--format=%P', sha]).split()
+def cherry_pick(sha, num, title):
+  log_output = get_out(
+      ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
+  parts = log_output.split('\x00', 2)
+  date = parts[0]
+  author = parts[1]
+  body = parts[2] if len(parts) > 2 else ''
+
+  msg = f'Cherry pick PR #{num}: {title}\n\n'
+  msg += f'Refer to original PR: #{num}\n\n'
+  if body:
+    msg += f'{body}\n\n'
+  msg += f'(cherry picked from commit {sha})'
+
   cmd = ['git', 'cherry-pick', '--no-commit']
+  ps = get_out(['git', 'show', '-s', '--format=%P', sha]).strip().split()
   if len(ps) > 1:
     cmd.append('--mainline=1')
   subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
 
-
-def commit_pick(sha, num, title):
-  info = get_out(['git', 'log', '-1', '--format=%an <%ae>%n%ad%n%b', sha])
-  auth, date, body = info.split('\n', 2)
-  msg = f'Cherry pick PR #{num}: {title}\n\n'
-  msg += f'Refer to original PR: #{num}\n\n{body}'
   cmd = [
-      'git', 'commit', '--no-verify', f'--author={auth}', f'--date={date}',
+      'git', 'commit', '--no-verify', f'--author={author}', f'--date={date}',
       '-m', msg
   ]
   subprocess.run(cmd, check=True, stdout=sys.stderr)
@@ -74,14 +84,14 @@ def main():
       if get_out([
           'git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:',
           args.target_branch
-      ]):
+      ]).strip():
         continue
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
-      if not get_out(
-          ['git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:', 'HEAD']):
-        cherry_pick(sha)
-        commit_pick(sha, num, title)
+      if not get_out([
+          'git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:', 'HEAD'
+      ]).strip():
+        cherry_pick(sha, num, title)
 
       links.append(f'- #{num}')
 

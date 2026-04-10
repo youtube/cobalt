@@ -113,7 +113,7 @@ platforms that are maintained by Google and used to build Cobalt core.)
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
 "starboard" toolchain to add a "native_target" toolchain that is identical
-except that it sets `is_starboard = false` and `is_native_target_build = true`.
+except that it sets `is_starboard = false`.
 
 For example:
 
@@ -125,7 +125,6 @@ gcc_toolchain("starboard") {
 gcc_toolchain("native_target") {
   ...
   is_starboard = false
-  is_native_target_build = true
 }
 ```
 
@@ -273,7 +272,7 @@ directory tree,
 we would use the following command to run NPLB:
 
 ```sh
-.../elf_loader_sandbox --evergreen_library=libnplb.so
+.../elf_loader_sandbox --evergreen_library=app/nplb/content/libnplb.so
                        --evergreen_content=app/nplb/content
 ```
 
@@ -506,7 +505,8 @@ Image required for all slot configurations:
 │           │   └── libcobalt.lz4 <--(System image version of Cobalt Core)
 │           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
-└── crashpad_handler <--(Cobalt crash handler)
+└── native_target
+    ├── crashpad_handler <--(Cobalt crash handler)
 ```
 
 Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen

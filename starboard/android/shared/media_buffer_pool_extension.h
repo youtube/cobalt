@@ -1,4 +1,4 @@
-// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,29 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TVOS_SHARED_CRASH_HANDLER_H_
-#define STARBOARD_TVOS_SHARED_CRASH_HANDLER_H_
+#ifndef STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
+#define STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-// When making changes to BreakpadSetAnnotationsCallback, definition in
-// starboard/darwin/tvos/main.mm and
-// googlemac/iPhone/YouTubeTV/v2/main.m should also be updated.
-typedef void (*BreakpadSetAnnotationsCallback)(const char* key,
-                                               const char* value);
-#ifdef __cplusplus
-}
-#endif
+#include "starboard/extension/experimental/media_buffer_pool.h"
 
 namespace starboard {
+namespace android {
 namespace shared {
-namespace uikit {
 
-const void* GetCrashHandlerApi();
+const void* GetMediaBufferPoolApi();
 
-}  // namespace uikit
 }  // namespace shared
+}  // namespace android
 }  // namespace starboard
 
-#endif  // STARBOARD_TVOS_SHARED_CRASH_HANDLER_H_
+#endif  // STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_

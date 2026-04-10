@@ -14,9 +14,13 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "base/notreached.h"
+#include "build/build_config.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
@@ -54,17 +58,54 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
   return used_memory;
 }
 
-ScriptPromise<IDLLongLong> PerformanceExtensions::getAppStartupTime(
+uint64_t PerformanceExtensions::measureUsedSwapMemory(ScriptState* script_state,
+                                                      const Performance&) {
+  uint64_t used_swap_memory = 0;
+  BindRemotePerformance(script_state)->MeasureUsedSwapMemory(&used_swap_memory);
+  return used_swap_memory;
+}
+
+uint64_t PerformanceExtensions::measureReservedVirtualMemory(
     ScriptState* script_state,
-    const Performance&,
+    const Performance&) {
+  uint64_t virtual_memory_size = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureReservedVirtualMemory(&virtual_memory_size);
+  return virtual_memory_size;
+}
+
+ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
+    ScriptState* script_state,
+    const Performance& performance_obj,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLLongLong>>(
+  ExecutionContext* context = performance_obj.GetExecutionContext();
+  if (!context) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Context is missing.");
+    return ScriptPromise<IDLDouble>();
+  }
+
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLDouble>>(
       script_state, exception_state.GetContext());
-  int64_t startup_time = 0;
-  BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
-  ScriptPromise<IDLLongLong> promise = resolver->Promise();
-  resolver->Resolve(startup_time);
+  ScriptPromise<IDLDouble> promise = resolver->Promise();
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/487001977: Implement startup time measurement for tvOS.
+  resolver->Reject(MakeGarbageCollected<DOMException>(
+      DOMExceptionCode::kNotSupportedError, "Not implemented on iOS/tvOS."));
+#else
+  int64_t startup_timestamp = 0;
+  BindRemotePerformance(script_state)
+      ->GetAppStartupTimeStamp(&startup_timestamp);
+
+  resolver->Resolve(Performance::MonotonicTimeToDOMHighResTimeStamp(
+      performance_obj.GetTimeOriginInternal(),
+      base::TimeTicks::FromInternalValue(startup_timestamp),
+      true /* allow_negative_value */,
+      context->CrossOriginIsolatedCapability()));
+#endif
+
   return promise;
 }
 
-}  //  namespace blink
+}  // namespace blink

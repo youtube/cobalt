@@ -80,8 +80,12 @@
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
+#elif BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
+#endif                                                // BUILDFLAG(IS_STARBOARD)
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 namespace cobalt {
@@ -172,9 +176,12 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
+    absl::optional<int64_t> startup_timestamp,
     const std::string& deep_link,
     bool is_visible)
-    : deep_link_(deep_link), is_visible_(is_visible) {
+    : startup_timestamp_(startup_timestamp),
+      deep_link_(deep_link),
+      is_visible_(is_visible) {
   COBALT_DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
@@ -375,7 +382,7 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  PopulateCobaltFrameBinders(render_frame_host, map);
+  PopulateCobaltFrameBinders(startup_timestamp_, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
@@ -606,6 +613,7 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
     return;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
@@ -617,6 +625,10 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
                << "the CrashHandler Starboard extension; not setting the user "
                << "agent annotation";
   }
+#elif BUILDFLAG(IS_IOS_TVOS)
+  cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(
+      kUserAgentAnnotationKey, user_agent_string);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
