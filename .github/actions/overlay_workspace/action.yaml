@@ -1,0 +1,126 @@
+name: OverlayFS Workspace Checkout
+description: Uses an OverlayFS mount of a golden workspace to provide zero-copy, instant checkouts.
+
+inputs:
+  ref:
+    description: Git ref to checkout.
+    required: true
+  path:
+    description: Destination path (e.g. cobalt).
+    required: true
+  run_sync:
+    description: Whether or not to run gclient sync for the PR.
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare OverlayFS Workspace
+      shell: bash
+      run: |
+        # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
+        LOWER_DIR="/runner-cache/golden-workspace"
+
+        # UPPER_DIR (Read-Write): The temporary layer where all file changes, build artifacts, and PR-specific git objects are written.
+        UPPER_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/upper"
+
+        # WORK_DIR: Required by OverlayFS for atomic file operations. Must be on the same filesystem as UPPER_DIR.
+        WORK_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/work"
+
+        # MERGED_DIR: The directory the CI job actually sees and works in. It seamlessly combines LOWER_DIR and UPPER_DIR.
+        MERGED_DIR="${GITHUB_WORKSPACE}/${{ inputs.path }}"
+
+        # Failsafe cleanup: Unmount and delete any orphaned workspaces from cancelled jobs
+        # Since this node only runs one pod at a time, we can safely wipe all workspaces.
+        echo "Cleaning up any orphaned overlay workspaces..."
+        fusermount3 -u "$MERGED_DIR" || fusermount -u "$MERGED_DIR" || umount "$MERGED_DIR" || true
+        rm -rf /runner-cache/workspaces/*
+
+        # Ensure the directories exist
+        mkdir -p "$UPPER_DIR" "$WORK_DIR" "$MERGED_DIR"
+
+        # If the golden workspace does not exist, initialize it.
+        # This will only happen once per node!
+        if [ ! -d "$LOWER_DIR/src" ]; then
+          echo "Golden workspace not found. Creating it now. This will take time..."
+          mkdir -p "$LOWER_DIR"
+          cd "$LOWER_DIR"
+
+          git clone https://github.com/youtube/cobalt.git src
+          # Clone depot_tools
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
+          export PATH="$LOWER_DIR/depot_tools:$PATH"
+
+          cd src
+          gclient config --name=src https://github.com/youtube/cobalt.git
+          gclient sync -D --no-history
+        fi
+
+        echo "Mounting OverlayFS..."
+        # Depending on your runner's privilege, use sudo mount or fuse-overlayfs
+        fuse-overlayfs -o lowerdir="$LOWER_DIR",upperdir="$UPPER_DIR",workdir="$WORK_DIR" "$MERGED_DIR"
+
+        echo "Updating PR commit in upper layer..."
+        cd "$MERGED_DIR/src"
+        git fetch origin ${{ inputs.ref }}
+        git checkout ${{ inputs.ref }}
+
+        echo "Applying gclient configuration..."
+        cd "$MERGED_DIR"
+        export PATH="$MERGED_DIR/depot_tools:$PATH"
+
+        # Disable Chromium client side build telemetry
+        build_telemetry opt-out
+
+        # Configure gclient
+        gclient config \
+          --name=src \
+          --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
+          "https://github.com/youtube/cobalt.git"
+
+        # Set target OS
+        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
+          echo "target_os=['android']" >> .gclient
+        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+          echo "target_os=['ios']" >> .gclient
+        fi
+        gclient validate
+
+        # Set target CPU
+        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+          echo "target_cpu=['x64', 'arm64']" >> .gclient
+        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+          echo "target_cpu=['x64', 'arm']" >> .gclient
+        fi
+        gclient validate
+
+        # Add GoB Authentication
+        if ! curl -s -m 2 -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" > /dev/null; then
+          echo "Metadata server not reachable. Skipping GoB authentication setup."
+        else
+          SERVICE_ACCOUNT=$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email")
+          ACCESS_TOKEN=$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
+          if [[ -n "${SERVICE_ACCOUNT}" && -n "${ACCESS_TOKEN}" ]]; then
+            echo "::add-mask::${ACCESS_TOKEN}"
+            echo "Authenticating with ${SERVICE_ACCOUNT}"
+            GITCOOKIES_PATH="/tmp/gitcookies"
+            (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\ngooglesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" \
+              "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
+            git config --global http.cookiefile "${GITCOOKIES_PATH}"
+          fi
+        fi
+
+        if [[ "${{ inputs.run_sync }}" == "true" ]]; then
+          echo "Syncing specific dependencies needed for this PR..."
+          gclient sync \
+            --verbose \
+            --shallow \
+            --no-history \
+            --nohooks \
+            --force \
+            --delete_unversioned_trees \
+            --revision "${{ inputs.ref }}"
+
+          echo "Running gclient runhooks..."
+          gclient runhooks --verbose
+        fi

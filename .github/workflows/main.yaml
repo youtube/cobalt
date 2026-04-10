@@ -405,6 +405,7 @@ jobs:
         config: ${{ fromJson(needs.initialize.outputs.build_configs) }}
     container:
       image: ${{ needs.docker-build-image.outputs.docker_tag }}
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
       volumes:
         - /runner-cache:/runner-cache
     env:
@@ -433,20 +434,11 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Checkout
-        uses: ./.github/actions/checkout
+      - name: Prepare OverlayFS Workspace
+        uses: ./.github/actions/overlay_workspace
         with:
-          path: cobalt/src
+          path: cobalt
           ref: ${{ github.sha }}
-          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
-          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
-          # to properly calculate build id.
-          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
-          use_cache: true
-
-      - name: Set Up Depot Tools
-        id: setup-depot-tools
-        uses: ./.github/actions/depot_tools
 
       - name: Build Cobalt
         id: build
@@ -481,6 +473,10 @@ jobs:
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
+
+      - name: Teardown OverlayFS
+        if: always()
+        uses: ./.github/actions/teardown_overlay
 
   on-device-test:
     needs: [initialize, build]
@@ -746,6 +742,7 @@ jobs:
         config: [devel]
     container:
       image: ${{ needs.docker-webtest-image.outputs.docker_tag }}
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
       volumes:
         - /runner-cache:/runner-cache
     env:
@@ -762,29 +759,39 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-
-      - name: Checkout
-        uses: ./.github/actions/checkout
+      - name: Check Runner Cache
+        id: check-runner-cache
+        shell: bash
+        run: |
+          if [ -d "/runner-cache/git-cache" ] && [ "$(ls -A /runner-cache/git-cache 2>/dev/null)" ]; then
+            echo "cache_hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "cache_hit=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Runner Cache Hot
+        if: steps.check-runner-cache.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Runner cache is populated."
+      - name: Runner Cache Cold
+        if: steps.check-runner-cache.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Runner cache is empty."
+      - name: Prepare OverlayFS Workspace
+        uses: ./.github/actions/overlay_workspace
         with:
-          path: cobalt/src
+          path: cobalt
           ref: ${{ github.sha }}
-          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
-          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
-          # to properly calculate build id.
-          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
-          use_cache: true
-
-      - name: Set Up Depot Tools
-        id: setup-depot-tools
-        uses: ./.github/actions/depot_tools
-        with:
-          run_sync: false
+          run_sync: 'false'
 
       - name: Run Web Tests
         uses: ./.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: Blink Web Test Results ${{ github.workflow }}
+
+      - name: Teardown OverlayFS
+        if: always()
+        uses: ./.github/actions/teardown_overlay
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
