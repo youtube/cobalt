@@ -41,7 +41,8 @@ runs:
       shell: bash
       run: |
         set -ex
-        cache_path="${RUNNER_CACHE_FOLDER}/git-checkout-cache/$(basename "${REPO_URL}" .git)"
+        # Extract the last path segment and remove trailing .git.
+        cache_path="${RUNNER_CACHE_FOLDER}/git-cache/checkout/$(basename "${REPO_URL}" .git)"
         echo "path=${cache_path}" >> ${GITHUB_OUTPUT}
 
         # Verify existing cache integrity and remove if broken.
@@ -82,7 +83,7 @@ runs:
         if [ -n "${CACHE_PATH}" ] && [ -d "${CACHE_PATH}/.git" ]; then
           echo "Populating checkout via rsync hardlinks from ${CACHE_PATH} to ${GITHUB_WORKSPACE}/${DEST_PATH}..."
           mkdir -p "${GITHUB_WORKSPACE}/${DEST_PATH}"
-          rsync -arv --link-dest="${CACHE_PATH}" "${CACHE_PATH}/" "${GITHUB_WORKSPACE}/${DEST_PATH}/"
+          rsync -rlpt --link-dest="${CACHE_PATH}" "${CACHE_PATH}/" "${GITHUB_WORKSPACE}/${DEST_PATH}/"
         else
           echo "No cache available. Performing regular git clone..."
           git clone --filter=blob:none "${REPO_URL}" "${GITHUB_WORKSPACE}/${DEST_PATH}"

@@ -435,8 +435,7 @@ jobs:
             find /runner-cache/workspaces/ -mindepth 1 -maxdepth 1 -type d -mtime +1 -exec rm -rf {} + || true
 
             # Create a unique directory on the cache volume.
-            JOB_WORKSPACE_REAL="/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${RANDOM}-${RANDOM}"
-            mkdir -p "${JOB_WORKSPACE_REAL}"
+            JOB_WORKSPACE_REAL=$(mktemp -d -p /runner-cache/workspaces/ "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-XXXXXX")
 
             # Link the standard workspace to the unique directory.
             # This satisfies actions/checkout while providing isolation on the cache volume.
@@ -516,9 +515,12 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [[ -n "${GITHUB_WORKSPACE}" ]] && [[ "${GITHUB_WORKSPACE}" == /runner-cache/workspaces/* ]]; then
-            echo "Cleaning up workspace ${GITHUB_WORKSPACE}..."
-            rm -rf "${GITHUB_WORKSPACE}"
+          REAL_WORKSPACE=$(readlink -f "${GITHUB_WORKSPACE}")
+          if [[ "${REAL_WORKSPACE}" == /runner-cache/workspaces/* ]]; then
+            echo "Cleaning up workspace ${REAL_WORKSPACE}..."
+            rm -rf "${REAL_WORKSPACE}"
+            # Also remove the symlink if it still exists at the default location.
+            rm -f "${GITHUB_WORKSPACE}"
           fi
 
   on-device-test:
@@ -1008,5 +1010,3 @@ jobs:
           shopt -s globstar nullglob
           python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
         shell: bash
-# Cache trigger 2
-# Cache trigger 3

@@ -59,11 +59,11 @@ runs:
       if: inputs.run_sync == 'true'
       run: |
         set -x
-        LOCAL_CACHE="/runner-cache/gclient-src"
+        LOCAL_CACHE="/runner-cache/git-cache/gclient"
         if [[ -d "${LOCAL_CACHE}" ]]; then
           echo "Restoring gclient cache from local cache volume via hardlinks..."
           mkdir -p "${GITHUB_WORKSPACE}/cobalt"
-          rsync -arv --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/cobalt/"
+          rsync -rlpt --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/cobalt/"
         fi
       shell: bash
 
@@ -145,7 +145,7 @@ runs:
           --delete_unversioned_trees
       shell: bash
 
-    - name: Save gclient cache to GCS
+    - name: Save gclient cache to local volume
       if: inputs.run_sync == 'true'
       run: |
         set -euxo pipefail
@@ -160,24 +160,24 @@ runs:
         trap 'rm -f "${GCLIENT_LIST}"' EXIT
 
         python3 -c "
-        gclient_globals = {}
-        exec(open('.gclient_entries').read(), gclient_globals)
-        entries = gclient_globals.get('entries', {})
-        print('\n'.join([p for p in entries if p != 'src' and p.startswith('src/')]))
+        import ast
+        tree = ast.parse(open('.gclient_entries').read())
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'entries' for t in node.targets):
+                entries = ast.literal_eval(node.value)
+                print('\n'.join([p for p in entries if p != 'src' and p.startswith('src/')]))
         " > "${GCLIENT_LIST}"
 
         TMP_CACHE="${GITHUB_WORKSPACE}/.gclient-cache-staging"
         mkdir -p "${TMP_CACHE}"
 
-        rsync -arv --ignore-missing-args --exclude='out/' --link-dest="${GITHUB_WORKSPACE}/cobalt" --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
+        rsync -rlpt --ignore-missing-args --exclude='out/' --link-dest="${GITHUB_WORKSPACE}/cobalt" --files-from="${GCLIENT_LIST}" . "${TMP_CACHE}/"
 
-
-
-        LOCAL_CACHE="/runner-cache/gclient-src"
+        LOCAL_CACHE="/runner-cache/git-cache/gclient"
         if [[ -w "/runner-cache" ]]; then
           echo "Updating local cache volume ${LOCAL_CACHE}..."
           mkdir -p "${LOCAL_CACHE}"
-          rsync -arv --link-dest="${TMP_CACHE}" "${TMP_CACHE}/" "${LOCAL_CACHE}/"
+          rsync -rlpt --link-dest="${TMP_CACHE}" "${TMP_CACHE}/" "${LOCAL_CACHE}/"
         fi
         rm -rf "${TMP_CACHE}"
       shell: bash
