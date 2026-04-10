@@ -135,6 +135,7 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
   }
 
   if (name == kMediaIncrementalParseLookAhead) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (value->IsLong()) {
       bool enable = (value->GetAsLong() != 0);
       if (enable) {
@@ -156,6 +157,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                                           kMediaIncrementalParseLookAhead +
                                           "' must be a number."));
     }
+#else
+    String error_msg =
+        String(kMediaIncrementalParseLookAhead) + " is not supported.";
+    LOG(WARNING) << error_msg;
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), error_msg));
+#endif
     return promise;
   }
 
