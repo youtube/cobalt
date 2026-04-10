@@ -438,6 +438,14 @@ jobs:
             echo "GITHUB_WORKSPACE=${JOB_WORKSPACE}" >> $GITHUB_ENV
           fi
 
+      - name: Debug Filesystem
+        run: |
+          echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+          df -h .
+          df -h /runner-cache
+          mount | grep "/runner-cache" || true
+          ls -la /runner-cache || true
+
       - name: Restore CI Essentials
         uses: actions/checkout@v4
         with:
