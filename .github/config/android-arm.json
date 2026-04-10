@@ -15,23 +15,7 @@
   "test_attempts": "3",
   "e2e_test_targets": [
     {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_sabrina",
-      "test_attempts": "6"
-    },
-    {
       "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_kirkwood",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_tcl_smart_tv",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_boreal_non_shared",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_bravia",
       "test_attempts": "6"
     },
     {
@@ -45,43 +29,15 @@
     {
       "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_kirkwood",
       "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_sabrina",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_sabrina",
-      "test_attempts": "6"
-    },
-    {
-      "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_sabrina",
-      "test_attempts": "6"
     }
   ],
   "yts_test_targets": [
-    {
-      "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_sabrina_custom_test",
-      "test_attempts": "6"
-    },
-    {
-      "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_sabrina_custom_test",
-      "test_attempts": "6"
-    },
     {
       "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_kirkwood_custom_test",
       "test_attempts": "6"
     },
     {
       "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_kirkwood_custom_test",
-      "test_attempts": "6"
-    },
-    {
-      "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_boreal_custom_test",
-      "test_attempts": "6"
-    },
-    {
-      "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_boreal_custom_test",
       "test_attempts": "6"
     }
   ],
