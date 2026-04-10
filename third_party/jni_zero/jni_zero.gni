@@ -39,7 +39,7 @@ if (target_os == "android") {
   jni_headers_dir = "$root_build_dir/gen/jni_headers"
 } else {
   # Chrome OS builds cannot share gen/ directories because is_android=false
-  # within android_toolchain.
+  # within default_toolchain.
   jni_headers_dir = "$root_gen_dir/jni_headers"
 }
 
