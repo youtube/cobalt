@@ -90,7 +90,7 @@ runs:
         gclient config \
           --name=src \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
-          "${REPOSITORY}"
+          "${REPOSITORY}@${{ github.sha }}"
       shell: bash
 
     - name: Set target OS
@@ -146,8 +146,6 @@ runs:
 
     - name: Run gclient sync
       if: inputs.run_sync == 'true'
-      env:
-        REF: ${{ github.sha }}
       run: |
         cd cobalt
         gclient sync \
@@ -156,8 +154,7 @@ runs:
           --no-history \
           --nohooks \
           --force \
-          --delete_unversioned_trees \
-          --revision "${REF}"
+          --delete_unversioned_trees
       shell: bash
 
     - name: Save gclient cache to GCS
