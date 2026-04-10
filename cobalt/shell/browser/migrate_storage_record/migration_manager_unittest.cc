@@ -288,32 +288,6 @@ TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
   EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
 }
 
-<<<<<<< HEAD
-// TODO(b/399166308): Add more test cases for specific migration tasks.
-TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
-  constexpr uint32_t kTaskCount = 100;
-  std::vector<Task> tasks;
-  std::vector<int> collected_values;
-  for (int i = 0; i < kTaskCount; i++) {
-    tasks.push_back(base::BindOnce(
-        [](std::vector<int>& collected_values, int i,
-           base::OnceClosure callback) {
-          collected_values.push_back(i);
-          std::move(callback).Run();
-        },
-        std::ref(collected_values), i));
-  }
-  EXPECT_TRUE(collected_values.empty());
-  Task grouped_task = GroupTasks(std::move(tasks));
-  std::move(grouped_task).Run(base::DoNothing());
-  base::RunLoop().RunUntilIdle();
-  std::vector<int> expected_values(kTaskCount);
-  std::iota(expected_values.begin(), expected_values.end(), 0);
-  EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
-}
-
-=======
->>>>>>> e8c285ab42 (Improve storage migration timeout handling (#9890))
 TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
   cobalt::storage::Storage storage;
   std::vector<cobalt::storage::Cookie*> source_cookies;
