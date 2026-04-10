@@ -8,11 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-<<<<<<< HEAD
-=======
 #include <atomic>
 #include <map>
->>>>>>> fe91f5338f (media: Implement incremental parse look-ahead for WebM and MP4 (#9133))
 #include <memory>
 #include <vector>
 
