@@ -67,8 +67,7 @@ runs:
         if [[ -d "${LOCAL_CACHE}" ]]; then
           echo "Restoring gclient cache from local cache volume via hardlinks..."
           ls -la "${LOCAL_CACHE}" || true
-          # We rsync into the parent of cobalt, because the cache contains 'cobalt/'
-          rsync -arv --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/"
+          rsync -arv --link-dest="${LOCAL_CACHE}" "${LOCAL_CACHE}/" "${GITHUB_WORKSPACE}/cobalt/"
         fi
 
         PROJECT_NAME=$(gcloud config get-value project)
