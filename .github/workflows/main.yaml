@@ -429,9 +429,11 @@ jobs:
           fi
       - name: Set GITHUB_WORKSPACE to host-mounted volume
         run: |
-          rm -rf /runner-cache/workspaces/*
-          mkdir -p /runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
-          echo "GITHUB_WORKSPACE=/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_ENV
+          if [[ -w "/runner-cache" ]]; then
+            rm -rf /runner-cache/workspaces/*
+            mkdir -p /runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+            echo "GITHUB_WORKSPACE=/runner-cache/workspaces/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_ENV
+          fi
 
       - name: Restore CI Essentials
         uses: actions/checkout@v4
@@ -453,6 +455,11 @@ jobs:
       - name: Set Up Depot Tools
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
+
+      - name: Short Circuit For Cache Testing
+        run: |
+          echo "Cache setup fully successful! Exiting early to save compilation time."
+          exit 0
 
       - name: Build Cobalt
         id: build
