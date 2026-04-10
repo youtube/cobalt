@@ -97,22 +97,14 @@ StarboardRendererTraits::StarboardRendererTraits(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
-<<<<<<< HEAD
-    const gfx::Size& viewport_size,
-    const bool enable_flush_during_seek,
-    const bool enable_reset_audio_decoder,
-    std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms,
-=======
     const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size,
->>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote,
-    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb)
+    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb,
+    AndroidOverlayMojoFactoryCB android_overlay_factory_cb)
     : task_runner(std::move(task_runner)),
       gpu_task_runner(std::move(gpu_task_runner)),
       media_log_remote(std::move(media_log_remote)),
@@ -121,21 +113,13 @@ StarboardRendererTraits::StarboardRendererTraits(
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
-<<<<<<< HEAD
-      viewport_size(viewport_size),
-      enable_flush_during_seek(enable_flush_during_seek),
-      enable_reset_audio_decoder(enable_reset_audio_decoder),
-      initial_max_frames_in_decoder(initial_max_frames_in_decoder),
-      max_pending_input_frames(max_pending_input_frames),
-      video_decoder_poll_interval_ms(video_decoder_poll_interval_ms),
-=======
       experimental_features(experimental_features),
       viewport_size(viewport_size),
->>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
-          std::move(get_starboard_command_buffer_stub_cb)) {}
+          std::move(get_starboard_command_buffer_stub_cb)),
+      android_overlay_factory_cb(std::move(android_overlay_factory_cb)) {}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 GpuMojoMediaClientTraits::~GpuMojoMediaClientTraits() = default;
@@ -180,6 +164,7 @@ GpuMojoMediaClient::GpuMojoMediaClient(GpuMojoMediaClientTraits& traits)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       video_geometry_setter_service_(traits.video_geometry_setter_service),
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      android_overlay_factory_cb_(std::move(traits.android_overlay_factory_cb)),
       gpu_preferences_(std::move(traits.gpu_preferences)),
       gpu_workarounds_(std::move(traits.gpu_workarounds)),
       gpu_feature_info_(std::move(traits.gpu_feature_info)),
@@ -319,26 +304,14 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
         client_extension_remote) {
   StarboardRendererTraits traits(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
-<<<<<<< HEAD
       video_geometry_setter_service_, config.overlay_plane_id,
       config.audio_write_duration_local, config.audio_write_duration_remote,
-      config.max_video_capabilities, config.viewport_size,
-      config.enable_flush_during_seek, config.enable_reset_audio_decoder,
-      config.initial_max_frames_in_decoder, config.max_pending_input_frames,
-      config.video_decoder_poll_interval_ms,
-      std::move(renderer_extension_receiver),
-      std::move(client_extension_remote), base::BindRepeating(
-        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
-=======
-      config.overlay_plane_id, config.audio_write_duration_local,
-      config.audio_write_duration_remote, config.max_video_capabilities,
-      config.experimental_features, config.viewport_size,
-      std::move(renderer_extension_receiver),
+      config.max_video_capabilities, config.experimental_features,
+      config.viewport_size, std::move(renderer_extension_receiver),
       std::move(client_extension_remote),
       base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
                           media_gpu_channel_manager_),
       android_overlay_factory_cb_);
->>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
   return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

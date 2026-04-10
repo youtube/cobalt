@@ -173,8 +173,6 @@ class StarboardRendererTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-<<<<<<< HEAD
-=======
   const std::unique_ptr<StarboardRenderer> renderer_ =
       std::make_unique<StarboardRenderer>(
           task_environment_.GetMainThreadTaskRunner(),
@@ -190,7 +188,6 @@ class StarboardRendererTest : public testing::Test {
           /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
       );
->>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;
@@ -202,25 +199,6 @@ class StarboardRendererTest : public testing::Test {
   SbPlayerStatusFunc player_status_cb_ = nullptr;
   SbPlayerErrorFunc player_error_cb_ = nullptr;
   void* context_ = nullptr;
-  const std::unique_ptr<StarboardRenderer> renderer_ =
-      std::make_unique<StarboardRenderer>(
-          task_environment_.GetMainThreadTaskRunner(),
-          std::make_unique<NullMediaLog>(),
-          /*overlay_plane_id=*/base::UnguessableToken::Create(),
-          /*audio_write_duration_local=*/base::Seconds(1),
-          /*audio_write_duration_remote=*/base::Seconds(1),
-          /*max_video_capabilities=*/"",
-          /*viewport_size=*/gfx::Size(),
-          /*enable_flush_during_seek=*/false,
-          /*enable_reset_audio_decoder=*/false,
-          /*initial_max_frames_in_decoder=*/std::nullopt,
-          /*max_pending_input_frames=*/std::nullopt,
-          /*video_decoder_poll_interval_ms=*/std::nullopt
-#if BUILDFLAG(IS_ANDROID)
-          ,
-          /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
-#endif  // BUILDFLAG(IS_ANDROID)
-      );
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {

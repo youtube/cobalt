@@ -195,23 +195,12 @@ IPC_STRUCT_TRAITS_BEGIN(media::OverlayInfo)
 IPC_STRUCT_TRAITS_END()
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-<<<<<<< HEAD
-IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
-  IPC_STRUCT_TRAITS_MEMBER(overlay_plane_id)
-  IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_local)
-  IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_remote)
-  IPC_STRUCT_TRAITS_MEMBER(max_video_capabilities)
-  IPC_STRUCT_TRAITS_MEMBER(viewport_size)
-=======
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
->>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
   IPC_STRUCT_TRAITS_MEMBER(enable_flush_during_seek)
   IPC_STRUCT_TRAITS_MEMBER(enable_reset_audio_decoder)
   IPC_STRUCT_TRAITS_MEMBER(initial_max_frames_in_decoder)
   IPC_STRUCT_TRAITS_MEMBER(max_pending_input_frames)
   IPC_STRUCT_TRAITS_MEMBER(video_decoder_poll_interval_ms)
-<<<<<<< HEAD
-=======
 IPC_STRUCT_TRAITS_END()
 
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
@@ -221,7 +210,6 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
   IPC_STRUCT_TRAITS_MEMBER(max_video_capabilities)
   IPC_STRUCT_TRAITS_MEMBER(experimental_features)
   IPC_STRUCT_TRAITS_MEMBER(viewport_size)
->>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
 IPC_STRUCT_TRAITS_END()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

@@ -417,13 +417,8 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   EnsureH5vccSettingsRemoteInitialized();
 
   cobalt::mojom::SettingsPtr settings;
-<<<<<<< HEAD
-  ParsedH5vccSettings parsed;
-  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
-=======
   ExperimentalFeatures experimental_features;
-  if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
->>>>>>> 028bb74565 (media: Reduce boilerplate h5vcc plumbing from h5vcc to StarboardRenderer (#9143))
+  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
     experimental_features = ProcessH5vccSettings(h5vcc_settings);
   }
