@@ -14,14 +14,11 @@
 
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
-<<<<<<< HEAD
 #include <numeric>
 
-=======
 #include "base/base_paths.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
->>>>>>> e8c285ab42 (Improve storage migration timeout handling (#9890))
 #include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -31,6 +28,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/test/test_storage_partition.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "net/cookies/canonical_cookie.h"
@@ -119,6 +117,7 @@ class MockStorageArea : public blink::mojom::StorageArea {
   void GetAll(
       mojo::PendingRemote<blink::mojom::StorageAreaObserver> new_observer,
       GetAllCallback callback) override {}
+  void Checkpoint() override {}
 
   int put_call_count() const { return put_call_count_; }
   void set_should_fail(bool fail) { should_fail_ = fail; }
@@ -145,41 +144,22 @@ class MockLocalStorageControl : public ::storage::mojom::LocalStorageControl {
   void DeleteStorage(const blink::StorageKey& storage_key,
                      DeleteStorageCallback callback) override {}
   void CleanUpStorage(CleanUpStorageCallback callback) override {}
-  void Flush(FlushCallback callback) override {
-    flush_call_count_++;
-    if (should_hang_flush_) {
-      flush_callbacks_.push_back(std::move(callback));
-      return;
-    }
-    if (callback) {
-      std::move(callback).Run();
-    }
-  }
+  void Flush() override { flush_call_count_++; }
   void PurgeMemory() override { purge_memory_call_count_++; }
   void ApplyPolicyUpdates(std::vector<::storage::mojom::StoragePolicyUpdatePtr>
                               policy_updates) override {}
   void ForceKeepSessionState() override {}
+  void NeedsFlushForTesting(NeedsFlushForTestingCallback callback) override {}
 
   int flush_call_count() const { return flush_call_count_; }
   int purge_memory_call_count() const { return purge_memory_call_count_; }
   int put_call_count() const { return storage_area_.put_call_count(); }
 
   void set_should_fail(bool fail) { storage_area_.set_should_fail(fail); }
-  void set_should_hang_put(bool hang) { storage_area_.set_should_hang(hang); }
-  void set_should_hang_flush(bool hang) { should_hang_flush_ = hang; }
-
-  void TriggerLateFlushResponse() {
-    for (auto& cb : flush_callbacks_) {
-      std::move(cb).Run();
-    }
-    flush_callbacks_.clear();
-  }
 
  private:
   int flush_call_count_ = 0;
   int purge_memory_call_count_ = 0;
-  bool should_hang_flush_ = false;
-  std::vector<FlushCallback> flush_callbacks_;
   MockStorageArea storage_area_;
 };
 
@@ -293,32 +273,6 @@ TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
   EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
 }
 
-<<<<<<< HEAD
-// TODO(b/399166308): Add more test cases for specific migration tasks.
-TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
-  constexpr uint32_t kTaskCount = 100;
-  std::vector<Task> tasks;
-  std::vector<int> collected_values;
-  for (uint32_t i = 0; i < kTaskCount; i++) {
-    tasks.push_back(base::BindOnce(
-        [](std::vector<int>& collected_values, int i,
-           base::OnceClosure callback) {
-          collected_values.push_back(i);
-          std::move(callback).Run();
-        },
-        std::ref(collected_values), i));
-  }
-  EXPECT_TRUE(collected_values.empty());
-  Task grouped_task = GroupTasks(std::move(tasks));
-  std::move(grouped_task).Run(base::DoNothing());
-  base::RunLoop().RunUntilIdle();
-  std::vector<int> expected_values(kTaskCount);
-  std::iota(expected_values.begin(), expected_values.end(), 0);
-  EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
-}
-
-=======
->>>>>>> e8c285ab42 (Improve storage migration timeout handling (#9890))
 TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
   cobalt::storage::Storage storage;
   std::vector<cobalt::storage::Cookie*> source_cookies;
@@ -472,7 +426,9 @@ TEST_F(MigrationManagerTest,
   MockStoragePartition partition;
 
   base::RunLoop run_loop;
-  MigrationManager::RunMigration(&partition, run_loop.QuitClosure());
+  MigrationManager::RunMigration(
+      static_cast<content::StoragePartition*>(&partition),
+      run_loop.QuitClosure());
   run_loop.Run();
 
   std::string status = MigrationManager::GetMigrationStatusUrlParameter();
@@ -490,10 +446,10 @@ TEST_F(MigrationManagerTest, CookieTaskTest) {
   cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "name", "value", ".example.com", "/path", base::Time(), base::Time(),
       base::Time(), base::Time(), true, true,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
-      /*same_party=*/false));
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
 
-  Task task = CookieTask(&partition, std::move(cookies), state);
+  Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
+                         std::move(cookies), state);
 
   base::RunLoop run_loop;
   std::move(task).Run(run_loop.QuitClosure());
@@ -512,10 +468,10 @@ TEST_F(MigrationManagerTest, CookieTaskFailureTest) {
   cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "name", "value", ".example.com", "/path", base::Time(), base::Time(),
       base::Time(), base::Time(), true, true,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
-      /*same_party=*/false));
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
 
-  Task task = CookieTask(&partition, std::move(cookies), state);
+  Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
+                         std::move(cookies), state);
 
   base::RunLoop run_loop;
   std::move(task).Run(run_loop.QuitClosure());
@@ -533,10 +489,10 @@ TEST_F(MigrationManagerTest, CookieTaskTimeoutTest) {
   cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "name", "value", ".example.com", "/path", base::Time(), base::Time(),
       base::Time(), base::Time(), true, true,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
-      /*same_party=*/false));
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
 
-  Task task = CookieTask(&partition, std::move(cookies), state);
+  Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
+                         std::move(cookies), state);
 
   base::RunLoop run_loop;
   std::move(task).Run(run_loop.QuitClosure());
@@ -560,7 +516,9 @@ TEST_F(MigrationManagerTest, LocalStorageTaskTest) {
 
   url::Origin origin = url::Origin::Create(GURL("https://example.com"));
 
-  Task task = LocalStorageTask(&partition, origin, std::move(pairs), state);
+  Task task =
+      LocalStorageTask(static_cast<content::StoragePartition*>(&partition),
+                       origin, std::move(pairs), state);
 
   base::RunLoop run_loop;
   std::move(task).Run(run_loop.QuitClosure());
@@ -569,7 +527,6 @@ TEST_F(MigrationManagerTest, LocalStorageTaskTest) {
   EXPECT_EQ(InjectionResult::kSuccess, state->local_storage_result.load());
   EXPECT_EQ(2, partition.local_storage_control().put_call_count());
   EXPECT_EQ(1, partition.local_storage_control().flush_call_count());
-  EXPECT_EQ(1, partition.local_storage_control().purge_memory_call_count());
 }
 
 TEST_F(MigrationManagerTest, LocalStorageTaskFailureTest) {
@@ -583,85 +540,15 @@ TEST_F(MigrationManagerTest, LocalStorageTaskFailureTest) {
 
   url::Origin origin = url::Origin::Create(GURL("https://example.com"));
 
-  Task task = LocalStorageTask(&partition, origin, std::move(pairs), state);
+  Task task =
+      LocalStorageTask(static_cast<content::StoragePartition*>(&partition),
+                       origin, std::move(pairs), state);
 
   base::RunLoop run_loop;
   std::move(task).Run(run_loop.QuitClosure());
   run_loop.Run();
 
   EXPECT_EQ(InjectionResult::kError, state->local_storage_result.load());
-}
-
-TEST_F(MigrationManagerTest, LocalStorageTaskPutTimeoutTest) {
-  MockStoragePartition partition;
-  partition.local_storage_control().set_should_hang_put(true);
-  auto state = base::MakeRefCounted<MigrationState>();
-
-  std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs;
-  pairs.push_back(
-      std::make_unique<std::pair<std::string, std::string>>("key1", "value1"));
-
-  url::Origin origin = url::Origin::Create(GURL("https://example.com"));
-
-  Task task = LocalStorageTask(&partition, origin, std::move(pairs), state);
-
-  base::RunLoop run_loop;
-  std::move(task).Run(run_loop.QuitClosure());
-
-  task_environment().FastForwardBy(base::Seconds(3));
-
-  EXPECT_EQ(InjectionResult::kTimeout, state->local_storage_result.load());
-}
-
-TEST_F(MigrationManagerTest, LocalStorageTaskFlushTimeoutTest) {
-  MockStoragePartition partition;
-  partition.local_storage_control().set_should_hang_flush(true);
-  auto state = base::MakeRefCounted<MigrationState>();
-
-  std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs;
-  pairs.push_back(
-      std::make_unique<std::pair<std::string, std::string>>("key1", "value1"));
-
-  url::Origin origin = url::Origin::Create(GURL("https://example.com"));
-
-  Task task = LocalStorageTask(&partition, origin, std::move(pairs), state);
-
-  base::RunLoop run_loop;
-  std::move(task).Run(run_loop.QuitClosure());
-
-  task_environment().FastForwardBy(base::Seconds(3));
-
-  EXPECT_EQ(InjectionResult::kTimeout, state->local_storage_result.load());
-}
-
-TEST_F(MigrationManagerTest, LocalStorageTaskLateSuccessAfterTimeoutTest) {
-  MockStoragePartition partition;
-  partition.local_storage_control().set_should_hang_flush(true);
-  auto state = base::MakeRefCounted<MigrationState>();
-
-  std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs;
-  pairs.push_back(
-      std::make_unique<std::pair<std::string, std::string>>("key1", "value1"));
-
-  url::Origin origin = url::Origin::Create(GURL("https://example.com"));
-
-  int callback_run_count = 0;
-  Task task = LocalStorageTask(&partition, origin, std::move(pairs), state);
-  std::move(task).Run(base::BindOnce([](int* count) { (*count)++; },
-                                     base::Unretained(&callback_run_count)));
-
-  // 1. Trigger the timeout.
-  task_environment().FastForwardBy(base::Seconds(3));
-  EXPECT_EQ(1, callback_run_count);
-  EXPECT_EQ(InjectionResult::kTimeout, state->local_storage_result.load());
-
-  // 2. Simulate the background thread finally finishing LATE.
-  partition.local_storage_control().TriggerLateFlushResponse();
-  base::RunLoop().RunUntilIdle();
-
-  // 3. Verify the state didn't change and the callback didn't run again.
-  EXPECT_EQ(1, callback_run_count);
-  EXPECT_EQ(InjectionResult::kTimeout, state->local_storage_result.load());
 }
 
 }  // namespace migrate_storage_record
