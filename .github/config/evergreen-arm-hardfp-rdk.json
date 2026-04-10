@@ -15,7 +15,8 @@
   },
   "targets": [
     "cobalt:gn_all",
-    "loader_app"
+    "loader_app",
+    "libloader_app.so"
   ],
   "includes": [
     {

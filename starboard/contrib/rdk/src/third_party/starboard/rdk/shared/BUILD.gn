@@ -386,3 +386,34 @@ copy("rdk_cobalt_keymap") {
   sources = [ "cobalt/content/etc/keymapping.json" ]
   outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
 }
+
+# These changes are temporary for backward compatibility.
+# TODO: b/499089012 - Remove this group once we fully transition to the new
+# plugin method (libloader_app.so) as part of b/491573728.
+group("loader_app_rdk_plugin") {
+  data_deps = [":loader_app($starboard_toolchain)"]
+}
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+# These changes are temporary for backward compatibility.
+# TODO: b/499089012 - Remove once we move to the new plugin method (libloader_app.so).
+  target("shared_library", "loader_app") {
+    output_dir = root_build_dir
+    if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
+      sources = [
+        "//starboard/loader_app/loader_app.cc",
+        "//starboard/loader_app/loader_app_switches.cc",
+        "//starboard/loader_app/loader_app_switches.h",
+        "//starboard/loader_app/system_get_extension_shim.cc",
+        "//starboard/loader_app/system_get_extension_shim.h",
+      ]
+      deps = [
+        "//starboard/loader_app:common_loader_app_dependencies",
+        "//starboard:starboard_with_main",
+        "//starboard/content/fonts:copy_font_data",
+        "//starboard/elf_loader",
+      ]
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+    }
+  }
+}
