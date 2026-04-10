@@ -7,12 +7,6 @@
   "test_device_family": "android",
   "test_e2e": true,
   "test_yts": false,
-<<<<<<< HEAD
-=======
-  "test_yts_playback": true,
-  "test_browser": false,
-  "test_yts_wpt": true,
->>>>>>> bf32fafcd4 (Temporarily disable on-device tests on some devices (#9983))
   "test_root_target": "//cobalt/android:cobalt_apk",
   "test_attempts": "3",
   "e2e_test_targets": [
