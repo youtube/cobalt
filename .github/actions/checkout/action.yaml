@@ -50,15 +50,27 @@ runs:
         fi
 
         # Initialize/update the cache from the network.
-        if [ ! -d "${cache_path}/.git" ]; then
-          mkdir -p "$(dirname "${cache_path}")"
-          tmp_path="${cache_path}.tmp.${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          rm -rf "${tmp_path}"
-          git clone --filter=blob:none "${REPO_URL}" "${tmp_path}"
-          mv "${tmp_path}" "${cache_path}"
-        else
-          git -C "${cache_path}" fetch --prune origin
-        fi
+        (
+          flock -x 9
+          if [ ! -d "${cache_path}/.git" ]; then
+            mkdir -p "$(dirname "${cache_path}")"
+            tmp_path="${cache_path}.tmp.${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            rm -rf "${tmp_path}"
+            git clone --filter=blob:none "${REPO_URL}" "${tmp_path}"
+            mv "${tmp_path}" "${cache_path}"
+          else
+            # Only fetch if it hasn't been fetched recently (e.g., in the last 5 minutes)
+            # to reduce contention and network usage.
+            last_fetch=$(stat -c %Y "${cache_path}/FETCH_HEAD" 2>/dev/null || echo 0)
+            now=$(date +%s)
+            if (( now - last_fetch > 300 )); then
+              echo "Updating cache..."
+              git -C "${cache_path}" fetch --prune origin
+            else
+              echo "Cache is fresh, skipping fetch."
+            fi
+          fi
+        ) 9>"${cache_path}.lock"
 
     - name: Clone Repo
       env:
