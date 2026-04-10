@@ -12,9 +12,14 @@ import subprocess
 import sys
 
 command = [
-    {runner_args}os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
+    os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
     '--evergreen_content=.', '--evergreen_library={library}.so'
 ] + sys.argv[1:]
+
+if {is_browsertest}:
+  command = [sys.executable, os.path.join(os.path.dirname(__file__),
+        'cobalt_browsertests_runner'), *command]
+
 try:
     result = subprocess.run(command, check=False)
     sys.exit(result.returncode)
@@ -36,11 +41,10 @@ parser.add_argument('--library', type=str, required=True)
 args = parser.parse_args()
 
 with open(args.output, 'w', encoding='utf-8') as f:
-  runner_args = ''
-  if args.library == 'libcobalt_browsertests':
-    runner_args = _BROWSERTEST_RUNNER_ARGS
-
-  f.write(_TEMPLATE.format(runner_args=runner_args, library=args.library))
+  f.write(
+      _TEMPLATE.format(
+          is_browsertest=(args.library == 'libcobalt_browsertests'),
+          library=args.library))
 
 current_permissions = stat.S_IMODE(os.stat(args.output).st_mode)
 new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
