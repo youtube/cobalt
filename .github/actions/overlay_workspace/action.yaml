@@ -51,7 +51,10 @@ runs:
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
           export PATH="$LOWER_DIR/depot_tools:$PATH"
 
-          gclient config --name=src https://github.com/youtube/cobalt.git
+          gclient config \
+            --name=src \
+            --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
+            "https://github.com/youtube/cobalt.git"
           gclient sync -D --no-history
         fi
 
@@ -84,19 +87,12 @@ runs:
         # Disable Chromium client side build telemetry
         build_telemetry opt-out
 
-        # Configure gclient
-        gclient config \
-          --name=src \
-          --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
-          "https://github.com/youtube/cobalt.git"
-
         # Set target OS
         if [[ "${{ matrix.platform }}" == *"android"* ]]; then
           echo "target_os=['android']" >> .gclient
         elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
           echo "target_os=['ios']" >> .gclient
         fi
-        gclient validate
 
         # Set target CPU
         if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
@@ -104,7 +100,6 @@ runs:
         elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
           echo "target_cpu=['x64', 'arm']" >> .gclient
         fi
-        gclient validate
 
         # Add GoB Authentication
         if ! curl -s -m 2 -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" > /dev/null; then

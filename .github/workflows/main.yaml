@@ -665,7 +665,7 @@ jobs:
         ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
         (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
       )
-    runs-on: [self-hosted, odt-runner]
+    runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
       image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
