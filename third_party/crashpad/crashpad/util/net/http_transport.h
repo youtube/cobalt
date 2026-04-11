@@ -75,7 +75,7 @@ class HTTPTransport {
   //! \param[in] timeout The request timeout, in seconds.
   void SetTimeout(double timeout);
 
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   //! \brief Sets the absolute path to a directory containing certificates in
   //!     lieu of the system CA cert bundle.
   //!
@@ -85,7 +85,7 @@ class HTTPTransport {
   //! \param[in] path The path to a directory containing cert files in PEM
   //!     format to be used for TLS connections.
   void SetRootCACertificatesDirectoryPath(const base::FilePath& path);
-#else  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#else  // BUILDFLAG(IS_NATIVE_TARGET)
 
   //! \brief Sets a certificate file to be used in lieu of the system CA cert
   //!     bundle.
@@ -96,7 +96,7 @@ class HTTPTransport {
   //! \param[in] cert The filename of a file in PEM format containing the CA
   //!     cert to be used for TLS connections.
   void SetRootCACertificatePath(const base::FilePath& cert);
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 
   //! \brief Performs the HTTP request with the configured parameters and waits
   //!     for the execution to complete.
@@ -117,20 +117,20 @@ class HTTPTransport {
   const HTTPHeaders& headers() const { return headers_; }
   HTTPBodyStream* body_stream() const { return body_stream_.get(); }
   double timeout() const { return timeout_; }
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   const base::FilePath& root_ca_certificates_directory_path() const {
     return root_ca_certificates_directory_path_;
   }
-#else  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#else  // BUILDFLAG(IS_NATIVE_TARGET)
   const base::FilePath& root_ca_certificate_path() const {
     return root_ca_certificate_path_;
   }
-#endif  // BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 
  private:
   std::string url_;
   std::string method_;
-#if BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_NATIVE_TARGET)
   base::FilePath root_ca_certificates_directory_path_;
 #else
   base::FilePath root_ca_certificate_path_;
