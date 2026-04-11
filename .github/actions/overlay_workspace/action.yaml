@@ -12,10 +12,16 @@ inputs:
     description: Whether or not to run gclient sync for the PR.
     default: 'true'
 
+outputs:
+  cache_hit:
+    description: "Whether the golden workspace cache was hit on the node SSD."
+    value: ${{ steps.prepare.outputs.cache_hit }}
+
 runs:
   using: "composite"
   steps:
     - name: Prepare OverlayFS Workspace
+      id: prepare
       shell: bash
       run: |
         # LOWER_DIR (Read-Only): The pristine golden workspace (tip of tree) on the node's SSD. All pods read from this.
@@ -39,10 +45,14 @@ runs:
         # Ensure the directories exist
         mkdir -p "$UPPER_DIR" "$WORK_DIR" "$MERGED_DIR"
 
-        # If the golden workspace does not exist, initialize it.
+        # If the golden workspace does not exist or is corrupted (missing .gclient), initialize it.
         # This will only happen once per node!
-        if [ ! -d "$LOWER_DIR/src" ]; then
-          echo "Golden workspace not found. Creating it now. This will take time..."
+        if [ ! -f "$LOWER_DIR/.gclient" ]; then
+          echo "cache_hit=false" >> $GITHUB_OUTPUT
+          echo "Golden workspace not found or corrupted. Creating it now. This will take time..."
+
+          # Aggressively clean up any corrupted state from previous bad runs
+          rm -rf "$LOWER_DIR"
           mkdir -p "$LOWER_DIR"
           cd "$LOWER_DIR"
 
@@ -56,6 +66,8 @@ runs:
             --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
             "https://github.com/youtube/cobalt.git"
           gclient sync -D --no-history
+        else
+          echo "cache_hit=true" >> $GITHUB_OUTPUT
         fi
 
         echo "Mounting OverlayFS..."

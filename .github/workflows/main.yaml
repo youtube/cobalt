@@ -434,30 +434,22 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Check Runner Cache
-        if: runner.os == 'Linux'
-        id: check-runner-cache
-        shell: bash
-        run: |
-          if [ -d "/runner-cache/golden-workspace/src" ] && [ "$(ls -A /runner-cache/golden-workspace/src 2>/dev/null)" ]; then
-            echo "cache_hit=true" >> $GITHUB_OUTPUT
-          else
-            echo "cache_hit=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Runner Cache Hot
-        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit == 'true'
-        shell: bash
-        run: echo "Golden workspace found on SSD."
-      - name: Runner Cache Cold
-        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit != 'true'
-        shell: bash
-        run: echo "Golden workspace missing. Will trigger full initialization sync."
       - name: Prepare OverlayFS Workspace
+        id: overlay_workspace
         if: runner.os == 'Linux'
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
           ref: ${{ github.sha }}
+
+      - name: Runner Cache Hot
+        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
         if: runner.os != 'Linux'
@@ -794,31 +786,23 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Check Runner Cache
-        if: runner.os == 'Linux'
-        id: check-runner-cache
-        shell: bash
-        run: |
-          if [ -d "/runner-cache/golden-workspace/src" ] && [ "$(ls -A /runner-cache/golden-workspace/src 2>/dev/null)" ]; then
-            echo "cache_hit=true" >> $GITHUB_OUTPUT
-          else
-            echo "cache_hit=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Runner Cache Hot
-        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit == 'true'
-        shell: bash
-        run: echo "Golden workspace found on SSD."
-      - name: Runner Cache Cold
-        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit != 'true'
-        shell: bash
-        run: echo "Golden workspace missing. Will trigger full initialization sync."
       - name: Prepare OverlayFS Workspace
+        id: overlay_workspace
         if: runner.os == 'Linux'
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
           ref: ${{ github.sha }}
           run_sync: 'false'
+
+      - name: Runner Cache Hot
+        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
         if: runner.os != 'Linux'
