@@ -44,7 +44,9 @@ constexpr int kMaxAllowedFramesWhenNoDecodedFrameYet = 10;
 // https://source.chromium.org/chromium/chromium/src/+/main:media/renderers/video_renderer_impl.cc;l=43;drc=058f840149f10507597892102990f2ab15268fbd
 constexpr int kMaxFramesToTrack = 24;
 
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 constexpr int64_t kLogIntervalUs = 5'000'000;  // 5 sec.
+#endif
 
 }  // namespace
 
