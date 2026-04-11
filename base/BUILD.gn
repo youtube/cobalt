@@ -1784,9 +1784,16 @@ component("base") {
       "profiler/module_cache_posix.cc",
       "profiler/stack_copier_signal.cc",
       "profiler/stack_copier_signal.h",
-      "profiler/thread_delegate_posix.cc",
-      "profiler/thread_delegate_posix.h",
+    ]
 
+    if (!is_starboard) {
+      sources += [
+        "profiler/thread_delegate_posix.cc",
+        "profiler/thread_delegate_posix.h",
+      ]
+    }
+
+    sources -= [
       #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
       # struct mallinfo minfo = mallinfo();
       "process/process_metrics_posix.cc",
