@@ -434,6 +434,23 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Check Runner Cache
+        id: check-runner-cache
+        shell: bash
+        run: |
+          if [ -d "/runner-cache/golden-workspace/src" ] && [ "$(ls -A /runner-cache/golden-workspace/src 2>/dev/null)" ]; then
+            echo "cache_hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "cache_hit=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Runner Cache Hot
+        if: steps.check-runner-cache.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: steps.check-runner-cache.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Golden workspace missing. Will trigger full initialization sync."
       - name: Prepare OverlayFS Workspace
         uses: ./.github/actions/overlay_workspace
         with:
@@ -763,7 +780,7 @@ jobs:
         id: check-runner-cache
         shell: bash
         run: |
-          if [ -d "/runner-cache/git-cache" ] && [ "$(ls -A /runner-cache/git-cache 2>/dev/null)" ]; then
+          if [ -d "/runner-cache/golden-workspace/src" ] && [ "$(ls -A /runner-cache/golden-workspace/src 2>/dev/null)" ]; then
             echo "cache_hit=true" >> $GITHUB_OUTPUT
           else
             echo "cache_hit=false" >> $GITHUB_OUTPUT
@@ -771,11 +788,11 @@ jobs:
       - name: Runner Cache Hot
         if: steps.check-runner-cache.outputs.cache_hit == 'true'
         shell: bash
-        run: echo "Runner cache is populated."
+        run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
         if: steps.check-runner-cache.outputs.cache_hit != 'true'
         shell: bash
-        run: echo "Runner cache is empty."
+        run: echo "Golden workspace missing. Will trigger full initialization sync."
       - name: Prepare OverlayFS Workspace
         uses: ./.github/actions/overlay_workspace
         with:
