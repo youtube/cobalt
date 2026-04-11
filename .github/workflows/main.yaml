@@ -435,6 +435,7 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Check Runner Cache
+        if: runner.os == 'Linux'
         id: check-runner-cache
         shell: bash
         run: |
@@ -444,18 +445,33 @@ jobs:
             echo "cache_hit=false" >> $GITHUB_OUTPUT
           fi
       - name: Runner Cache Hot
-        if: steps.check-runner-cache.outputs.cache_hit == 'true'
+        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit == 'true'
         shell: bash
         run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
-        if: steps.check-runner-cache.outputs.cache_hit != 'true'
+        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit != 'true'
         shell: bash
         run: echo "Golden workspace missing. Will trigger full initialization sync."
       - name: Prepare OverlayFS Workspace
+        if: runner.os == 'Linux'
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
           ref: ${{ github.sha }}
+
+      - name: Checkout
+        if: runner.os != 'Linux'
+        uses: ./.github/actions/checkout
+        with:
+          path: cobalt/src
+          ref: ${{ github.sha }}
+          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          use_cache: true
+
+      - name: Set Up Depot Tools
+        if: runner.os != 'Linux'
+        id: setup-depot-tools
+        uses: ./.github/actions/depot_tools
 
       - name: Build Cobalt
         id: build
@@ -492,8 +508,10 @@ jobs:
         if: inputs.run_api_leak_detector
 
       - name: Teardown OverlayFS
-        if: always()
+        if: runner.os == 'Linux' && always()
         uses: ./.github/actions/teardown_overlay
+        with:
+          path: cobalt
 
   on-device-test:
     needs: [initialize, build]
@@ -777,6 +795,7 @@ jobs:
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Check Runner Cache
+        if: runner.os == 'Linux'
         id: check-runner-cache
         shell: bash
         run: |
@@ -786,19 +805,36 @@ jobs:
             echo "cache_hit=false" >> $GITHUB_OUTPUT
           fi
       - name: Runner Cache Hot
-        if: steps.check-runner-cache.outputs.cache_hit == 'true'
+        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit == 'true'
         shell: bash
         run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
-        if: steps.check-runner-cache.outputs.cache_hit != 'true'
+        if: runner.os == 'Linux' && steps.check-runner-cache.outputs.cache_hit != 'true'
         shell: bash
         run: echo "Golden workspace missing. Will trigger full initialization sync."
       - name: Prepare OverlayFS Workspace
+        if: runner.os == 'Linux'
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
           ref: ${{ github.sha }}
           run_sync: 'false'
+
+      - name: Checkout
+        if: runner.os != 'Linux'
+        uses: ./.github/actions/checkout
+        with:
+          path: cobalt/src
+          ref: ${{ github.sha }}
+          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
+          use_cache: true
+
+      - name: Set Up Depot Tools
+        if: runner.os != 'Linux'
+        id: setup-depot-tools
+        uses: ./.github/actions/depot_tools
+        with:
+          run_sync: false
 
       - name: Run Web Tests
         uses: ./.github/actions/web_tests
@@ -807,8 +843,10 @@ jobs:
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
       - name: Teardown OverlayFS
-        if: always()
+        if: runner.os == 'Linux' && always()
         uses: ./.github/actions/teardown_overlay
+        with:
+          path: cobalt
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]

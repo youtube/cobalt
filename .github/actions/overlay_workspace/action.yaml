@@ -51,7 +51,6 @@ runs:
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
           export PATH="$LOWER_DIR/depot_tools:$PATH"
 
-          cd src
           gclient config --name=src https://github.com/youtube/cobalt.git
           gclient sync -D --no-history
         fi
@@ -125,6 +124,7 @@ runs:
 
         if [[ "${{ inputs.run_sync }}" == "true" ]]; then
           echo "Syncing specific dependencies needed for this PR..."
+          cd "$MERGED_DIR"
           gclient sync \
             --verbose \
             --shallow \

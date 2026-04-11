@@ -1,13 +1,18 @@
 name: Teardown OverlayFS Workspace
 description: Unmounts the OverlayFS and deletes the upper layer changes.
 
+inputs:
+  path:
+    description: Destination path (e.g. cobalt).
+    required: true
+
 runs:
   using: "composite"
   steps:
     - name: Teardown Workspace
       shell: bash
       run: |
-        MERGED_DIR="${GITHUB_WORKSPACE}/cobalt"
+        MERGED_DIR="${GITHUB_WORKSPACE}/${{ inputs.path }}"
         UPPER_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/upper"
         WORK_DIR="/runner-cache/workspaces/${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}/work"
 
