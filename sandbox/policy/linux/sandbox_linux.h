@@ -234,7 +234,9 @@ class SANDBOX_POLICY_EXPORT SandboxLinux {
   // destroyed, as after the sandbox is started it is vital to the process.
   void StartBrokerProcess(
       const syscall_broker::BrokerCommandSet& allowed_command_set,
+#if !BUILDFLAG(IS_STARBOARD)
       std::vector<syscall_broker::BrokerFilePermission> permissions,
+#endif
       PreSandboxHook broker_side_hook,
       const Options& options);
 

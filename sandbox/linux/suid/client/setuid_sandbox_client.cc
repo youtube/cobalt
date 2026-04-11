@@ -76,7 +76,9 @@ SetuidSandboxClient::SetuidSandboxClient(std::unique_ptr<base::Environment> env)
   DCHECK(env_);
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 SetuidSandboxClient::~SetuidSandboxClient() = default;
+#endif
 
 void SetuidSandboxClient::CloseDummyFile() {
   // When we're launched through the setuid sandbox, SetupLaunchOptions

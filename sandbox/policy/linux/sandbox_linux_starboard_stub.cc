@@ -69,7 +69,9 @@ int SandboxLinux::GetStatus() {
 
 void SandboxLinux::StartBrokerProcess(
     const syscall_broker::BrokerCommandSet& allowed_command_set,
+#if !BUILDFLAG(IS_STARBOARD)
     std::vector<syscall_broker::BrokerFilePermission> permissions,
+#endif
     PreSandboxHook broker_side_hook,
     const Options& options) {
   NOTIMPLEMENTED();

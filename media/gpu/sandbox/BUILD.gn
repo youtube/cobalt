@@ -13,7 +13,7 @@ source_set("sandbox") {
       "hardware_video_decoding_sandbox_hook_linux.h",
     ]
   }
-  if (is_linux || is_chromeos) {
+  if ((is_linux && !is_starboard) || is_chromeos) {
     sources += [
       "hardware_video_encoding_sandbox_hook_linux.cc",
       "hardware_video_encoding_sandbox_hook_linux.h",

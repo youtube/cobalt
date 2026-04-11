@@ -40,7 +40,11 @@ class SANDBOX_EXPORT SetuidSandboxClient {
   SetuidSandboxClient(const SetuidSandboxClient&) = delete;
   SetuidSandboxClient& operator=(const SetuidSandboxClient&) = delete;
 
+#if BUILDFLAG(IS_STARBOARD)
+  ~SetuidSandboxClient() = default;
+#else
   ~SetuidSandboxClient();
+#endif
 
   // Close the dummy file descriptor leftover from the sandbox ABI.
   void CloseDummyFile();
