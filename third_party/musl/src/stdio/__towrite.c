@@ -17,7 +17,9 @@ int __towrite(FILE *f)
 	return 0;
 }
 
+#ifndef STARBOARD
 hidden void __towrite_needs_stdio_exit()
 {
 	__stdio_exit_needed();
 }
+#endif // STARBOARD
