@@ -53,6 +53,8 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      const StarboardRendererConfig::ExperimentalFeatures&
+          experimental_features,
       const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -65,12 +67,8 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
-                          viewport_size,
-                          /*enable_flush_during_seek=*/false,
-                          /*enable_reset_audio_decoder=*/false,
-                          /*initial_max_frames_in_decoder=*/std::nullopt,
-                          /*max_pending_input_frames=*/std::nullopt,
-                          /*video_decoder_poll_interval_ms=*/std::nullopt
+                          experimental_features,
+                          viewport_size
 #if BUILDFLAG(IS_ANDROID)
                           ,
                           android_overlay_factory_cb
@@ -155,6 +153,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
+            StarboardRendererConfig::ExperimentalFeatures{},
             gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
                 ,
@@ -177,14 +176,10 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), &video_geometry_setter_service_,
         base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
-        std::string(), gfx::Size(),
-        /*enable_flush_during_seek=*/false,
-        /*enable_reset_audio_decoder=*/false,
-        /*initial_max_frames_in_decoder=*/std::nullopt,
-        /*max_pending_input_frames=*/std::nullopt,
-        /*video_decoder_poll_interval_ms=*/std::nullopt,
-        std::move(renderer_extension_receiver),
-        std::move(client_extension_remote), base::NullCallback());
+        std::string(), StarboardRendererConfig::ExperimentalFeatures{},
+        gfx::Size(), std::move(renderer_extension_receiver),
+        std::move(client_extension_remote), base::NullCallback(),
+        AndroidOverlayMojoFactoryCB());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
