@@ -44,6 +44,7 @@
 #include "base/synchronization/lock.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
+
 #endif
 
 // Symbol with virtual address of the start of ELF header of the current binary.
@@ -512,35 +513,44 @@ std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
 // static
 bool OSMetrics::ReadDetailedMetricsFile(base::ProcessHandle handle,
                                         DetailedMetricsDelegate* delegate) {
-  std::string content;
+  FILE* f = nullptr;
+  bool should_close = false;
   {
     base::AutoLock lock(GetTestingGlobalsLock());
     if (g_proc_smaps_for_testing) {
-      fseek(g_proc_smaps_for_testing, 0, SEEK_SET);
-      if (!base::ReadStreamToString(g_proc_smaps_for_testing, &content)) {
-        return false;
-      }
-      fseek(g_proc_smaps_for_testing, 0, SEEK_SET);
+      f = g_proc_smaps_for_testing;
+      fseek(f, 0, SEEK_SET);
     }
   }
 
-  if (content.empty()) {
+  if (!f) {
     std::string file_name =
         "/proc/" +
         (handle == base::kNullProcessHandle ? "self"
                                             : base::NumberToString(handle)) +
         "/smaps";
-    if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
-      DPLOG(ERROR) << "Couldn't read " << file_name;
+    f = fopen(file_name.c_str(), "r");
+    if (!f) {
+      DPLOG(ERROR) << "Couldn't open " << file_name;
+      return false;
+    }
+    should_close = true;
+  }
+
+  char line[2048];
+  while (fgets(line, sizeof(line), f)) {
+    if (!delegate->OnSmapsBuffer(line)) {
+      if (should_close) {
+        fclose(f);
+      }
       return false;
     }
   }
 
-  for (std::string_view line : base::SplitStringPiece(
-           content, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
-    if (!delegate->OnSmapsBuffer(line)) {
-      return false;
-    }
+  if (should_close) {
+    fclose(f);
+  } else {
+    fseek(f, 0, SEEK_SET);
   }
 
   return true;
@@ -555,8 +565,12 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
     return true;
   }
 
+  static base::NoDestructor<base::Lock> detailed_metrics_lock;
+  base::AutoLock lock(*detailed_metrics_lock);
+
   if (!ReadDetailedMetricsFile(handle, delegate)) {
-    return false;
+    LOG(WARNING) << "Failed to read detailed metrics, continuing with basic metrics.";
+    return true;
   }
 
   DetailedMetrics metrics = delegate->GetAndResetStats();

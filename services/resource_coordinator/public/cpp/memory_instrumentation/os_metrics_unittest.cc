@@ -17,6 +17,9 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
+#include "base/task/thread_pool.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -526,6 +529,70 @@ TEST(OSMetricsTest, DetailedMetricsIntegration) {
 
   // Verify legacy fields are also populated.
   EXPECT_EQ(162u, dump.libchrobalt_pss_kb);
+
+  OSMetrics::SetProcSmapsForTesting(nullptr);
+  OSMetrics::SetSmapsRollupForTesting(nullptr);
+}
+
+TEST(OSMetricsTest, DetailedMetricsConcurrency) {
+  base::test::TaskEnvironment task_environment;
+  if (!MemoryInstrumentation::GetInstance()) {
+    mojo::PendingRemote<mojom::Coordinator> coordinator_remote;
+    MemoryInstrumentation::CreateInstance(std::move(coordinator_remote), true);
+  }
+
+  SimpleDetailedMetricsDelegate delegate;
+
+  base::ScopedFILE temp_smaps;
+  CreateTempFileWithContents(kTestSmaps1, &temp_smaps);
+  OSMetrics::SetProcSmapsForTesting(temp_smaps.get());
+
+  base::ScopedFILE temp_rollup;
+  CreateTempFileWithContents("Pss: 290 kB\nSwapPss: 0 kB\n", &temp_rollup);
+  OSMetrics::SetSmapsRollupForTesting(temp_rollup.get());
+
+  const int kNumThreads = 4;
+  
+  struct ThreadArgs {
+    SimpleDetailedMetricsDelegate* delegate;
+    bool success;
+    mojom::RawOSMemDumpPtr dump;
+  } args[kNumThreads];
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    args[i].delegate = &delegate;
+    args[i].success = false;
+    args[i].dump = mojom::RawOSMemDump::New();
+    args[i].dump->platform_private_footprint = mojom::PlatformPrivateFootprint::New();
+  }
+
+  base::WaitableEvent events[kNumThreads];
+  for (int i = 0; i < kNumThreads; ++i) {
+    events[i].Reset();
+  }
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    base::ThreadPool::PostTask(
+        FROM_HERE, {base::MayBlock()},
+        base::BindOnce([](ThreadArgs* args, base::WaitableEvent* event) {
+          OSMetrics::MemDumpFlagSet flags;
+          flags.Put(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
+          args->success = OSMetrics::FillOSMemoryDump(base::kNullProcessHandle, flags, args->dump.get(), args->delegate);
+          event->Signal();
+        }, base::Unretained(&args[i]), base::Unretained(&events[i])));
+  }
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    events[i].Wait();
+  }
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    EXPECT_TRUE(args[i].success);
+    ASSERT_TRUE(args[i].dump->detailed_stats_kb.has_value());
+    EXPECT_EQ(2u, args[i].dump->detailed_stats_kb->size());
+    EXPECT_EQ(162u, (*args[i].dump->detailed_stats_kb)["pss:lib_chrobalt"]);
+    EXPECT_EQ(128u, (*args[i].dump->detailed_stats_kb)["pss:category2"]);
+  }
 
   OSMetrics::SetProcSmapsForTesting(nullptr);
   OSMetrics::SetSmapsRollupForTesting(nullptr);
