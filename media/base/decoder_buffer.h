@@ -276,12 +276,6 @@ class MEDIA_EXPORT DecoderBuffer
 
   // TODO(crbug.com/41383992): Remove writable_span().
   base::span<uint8_t> writable_span() const {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (allocator_data_) {
-      CHECK(0);  // This code path isn't used in Chrobalt
-      return UNSAFE_TODO(base::span(writable_data(), size()));
-    }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     // TODO(crbug.com/40284755): `data_` should be converted to HeapArray, then
     // it can give out a span safely.
     return UNSAFE_TODO(base::span(writable_data(), size()));
@@ -470,7 +464,6 @@ class MEDIA_EXPORT DecoderBuffer
   const bool is_end_of_stream_ : 1 = false;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void Initialize();
   void Initialize(DemuxerStream::Type type);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
