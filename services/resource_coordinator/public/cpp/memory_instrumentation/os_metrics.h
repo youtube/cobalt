@@ -1,6 +1,7 @@
 // Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 #define SERVICES_RESOURCE_COORDINATOR_PUBLIC_CPP_MEMORY_INSTRUMENTATION_OS_METRICS_H_
 
@@ -72,10 +73,13 @@ class COMPONENT_EXPORT(
                                     mojom::RawOSMemDump*);
   static std::vector<mojom::VmRegionPtr> GetProcessMemoryMaps(
       base::ProcessHandle);
+  static std::vector<mojom::VmRegionPtr> GetProcessMemoryMaps(
+      const std::string& smaps_content);
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static void SetProcSmapsForTesting(FILE*);
 #if BUILDFLAG(IS_COBALT)
+  static void SetSmapsRollupForTesting(FILE*);
   static void SetDetailedMetricsDelegate(base::WeakPtr<DetailedMetricsDelegate> delegate);
 #endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||

@@ -7,6 +7,7 @@
 
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
+#include "base/memory/weak_ptr.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
@@ -15,6 +16,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/synchronization/lock.h"
 #endif
 
 namespace memory_instrumentation {
@@ -117,6 +122,16 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 
   base::WeakPtr<MemoryInstrumentation> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 #endif
+
+#if BUILDFLAG(IS_COBALT)
+  // Set the delegate for detailed metrics collection.
+  void SetDetailedMetricsDelegate(class DetailedMetricsDelegate* delegate);
+
+  // Get the registered delegate.
+  class DetailedMetricsDelegate* GetDetailedMetricsDelegate() const;
+#endif
+
+  base::WeakPtr<MemoryInstrumentation> GetWeakPtr();
 
  private:
   explicit MemoryInstrumentation(

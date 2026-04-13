@@ -223,9 +223,11 @@ struct RawOSMemDump {
   // Cobalt-specific memory metrics end
 
   // Generic map for detailed memory metrics.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
   map<string, uint32>? detailed_stats_kb;
 
   // Timestamp of the last successful detailed memory dump.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
   mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
@@ -315,9 +317,11 @@ struct OSMemDump {
   // Cobalt-specific memory metrics end
 
   // Generic map for detailed memory metrics.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
   map<string, uint32>? detailed_stats_kb;
 
   // Timestamp of the last successful detailed memory dump.
+  [EnableIf=is_cobalt_with_libchrobalt_metrics]
   mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
