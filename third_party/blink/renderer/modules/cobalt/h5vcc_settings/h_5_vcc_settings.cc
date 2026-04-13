@@ -37,6 +37,10 @@
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 namespace {
 
@@ -68,10 +72,10 @@ using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 const SettingsMap& GetDecoderBufferSettings() {
   static const base::NoDestructor<SettingsMap> settings({
-      {kEnableMediaBufferPoolAllocatorStrategy,
-       &::media::DecoderBuffer::EnableMediaBufferPoolStrategy},
       {kEnableInPlaceReuseAllocatorBase,
-       &::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase},
+       &::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase},
+      {kEnableMediaBufferPoolAllocatorStrategy,
+       &::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy},
   });
   return *settings;
 }

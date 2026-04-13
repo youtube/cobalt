@@ -52,6 +52,10 @@ class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
 // SbRunStarboardMain.
 
 SB_EXPORT void SbEventHandle(const SbEvent* event) {
+  static int s_test_result_code = 0;
+  static base::AtExitManager* s_at_exit_manager = nullptr;
+  static CobaltBrowserTestLauncherDelegate* s_delegate = nullptr;
+
   switch (event->type) {
     case kSbEventTypeStart: {
       // The Starboard platform is initialized and ready. It is now safe
@@ -67,30 +71,42 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       testing::InitGoogleTest(&argc, argv);
 
       // A manager for singleton destruction.
-      base::AtExitManager at_exit;
+      if (!s_at_exit_manager) {
+        s_at_exit_manager = new base::AtExitManager();
+      }
 
       // TODO(b/433354983): Support more platforms.
       ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
 
-      CobaltBrowserTestLauncherDelegate delegate;
+      if (!s_delegate) {
+        s_delegate = new CobaltBrowserTestLauncherDelegate();
+      }
       TestTimeouts::Initialize();
       base::InitStarboardTestMessageLoop();
-      int test_result_code = content::LaunchTests(&delegate, 1, argc, argv);
-
-      // Call std::_Exit() from <cstdlib> to immediately terminate the process
-      // without executing any C++ destructors or AtExitManager callbacks.
-      // Chromium browser tests intentionally leak state in single-process mode,
-      // which causes memory access violations during standard teardown by
-      // Starboard.
+      s_test_result_code = content::LaunchTests(s_delegate, 1, argc, argv);
+      SbSystemRequestStop(s_test_result_code);
+      break;
+    }
+    case kSbEventTypeStop: {
+      // We must use std::_Exit() from <cstdlib> to immediately terminate the
+      // process without executing any C++ destructors or Starboard's teardown
+      // callbacks.
       //
-      // Note: We cannot use standard _exit() (lowercase) or Chromium's
-      // base::Process::TerminateCurrentProcessImmediately (which calls _exit)
-      // because Starboard's Musl port specifically maps _exit() back to exit(),
-      // which runs the problematic teardown logic anyway. std::_Exit()
-      // (uppercase) bypasses this and invokes the raw SYS_exit_group syscall.
-      // TODO(b/463991461): Consider ASAN_OPTIONS=exitcode=0 to avoid the need
-      // for std::_Exit() here.
-      std::_Exit(test_result_code);
+      // 1. Returning naturally: Chromium browser tests intentionally leak state
+      //    in single-process mode. Starboard's teardown sequence triggers
+      //    Chromium's Dangling Pointer Detector and causes a SIGABRT/SIGSEGV.
+      //    ASAN_OPTIONS cannot suppress this because Starboard uninstalls
+      //    ASAN's signal handlers during teardown.
+      // 2. TerminateCurrentProcessImmediately(): Chromium's base::Process
+      //    implementation calls the standard library's `_exit()`. However,
+      //    the Evergreen ELF loader sandbox explicitly does not export `_Exit`
+      //    or `_exit`, causing the loader to abort when it attempts to resolve
+      //    the symbol.
+      //
+      // std::_Exit() (uppercase) bypasses the C library entirely and invokes
+      // the raw SYS_exit_group syscall, escaping the sandbox and terminating
+      // cleanly.
+      std::_Exit(s_test_result_code);
     }
     default:
       break;
