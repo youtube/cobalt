@@ -152,6 +152,8 @@ class MigrationManager {
   // Returns an empty string if the migration fast path was taken.
   static std::string GetMigrationStatusUrlParameter();
 
+  static void ResetMigrationStatusForTesting();
+
  private:
   friend class MigrationManagerTest;
 
