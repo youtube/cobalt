@@ -85,6 +85,18 @@ TEST(GetRandomTest, HandlesLargeBuffer) {
   EXPECT_EQ(total_read, kLargeBufSize);
 }
 
+TEST(GetRandomTest, RandomFlag) {
+  char buf[16];
+  ssize_t result = getrandom(buf, 16, GRND_RANDOM);
+  if (result == -1) {
+    if (errno == ENOSYS) {
+      GTEST_SKIP() << "getrandom() not supported on this platform.";
+    }
+    FAIL() << "getrandom failed with unexpected error: " << strerror(errno);
+  }
+  EXPECT_EQ(result, 16);
+}
+
 TEST(GetRandomTest, NonBlocking) {
   char buf[16];
   ssize_t result = getrandom(buf, 16, GRND_NONBLOCK);
