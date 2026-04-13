@@ -190,9 +190,8 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
         kMediaExperimentalMaxPendingBytesPerParse +
             String(" must be a positive integer.")));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-    String error_msg =
-        String(kMediaExperimentalMaxPendingBytesPerParse) + " is not supported.";
-    LOG(WARNING) << error_msg;
+    String error_msg = String(kMediaExperimentalMaxPendingBytesPerParse) +
+                       " is not supported.";
     resolver->Reject(V8ThrowException::CreateTypeError(
         script_state->GetIsolate(), error_msg));
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
