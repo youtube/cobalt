@@ -613,10 +613,9 @@ public class StarboardBridge {
 
   @CalledByNative
   public void closeCobaltService(String serviceName) {
-    CobaltService service = mCobaltServices.get(serviceName);
-    if(service != null) {
+    CobaltService service = mCobaltServices.remove(serviceName);
+    if (service != null) {
       service.onClose();
-      mCobaltServices.remove(serviceName);
     }
     Log.i(TAG, String.format("Closed platform service %s.", serviceName));
   }
