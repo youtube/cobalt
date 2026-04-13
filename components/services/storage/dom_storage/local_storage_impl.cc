@@ -711,7 +711,7 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
                              &db_version) ||
         db_version < kMinSchemaVersion ||
         db_version > kCurrentLocalStorageSchemaVersion) {
-      base::UmaHistogramEnumeration("Cobalt.LocalStorage.VersionMismatch",
+      base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseVersionMismatch",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
       DeleteAndRecreateDatabase();

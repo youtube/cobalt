@@ -7,9 +7,8 @@ import sys
 
 _SKIP_LIST = {
     '27.lts': [
-        # Reorders deleted BUILD_STATUS.md file (#9476).
+        # Reorders deleted BUILD_STATUS.md file (#9476, #9508).
         '7e6524981fdd6ab3c87bc55785343d40116a05e5',
-        # Reorders deleted BUILD_STATUS.md file (#9508).
         'adda40a0d3b08b9302f441e76eef0391c70e0462',
         # Modifies deleted workflow trigger files (#9473).
         'b24037232cbc7a74bf01dbc4c93dbe9701328b5e',
@@ -25,7 +24,7 @@ _SKIP_LIST = {
 
 def get_out(cmd):
   res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-  return res.stdout.strip()
+  return res.stdout
 
 
 def get_commits(origin, target, start):
@@ -35,12 +34,28 @@ def get_commits(origin, target, start):
   return get_out(cmd).splitlines()
 
 
+def get_pr_set(branch, exclude_branch):
+  prs = set()
+  cmd = ['git', 'log', '--reverse', '--format=%s', branch, f'^{exclude_branch}']
+  subjects = get_out(cmd).splitlines()
+  for subject in subjects:
+    match = re.match(r'^(Revert\s+"?)?Cherry pick PR #(\d+):', subject)
+    if match:
+      revert, pr_num = match.groups()
+      if revert:
+        prs.discard(pr_num)
+      else:
+        prs.add(pr_num)
+  return prs
+
+
 def cherry_pick(sha, num, title):
-  ps = get_out(['git', 'show', '-s', '--format=%P', sha]).split()
-  info = get_out(['git', 'log', '-1', '--format=%ad%n%b', sha])
-  parts = info.split('\n', 1)
+  log_output = get_out(
+      ['git', 'log', '-1', '--format=%ad%x00%an <%ae>%x00%b', sha])
+  parts = log_output.split('\x00', 2)
   date = parts[0]
-  body = parts[1] if len(parts) > 1 else ''
+  author = parts[1]
+  body = parts[2] if len(parts) > 2 else ''
 
   msg = f'Cherry pick PR #{num}: {title}\n\n'
   msg += f'Refer to original PR: #{num}\n\n'
@@ -49,11 +64,15 @@ def cherry_pick(sha, num, title):
   msg += f'(cherry picked from commit {sha})'
 
   cmd = ['git', 'cherry-pick', '--no-commit']
+  ps = get_out(['git', 'show', '-s', '--format=%P', sha]).strip().split()
   if len(ps) > 1:
     cmd.append('--mainline=1')
   subprocess.run(cmd + [sha], check=True, stdout=sys.stderr)
 
-  cmd = ['git', 'commit', '--no-verify', f'--date={date}', '-m', msg]
+  cmd = [
+      'git', 'commit', '--no-verify', f'--author={author}', f'--date={date}',
+      '-m', msg
+  ]
   subprocess.run(cmd, check=True, stdout=sys.stderr)
 
 
@@ -65,6 +84,9 @@ def main():
   args = p.parse_args()
 
   links = []
+  target_prs = get_pr_set(args.target_branch, args.origin_branch)
+  autoroll_prs = get_pr_set('HEAD', args.origin_branch)
+
   for line in get_commits(args.origin_branch, args.target_branch,
                           args.start_commit):
     match = re.match(r'^(\w+) (.*) \(#(\d+)\)$', line)
@@ -76,16 +98,13 @@ def main():
         continue
 
       # Skip if the PR is already in the target branch.
-      if get_out([
-          'git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:',
-          args.target_branch
-      ]):
+      if num in target_prs:
         continue
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
-      if not get_out(
-          ['git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:', 'HEAD']):
+      if num not in autoroll_prs:
         cherry_pick(sha, num, title)
+        autoroll_prs.add(num)
 
       links.append(f'- #{num}')
 
