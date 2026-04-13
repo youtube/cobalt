@@ -35,8 +35,17 @@ source_set("unittest") {
   deps = [
     ":migrate_storage_record",
     ":storage_proto",
+    "//base",
     "//base/test:test_support",
+    "//cobalt/browser:switches",
+    "//components/services/storage/public/mojom",
+    "//content/test:test_support",
+    "//mojo/public/cpp/bindings",
     "//net",
+    "//services/network:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/blink/public/mojom:mojom_platform",
     "//url",
   ]
 }
