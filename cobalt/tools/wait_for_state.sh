@@ -26,7 +26,7 @@ echo "[WAIT] Waiting for '$EXPR' to be '$EXPECTED' on $HOST:$PORT (timeout: ${TI
 
 while true; do
   RESULT=$(vpython3 cobalt/tools/cdp_js_helper.py --host $HOST --port $PORT "$EXPR" 2>/dev/null)
-  if [[ "$RESULT" == *"$EXPECTED"* ]]; then
+  if [[ "$RESULT" == "$EXPECTED" ]]; then
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
     echo "[WAIT] SUCCESS: '$EXPR' matched '$EXPECTED' (took ${DURATION}s)"

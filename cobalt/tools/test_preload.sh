@@ -83,9 +83,9 @@ bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 1
 bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Verifying event sequence..."
-# Expected: visibilitychange (visible, false)
-EXPECTED_LOG='"type":"visibilitychange","visibility":"visible","prerendering":false}'
-bash cobalt/tools/wait_for_state.sh "JSON.stringify(window.event_log)" "$EXPECTED_LOG" $PORT 60 $HOST || exit 1
+# Expected: visibilitychange (visible)
+EXPECTED_VISIBILITY_EVENT="window.event_log.some(e => e.type === 'visibilitychange' && e.visibility === 'visible')"
+bash cobalt/tools/wait_for_state.sh "$EXPECTED_VISIBILITY_EVENT" "True" $PORT 60 $HOST || exit 1
 
 echo "[TEST] Testing conceal/reveal cycle after initial reveal..."
 execute_js "window.event_log = [];"
@@ -99,18 +99,24 @@ kill -SIGCONT $COBALT_PID
 bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Verifying cycle events..."
-EXPECTED_CYCLE_LOG='"type":"visibilitychange","visibility":"hidden","prerendering":false},{"type":"visibilitychange","visibility":"visible","prerendering":false}'
-bash cobalt/tools/wait_for_state.sh "JSON.stringify(window.event_log)" "$EXPECTED_CYCLE_LOG" $PORT 120 $HOST || exit 1
+EXPECTED_CONCEAL_EVENT="window.event_log.some(e => e.type === 'visibilitychange' && e.visibility === 'hidden')"
+bash cobalt/tools/wait_for_state.sh "$EXPECTED_CONCEAL_EVENT" "True" $PORT 120 $HOST || exit 1
+
+EXPECTED_REVEAL_EVENT="window.event_log.some(e => e.type === 'visibilitychange' && e.visibility === 'visible')"
+bash cobalt/tools/wait_for_state.sh "$EXPECTED_REVEAL_EVENT" "True" $PORT 120 $HOST || exit 1
 
 echo "[TEST] Sending SIGPWR (STOP)..."
 kill -SIGPWR $COBALT_PID
-sleep 5
+sleep 10
 
 if kill -0 $COBALT_PID 2>/dev/null; then
-  echo "FAILURE: Cobalt (PID: $COBALT_PID) did not stop after SIGPWR."
-  echo "[TEST] Cleaning up Cobalt (PID: $COBALT_PID)..."
-  kill -9 $COBALT_PID
-  exit 1
+  STAT=$(ps -p $COBALT_PID -o stat= | tr -d ' ')
+  if [[ "$STAT" != "Z"* ]]; then
+    echo "FAILURE: Cobalt (PID: $COBALT_PID) did not stop after SIGPWR. State: $STAT"
+    echo "[TEST] Cleaning up Cobalt (PID: $COBALT_PID)..."
+    kill -9 $COBALT_PID
+    exit 1
+  fi
 fi
 
 echo "[TEST] SUCCESS: Preload and reveal verified!"

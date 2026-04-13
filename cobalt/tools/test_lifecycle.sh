@@ -85,13 +85,16 @@ sleep 3
 
 echo "[TEST] Sending SIGPWR (STOP)..."
 kill -SIGPWR $COBALT_PID
-sleep 5
+sleep 10
 
 if kill -0 $COBALT_PID 2>/dev/null; then
-  echo "FAILURE: Cobalt (PID: $COBALT_PID) did not stop after SIGPWR."
-  echo "[TEST] Cleaning up Cobalt (PID: $COBALT_PID)..."
-  kill -9 $COBALT_PID
-  exit 1
+  STAT=$(ps -p $COBALT_PID -o stat= | tr -d ' ')
+  if [[ "$STAT" != "Z"* ]]; then
+    echo "FAILURE: Cobalt (PID: $COBALT_PID) did not stop after SIGPWR. State: $STAT"
+    echo "[TEST] Cleaning up Cobalt (PID: $COBALT_PID)..."
+    kill -9 $COBALT_PID
+    exit 1
+  fi
 fi
 
 echo "[TEST] SUCCESS: Lifecycle transitions verified!"

@@ -49,7 +49,13 @@ async def get_websocket_url(host, port):
 
 async def evaluate(expression, host, port):
   """Evaluates a JavaScript expression via CDP."""
-  ws_url = await get_websocket_url(host, port)
+  ws_url = None
+  for _ in range(3):
+    ws_url = await get_websocket_url(host, port)
+    if ws_url:
+      break
+    await asyncio.sleep(1)
+
   if not ws_url:
     return 'ERROR: No websocket URL'
 
