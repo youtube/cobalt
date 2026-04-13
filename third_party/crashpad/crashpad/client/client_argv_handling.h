@@ -39,7 +39,7 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments = {});
 
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET_BUILD)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_NATIVE_TARGET)
 //! \brief An override that includes an arg for |ca_certificates_path|.
 std::vector<std::string> BuildHandlerArgvStrings(
     const base::FilePath& handler,
