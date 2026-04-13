@@ -335,6 +335,7 @@ test("cobalt_unittests") {
     "//mojo/core/embedder",
     "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
+    "//services/resource_coordinator:tests",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/metrics_proto",

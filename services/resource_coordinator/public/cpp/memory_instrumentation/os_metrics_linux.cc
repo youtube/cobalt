@@ -15,10 +15,12 @@
 #include <stdint.h>
 #include <sys/prctl.h>
 
+#include <atomic>
 #include <memory>
 
 #include "base/android/library_loader/anchor_functions.h"
 #include "base/android/library_loader/anchor_functions_buildflags.h"
+#include "base/containers/contains.h"
 #include "base/containers/heap_array.h"
 #include "base/debug/elf_reader.h"
 #include "base/debug/proc_maps_linux.h"
@@ -35,7 +37,14 @@
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/strings/ascii.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/no_destructor.h"
+#include "base/numerics/safe_conversions.h"
+#include "base/synchronization/lock.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
+#endif
 
 // Symbol with virtual address of the start of ELF header of the current binary.
 extern char __ehdr_start;
@@ -47,8 +56,17 @@ namespace {
 using mojom::VmRegion;
 using mojom::VmRegionPtr;
 
+#if BUILDFLAG(IS_COBALT)
+FILE* g_proc_smaps_rollup_for_testing = nullptr;
+const size_t kPssValidationThresholdKb = 10240;
+#endif
+
+base::Lock& GetTestingGlobalsLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
 const char kClearPeakRssCommand[] = "5";
-const uint32_t kMaxLineSize = 4096;
 
 // TODO(chiniforooshan): Many of the utility functions in this anonymous
 // namespace should move to base/process/process_metrics_linux.cc to make the
@@ -59,16 +77,64 @@ base::FilePath GetProcPidDir(base::ProcessId pid) {
       pid == base::kNullProcessId ? "self" : base::NumberToString(pid));
 }
 
+void GetSmapsRollup(base::ProcessHandle handle,
+                    size_t* pss,
+                    size_t* swap_pss) {
+  std::string content;
+  bool use_mock = false;
+  {
+    base::AutoLock lock(GetTestingGlobalsLock());
+    if (g_proc_smaps_rollup_for_testing) {
+      use_mock = true;
+      fseek(g_proc_smaps_rollup_for_testing, 0, SEEK_SET);
+      base::ReadStreamToString(g_proc_smaps_rollup_for_testing, &content);
+    }
+  }
+
+  if (!use_mock) {
+    std::string file_name =
+        "/proc/" +
+        (handle == base::kNullProcessHandle ? "self"
+                                            : base::NumberToString(handle)) +
+        "/smaps_rollup";
+    if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
+      *pss = size_t(0);
+      *swap_pss = size_t(0);
+      return;
+    }
+  }
+
+  if (content.empty()) {
+    *pss = size_t(0);
+    *swap_pss = size_t(0);
+    return;
+  }
+
+  auto value = base::debug::ParseSmapsRollup(content);
+  if (!value) {
+    *pss = size_t(0);
+    *swap_pss = size_t(0);
+    return;
+  }
+  *pss = value->pss;
+  *swap_pss = value->swap_pss;
+}
+
 bool ResetPeakRSSIfPossible(base::ProcessId pid) {
-  static bool is_peak_rss_resettable = true;
-  if (!is_peak_rss_resettable)
+  static std::atomic<bool> is_peak_rss_resettable{true};
+  if (!is_peak_rss_resettable.load(std::memory_order_relaxed)) {
     return false;
+  }
   auto clear_refs_file = GetProcPidDir(pid).Append("clear_refs");
   base::ScopedFD clear_refs_fd(open(clear_refs_file.value().c_str(), O_WRONLY));
-  is_peak_rss_resettable =
+
+  bool success =
       clear_refs_fd.get() >= 0 &&
       base::WriteFileDescriptor(clear_refs_fd.get(), kClearPeakRssCommand);
-  return is_peak_rss_resettable;
+  if (!success) {
+    is_peak_rss_resettable.store(false, std::memory_order_relaxed);
+  }
+  return success;
 }
 
 struct ModuleData {
@@ -98,50 +164,70 @@ ModuleData GetMainModuleData() {
   return module_data;
 }
 
-bool ParseSmapsHeader(const char* header_line,
+bool ParseSmapsHeader(std::string_view header_line,
                       const ModuleData& main_module_data,
                       VmRegion* region) {
   // e.g., "00400000-00421000 r-xp 00000000 fc:01 1234  /foo.so\n"
-  bool res = true;  // Whether this region should be appended or skipped.
-  uint64_t end_addr = 0;
-  char protection_flags[5] = {};
-  char mapped_file[kMaxLineSize];
+  std::vector<std::string_view> tokens = base::SplitStringPiece(
+      header_line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  if (tokens.size() < 5)
+    return false;
 
-  if (sscanf(header_line, "%" SCNx64 "-%" SCNx64 " %4c %*s %*s %*s%4095[^\n]\n",
-             &region->start_address, &end_addr, protection_flags,
-             mapped_file) != 4) {
+  std::vector<std::string_view> addresses = base::SplitStringPiece(
+      tokens[0], "-", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  if (addresses.size() != 2)
+    return false;
+
+  uint64_t start_addr = 0;
+  uint64_t end_addr = 0;
+  if (!base::HexStringToUInt64(addresses[0], &start_addr) ||
+      !base::HexStringToUInt64(addresses[1], &end_addr)) {
+    return false;
+  }
+  region->start_address = start_addr;
+
+  if (end_addr > start_addr) {
+    region->size_in_bytes = end_addr - start_addr;
+  } else {
+    region->size_in_bytes = 0;
     return false;
   }
 
-  if (end_addr > region->start_address) {
-    region->size_in_bytes = end_addr - region->start_address;
-  } else {
-    // This is not just paranoia, it can actually happen (See crbug.com/461237).
-    region->size_in_bytes = 0;
-    res = false;
-  }
+  std::string_view perms = tokens[1];
+  if (perms.size() < 4)
+    return false;
 
   region->protection_flags = 0;
-  if (protection_flags[0] == 'r') {
+  if (perms[0] == 'r') {
     region->protection_flags |= VmRegion::kProtectionFlagsRead;
   }
-  if (protection_flags[1] == 'w') {
+  if (perms[1] == 'w') {
     region->protection_flags |= VmRegion::kProtectionFlagsWrite;
   }
-  if (protection_flags[2] == 'x') {
+  if (perms[2] == 'x') {
     region->protection_flags |= VmRegion::kProtectionFlagsExec;
   }
-  if (protection_flags[3] == 's') {
+  if (perms[3] == 's') {
     region->protection_flags |= VmRegion::kProtectionFlagsMayshare;
   }
 
-  region->mapped_file = mapped_file;
-  base::TrimWhitespaceASCII(region->mapped_file, base::TRIM_ALL,
-                            &region->mapped_file);
+  if (tokens.size() >= 6) {
+    size_t dev_pos = header_line.find(tokens[3]);
+    if (dev_pos != std::string_view::npos) {
+      size_t inode_pos =
+          header_line.find(tokens[4], dev_pos + tokens[3].size());
+      if (inode_pos != std::string_view::npos) {
+        size_t filename_pos =
+            header_line.find_first_not_of(' ', inode_pos + tokens[4].size());
+        if (filename_pos != std::string_view::npos) {
+          region->mapped_file = std::string(header_line.substr(filename_pos));
+          base::TrimWhitespaceASCII(region->mapped_file, base::TRIM_ALL,
+                                    &region->mapped_file);
+        }
+      }
+    }
+  }
 
-  // Build ID is needed to symbolize heap profiles, and is generated only on
-  // official builds. Build ID is only added for the current library (chrome)
-  // since it is racy to read other libraries which can be unmapped any time.
 #if defined(OFFICIAL_BUILD)
   if (!region->mapped_file.empty() &&
       base::StartsWith(main_module_data.path, region->mapped_file,
@@ -149,82 +235,41 @@ bool ParseSmapsHeader(const char* header_line,
       !main_module_data.build_id.empty()) {
     region->module_debugid = main_module_data.build_id;
   }
-#endif  // defined(OFFICIAL_BUILD)
+#endif
 
-  return res;
+  return true;
 }
 
-uint64_t ReadCounterBytes(char* counter_line) {
-  uint64_t counter_value = 0;
-  int res = sscanf(counter_line, "%*s %" SCNu64 " kB", &counter_value);
-  return res == 1 ? counter_value * 1024 : 0;
-}
-
-uint32_t ParseSmapsCounter(char* counter_line, VmRegion* region) {
-  // A smaps counter lines looks as follows: "RSS:  0 Kb\n"
-  uint32_t res = 1;
-  char counter_name[20];
-  int did_read = sscanf(counter_line, "%19[^\n ]", counter_name);
-  if (did_read != 1)
+uint64_t ReadCounterBytes(std::string_view counter_line) {
+  std::vector<std::string_view> tokens = base::SplitStringPiece(
+      counter_line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  if (tokens.size() < 3 || tokens[2] != "kB")
     return 0;
+  uint64_t counter_value = 0;
+  if (!base::StringToUint64(tokens[1], &counter_value))
+    return 0;
+  return counter_value * 1024;
+}
 
-  if (strcmp(counter_name, "Pss:") == 0) {
+uint32_t ParseSmapsCounter(std::string_view counter_line, VmRegion* region) {
+  if (base::StartsWith(counter_line, "Pss:")) {
     region->byte_stats_proportional_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Private_Dirty:") == 0) {
+  } else if (base::StartsWith(counter_line, "Private_Dirty:")) {
     region->byte_stats_private_dirty_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Private_Clean:") == 0) {
+  } else if (base::StartsWith(counter_line, "Private_Clean:")) {
     region->byte_stats_private_clean_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Shared_Dirty:") == 0) {
+  } else if (base::StartsWith(counter_line, "Shared_Dirty:")) {
     region->byte_stats_shared_dirty_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Shared_Clean:") == 0) {
+  } else if (base::StartsWith(counter_line, "Shared_Clean:")) {
     region->byte_stats_shared_clean_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Swap:") == 0) {
+  } else if (base::StartsWith(counter_line, "Swap:")) {
     region->byte_stats_swapped = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Locked:") == 0) {
+  } else if (base::StartsWith(counter_line, "Locked:")) {
     region->byte_locked = ReadCounterBytes(counter_line);
   } else {
-    res = 0;
-  }
-
-  return res;
-}
-
-uint32_t ReadLinuxProcSmapsFile(FILE* smaps_file,
-                                std::vector<VmRegionPtr>* maps) {
-  if (!smaps_file)
     return 0;
-
-  fseek(smaps_file, 0, SEEK_SET);
-
-  char line[kMaxLineSize];
-  const uint32_t kNumExpectedCountersPerRegion = 7;
-  uint32_t counters_parsed_for_current_region = 0;
-  uint32_t num_valid_regions = 0;
-  bool should_add_current_region = false;
-  VmRegion region;
-  ModuleData main_module_data = GetMainModuleData();
-  for (;;) {
-    line[0] = '\0';
-    if (fgets(line, kMaxLineSize, smaps_file) == nullptr || !strlen(line))
-      break;
-    if (absl::ascii_isxdigit(static_cast<unsigned char>(line[0])) &&
-        !absl::ascii_isupper(static_cast<unsigned char>(line[0]))) {
-      region = VmRegion();
-      counters_parsed_for_current_region = 0;
-      should_add_current_region =
-          ParseSmapsHeader(line, main_module_data, &region);
-    } else if (should_add_current_region) {
-      counters_parsed_for_current_region += ParseSmapsCounter(line, &region);
-      DCHECK_LE(counters_parsed_for_current_region,
-                kNumExpectedCountersPerRegion);
-      if (counters_parsed_for_current_region == kNumExpectedCountersPerRegion) {
-        maps->push_back(VmRegion::New(region));
-        ++num_valid_regions;
-        should_add_current_region = false;
-      }
-    }
   }
-  return num_valid_regions;
+  return 1;
 }
 
 // RAII class making the current process dumpable via prctl(PR_SET_DUMPABLE, 1),
@@ -289,7 +334,7 @@ uint32_t CountMappings(base::ProcessId pid) {
   uint32_t newline_characters = 0;
   while (true) {
     ssize_t bytes_read =
-        HANDLE_EINTR(read(fd.get(), &buffer[0], buffer.size()));
+        HANDLE_EINTR(read(fd.get(), buffer.data(), buffer.size()));
     if (bytes_read < 0) {
       DPLOG(ERROR) << "Couldn't read /proc/PID/maps";
       return 0;
@@ -309,87 +354,29 @@ uint32_t CountMappings(base::ProcessId pid) {
   return newline_characters;
 }
 
-// Get values from smaps_rollup for the current process.
-void GetSmapsRollup(uint32_t* pss, uint32_t* swap_pss) {
-  auto value = base::debug::ReadAndParseSmapsRollup();
-  if (!value) {
-    *pss = 0;
-    *swap_pss = 0;
-    return;
-  }
-  *pss = value->pss;
-  *swap_pss = value->swap_pss;
-}
-
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
-struct LibChrobaltMem {
-  uint32_t pss_kb = 0;
-  uint32_t rss_kb = 0;
-};
-
-LibChrobaltMem GetLibChrobaltMem(base::ProcessId pid) {
-  std::string file_name =
-      "/proc/" +
-      (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
-      "/smaps";
-  base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
-  if (!smaps_file) {
-    return {};
-  }
-
-  char line[kMaxLineSize];
-  uint64_t total_pss_kb = 0;
-  uint64_t total_rss_kb = 0;
-  bool is_libchrobalt_region = false;
-  while (fgets(line, kMaxLineSize, smaps_file.get())) {
-    if (absl::ascii_isxdigit(static_cast<unsigned char>(line[0])) &&
-        !absl::ascii_isupper(static_cast<unsigned char>(line[0]))) {
-      const char kLibName[] = "libchrobalt.so";
-      const char* found = strstr(line, kLibName);
-      if (found) {
-        bool prefix_matches = (found == line || *(found - 1) == '/');
-        char next_char = found[strlen(kLibName)];
-        bool suffix_matches =
-            (next_char == '\0' || next_char == '\n' || next_char == '\r' ||
-             absl::ascii_isspace(static_cast<unsigned char>(next_char)));
-        is_libchrobalt_region = prefix_matches && suffix_matches;
-      } else {
-        is_libchrobalt_region = false;
-      }
-    } else if (is_libchrobalt_region) {
-      uint64_t value_kb = 0;
-      if (strncmp(line, "Pss:", 4) == 0) {
-        if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
-          total_pss_kb += value_kb;
-        }
-      } else if (strncmp(line, "Rss:", 4) == 0) {
-        if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
-          total_rss_kb += value_kb;
-        }
-      }
-    }
-  }
-  LibChrobaltMem result;
-  result.pss_kb = base::saturated_cast<uint32_t>(total_pss_kb);
-  result.rss_kb = base::saturated_cast<uint32_t>(total_rss_kb);
-  return result;
-}
-#endif
-
 }  // namespace
 
 FILE* g_proc_smaps_for_testing = nullptr;
 
 // static
 void OSMetrics::SetProcSmapsForTesting(FILE* f) {
+  base::AutoLock lock(GetTestingGlobalsLock());
   g_proc_smaps_for_testing = f;
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+void OSMetrics::SetSmapsRollupForTesting(FILE* f) {
+  base::AutoLock lock(GetTestingGlobalsLock());
+  g_proc_smaps_rollup_for_testing = f;
+}
+#endif
 
 // static
 bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
                                  const MemDumpFlagSet& flags,
                                  mojom::RawOSMemDump* dump,
-                                 DetailedMetricsDelegate* /*delegate*/) {
+                                 DetailedMetricsDelegate* delegate) {
   auto info = GetMemoryInfo(handle);
   if (!info.has_value()) {
     return false;
@@ -402,18 +389,28 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
   dump->peak_resident_set_kb = GetPeakResidentSetSize(handle);
   dump->is_peak_rss_resettable = ResetPeakRSSIfPossible(handle);
 
-#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
-  LibChrobaltMem lib_mem = GetLibChrobaltMem(handle);
-  dump->libchrobalt_pss_kb = lib_mem.pss_kb;
-  dump->libchrobalt_rss_kb = lib_mem.rss_kb;
-#endif
-
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS)) {
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
+#if BUILDFLAG(IS_COBALT)
+    size_t pss, swap_pss;
+    GetSmapsRollup(handle, &pss, &swap_pss);
+    dump->pss_kb = base::saturated_cast<uint32_t>(pss / 1024);
+    dump->swap_pss_kb = base::saturated_cast<uint32_t>(swap_pss / 1024);
+#else
     GetSmapsRollup(&dump->pss_kb, &dump->swap_pss_kb);
+#endif
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // If a delegate is present, always try to fill detailed metrics. This
+  // includes populating legacy libchrobalt fields from the results collected
+  // by the delegate.
+  if (delegate) {
+    FillDetailedMetrics(handle, flags, dump, delegate);
+  }
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)
@@ -451,24 +448,154 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
     base::ProcessHandle handle) {
   std::vector<VmRegionPtr> maps;
-  uint32_t res = 0;
-  if (g_proc_smaps_for_testing) {
-    res = ReadLinuxProcSmapsFile(g_proc_smaps_for_testing, &maps);
-  } else {
+  {
+    base::AutoLock lock(GetTestingGlobalsLock());
+    if (g_proc_smaps_for_testing) {
+      fseek(g_proc_smaps_for_testing, 0, SEEK_SET);
+      std::string smaps;
+      if (base::ReadStreamToString(g_proc_smaps_for_testing, &smaps)) {
+        return OSMetrics::GetProcessMemoryMaps(smaps);
+      }
+      return std::vector<VmRegionPtr>();
+    }
+  }
+
+  std::string file_name =
+      "/proc/" +
+      (handle == base::kNullProcessHandle ? "self"
+                                          : base::NumberToString(handle)) +
+      "/smaps";
+  std::string smaps;
+  if (!base::ReadFileToString(base::FilePath(file_name), &smaps)) {
+    return std::vector<VmRegionPtr>();
+  }
+
+  return OSMetrics::GetProcessMemoryMaps(smaps);
+}
+
+// static
+std::vector<VmRegionPtr> OSMetrics::GetProcessMemoryMaps(
+    const std::string& smaps_content) {
+  std::vector<VmRegionPtr> maps;
+  std::vector<std::string_view> lines = base::SplitStringPiece(
+      smaps_content, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+
+  const uint32_t kNumExpectedCountersPerRegion = 7;
+  uint32_t counters_parsed_for_current_region = 0;
+  bool should_add_current_region = false;
+  VmRegion region;
+  ModuleData main_module_data = GetMainModuleData();
+
+  for (const auto& line_view : lines) {
+    if (line_view.empty())
+      continue;
+    if (base::IsHexDigit(line_view[0]) && !base::IsAsciiUpper(line_view[0])) {
+      region = VmRegion();
+      counters_parsed_for_current_region = 0;
+      should_add_current_region =
+          ParseSmapsHeader(line_view, main_module_data, &region);
+    } else if (should_add_current_region) {
+      counters_parsed_for_current_region +=
+          ParseSmapsCounter(line_view, &region);
+      DCHECK_LE(counters_parsed_for_current_region,
+                kNumExpectedCountersPerRegion);
+      if (counters_parsed_for_current_region == kNumExpectedCountersPerRegion) {
+        maps.push_back(VmRegion::New(region));
+        should_add_current_region = false;
+      }
+    }
+  }
+  return maps;
+}
+
+#if BUILDFLAG(IS_COBALT)
+// static
+bool OSMetrics::ReadDetailedMetricsFile(base::ProcessHandle handle,
+                                        DetailedMetricsDelegate* delegate) {
+  std::string content;
+  {
+    base::AutoLock lock(GetTestingGlobalsLock());
+    if (g_proc_smaps_for_testing) {
+      fseek(g_proc_smaps_for_testing, 0, SEEK_SET);
+      if (!base::ReadStreamToString(g_proc_smaps_for_testing, &content)) {
+        return false;
+      }
+      fseek(g_proc_smaps_for_testing, 0, SEEK_SET);
+    }
+  }
+
+  if (content.empty()) {
     std::string file_name =
         "/proc/" +
         (handle == base::kNullProcessHandle ? "self"
                                             : base::NumberToString(handle)) +
         "/smaps";
-    base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
-    res = ReadLinuxProcSmapsFile(smaps_file.get(), &maps);
+    if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
+      DPLOG(ERROR) << "Couldn't read " << file_name;
+      return false;
+    }
   }
 
-  if (!res)
-    return std::vector<VmRegionPtr>();
+  for (std::string_view line : base::SplitStringPiece(
+           content, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+    if (!delegate->OnSmapsBuffer(line)) {
+      return false;
+    }
+  }
 
-  return maps;
+  return true;
 }
+
+// static
+bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
+                                    const MemDumpFlagSet& flags,
+                                    mojom::RawOSMemDump* dump,
+                                    DetailedMetricsDelegate* delegate) {
+  if (!delegate) {
+    return true;
+  }
+
+  if (!ReadDetailedMetricsFile(handle, delegate)) {
+    return false;
+  }
+
+  DetailedMetrics metrics = delegate->GetAndResetStats();
+
+  // Populate legacy libchrobalt fields from the results collected by the delegate.
+  auto it_pss = metrics.categories_kb.find("pss:lib_chrobalt");
+  if (it_pss != metrics.categories_kb.end()) {
+    dump->libchrobalt_pss_kb = it_pss->second;
+  }
+  auto it_rss = metrics.categories_kb.find("rss:lib_chrobalt");
+  if (it_rss != metrics.categories_kb.end()) {
+    dump->libchrobalt_rss_kb = it_rss->second;
+  }
+
+  if (!flags.Has(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
+    return true;
+  }
+
+  // Validate against smaps_rollup.
+  size_t rollup_pss, rollup_swap_pss;
+  GetSmapsRollup(handle, &rollup_pss, &rollup_swap_pss);
+
+  // If the difference is too large, we might have inconsistent data.
+  size_t pss_kb = metrics.total_pss_kb;
+  size_t rollup_pss_kb = rollup_pss / 1024;
+  size_t abs_diff = (pss_kb > rollup_pss_kb) ? (pss_kb - rollup_pss_kb)
+                                            : (rollup_pss_kb - pss_kb);
+  if (metrics.total_pss_kb > 0 && abs_diff > kPssValidationThresholdKb) {
+    LOG(WARNING) << "Detailed metrics PSS validation failed. "
+                 << "Detailed: " << metrics.total_pss_kb
+                 << " KiB, Rollup: " << rollup_pss / 1024 << " KiB";
+    return false;
+  }
+  dump->detailed_stats_kb = std::move(metrics.categories_kb);
+  dump->last_detailed_dump_time = base::TimeTicks::Now();
+
+  return true;
+}
+#endif
 
 // static
 OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(

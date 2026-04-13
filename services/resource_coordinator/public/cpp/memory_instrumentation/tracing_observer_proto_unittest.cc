@@ -131,14 +131,13 @@ memory_instrumentation::mojom::OSMemDump GetFakeOSMemDump(
     uint32_t resident_set_kb,
     uint32_t private_footprint_kb,
     uint32_t shared_footprint_kb) {
-  return memory_instrumentation::mojom::OSMemDump(
-      resident_set_kb, /*peak_resident_set_kb=*/resident_set_kb,
-      /*is_peak_rss_resettable=*/true, private_footprint_kb, shared_footprint_kb
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-      ,
-      0, 0, 0, 0
-#endif
-  );
+  memory_instrumentation::mojom::OSMemDump os_dump;
+  os_dump.resident_set_kb = resident_set_kb;
+  os_dump.peak_resident_set_kb = resident_set_kb;
+  os_dump.is_peak_rss_resettable = true;
+  os_dump.private_footprint_kb = private_footprint_kb;
+  os_dump.shared_footprint_kb = shared_footprint_kb;
+  return os_dump;
 }
 
 // crbug.com/1242040: flaky on linux, chromeos
