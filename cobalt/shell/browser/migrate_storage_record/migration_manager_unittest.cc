@@ -16,24 +16,189 @@
 
 #include <numeric>
 
+#include "base/base_paths.h"
+#include "base/command_line.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_command_line.h"
+#include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
+#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
+#include "content/public/browser/storage_partition.h"
+#include "content/public/test/test_storage_partition.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
 #include "net/cookies/canonical_cookie.h"
+#include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_constants.h"
+#include "net/cookies/cookie_inclusion_status.h"
+#include "services/network/test/test_cookie_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-using ::testing::Return;
+namespace {
+
+class MockCookieManager : public network::TestCookieManager {
+ public:
+  void SetCanonicalCookie(const net::CanonicalCookie& cookie,
+                          const GURL& source_url,
+                          const net::CookieOptions& cookie_options,
+                          SetCanonicalCookieCallback callback) override {
+    set_canonical_cookie_call_count_++;
+    if (should_hang_) {
+      hanging_callbacks_.push_back(std::move(callback));
+      return;
+    }
+    if (callback) {
+      net::CookieAccessResult result;
+      if (should_fail_) {
+        result.status.AddExclusionReason(
+            net::CookieInclusionStatus::ExclusionReason::EXCLUDE_UNKNOWN_ERROR);
+      }
+      std::move(callback).Run(result);
+    }
+  }
+
+  int set_canonical_cookie_call_count() const {
+    return set_canonical_cookie_call_count_;
+  }
+
+  void set_should_fail(bool fail) { should_fail_ = fail; }
+  void set_should_hang(bool hang) { should_hang_ = hang; }
+
+ private:
+  int set_canonical_cookie_call_count_ = 0;
+  bool should_fail_ = false;
+  bool should_hang_ = false;
+  std::vector<SetCanonicalCookieCallback> hanging_callbacks_;
+};
+
+class MockStorageArea : public blink::mojom::StorageArea {
+ public:
+  MockStorageArea() = default;
+
+  void Bind(mojo::PendingReceiver<blink::mojom::StorageArea> receiver) {
+    receivers_.Add(this, std::move(receiver));
+  }
+
+  void AddObserver(mojo::PendingRemote<blink::mojom::StorageAreaObserver>
+                       observer) override {}
+  void Put(const std::vector<uint8_t>& key,
+           const std::vector<uint8_t>& value,
+           const absl::optional<std::vector<uint8_t>>& client_old_value,
+           const std::string& source,
+           PutCallback callback) override {
+    put_call_count_++;
+    if (should_hang_) {
+      hanging_callbacks_.push_back(std::move(callback));
+      return;
+    }
+    if (callback) {
+      std::move(callback).Run(!should_fail_);
+    }
+  }
+  void Delete(const std::vector<uint8_t>& key,
+              const absl::optional<std::vector<uint8_t>>& client_old_value,
+              const std::string& source,
+              DeleteCallback callback) override {}
+  void DeleteAll(
+      const std::string& source,
+      mojo::PendingRemote<blink::mojom::StorageAreaObserver> new_observer,
+      DeleteAllCallback callback) override {}
+  void Get(const std::vector<uint8_t>& key, GetCallback callback) override {}
+  void GetAll(
+      mojo::PendingRemote<blink::mojom::StorageAreaObserver> new_observer,
+      GetAllCallback callback) override {}
+  void Checkpoint() override {}
+
+  int put_call_count() const { return put_call_count_; }
+  void set_should_fail(bool fail) { should_fail_ = fail; }
+  void set_should_hang(bool hang) { should_hang_ = hang; }
+
+ private:
+  int put_call_count_ = 0;
+  bool should_fail_ = false;
+  bool should_hang_ = false;
+  std::vector<PutCallback> hanging_callbacks_;
+  mojo::ReceiverSet<blink::mojom::StorageArea> receivers_;
+};
+
+class MockLocalStorageControl : public ::storage::mojom::LocalStorageControl {
+ public:
+  MockLocalStorageControl() = default;
+
+  void BindStorageArea(
+      const blink::StorageKey& storage_key,
+      mojo::PendingReceiver<blink::mojom::StorageArea> receiver) override {
+    storage_area_.Bind(std::move(receiver));
+  }
+  void GetUsage(GetUsageCallback callback) override {}
+  void DeleteStorage(const blink::StorageKey& storage_key,
+                     DeleteStorageCallback callback) override {}
+  void CleanUpStorage(CleanUpStorageCallback callback) override {}
+  void Flush() override { flush_call_count_++; }
+  void PurgeMemory() override { purge_memory_call_count_++; }
+  void ApplyPolicyUpdates(std::vector<::storage::mojom::StoragePolicyUpdatePtr>
+                              policy_updates) override {}
+  void ForceKeepSessionState() override {}
+  void NeedsFlushForTesting(NeedsFlushForTestingCallback callback) override {}
+
+  int flush_call_count() const { return flush_call_count_; }
+  int purge_memory_call_count() const { return purge_memory_call_count_; }
+  int put_call_count() const { return storage_area_.put_call_count(); }
+
+  void set_should_fail(bool fail) { storage_area_.set_should_fail(fail); }
+
+ private:
+  int flush_call_count_ = 0;
+  int purge_memory_call_count_ = 0;
+  MockStorageArea storage_area_;
+};
+
+class MockStoragePartition : public content::TestStoragePartition {
+ public:
+  MockStoragePartition() = default;
+
+  network::mojom::CookieManager* GetCookieManagerForBrowserProcess() override {
+    return &cookie_manager_;
+  }
+
+  ::storage::mojom::LocalStorageControl* GetLocalStorageControl() override {
+    return &local_storage_control_;
+  }
+
+  MockCookieManager& cookie_manager() { return cookie_manager_; }
+  MockLocalStorageControl& local_storage_control() {
+    return local_storage_control_;
+  }
+
+ private:
+  MockCookieManager cookie_manager_;
+  MockLocalStorageControl local_storage_control_;
+};
+
+}  // namespace
 
 namespace cobalt {
 namespace migrate_storage_record {
 
 class MigrationManagerTest : public testing::Test {
- public:
+ protected:
+  void SetUp() override {
+    MigrationManager::ResetMigrationStatusForTesting();
+    base::FilePath cache_dir;
+    base::PathService::Get(base::DIR_CACHE, &cache_dir);
+    base::DeleteFile(cache_dir.Append("migration_completed.txt"));
+  }
+
   Task GroupTasks(std::vector<Task> tasks) {
     return MigrationManager::GroupTasks(std::move(tasks));
   }
@@ -49,9 +214,31 @@ class MigrationManagerTest : public testing::Test {
     return MigrationManager::ToLocalStorageItems(page_origin, storage);
   }
 
+  Task CookieTask(content::StoragePartition* partition,
+                  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies,
+                  scoped_refptr<MigrationState> state) {
+    return MigrationManager::CookieTask(partition, std::move(cookies), state);
+  }
+
+  Task LocalStorageTask(
+      content::StoragePartition* partition,
+      const url::Origin& origin,
+      std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs,
+      scoped_refptr<MigrationState> state) {
+    return MigrationManager::LocalStorageTask(partition, origin,
+                                              std::move(pairs), state);
+  }
+
+  base::test::TaskEnvironment& task_environment() { return task_environment_; }
+
  private:
-  base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::ScopedPathOverride cache_dir_override_{base::DIR_CACHE};
 };
+
+// --- General State and Utility Tests ---
 
 TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
   // Test no data to migrate.
@@ -84,29 +271,6 @@ TEST_F(MigrationManagerTest, MigrationStateGetOutcomeTest) {
   state->UpdateCookieResult(InjectionResult::kSuccess);
   state->UpdateLocalStorageResult(InjectionResult::kSuccess);
   EXPECT_EQ(MigrationOutcome::kTimeout, state->GetOutcome());
-}
-
-// TODO(b/399166308): Add more test cases for specific migration tasks.
-TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
-  constexpr uint32_t kTaskCount = 100;
-  std::vector<Task> tasks;
-  std::vector<int> collected_values;
-  for (uint32_t i = 0; i < kTaskCount; i++) {
-    tasks.push_back(base::BindOnce(
-        [](std::vector<int>& collected_values, int i,
-           base::OnceClosure callback) {
-          collected_values.push_back(i);
-          std::move(callback).Run();
-        },
-        std::ref(collected_values), i));
-  }
-  EXPECT_TRUE(collected_values.empty());
-  Task grouped_task = GroupTasks(std::move(tasks));
-  std::move(grouped_task).Run(base::DoNothing());
-  base::RunLoop().RunUntilIdle();
-  std::vector<int> expected_values(kTaskCount);
-  std::iota(expected_values.begin(), expected_values.end(), 0);
-  EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
 }
 
 TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
@@ -229,6 +393,143 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
   auto actual3 = ToLocalStorageItems(
       url::Origin::Create(GURL("http://example2.com")), storage);
   EXPECT_TRUE(actual3.empty());
+}
+
+TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
+  constexpr uint32_t kTaskCount = 100;
+  std::vector<Task> tasks;
+  std::vector<int> collected_values;
+  for (uint32_t i = 0; i < kTaskCount; i++) {
+    tasks.push_back(base::BindOnce(
+        [](std::vector<int>& collected_values, uint32_t i,
+           base::OnceClosure callback) {
+          collected_values.push_back(static_cast<int>(i));
+          std::move(callback).Run();
+        },
+        std::ref(collected_values), i));
+  }
+  EXPECT_TRUE(collected_values.empty());
+  Task grouped_task = GroupTasks(std::move(tasks));
+  std::move(grouped_task).Run(base::DoNothing());
+  base::RunLoop().RunUntilIdle();
+  std::vector<int> expected_values(static_cast<size_t>(kTaskCount));
+  std::iota(expected_values.begin(), expected_values.end(), 0);
+  EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
+}
+
+// --- Cookie Task Tests ---
+
+TEST_F(MigrationManagerTest, CookieTaskTest) {
+  MockStoragePartition partition;
+  auto state = base::MakeRefCounted<MigrationState>();
+
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
+  cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
+      "name", "value", ".example.com", "/path", base::Time(), base::Time(),
+      base::Time(), base::Time(), true, true,
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
+
+  Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
+                         std::move(cookies), state);
+
+  base::RunLoop run_loop;
+  std::move(task).Run(run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_EQ(InjectionResult::kSuccess, state->cookie_result.load());
+  EXPECT_EQ(1, partition.cookie_manager().set_canonical_cookie_call_count());
+}
+
+TEST_F(MigrationManagerTest, CookieTaskFailureTest) {
+  MockStoragePartition partition;
+  partition.cookie_manager().set_should_fail(true);
+  auto state = base::MakeRefCounted<MigrationState>();
+
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
+  cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
+      "name", "value", ".example.com", "/path", base::Time(), base::Time(),
+      base::Time(), base::Time(), true, true,
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
+
+  Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
+                         std::move(cookies), state);
+
+  base::RunLoop run_loop;
+  std::move(task).Run(run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_EQ(InjectionResult::kError, state->cookie_result.load());
+}
+
+TEST_F(MigrationManagerTest, CookieTaskTimeoutTest) {
+  MockStoragePartition partition;
+  partition.cookie_manager().set_should_hang(true);
+  auto state = base::MakeRefCounted<MigrationState>();
+
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
+  cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
+      "name", "value", ".example.com", "/path", base::Time(), base::Time(),
+      base::Time(), base::Time(), true, true,
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
+
+  Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
+                         std::move(cookies), state);
+
+  base::RunLoop run_loop;
+  std::move(task).Run(run_loop.QuitClosure());
+
+  task_environment().FastForwardBy(base::Seconds(3));
+
+  EXPECT_EQ(InjectionResult::kTimeout, state->cookie_result.load());
+}
+
+// --- Local Storage Task Tests ---
+
+TEST_F(MigrationManagerTest, LocalStorageTaskTest) {
+  MockStoragePartition partition;
+  auto state = base::MakeRefCounted<MigrationState>();
+
+  std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs;
+  pairs.push_back(
+      std::make_unique<std::pair<std::string, std::string>>("key1", "value1"));
+  pairs.push_back(
+      std::make_unique<std::pair<std::string, std::string>>("key2", "value2"));
+
+  url::Origin origin = url::Origin::Create(GURL("https://example.com"));
+
+  Task task =
+      LocalStorageTask(static_cast<content::StoragePartition*>(&partition),
+                       origin, std::move(pairs), state);
+
+  base::RunLoop run_loop;
+  std::move(task).Run(run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_EQ(InjectionResult::kSuccess, state->local_storage_result.load());
+  EXPECT_EQ(2, partition.local_storage_control().put_call_count());
+  EXPECT_EQ(1, partition.local_storage_control().flush_call_count());
+}
+
+TEST_F(MigrationManagerTest, LocalStorageTaskFailureTest) {
+  MockStoragePartition partition;
+  partition.local_storage_control().set_should_fail(true);
+  auto state = base::MakeRefCounted<MigrationState>();
+
+  std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs;
+  pairs.push_back(
+      std::make_unique<std::pair<std::string, std::string>>("key1", "value1"));
+
+  url::Origin origin = url::Origin::Create(GURL("https://example.com"));
+
+  Task task =
+      LocalStorageTask(static_cast<content::StoragePartition*>(&partition),
+                       origin, std::move(pairs), state);
+
+  base::RunLoop run_loop;
+  std::move(task).Run(run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_EQ(InjectionResult::kError, state->local_storage_result.load());
 }
 
 }  // namespace migrate_storage_record
