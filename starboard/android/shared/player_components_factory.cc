@@ -536,6 +536,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.video_initial_max_frames_in_decoder();
     flow_control_options.max_pending_input_frames =
         creation_parameters.video_max_pending_input_frames();
+    flow_control_options.video_decoder_initial_preroll_count =
+        creation_parameters.video_decoder_initial_preroll_count();
     flow_control_options.video_decoder_poll_interval_ms =
         creation_parameters.video_decoder_poll_interval_ms();
 
