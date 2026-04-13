@@ -67,14 +67,16 @@ struct musl_dir* __abi_wrap_opendir(const char* name) {
     return nullptr;
   }
 
-  musl_dir* musl_directory = (musl_dir*)calloc(1, sizeof(musl_dir));
+  musl_dir* musl_directory =
+      static_cast<musl_dir*>(calloc(1, sizeof(musl_dir)));
   if (!musl_directory) {
     errno = ENOMEM;
     return nullptr;
   }
   musl_directory->dir = directory;
 
-  musl_dirent* musl_dir_entry = (musl_dirent*)calloc(1, sizeof(musl_dirent));
+  musl_dirent* musl_dir_entry =
+      static_cast<musl_dirent*>(calloc(1, sizeof(musl_dirent)));
   if (!musl_dir_entry) {
     errno = ENOMEM;
     free(musl_directory);
@@ -92,14 +94,16 @@ struct musl_dir* __abi_wrap_fdopendir(int fd) {
     return nullptr;
   }
 
-  musl_dir* musl_directory = (musl_dir*)calloc(1, sizeof(musl_dir));
+  musl_dir* musl_directory =
+      static_cast<musl_dir*>(calloc(1, sizeof(musl_dir)));
   if (!musl_directory) {
     errno = ENOMEM;
     return nullptr;
   }
   musl_directory->dir = directory;
 
-  musl_dirent* musl_dir_entry = (musl_dirent*)calloc(1, sizeof(musl_dirent));
+  musl_dirent* musl_dir_entry =
+      static_cast<musl_dirent*>(calloc(1, sizeof(musl_dirent)));
   if (!musl_dir_entry) {
     errno = ENOMEM;
     free(musl_directory);

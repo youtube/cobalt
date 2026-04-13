@@ -12,25 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
 #include <stdarg.h>
-#include <sys/prctl.h>
+
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 
 extern "C" {
 
-int __abi_wrap_prctl(int option,
-                     unsigned long arg2,
-                     unsigned long arg3,
-                     unsigned long arg4,
-                     unsigned long arg5);
-
 int prctl(int option, ...) {
+  unsigned long arg2 = 0;
+  unsigned long arg3 = 0;
+  unsigned long arg4 = 0;
+  unsigned long arg5 = 0;
+
   va_list args;
   va_start(args, option);
-  unsigned long arg2 = va_arg(args, unsigned long);
-  unsigned long arg3 = va_arg(args, unsigned long);
-  unsigned long arg4 = va_arg(args, unsigned long);
-  unsigned long arg5 = va_arg(args, unsigned long);
+
+  switch (option) {
+    case MUSL_PR_SET_VMA:
+      arg2 = va_arg(args, unsigned long);
+      arg3 = va_arg(args, unsigned long);
+      arg4 = va_arg(args, unsigned long);
+      arg5 = va_arg(args, unsigned long);
+      break;
+    case MUSL_PR_SET_PDEATHSIG:
+    case MUSL_PR_GET_PDEATHSIG:
+    case MUSL_PR_GET_DUMPABLE:
+    case MUSL_PR_SET_DUMPABLE:
+    case MUSL_PR_GET_KEEPCAPS:
+    case MUSL_PR_SET_KEEPCAPS:
+    case MUSL_PR_GET_TIMING:
+    case MUSL_PR_SET_TIMING:
+    case MUSL_PR_SET_NAME:
+    case MUSL_PR_GET_NAME:
+    case MUSL_PR_GET_TSC:
+    case MUSL_PR_SET_TSC:
+    case MUSL_PR_GET_TIMERSLACK:
+    case MUSL_PR_SET_TIMERSLACK:
+    case MUSL_PR_TASK_PERF_EVENTS_DISABLE:
+    case MUSL_PR_TASK_PERF_EVENTS_ENABLE:
+    case MUSL_PR_SET_PTRACER:
+      arg2 = va_arg(args, unsigned long);
+      break;
+    default:
+      // Unknown or 0-argument options.
+      break;
+  }
   va_end(args);
+
   return __abi_wrap_prctl(option, arg2, arg3, arg4, arg5);
 }
 
