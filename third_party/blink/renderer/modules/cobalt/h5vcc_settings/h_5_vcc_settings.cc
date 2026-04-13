@@ -189,7 +189,7 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                                           kMediaIncrementalParseLookAhead +
                                           "' must be a number."));
     }
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     String error_msg =
         String(kMediaIncrementalParseLookAhead) + " is not supported.";
     LOG(WARNING) << error_msg;
