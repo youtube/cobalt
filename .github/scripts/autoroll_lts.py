@@ -7,9 +7,8 @@ import sys
 
 _SKIP_LIST = {
     '27.lts': [
-        # Reorders deleted BUILD_STATUS.md file (#9476).
+        # Reorders deleted BUILD_STATUS.md file (#9476, #9508).
         '7e6524981fdd6ab3c87bc55785343d40116a05e5',
-        # Reorders deleted BUILD_STATUS.md file (#9508).
         'adda40a0d3b08b9302f441e76eef0391c70e0462',
         # Modifies deleted workflow trigger files (#9473).
         'b24037232cbc7a74bf01dbc4c93dbe9701328b5e',
@@ -33,6 +32,21 @@ def get_commits(origin, target, start):
   if start:
     cmd.append(f'{start}^..{origin}')
   return get_out(cmd).splitlines()
+
+
+def get_pr_set(branch, exclude_branch):
+  prs = set()
+  cmd = ['git', 'log', '--reverse', '--format=%s', branch, f'^{exclude_branch}']
+  subjects = get_out(cmd).splitlines()
+  for subject in subjects:
+    match = re.match(r'^(Revert\s+"?)?Cherry pick PR #(\d+):', subject)
+    if match:
+      revert, pr_num = match.groups()
+      if revert:
+        prs.discard(pr_num)
+      else:
+        prs.add(pr_num)
+  return prs
 
 
 def cherry_pick(sha, num, title):
@@ -70,6 +84,9 @@ def main():
   args = p.parse_args()
 
   links = []
+  target_prs = get_pr_set(args.target_branch, args.origin_branch)
+  autoroll_prs = get_pr_set('HEAD', args.origin_branch)
+
   for line in get_commits(args.origin_branch, args.target_branch,
                           args.start_commit):
     match = re.match(r'^(\w+) (.*) \(#(\d+)\)$', line)
@@ -81,17 +98,13 @@ def main():
         continue
 
       # Skip if the PR is already in the target branch.
-      if get_out([
-          'git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:',
-          args.target_branch
-      ]).strip():
+      if num in target_prs:
         continue
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
-      if not get_out([
-          'git', 'log', '-1', f'--grep=^Cherry pick PR #{num}:', 'HEAD'
-      ]).strip():
+      if num not in autoroll_prs:
         cherry_pick(sha, num, title)
+        autoroll_prs.add(num)
 
       links.append(f'- #{num}')
 

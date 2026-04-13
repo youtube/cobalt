@@ -312,7 +312,6 @@ test("cobalt_unittests") {
 
   deps = [
     ":common",
-    "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser:command_line_logger",
@@ -333,6 +332,7 @@ test("cobalt_unittests") {
     "//components/variations/service",
     "//media:test_support",
     "//mojo/core/embedder",
+    "//mojo/core/test:run_all_unittests",
     "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
     "//testing/gmock",
