@@ -20,7 +20,10 @@
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/stream_parser.h"
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -65,10 +68,10 @@ using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 const SettingsMap& GetDecoderBufferSettings() {
   static const base::NoDestructor<SettingsMap> settings({
-      {kEnableMediaBufferPoolAllocatorStrategy,
-       &::media::DecoderBuffer::EnableMediaBufferPoolStrategy},
       {kEnableInPlaceReuseAllocatorBase,
-       &::media::DecoderBuffer::EnableInPlaceReuseAllocatorBase},
+       &::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase},
+      {kEnableMediaBufferPoolAllocatorStrategy,
+       &::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy},
   });
   return *settings;
 }
