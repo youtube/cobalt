@@ -81,6 +81,8 @@ runs:
             --name=src \
             --custom-var="rbe_instance=\"projects/cobalt-actions-prod/instances/default_instance\"" \
             "https://github.com/youtube/cobalt.git"
+          echo "target_os=['android', 'linux']" >> .gclient
+          echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           gclient sync -D --no-history
         else
           echo "cache_hit=true" >> $GITHUB_OUTPUT
