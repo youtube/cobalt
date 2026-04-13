@@ -48,6 +48,9 @@ EXCLUDED_CHECK_PATTERNS = [
     # Excludes blackbox, web platform, and unit tests run on-device.
     '_on_device_',
 
+    # Excludes e2e tests on arm64 as they are currently disabled.
+    'arm64_e2e_tests',
+
     # Excludes slow and flaky evergreen tests.
     'evergreen-as-blackbox_test',
     'evergreen_test',
