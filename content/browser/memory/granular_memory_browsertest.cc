@@ -13,10 +13,12 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "base/files/file_util.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "base/threading/thread_restrictions.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -46,6 +48,7 @@ const char kTestSmapsRollup[] =
     "SwapPss:               0 kB\n";
 
 void CreateTempFileWithContents(const char* contents, base::ScopedFILE* file) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
   base::FilePath temp_path;
   *file = base::CreateAndOpenTemporaryStream(&temp_path);
   ASSERT_TRUE(*file);
@@ -160,6 +163,82 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
                 std::move(quit_closure).Run();
               },
               run_loop.QuitClosure(), renderer_pid));
+  run_loop.Run();
+}
+#endif  // BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_LINUX)
+IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
+  // Ensure at least one renderer process is active.
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
+
+  RenderProcessHost* rph =
+      shell()->web_contents()->GetPrimaryMainFrame()->GetProcess();
+
+  base::RunLoop run_loop;
+  base::ProcessId renderer_pid = rph->GetProcess().Pid();
+  ASSERT_NE(renderer_pid, base::kNullProcessId);
+
+  // Instantiate the production Cobalt delegate.
+  cobalt::CobaltDetailedMetricsDelegate cobalt_delegate;
+  memory_instrumentation::MemoryInstrumentation::GetInstance()
+      ->SetDetailedMetricsDelegate(&cobalt_delegate);
+
+  // Create mock smaps data that triggers Cobalt categorization.
+  const char kCobaltSmaps[] =
+      "00400000-004be000 r-xp 00000000 fc:01 1234              /path/to/libchrobalt.so\n"
+      "Pss:                 100 kB\n"
+      "Private_Dirty:         0 kB\n"
+      "Private_Clean:         0 kB\n"
+      "Shared_Dirty:          0 kB\n"
+      "Shared_Clean:          0 kB\n"
+      "Swap:                  0 kB\n"
+      "Locked:                0 kB\n"
+      "00500000-005be000 r-xp 00000000 fc:01 1235              /path/to/libcobalt.so\n"
+      "Pss:                  50 kB\n"
+      "Private_Dirty:         0 kB\n"
+      "Private_Clean:         0 kB\n"
+      "Shared_Dirty:          0 kB\n"
+      "Shared_Clean:          0 kB\n"
+      "Swap:                  0 kB\n"
+      "Locked:                0 kB\n";
+
+  base::ScopedFILE temp_smaps;
+  CreateTempFileWithContents(kCobaltSmaps, &temp_smaps);
+  memory_instrumentation::OSMetrics::SetProcSmapsForTesting(temp_smaps.get());
+
+  memory_instrumentation::MemoryInstrumentation::GetInstance()
+      ->GetCoordinator()
+      ->RequestGlobalMemoryDump(
+          base::trace_event::MemoryDumpType::kExplicitlyTriggered,
+          base::trace_event::MemoryDumpLevelOfDetail::kDetailed,
+          base::trace_event::MemoryDumpDeterminism::kNone,
+          {},
+          base::BindOnce(
+              [](base::OnceClosure quit_closure,
+                 base::ProcessId renderer_pid,
+                 base::ScopedFILE file,
+                 bool success,
+                 memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
+                EXPECT_TRUE(success);
+                ASSERT_TRUE(dump);
+                bool found_renderer_detailed_stats = false;
+                for (const auto& process_dump : dump->process_dumps) {
+                  if (process_dump->pid == renderer_pid) {
+                    ASSERT_TRUE(process_dump->os_dump->detailed_stats_kb);
+                    if (!process_dump->os_dump->detailed_stats_kb->empty()) {
+                      found_renderer_detailed_stats = true;
+                      // Verify Cobalt categories are present.
+                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at("pss:lib_chrobalt"), 100u);
+                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at("pss:cobalt_core"), 50u);
+                    }
+                    break;
+                  }
+                }
+                EXPECT_TRUE(found_renderer_detailed_stats);
+                std::move(quit_closure).Run();
+              },
+              run_loop.QuitClosure(), renderer_pid, std::move(temp_smaps)));
   run_loop.Run();
 }
 #endif  // BUILDFLAG(IS_LINUX)
