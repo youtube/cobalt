@@ -73,11 +73,6 @@ class COMPONENT_EXPORT(
   static void SetProcSmapsForTesting(FILE*);
 #if BUILDFLAG(IS_COBALT)
   static void SetSmapsRollupForTesting(FILE*);
-
-  // Set the delegate for detailed metrics collection. This must be called
-  // before FillOSMemoryDump with MEM_DUMP_DETAILED_STATS.
-  static void SetDetailedMetricsDelegate(
-      class DetailedMetricsDelegate* delegate);
 #endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
