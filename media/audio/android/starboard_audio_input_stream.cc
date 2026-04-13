@@ -47,7 +47,8 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
   // If the passed params are already 16kHz, this is easy.
   // C25 used 128 samples per buffer. 
   // Let's use what's passed but ensure it's calculated for 16-bit Mono.
-  buffer_size_bytes_ = (kSampleRateHz * params.frames_per_buffer() / params.sample_rate()) * sizeof(int16_t);
+  int input_sample_rate = params.sample_rate() > 0 ? params.sample_rate() : kSampleRateHz;
+  buffer_size_bytes_ = (kSampleRateHz * params.frames_per_buffer() / input_sample_rate) * sizeof(int16_t);
   
   // If we couldn't scale it properly, just use a reasonable default.
   if (buffer_size_bytes_ == 0) {
@@ -120,12 +121,13 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
 
 void StarboardAudioInputStream::Stop() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (!started_)
-    return;
-
   base::AutoLock lock(lock_);
-  (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
-  (*simple_buffer_queue_)->Clear(simple_buffer_queue_);
+  if (recorder_) {
+    (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
+  }
+  if (simple_buffer_queue_) {
+    (*simple_buffer_queue_)->Clear(simple_buffer_queue_);
+  }
   started_ = false;
   callback_ = nullptr;
 }
@@ -234,19 +236,25 @@ void StarboardAudioInputStream::SimpleBufferQueueCallback(
 }
 
 void StarboardAudioInputStream::ReadBufferQueue() {
-  base::AutoLock lock(lock_);
+  AudioInputCallback* callback = nullptr;
+  {
+    base::AutoLock lock(lock_);
+    callback = callback_;
 
-  // If the Renderer isn't ready, we just drop the pre-warm data but keep the loop running.
-  if (callback_) {
-    // Convert from interleaved format to deinterleaved audio bus format.
+    // Convert from interleaved format to deinterleaved audio bus format while
+    // still under the lock to protect audio_bus_ and audio_data_.
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
         reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_]),
         audio_bus_->frames());
-
-    callback_->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
-                      0.0, {});
   }
 
+  // If the Renderer isn't ready, we just drop the pre-warm data but keep the loop running.
+  if (callback) {
+    callback->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
+                     0.0, {});
+  }
+
+  base::AutoLock lock(lock_);
   (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
                                    audio_data_[active_buffer_index_],
                                    buffer_size_bytes_);
