@@ -32,7 +32,7 @@ declare_args() {
   build_with_separate_cobalt_toolchain =
       # Avoid using `is_androidtv` which uses `current_os`, so that this is also
       # false for the host toolchain.
-      !(target_os == "android" && !use_evergreen) && target_os != "ios"
+      (target_os != "android" || use_evergreen) && target_os != "ios"
 
   use_tsan = false
 }
