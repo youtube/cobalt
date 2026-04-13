@@ -509,7 +509,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     const bool reject_low_performance_software_decoder =
         features::FeatureList::IsEnabled(
             starboard::features::kRejectLowPerformanceSoftwareDecoder);
-    if (reject_low_performance_software_deocder && !require_software_codec &&
+    if (reject_low_performance_software_decoder && !require_software_codec &&
         video_capability->is_software_decoder()) {
       const int kMinimumWidth = 1920;
       const int kMinimumHeight = 1080;
