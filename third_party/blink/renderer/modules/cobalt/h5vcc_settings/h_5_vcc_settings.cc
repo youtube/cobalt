@@ -14,6 +14,8 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
+#include <string_view>
+
 #include "base/functional/callback.h"
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
@@ -60,6 +62,7 @@ static_assert(
 using EnableFunction = void (*)();
 using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 const SettingsMap& GetDecoderBufferSettings() {
   static const base::NoDestructor<SettingsMap> settings({
       {kEnableMediaBufferPoolAllocatorStrategy,
@@ -69,6 +72,7 @@ const SettingsMap& GetDecoderBufferSettings() {
   });
   return *settings;
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Ideally this function should be moved to decoder_buffer.h.  It's kept here as
 // H5vccSettings will soon be deprecated and it's easier to remove from here.
@@ -107,7 +111,7 @@ ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
     }
     return promise;
   }
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   LOG(WARNING) << name << " isn't a supported setting.";
   // An unknown setting leads to TypeError.
@@ -185,13 +189,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                                           kMediaIncrementalParseLookAhead +
                                           "' must be a number."));
     }
-#else
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
     String error_msg =
         String(kMediaIncrementalParseLookAhead) + " is not supported.";
     LOG(WARNING) << error_msg;
     resolver->Reject(V8ThrowException::CreateTypeError(
         script_state->GetIsolate(), error_msg));
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return promise;
   }
 
