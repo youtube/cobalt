@@ -24,13 +24,16 @@ jobs:
         with:
           fetch-depth: 1
           filter: blob:none
-          sparse-checkout: .github
+          sparse-checkout: |
+            .github
+            .gitmodules
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Setup Git user
         run: |
           git config --global user.name "GitHub Release Automation"
           git config --global user.email "github@google.com"
+          git config --global submodule.recurse false
 
       - name: Cherry Pick merged PRs
         id: autoroll
@@ -44,17 +47,17 @@ jobs:
           cp .github/scripts/autoroll_lts.py "${RUNNER_TEMP}"/
 
           # Ensure we have local branches for the target branch.
-          git fetch --filter=blob:none origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
+          git fetch --no-recurse-submodules --filter=blob:none origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
           # Use existing branch from remote if it exists, otherwise start from the target branch.
-          if git fetch --filter=blob:none origin "autoroll-to-${TARGET_BRANCH}"; then
-            git checkout -B "autoroll-to-${TARGET_BRANCH}" FETCH_HEAD
+          if git fetch --no-recurse-submodules --filter=blob:none origin "autoroll-to-${TARGET_BRANCH}"; then
+            git checkout --no-recurse-submodules -B "autoroll-to-${TARGET_BRANCH}" FETCH_HEAD
           else
-            git checkout -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+            git checkout --no-recurse-submodules -B "autoroll-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
           fi
 
           # Ensure latest main.
-          git fetch --filter=blob:none origin main:main
+          git fetch --no-recurse-submodules --filter=blob:none origin main:main
 
           # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
