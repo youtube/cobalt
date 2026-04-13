@@ -89,7 +89,7 @@ declare_args() {
 
   # Enables IAMF audio handling in chromium. This includes demuxing,
   # on-device decoding and bitstream passthrough as supported by device.
-  enable_platform_iamf_audio = false
+  enable_platform_iamf_audio = true
 
   # Enable Dolby Vision demuxing. Enabled by default for Chromecast and Windows.
   # Actual decoding must be provided by the platform. Since most Dolby Vision

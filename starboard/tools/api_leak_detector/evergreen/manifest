@@ -10,7 +10,6 @@ dl_iterate_phdr
 dlopen
 dlsym
 getrandom
-getuid
 if_indextoname
 inotify_add_watch
 inotify_init
