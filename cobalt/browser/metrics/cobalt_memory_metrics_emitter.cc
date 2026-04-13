@@ -389,14 +389,35 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
             ".SharedMemoryFootprint",
         static_cast<int>(pmd.os_dump().shared_footprint_kb / kKiB));
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
-    base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltPss",
-        static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
-    base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltRss",
-        static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
-#endif
+    if (pmd.os_dump().libchrobalt_pss_kb > 0) {
+      base::UmaHistogramMemoryLargeMB(
+          std::string(kMemoryHistogramPrefix) + process_name +
+              ".LibChrobaltPss",
+          static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
+    }
+    if (pmd.os_dump().libchrobalt_rss_kb > 0) {
+      base::UmaHistogramMemoryLargeMB(
+          std::string(kMemoryHistogramPrefix) + process_name +
+              ".LibChrobaltRss",
+          static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+    }
+
+    if (pmd.os_dump().detailed_stats_kb) {
+      for (const auto& entry : *pmd.os_dump().detailed_stats_kb) {
+        // Skip lib_chrobalt as it is handled above for consistency.
+        if (entry.first == "pss:lib_chrobalt" ||
+            entry.first == "rss:lib_chrobalt") {
+          continue;
+        }
+        // Detailed metrics already have "pss:" or "rss:" prefix from delegate.
+        // We use UmaHistogramMemoryLargeMB which expects MiB.
+        // The values in detailed_stats_kb are in KiB.
+        std::string uma_name = std::string(kMemoryHistogramPrefix) +
+                               process_name + "." + entry.first;
+        base::UmaHistogramMemoryLargeMB(uma_name,
+                                        static_cast<int>(entry.second / kKiB));
+      }
+    }
   }
 
   base::UmaHistogramMemoryLargeMB(
