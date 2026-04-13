@@ -91,18 +91,12 @@ ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
     return promise;
   }
 
-<<<<<<< HEAD
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
-    bool enable = (value->GetAsLong() != 0);
-    if (enable) {
-=======
   const auto& settings = GetDecoderBufferSettings();
   auto it = settings.find(name);
 
   if (it != settings.end()) {
     if (value->GetAsLong() != 0) {
->>>>>>> 5609eeacc6 (media: Connect InPlaceReuseAllocatorBase to H5VCC (#9146))
       LOG(INFO) << "Enabling " << name << ".";
       it->value();
       resolver->Resolve();
@@ -163,33 +157,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
       resolver->Reject(V8ThrowException::CreateTypeError(
           script_state->GetIsolate(),
           String("The value for '") + kMediaAppendFirstSegmentSynchronously +
-<<<<<<< HEAD
-=======
-              "' must be a number."));
-    }
-    return promise;
-  }
-
-  if (name == kMediaIncrementalParseLookAhead) {
-    if (value->IsLong()) {
-      bool enable = (value->GetAsLong() != 0);
-      if (enable) {
-        LOG(INFO) << "Enable incremental parse look ahead.";
-        ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
-        resolver->Resolve();
-      } else {
-        LOG(WARNING) << kMediaIncrementalParseLookAhead << " cannot be disabled.";
-        resolver->Reject(V8ThrowException::CreateTypeError(
-            script_state->GetIsolate(),
-            kMediaIncrementalParseLookAhead + String(" cannot be disabled.")));
-      }
-    } else {
-      LOG(WARNING) << "The value for '" << kMediaIncrementalParseLookAhead
-                   << "' must be a number.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(),
-          String("The value for '") + kMediaIncrementalParseLookAhead +
->>>>>>> 5609eeacc6 (media: Connect InPlaceReuseAllocatorBase to H5VCC (#9146))
               "' must be a number."));
     }
     return promise;
