@@ -440,23 +440,23 @@ jobs:
       # Before that, keep a weak coupling for easier revert.
       - name: Prepare OverlayFS Workspace
         id: overlay_workspace
-        if: runner.os == 'Linux'
+        if: ${{ !contains(matrix.platform, 'tvos') }}
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
           ref: ${{ github.sha }}
 
       - name: Runner Cache Hot
-        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit == 'true'
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
         shell: bash
         run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
-        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit != 'true'
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit != 'true' }}
         shell: bash
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
-        if: runner.os != 'Linux'
+        if: ${{ contains(matrix.platform, 'tvos') }}
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
@@ -468,7 +468,7 @@ jobs:
           use_cache: true
 
       - name: Set Up Depot Tools
-        if: runner.os != 'Linux'
+        if: ${{ contains(matrix.platform, 'tvos') }}
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
 
