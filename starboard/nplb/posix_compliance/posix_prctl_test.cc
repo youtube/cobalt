@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
-
+#include <dirent.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -21,9 +20,11 @@
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "starboard/common/log.h"
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // From third_party/musl/include/sys/prctl.h
@@ -541,6 +542,15 @@ TEST_F(PosixPrctlPtracerTests, SetFailsWithInvalidValue) {
 }
 
 const char kVmaName[] = "TestVmaName";
+const char kVmaTagsFileNamePrefix[] = "cobalt_vma_tags";
+
+const char* GetTempDir() {
+  const char* tmpdir = getenv("TMPDIR");
+  if (!tmpdir) {
+    tmpdir = "/tmp";
+  }
+  return tmpdir;
+}
 
 // Checks /proc/self/maps to see if the memory mapping containing |addr| has
 // the specified |name|. This is the expected outcome when the kernel supports
@@ -576,58 +586,88 @@ bool VmaIsNamed(void* addr, const char* name) {
   return found;
 }
 
-// Checks for the existence and content of the fallback file. This is the
-// expected outcome when the kernel does NOT support PR_SET_VMA_ANON_NAME.
+// Checks for the existence and content of any fallback file matching the
+// prefix. This is the expected outcome when the kernel does NOT support
+// PR_SET_VMA_ANON_NAME.
 bool FallbackFileIsCorrect(unsigned long start,
                            unsigned long size,
                            const char* name) {
-  char file_path[256];
-  snprintf(file_path, sizeof(file_path), "/tmp/cobalt_vma_tags_%d.txt",
-           getpid());
-
-  FILE* fp = fopen(file_path, "r");
-  if (!fp) {
+  const char* tmpdir = GetTempDir();
+  DIR* dir = opendir(tmpdir);
+  if (!dir) {
     return false;
   }
 
-  char line[1024];
   bool found = false;
-  while (fgets(line, sizeof(line), fp)) {
-    unsigned long file_start, file_end;
-    char file_name[256];
-    // The format is "0x%lx 0x%lx %s\n"
-    if (sscanf(line, "0x%lx 0x%lx %s", &file_start, &file_end, file_name) ==
-        3) {
-      if (file_start == start && file_end == start + size &&
-          strcmp(file_name, name) == 0) {
-        found = true;
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (strncmp(entry->d_name, kVmaTagsFileNamePrefix,
+                strlen(kVmaTagsFileNamePrefix)) == 0) {
+      char file_path[512];
+      snprintf(file_path, sizeof(file_path), "%s/%s", tmpdir, entry->d_name);
+
+      FILE* fp = fopen(file_path, "r");
+      if (!fp) {
+        continue;
+      }
+
+      char line[1024];
+      while (fgets(line, sizeof(line), fp)) {
+        unsigned long file_start, file_end;
+        char file_name[256];
+        // The format is "0x%lx 0x%lx %s\n"
+        if (sscanf(line, "0x%lx 0x%lx %s", &file_start, &file_end, file_name) ==
+            3) {
+          if (file_start == start && file_end == start + size &&
+              strcmp(file_name, name) == 0) {
+            found = true;
+            break;
+          }
+        }
+      }
+      fclose(fp);
+      if (found) {
         break;
       }
     }
   }
-
-  fclose(fp);
+  closedir(dir);
   return found;
 }
 
-// This test verifies that __abi_wrap_prctl with PR_SET_VMA and
-// PR_SET_VMA_ANON_NAME correctly names a VMA region, either by calling the
-// underlying prctl syscall or by using the fallback mechanism of writing to a
-// file.
+// Helper to clean up any fallback files before and after the test.
+void CleanupFallbackFiles() {
+  const char* tmpdir = GetTempDir();
+  DIR* dir = opendir(tmpdir);
+  if (!dir) {
+    return;
+  }
+
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (strncmp(entry->d_name, kVmaTagsFileNamePrefix,
+                strlen(kVmaTagsFileNamePrefix)) == 0) {
+      char file_path[512];
+      snprintf(file_path, sizeof(file_path), "%s/%s", tmpdir, entry->d_name);
+      unlink(file_path);
+    }
+  }
+  closedir(dir);
+}
+
+// This test verifies that prctl with PR_SET_VMA and PR_SET_VMA_ANON_NAME
+// correctly names a VMA region, either by calling the underlying prctl syscall
+// or by using the fallback mechanism of writing to a file.
 TEST(PosixPrctlTest, SetVmaAnonName) {
   const size_t kMapSize = 4096;
   void* p = malloc(kMapSize);
   ASSERT_NE(p, nullptr);
 
-  // Ensure we have a clean state by deleting any leftover fallback file.
-  char file_path[256];
-  snprintf(file_path, sizeof(file_path), "/tmp/cobalt_vma_tags_%d.txt",
-           getpid());
-  unlink(file_path);
+  // Ensure we have a clean state by deleting any leftover fallback files.
+  CleanupFallbackFiles();
 
-  int result =
-      __abi_wrap_prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, (unsigned long)p,
-                       kMapSize, (unsigned long)kVmaName);
+  int result = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, (unsigned long)p,
+                     kMapSize, (unsigned long)kVmaName);
 
   // The wrapper should return 0 on success, for both the prctl call and the
   // fallback.
@@ -652,8 +692,8 @@ TEST(PosixPrctlTest, SetVmaAnonName) {
   }
 
   free(p);
-  // Clean up the fallback file if it was created.
-  unlink(file_path);
+  // Clean up the fallback files created during the test.
+  CleanupFallbackFiles();
 }
 
 }  // namespace

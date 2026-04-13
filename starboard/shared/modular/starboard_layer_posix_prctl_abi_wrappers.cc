@@ -15,13 +15,9 @@
 #include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <linux/prctl.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/prctl.h>
-#include <sys/syscall.h>
 #include <unistd.h>
 
 #include "starboard/common/log.h"
@@ -36,19 +32,6 @@
 #endif
 
 namespace {
-void VmaTagFileCleanup() {
-  char file_path[256];
-  snprintf(file_path, sizeof(file_path), "/tmp/cobalt_vma_tags_%d.txt",
-           getpid());
-  unlink(file_path);
-}
-
-void VmaTagSignalHandler(int signum) {
-  VmaTagFileCleanup();
-  // Re-raise signal to get default behavior (e.g. core dump).
-  signal(signum, SIG_DFL);
-  raise(signum);
-}
 
 int musl_op_to_platform_op(int musl_op) {
   switch (musl_op) {
@@ -312,37 +295,6 @@ SB_EXPORT int __abi_wrap_prctl(int option,
     }
     case PR_SET_VMA: {
       ret = prctl(platform_op, arg2, arg3, arg4, arg5);
-      if (ret == -1 && errno == EINVAL && arg2 == PR_SET_VMA_ANON_NAME) {
-        // Kernel does not support PR_SET_VMA_ANON_NAME. Fallback to writing to a
-        // file.
-        char file_path[256];
-        snprintf(file_path, sizeof(file_path), "/tmp/cobalt_vma_tags_%d.txt",
-                 getpid());
-
-        FILE* file = fopen(file_path, "a");
-        if (file) {
-          static bool cleanup_registered = false;
-          if (!cleanup_registered) {
-            atexit(VmaTagFileCleanup);
-            // Also register signal handlers for common crash signals.
-            // This is not a perfect solution as it can interfere with
-            // application signal handlers and does not handle SIGKILL.
-            signal(SIGSEGV, VmaTagSignalHandler);
-            signal(SIGABRT, VmaTagSignalHandler);
-            signal(SIGTERM, VmaTagSignalHandler);
-            signal(SIGQUIT, VmaTagSignalHandler);
-            signal(SIGINT, VmaTagSignalHandler);
-            cleanup_registered = true;
-          }
-          fprintf(file, "0x%lx 0x%lx %s\n", arg3, arg3 + arg4,
-                  (const char*)arg5);
-          fclose(file);
-          return 0;  // Success for our fallback.
-        } else {
-          SB_LOG(ERROR) << "Failed to open VMA tag file: " << file_path;
-          // Fall through to return original error.
-        }
-      }
       break;
     }
     // This default case shouldn't be reachable; if we weren't able to convert
