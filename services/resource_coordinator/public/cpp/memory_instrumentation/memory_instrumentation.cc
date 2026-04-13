@@ -17,6 +17,7 @@ void WrapGlobalMemoryDump(
     mojom::GlobalMemoryDumpPtr dump) {
   std::move(callback).Run(success, GlobalMemoryDump::MoveFrom(std::move(dump)));
 }
+
 }  // namespace
 
 // static
@@ -79,6 +80,24 @@ void MemoryInstrumentation::RequestGlobalDumpAndAppendToTrace(
   CHECK(is_browser_process_);
   coordinator_->RequestGlobalMemoryDumpAndAppendToTrace(
       dump_type, level_of_detail, determinism, std::move(callback));
+}
+
+#if BUILDFLAG(IS_COBALT)
+void MemoryInstrumentation::SetDetailedMetricsDelegate(
+    DetailedMetricsDelegate* delegate) {
+  base::AutoLock lock(detailed_metrics_delegate_lock_);
+  detailed_metrics_delegate_ = delegate;
+}
+
+DetailedMetricsDelegate* MemoryInstrumentation::GetDetailedMetricsDelegate()
+    const {
+  base::AutoLock lock(detailed_metrics_delegate_lock_);
+  return detailed_metrics_delegate_;
+}
+#endif
+
+base::WeakPtr<MemoryInstrumentation> MemoryInstrumentation::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace memory_instrumentation

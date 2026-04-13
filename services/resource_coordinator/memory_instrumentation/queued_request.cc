@@ -5,6 +5,7 @@
 #include "services/resource_coordinator/memory_instrumentation/queued_request.h"
 
 #include "base/containers/to_vector.h"
+#include "build/build_config.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 
 namespace memory_instrumentation {
@@ -55,10 +56,21 @@ base::trace_event::MemoryDumpRequestArgs QueuedRequest::GetRequestArgs() {
 }
 
 std::vector<mojom::MemDumpFlags> QueuedRequest::memory_dump_flags() const {
+#if BUILDFLAG(IS_COBALT)
+  if (args.memory_footprint_only) {
+    return {};
+  }
+  OSMetrics::MemDumpFlagSet flags = OSMetrics::MemDumpFlagSet::All();
+  if (args.level_of_detail == MemoryDumpLevelOfDetail::kLight) {
+    flags.Remove(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
+  }
+  return base::ToVector(flags);
+#else
   if (!args.memory_footprint_only) {
     return base::ToVector(OSMetrics::MemDumpFlagSet::All());
   }
   return {};
+#endif
 }
 
 QueuedVmRegionRequest::Response::Response() = default;
