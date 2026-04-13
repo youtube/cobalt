@@ -83,7 +83,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Pre-starts and parks a hardware stream for faster startup.
   void PreStartStream(const base::UnguessableToken& session_id,
-                      const AudioParameters& params);
+                      const AudioParameters& params) override;
 #endif
 
   void SetMute(JNIEnv* env,

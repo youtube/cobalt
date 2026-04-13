@@ -19,6 +19,9 @@
 
 namespace media {
 
+const int StarboardAudioInputStream::kSampleRateHz;
+const int StarboardAudioInputStream::kSamplesPerBuffer;
+
 StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_manager,
                                                      const AudioParameters& params)
     : audio_manager_(audio_manager),

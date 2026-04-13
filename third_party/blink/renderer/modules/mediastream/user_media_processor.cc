@@ -750,8 +750,8 @@ void UserMediaProcessor::SetupAudioInput() {
 
     if (current_request_info_->stream_controls()->audio.stream_type !=
         MediaStreamType::DISPLAY_AUDIO_CAPTURE) {
-      current_request_info_->stream_controls()->audio.device_id =
-          settings.device_id();
+      current_request_info_->stream_controls()->audio.device_ids = {
+          settings.device_id()};
       current_request_info_->stream_controls()->disable_local_echo =
           settings.disable_local_echo();
     }
