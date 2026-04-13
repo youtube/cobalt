@@ -506,7 +506,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
       continue;
     }
     // Reject low performance software codec if software codec is not required.
-    const bool reject_low_performance_software_deocder =
+    const bool reject_low_performance_software_decoder =
         features::FeatureList::IsEnabled(
             starboard::features::kRejectLowPerformanceSoftwareDecoder);
     if (reject_low_performance_software_deocder && !require_software_codec &&
