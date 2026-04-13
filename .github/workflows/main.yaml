@@ -436,23 +436,21 @@ jobs:
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Prepare OverlayFS Workspace
         id: overlay_workspace
-        if: runner.os == 'Linux'
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
           ref: ${{ github.sha }}
 
       - name: Runner Cache Hot
-        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit == 'true'
+        if: steps.overlay_workspace.outputs.cache_hit == 'true'
         shell: bash
         run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
-        if: runner.os == 'Linux' && steps.overlay_workspace.outputs.cache_hit != 'true'
+        if: steps.overlay_workspace.outputs.cache_hit != 'true'
         shell: bash
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
-        if: runner.os != 'Linux'
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
@@ -461,7 +459,6 @@ jobs:
           use_cache: true
 
       - name: Set Up Depot Tools
-        if: runner.os != 'Linux'
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
 
@@ -499,11 +496,6 @@ jobs:
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
 
-      - name: Teardown OverlayFS
-        if: runner.os == 'Linux' && always()
-        uses: ./.github/actions/teardown_overlay
-        with:
-          path: cobalt
 
   on-device-test:
     needs: [initialize, build]
@@ -657,7 +649,7 @@ jobs:
         ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
         (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
       )
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
       image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
@@ -826,11 +818,6 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: Blink Web Test Results ${{ github.workflow }}
 
-      - name: Teardown OverlayFS
-        if: runner.os == 'Linux' && always()
-        uses: ./.github/actions/teardown_overlay
-        with:
-          path: cobalt
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
