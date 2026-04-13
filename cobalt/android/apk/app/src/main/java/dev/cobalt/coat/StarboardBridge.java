@@ -202,12 +202,8 @@ public class StarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
       closeAllServices();
-<<<<<<< HEAD
-      System.exit(0);
-=======
       advertisingId.shutdown();
-      activity.finishAndRemoveTask();
->>>>>>> e909b6967b (android: Fix ClientLogInfo and AdvertisingId leaks (#9089))
+      System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
