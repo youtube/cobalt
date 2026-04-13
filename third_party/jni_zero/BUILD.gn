@@ -2,9 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//third_party/jni_zero/jni_zero.gni")
 import("//build/buildflag_header.gni")
 import("//cobalt/build/configs/cobalt_for_google.gni")
+import("//starboard/build/config/android_toolchain.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 config("jni_include_dir") {
   include_dirs = [ jni_headers_dir ]
@@ -85,9 +86,9 @@ component("jni_zero") {
   }
 
   deps = [
-    ":generate_jni($default_toolchain)",
-    ":system_jni($default_toolchain)",
     ":cobalt_for_google3_buildflags",
+    ":generate_jni($android_toolchain)",
+    ":system_jni($android_toolchain)",
   ]
   
   if (is_cobalt) {
