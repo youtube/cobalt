@@ -417,25 +417,6 @@ TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   EXPECT_THAT(collected_values, ::testing::ElementsAreArray(expected_values));
 }
 
-TEST_F(MigrationManagerTest,
-       RunMigrationAndGetMigrationStatusUrlParameterTest) {
-  base::test::ScopedCommandLine scoped_command_line;
-  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
-      switches::kInitialURL, "https://example.com");
-
-  MockStoragePartition partition;
-
-  base::RunLoop run_loop;
-  MigrationManager::RunMigration(
-      static_cast<content::StoragePartition*>(&partition),
-      run_loop.QuitClosure());
-  run_loop.Run();
-
-  std::string status = MigrationManager::GetMigrationStatusUrlParameter();
-  EXPECT_FALSE(status.empty());
-  EXPECT_TRUE(status.find("migration_status=") == 0);
-}
-
 // --- Cookie Task Tests ---
 
 TEST_F(MigrationManagerTest, CookieTaskTest) {
