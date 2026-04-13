@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 
+#include <limits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -161,6 +163,35 @@ TEST_F(CobaltDetailedMetricsDelegateTest, ResetsCorrectly) {
 
   auto stats = delegate_.GetAndResetStats();
   EXPECT_EQ(stats.categories_kb["pss:cobalt_core"], 0u);
+}
+
+TEST_F(CobaltDetailedMetricsDelegateTest, HandlesLargeValues) {
+  delegate_.OnSmapsBuffer("01100000-01121000 rw-p 00000000 00:00 0 [anon:v8]");
+  // 5,000,000,000 KB exceeds uint32_t max (~4.29 billion)
+  delegate_.OnSmapsBuffer("Pss:                  5000000000 kB");
+
+  auto stats = delegate_.GetAndResetStats();
+  // Should be saturated to max uint32_t
+  EXPECT_EQ(stats.categories_kb["pss:v8"],
+            std::numeric_limits<uint32_t>::max());
+}
+
+TEST_F(CobaltDetailedMetricsDelegateTest, HandlesUnexpectedUnits) {
+  delegate_.OnSmapsBuffer("01200000-01221000 rw-p 00000000 00:00 0 [anon:v8]");
+  delegate_.OnSmapsBuffer("Pss:                  100 MB");  // Unexpected unit
+
+  auto stats = delegate_.GetAndResetStats();
+  // Should be ignored, so value is 0
+  EXPECT_EQ(stats.categories_kb["pss:v8"], 0u);
+}
+
+TEST_F(CobaltDetailedMetricsDelegateTest, CounterCaseSensitivity) {
+  delegate_.OnSmapsBuffer("01300000-01321000 rw-p 00000000 00:00 0 [anon:v8]");
+  delegate_.OnSmapsBuffer("PSS:                  100 kB");  // Uppercase
+
+  auto stats = delegate_.GetAndResetStats();
+  // Should be ignored, so value is 0
+  EXPECT_EQ(stats.categories_kb["pss:v8"], 0u);
 }
 
 }  // namespace cobalt
