@@ -13,7 +13,6 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
-#include "base/synchronization/waitable_event.h"
 #include "media/audio/android/aaudio_input.h"
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_device_id.h"
@@ -79,12 +78,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       const AudioParameters& params,
       const std::string& device_id,
       const LogCallback& log_callback) override;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Pre-starts and parks a hardware stream for faster startup.
-  void PreStartStream(const base::UnguessableToken& session_id,
-                      const AudioParameters& params) override;
-#endif
 
   void SetMute(JNIEnv* env,
                const base::android::JavaParamRef<jobject>& obj,
@@ -183,20 +176,6 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   using InputStreams =
       base::flat_set<raw_ptr<AudioInputStream, CtnExperimental>>;
   InputStreams input_streams_requiring_sco_;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Map to hold pre-started streams indexed by session ID.
-  base::Lock pre_started_streams_lock_;
-  
-  struct PreStartedEntry {
-    PreStartedEntry();
-    ~PreStartedEntry();
-    AudioInputStream* stream = nullptr;
-    base::WaitableEvent open_event{base::WaitableEvent::ResetPolicy::MANUAL,
-                                   base::WaitableEvent::InitialState::NOT_SIGNALED};
-  };
-  std::map<base::UnguessableToken, std::unique_ptr<PreStartedEntry>> pre_started_streams_;
-#endif
 
   // Enabled when first input stream is created and set to false when last
   // input stream is destroyed. Also affects the stream type of output streams.

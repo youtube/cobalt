@@ -68,7 +68,6 @@
 #include "media/audio/audio_device_description.h"
 #include "media/audio/audio_system.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/audio/audio_manager.h"
 #include "media/audio/android/starboard_audio_input_stream.h"
 #endif
 #include "media/base/audio_parameters.h"
@@ -2656,14 +2655,8 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
                                     "default", "Default Microphone");
     device.input = params;
 
-    // We register a session ID and trigger the physical Open() on the Audio thread.
     auto session_id = audio_input_device_manager()->Open(device);
     device.set_session_id(session_id);
-    
-    media::AudioManager* audio_manager = media::AudioManager::Get();
-    if (audio_manager) {
-      audio_manager->PreStartStream(session_id, params);
-    }
     
     stream_devices_set.stream_devices[0]->audio_device = device;
 
