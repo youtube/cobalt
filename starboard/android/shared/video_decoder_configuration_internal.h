@@ -37,6 +37,15 @@ std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread();
 void SetVideoMaxPendingInputFramesForCurrentThread(
     int max_pending_input_frames);
 
+// Get video_decoder_initial_preroll_count via
+// SetVideoDecoderInitialPrerollCountForCurrentThread().
+std::optional<int> GetVideoDecoderInitialPrerollCountForCurrentThread();
+
+// Specifies the video initial preroll count.
+// |video_decoder_initial_preroll_count| should be non-negative value.
+void SetVideoDecoderInitialPrerollCountForCurrentThread(
+    int video_decoder_initial_preroll_count);
+
 // Get video_decoder_poll_interval_ms via
 // SetVideoDecoderPollIntervalMsForCurrentThread().
 std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
