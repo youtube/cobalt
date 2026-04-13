@@ -47,6 +47,12 @@ void DecoderBuffer::EnableMediaBufferPoolStrategy() {
   s_allocator->EnableMediaBufferPoolStrategy();
 }
 
+// static
+void DecoderBuffer::EnableInPlaceReuseAllocatorBase() {
+  CHECK(s_allocator);
+  s_allocator->EnableInPlaceReuseAllocatorBase();
+}
+
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
