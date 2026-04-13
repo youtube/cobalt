@@ -227,6 +227,8 @@ SB_EXPORT long __abi_wrap_pathconf(const char* path, int name);
 
 SB_EXPORT musl_uid_t __abi_wrap_geteuid();
 
+SB_EXPORT musl_uid_t __abi_wrap_getuid();
+
 SB_EXPORT musl_pid_t __abi_wrap_getpid();
 
 SB_EXPORT int __abi_wrap_access(const char* path, int amode);
