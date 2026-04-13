@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO(b/369245553): Remove this file once Finch is ready, as we no longer need
-// to test the strategy switching logic.
+// to support switching strategy on the fly.
 
 namespace media {
 namespace {
