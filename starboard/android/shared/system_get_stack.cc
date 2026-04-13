@@ -14,6 +14,7 @@
 
 #include <link.h>
 #include <unwind.h>
+#include <link.h>
 
 #include "starboard/common/log.h"
 #include "starboard/system.h"
