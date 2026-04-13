@@ -17,6 +17,7 @@
 #include "base/functional/callback.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/stream_parser.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -36,6 +37,8 @@ namespace {
 
 constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
+constexpr char kMediaIncrementalParseLookAhead[] =
+    "Media.IncrementalParseLookAhead";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
 // Ideally this function should be moved to decoder_buffer.h.  It's kept here as
@@ -128,6 +131,39 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           String("The value for '") + kMediaAppendFirstSegmentSynchronously +
               "' must be a number."));
     }
+    return promise;
+  }
+
+  if (name == kMediaIncrementalParseLookAhead) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (value->IsLong()) {
+      bool enable = (value->GetAsLong() != 0);
+      if (enable) {
+        LOG(INFO) << "Enable incremental parse look ahead.";
+        ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+        resolver->Resolve();
+      } else {
+        LOG(WARNING) << kMediaIncrementalParseLookAhead
+                     << " cannot be disabled.";
+        resolver->Reject(V8ThrowException::CreateTypeError(
+            script_state->GetIsolate(),
+            kMediaIncrementalParseLookAhead + String(" cannot be disabled.")));
+      }
+    } else {
+      LOG(WARNING) << "The value for '" << kMediaIncrementalParseLookAhead
+                   << "' must be a number.";
+      resolver->Reject(V8ThrowException::CreateTypeError(
+          script_state->GetIsolate(), String("The value for '") +
+                                          kMediaIncrementalParseLookAhead +
+                                          "' must be a number."));
+    }
+#else
+    String error_msg =
+        String(kMediaIncrementalParseLookAhead) + " is not supported.";
+    LOG(WARNING) << error_msg;
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), error_msg));
+#endif
     return promise;
   }
 
