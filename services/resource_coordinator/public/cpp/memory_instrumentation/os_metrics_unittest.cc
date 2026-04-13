@@ -14,6 +14,8 @@
 #include "base/files/file_util.h"
 #include "base/memory/page_size.h"
 #include "base/process/process_handle.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,6 +33,12 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #include <sys/mman.h>
 #include <sys/utsname.h>
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
+#include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 #endif
 
 namespace memory_instrumentation {
@@ -446,5 +454,82 @@ TEST(OSMetricsTest, DISABLED_TestMachOReading) {
   CheckMachORegions(maps);
 }
 #endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+class SimpleDetailedMetricsDelegate : public DetailedMetricsDelegate {
+ public:
+  bool OnSmapsBuffer(std::string_view buffer) override {
+    if (buffer.find("/") != std::string_view::npos) {
+      if (buffer.find("/file/1") != std::string_view::npos) {
+        current_category_ = "lib_chrobalt";
+      } else if (buffer.find("/file/name with space") != std::string_view::npos) {
+        current_category_ = "category2";
+      } else {
+        current_category_ = "other";
+      }
+    }
+
+    if (base::StartsWith(buffer, "Pss:")) {
+      std::vector<std::string_view> tokens = base::SplitStringPiece(
+          buffer, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+      uint32_t val = 0;
+      if (tokens.size() >= 2 && base::StringToUint(tokens[1], &val)) {
+        metrics_.categories_kb["pss:" + current_category_] += val;
+        metrics_.total_pss_kb += val;
+      }
+    }
+    return true;
+  }
+
+  DetailedMetrics GetAndResetStats() override {
+    DetailedMetrics results = std::move(metrics_);
+    metrics_ = DetailedMetrics();
+    return results;
+  }
+
+ private:
+  std::string current_category_ = "other";
+  DetailedMetrics metrics_;
+};
+}  // namespace
+
+TEST(OSMetricsTest, DetailedMetricsIntegration) {
+  // Use a dummy coordinator for MemoryInstrumentation.
+  if (!MemoryInstrumentation::GetInstance()) {
+    mojo::PendingRemote<mojom::Coordinator> coordinator_remote;
+    MemoryInstrumentation::CreateInstance(std::move(coordinator_remote), true);
+  }
+
+  SimpleDetailedMetricsDelegate delegate;
+
+  base::ScopedFILE temp_smaps;
+  CreateTempFileWithContents(kTestSmaps1, &temp_smaps);
+  OSMetrics::SetProcSmapsForTesting(temp_smaps.get());
+
+  // Create a smaps_rollup file that matches our expectation (162 + 128 = 290KB PSS).
+  base::ScopedFILE temp_rollup;
+  CreateTempFileWithContents("Pss: 290 kB\nSwapPss: 0 kB\n", &temp_rollup);
+  OSMetrics::SetSmapsRollupForTesting(temp_rollup.get());
+
+  mojom::RawOSMemDump dump;
+  dump.platform_private_footprint = mojom::PlatformPrivateFootprint::New();
+  OSMetrics::MemDumpFlagSet flags;
+  flags.Put(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
+
+  EXPECT_TRUE(OSMetrics::FillOSMemoryDump(base::kNullProcessHandle, flags, &dump, &delegate));
+  
+  ASSERT_TRUE(dump.detailed_stats_kb.has_value());
+  EXPECT_EQ(2u, dump.detailed_stats_kb->size());
+  EXPECT_EQ(162u, (*dump.detailed_stats_kb)["pss:lib_chrobalt"]);
+  EXPECT_EQ(128u, (*dump.detailed_stats_kb)["pss:category2"]);
+
+  // Verify legacy fields are also populated.
+  EXPECT_EQ(162u, dump.libchrobalt_pss_kb);
+
+  OSMetrics::SetProcSmapsForTesting(nullptr);
+  OSMetrics::SetSmapsRollupForTesting(nullptr);
+}
+#endif
 
 }  // namespace memory_instrumentation

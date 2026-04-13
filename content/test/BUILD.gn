@@ -1702,6 +1702,7 @@ test("content_browsertests") {
     "../browser/text_fragment_browsertest.cc",
     "../browser/tpcd_heuristics/opener_heuristic_browsertest.cc",
     "../browser/tracing/background_tracing_manager_browsertest.cc",
+    "../browser/memory/granular_memory_browsertest.cc",
     "../browser/tracing/memory_instrumentation_browsertest.cc",
     "../browser/tracing/memory_tracing_browsertest.cc",
     "../browser/tracing/startup_tracing_browsertest.cc",
