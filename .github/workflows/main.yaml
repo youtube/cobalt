@@ -451,14 +451,19 @@ jobs:
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Checkout
+        if: runner.os != 'Linux'
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
           ref: ${{ github.sha }}
+          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
+          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
+          # to properly calculate build id.
           fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
           use_cache: true
 
       - name: Set Up Depot Tools
+        if: runner.os != 'Linux'
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
 
@@ -796,28 +801,11 @@ jobs:
         shell: bash
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
-      - name: Checkout
-        if: runner.os != 'Linux'
-        uses: ./.github/actions/checkout
-        with:
-          path: cobalt/src
-          ref: ${{ github.sha }}
-          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
-          use_cache: true
-
-      - name: Set Up Depot Tools
-        if: runner.os != 'Linux'
-        id: setup-depot-tools
-        uses: ./.github/actions/depot_tools
-        with:
-          run_sync: false
-
       - name: Run Web Tests
         uses: ./.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: Blink Web Test Results ${{ github.workflow }}
-
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test, browser-test-on-host]
