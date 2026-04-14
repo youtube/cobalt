@@ -103,13 +103,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
-<<<<<<< HEAD
-=======
     std::optional<int> video_renderer_min_input_buffers,
     std::optional<int> video_renderer_min_decoded_frames,
-    std::optional<int> media_codec_reset_delay_ms,
-    void* surface_view,
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -128,15 +123,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
-<<<<<<< HEAD
-=======
       video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
       video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
-      media_codec_reset_delay_ms_(media_codec_reset_delay_ms),
-      surface_view_(surface_view),
-      decode_target_graphics_context_provider_(
-          decode_target_graphics_context_provider),
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
       drm_system_(drm_system) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -157,13 +145,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
-<<<<<<< HEAD
-=======
     std::optional<int> video_renderer_min_input_buffers,
     std::optional<int> video_renderer_min_decoded_frames,
-    std::optional<int> media_codec_reset_delay_ms,
-    void* surface_view,
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -183,56 +166,17 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
-<<<<<<< HEAD
-=======
       video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
       video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
-      media_codec_reset_delay_ms_(media_codec_reset_delay_ms),
-      surface_view_(surface_view),
-      decode_target_graphics_context_provider_(
-          decode_target_graphics_context_provider),
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
       drm_system_(drm_system) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
   SB_CHECK(job_queue_);
 }
 
-<<<<<<< HEAD
 NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
-=======
-PlayerComponents::Factory::CreationParameters::CreationParameters(
-    const CreationParameters& that) {
-  this->audio_stream_info_ = that.audio_stream_info_;
-  this->video_stream_info_ = that.video_stream_info_;
-  this->player_ = that.player_;
-  this->output_mode_ = that.output_mode_;
-  this->max_video_input_size_ = that.max_video_input_size_;
-  this->flush_decoder_during_reset_ = that.flush_decoder_during_reset_;
-  this->reset_audio_decoder_ = that.reset_audio_decoder_;
-  this->video_initial_max_frames_in_decoder_ =
-      that.video_initial_max_frames_in_decoder_;
-  this->video_max_pending_input_frames_ = that.video_max_pending_input_frames_;
-  this->video_decoder_initial_preroll_count_ =
-      that.video_decoder_initial_preroll_count_;
-  this->video_decoder_poll_interval_ms_ = that.video_decoder_poll_interval_ms_;
-  this->video_renderer_min_input_buffers_ =
-      that.video_renderer_min_input_buffers_;
-  this->video_renderer_min_decoded_frames_ =
-      that.video_renderer_min_decoded_frames_;
-  this->media_codec_reset_delay_ms_ = that.media_codec_reset_delay_ms_;
-  this->surface_view_ = that.surface_view_;
-  this->decode_target_graphics_context_provider_ =
-      that.decode_target_graphics_context_provider_;
-  this->drm_system_ = that.drm_system_;
-}
-
-std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
-    const CreationParameters& creation_parameters,
-    std::string* error_message) {
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_CHECK(creation_parameters.job_queue());
@@ -318,14 +262,9 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
           *creation_parameters.video_renderer_min_decoded_frames()};
     }
     video_renderer = std::make_unique<VideoRendererImpl>(
-<<<<<<< HEAD
         creation_parameters.job_queue(), std::move(components.video.decoder),
         media_time_provider, std::move(components.video.render_algorithm),
-        std::move(components.video.renderer_sink));
-=======
-        std::move(video_decoder), media_time_provider,
-        std::move(video_render_algorithm), video_renderer_sink, preroll_params);
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
+        std::move(components.video.renderer_sink), preroll_params);
   }
 
   SB_DCHECK(audio_renderer || video_renderer);

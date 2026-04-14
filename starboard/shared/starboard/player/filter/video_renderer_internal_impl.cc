@@ -48,15 +48,10 @@ VideoRendererImpl::VideoRendererImpl(
     std::unique_ptr<VideoDecoder> decoder,
     MediaTimeProvider* media_time_provider,
     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-<<<<<<< HEAD
-    scoped_refptr<VideoRendererSink> sink)
-    : JobOwner(job_queue),
-      media_time_provider_(media_time_provider),
-=======
     scoped_refptr<VideoRendererSink> sink,
     const std::optional<PrerollParameters>& preroll_params)
-    : media_time_provider_(media_time_provider),
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
+    : JobOwner(job_queue),
+      media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)),

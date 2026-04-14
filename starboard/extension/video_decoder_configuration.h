@@ -50,13 +50,6 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Specifies the video poll interval in milliseconds.
   void (*SetVideoDecoderPollIntervalMsForCurrentThread)(
       int video_decoder_poll_interval_ms);
-<<<<<<< HEAD
-=======
-
-  // Specifies the MediaCodec delay in milliseconds.
-  void (*SetMediaCodecResetDelayMsForCurrentThread)(
-      int media_codec_reset_delay_ms);
-
   // Specifies the video renderer minimum input buffers.
   void (*SetVideoRendererMinInputBuffersForCurrentThread)(
       int video_renderer_min_input_buffers);
@@ -64,7 +57,6 @@ typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Specifies the video renderer minimum decoded frames.
   void (*SetVideoRendererMinDecodedFramesForCurrentThread)(
       int video_renderer_min_decoded_frames);
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 } StarboardExtensionVideoDecoderConfigurationApi;
 
 #ifdef __cplusplus

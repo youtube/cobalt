@@ -69,13 +69,8 @@ class PlayerComponents {
                          std::optional<int> video_max_pending_input_frames,
                          std::optional<int> video_decoder_initial_preroll_count,
                          std::optional<int> video_decoder_poll_interval_ms,
-<<<<<<< HEAD
-=======
                          std::optional<int> video_renderer_min_input_buffers,
                          std::optional<int> video_renderer_min_decoded_frames,
-                         std::optional<int> media_codec_reset_delay_ms,
-                         void* surface_view,
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -92,13 +87,8 @@ class PlayerComponents {
                          std::optional<int> video_max_pending_input_frames,
                          std::optional<int> video_decoder_initial_preroll_count,
                          std::optional<int> video_decoder_poll_interval_ms,
-<<<<<<< HEAD
-=======
                          std::optional<int> video_renderer_min_input_buffers,
                          std::optional<int> video_renderer_min_decoded_frames,
-                         std::optional<int> media_codec_reset_delay_ms,
-                         void* surface_view,
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -167,20 +157,14 @@ class PlayerComponents {
       std::optional<int> video_decoder_poll_interval_ms() const {
         return video_decoder_poll_interval_ms_;
       }
-<<<<<<< HEAD
-
-      JobQueue* job_queue() const { return job_queue_; }
-=======
       std::optional<int> video_renderer_min_input_buffers() const {
         return video_renderer_min_input_buffers_;
       }
       std::optional<int> video_renderer_min_decoded_frames() const {
         return video_renderer_min_decoded_frames_;
       }
-      std::optional<int> media_codec_reset_delay_ms() const {
-        return media_codec_reset_delay_ms_;
-      }
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
+
+      JobQueue* job_queue() const { return job_queue_; }
 
       SbDrmSystem drm_system() const { return drm_system_; }
 
@@ -208,12 +192,8 @@ class PlayerComponents {
       std::optional<int> video_max_pending_input_frames_;
       std::optional<int> video_decoder_initial_preroll_count_;
       std::optional<int> video_decoder_poll_interval_ms_;
-<<<<<<< HEAD
-=======
       std::optional<int> video_renderer_min_input_buffers_;
       std::optional<int> video_renderer_min_decoded_frames_;
-      std::optional<int> media_codec_reset_delay_ms_;
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.

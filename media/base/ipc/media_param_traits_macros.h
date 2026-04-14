@@ -203,12 +203,8 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
   IPC_STRUCT_TRAITS_MEMBER(max_samples_per_write)
   IPC_STRUCT_TRAITS_MEMBER(video_decoder_initial_preroll_count)
   IPC_STRUCT_TRAITS_MEMBER(video_decoder_poll_interval_ms)
-<<<<<<< HEAD
-=======
   IPC_STRUCT_TRAITS_MEMBER(video_renderer_min_input_buffers)
   IPC_STRUCT_TRAITS_MEMBER(video_renderer_min_decoded_frames)
-  IPC_STRUCT_TRAITS_MEMBER(media_codec_reset_delay_ms)
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 IPC_STRUCT_TRAITS_END()
 
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)

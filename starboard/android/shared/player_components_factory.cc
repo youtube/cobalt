@@ -58,8 +58,8 @@ using base::android::AttachCurrentThread;
 using features::FeatureList;
 
 namespace {
-using ::starboard::shared::starboard::player::filter::PlayerComponents;
-using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
+using ::starboard::PlayerComponents;
+using ::starboard::VideoRendererImpl;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -67,17 +67,9 @@ using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
 // TODO: Allow this to be configured per playback at run time from the web app.
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
-<<<<<<< HEAD
-=======
 // Forces video surface to reset after tunnel mode playbacks. This prevents
 // video distortion on some platforms.
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
-
-// By default, Cobalt restarts MediaCodec after stops/flushes during
-// Reset()/Flush(). Set the following variable to > 0 to force it to
-// wait during Reset()/Flush().
-constexpr int64_t kResetDelayUsecOverride = 0;
-constexpr int64_t kFlushDelayUsecOverride = 0;
 
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
@@ -103,8 +95,6 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
   return VideoRendererImpl::PrerollParameters{*min_input_buffers,
                                               *min_decoded_frames};
 }
-
->>>>>>> 09b45ab022 (media: Connect video renderer preroll parameters from H5VCC settings (#9403))
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
