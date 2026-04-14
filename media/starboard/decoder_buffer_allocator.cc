@@ -295,14 +295,9 @@ void DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase() {
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         LOG(INFO)
             << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
-<<<<<<< HEAD
-        return std::make_unique<InPlaceReuseAllocatorStrategy>(initial_capacity,
-                                                               allocation_unit);
-=======
         return std::make_unique<InPlaceReuseAllocatorStrategy>(
             initial_capacity, allocation_unit,
             /*enable_decommit_on_idle=*/false);
->>>>>>> dee9ecddf5 (media: Implement madvise for idle buffer memory (#9286))
       }));
 }
 
@@ -356,16 +351,9 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
   } else {
     strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(
-<<<<<<< HEAD
-        initial_capacity_, allocation_unit_);
+        initial_capacity_, allocation_unit_, /*enable_decommit_on_idle=*/false);
     LOG(INFO)
         << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy.";
-=======
-        initial_capacity_, allocation_unit_,
-        /*enable_decommit_on_idle=*/false);
-    LOG(INFO) << "DecoderBufferAllocator is using"
-              << " DefaultReuseAllocatorStrategy.";
->>>>>>> dee9ecddf5 (media: Implement madvise for idle buffer memory (#9286))
   }
 
   LOG(INFO) << "Allocated " << initial_capacity_
