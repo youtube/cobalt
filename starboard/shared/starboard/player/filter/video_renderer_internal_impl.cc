@@ -19,6 +19,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "starboard/common/check_op.h"
@@ -46,7 +47,9 @@ VideoRendererImpl::VideoRendererImpl(
       media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
-      decoder_(std::move(decoder)) {
+      decoder_(std::move(decoder)),
+      // TODO: b/485225923 - Connect this to h5vcc settings.
+      preroll_params_(std::nullopt) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -132,6 +135,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
 
+  input_buffers_sent_.fetch_add(static_cast<int32_t>(input_buffers.size()));
   decoder_->WriteInputBuffers(input_buffers);
 }
 
@@ -163,6 +167,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   // WriteSample().  So it is safe to modify |seeking_to_time_| here.
   seeking_to_time_ = std::max<int64_t>(seek_to_time, 0);
   seeking_.store(true);
+  input_buffers_sent_.store(0);
   end_of_stream_written_.store(false);
   end_of_stream_decoded_.store(false);
   ended_cb_called_.store(false);
@@ -283,14 +288,25 @@ void VideoRendererImpl::OnDecoderStatus(
       }
     }
 
-    if (number_of_frames_.load() >=
-            static_cast<int32_t>(decoder_->GetPrerollFrameCount()) &&
-        seeking_.exchange(false)) {
+    bool preroll_completed = false;
+    if (preroll_params_) {
+      preroll_completed =
+          input_buffers_sent_.load() >= preroll_params_->min_input_buffers &&
+          number_of_frames_.load() >= preroll_params_->min_decoded_frames;
+    } else {
+      preroll_completed =
+          number_of_frames_.load() >=
+          static_cast<int32_t>(decoder_->GetPrerollFrameCount());
+    }
+
+    if (preroll_completed && seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      SB_LOG(INFO) << "Video preroll takes "
-                   << FormatWithDigitSeparators(CurrentMonotonicTime() -
-                                                first_input_written_at_)
-                   << " microseconds.";
+      SB_LOG(INFO) << "Video preroll complete: elapsed(msec)="
+                   << FormatWithDigitSeparators(
+                          (CurrentMonotonicTime() - first_input_written_at_) /
+                          1'000)
+                   << ", input_buffers_sent=" << input_buffers_sent_.load()
+                   << ", decoded_frames=" << number_of_frames_.load();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
     }
@@ -357,6 +373,11 @@ void VideoRendererImpl::OnSeekTimeout() {
   SB_CHECK(BelongsToCurrentThread());
   if (number_of_frames_.load() > 0) {
     if (seeking_.exchange(false)) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      SB_LOG(INFO) << "Video preroll timeout:"
+                   << " input_buffers_sent=" << input_buffers_sent_.load()
+                   << ", decoded_frames=" << number_of_frames_.load();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
     }
   } else if (seeking_.load()) {

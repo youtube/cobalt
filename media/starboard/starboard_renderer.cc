@@ -144,8 +144,9 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
       experimental_features_(experimental_features),
-      // TODO: b/375674101 - Connect this to h5vcc setting.
-      max_samples_per_write_(kDefaultMaxSamplePerWrite),
+      max_samples_per_write_(
+          experimental_features.max_samples_per_write.value_or(
+              kDefaultMaxSamplePerWrite)),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -635,6 +636,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       experimental_features_.enable_reset_audio_decoder,
       experimental_features_.initial_max_frames_in_decoder,
       experimental_features_.max_pending_input_frames,
+      experimental_features_.video_decoder_initial_preroll_count,
       experimental_features_.video_decoder_poll_interval_ms
 #if BUILDFLAG(IS_ANDROID)
       ,

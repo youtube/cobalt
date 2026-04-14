@@ -319,13 +319,13 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 
 }  // namespace
 
+ShellPlatformDelegate::ShellPlatformDelegate() = default;
+ShellPlatformDelegate::~ShellPlatformDelegate() = default;
+
 std::unique_ptr<views::ViewsDelegate>
 ShellPlatformDelegate::CreateViewsDelegate() {
   return std::make_unique<views::CobaltViewsDelegate>();
 }
-
-ShellPlatformDelegate::ShellPlatformDelegate() = default;
-ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
                                        bool is_visible) {
