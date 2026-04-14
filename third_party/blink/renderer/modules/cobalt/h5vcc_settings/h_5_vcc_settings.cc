@@ -52,10 +52,10 @@ constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
 
-constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
-    "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
+constexpr char kEnableDecommitableAllocatorStrategy[] =
+    "DecoderBuffer.EnableDecommitableAllocatorStrategy";
 static_assert(
-    std::string_view(kEnableMediaBufferPoolAllocatorStrategy)
+    std::string_view(kEnableDecommitableAllocatorStrategy)
         .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
     kDecoderBufferSettingPrefix);
 
@@ -66,12 +66,21 @@ static_assert(
         .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
     kDecoderBufferSettingPrefix);
 
+constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
+    "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
+static_assert(
+    std::string_view(kEnableMediaBufferPoolAllocatorStrategy)
+        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
+    kDecoderBufferSettingPrefix);
+
 using EnableFunction = void (*)();
 using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 const SettingsMap& GetDecoderBufferSettings() {
   static const base::NoDestructor<SettingsMap> settings({
+      {kEnableDecommitableAllocatorStrategy,
+       &::media::DecoderBufferAllocator::EnableDecommitableAllocatorStrategy},
       {kEnableInPlaceReuseAllocatorBase,
        &::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase},
       {kEnableMediaBufferPoolAllocatorStrategy,
