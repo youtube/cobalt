@@ -228,6 +228,15 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
           starboard::GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
   }
+  if (auto video_renderer_min_input_buffers =
+          starboard::GetVideoRendererMinInputBuffersForCurrentThread()) {
+    handler->SetVideoRendererMinInputBuffers(*video_renderer_min_input_buffers);
+  }
+  if (auto video_renderer_min_decoded_frames =
+          starboard::GetVideoRendererMinDecodedFramesForCurrentThread()) {
+    handler->SetVideoRendererMinDecodedFrames(
+        *video_renderer_min_decoded_frames);
+  }
 
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
