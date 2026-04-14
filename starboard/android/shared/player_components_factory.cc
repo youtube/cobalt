@@ -67,10 +67,6 @@ using ::starboard::VideoRendererImpl;
 // TODO: Allow this to be configured per playback at run time from the web app.
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
-// Forces video surface to reset after tunnel mode playbacks. This prevents
-// video distortion on some platforms.
-constexpr bool kForceResetSurfaceUnderTunnelMode = true;
-
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
   const auto& min_input_buffers =
