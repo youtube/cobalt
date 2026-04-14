@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <ifaddrs.h>
 #include <net/if.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -20,40 +21,48 @@
 namespace nplb {
 namespace {
 
-TEST(PosixIfIndextonameTest, InvalidIndex) {
+class PosixIfIndextonameTest : public ::testing::Test {
+ public:
+  PosixIfIndextonameTest() { errno = 0; }
+  ~PosixIfIndextonameTest() override {
+    if (ifs != nullptr) {
+      freeifaddrs(ifs);
+    }
+  }
+
+ protected:
   char buf[IF_NAMESIZE];
-  errno = 0;
+  struct ifaddrs* ifs = nullptr;
+};
+
+TEST_F(PosixIfIndextonameTest, InvalidIndex) {
   char* name = if_indextoname(0, buf);
   EXPECT_EQ(name, nullptr);
   EXPECT_EQ(errno, ENXIO);
 }
 
-TEST(PosixIfIndextonameTest, LargeInvalidIndex) {
-  char buf[IF_NAMESIZE];
-  errno = 0;
+TEST_F(PosixIfIndextonameTest, LargeInvalidIndex) {
   // Use a very large index that is unlikely to exist.
   char* name = if_indextoname(0xFFFFFFFF, buf);
   EXPECT_EQ(name, nullptr);
   EXPECT_EQ(errno, ENXIO);
 }
 
-TEST(PosixIfIndextonameTest, ValidIndexLoopback) {
-  char buf[IF_NAMESIZE];
-  // Loopback is named "lo" on almost all Linux systems and "lo0" on Mac.
-  const char* loopback_name = "lo";
-  unsigned int index = if_nametoindex(loopback_name);
-  if (index == 0) {
-    loopback_name = "lo0";
-    index = if_nametoindex(loopback_name);
-  }
-  ASSERT_NE(index, 0u);
+TEST_F(PosixIfIndextonameTest, AllValidIndices) {
+  ASSERT_GE(getifaddrs(&ifs), 0);
+  ASSERT_NE(ifs, nullptr);
+  ASSERT_EQ(errno, 0);
 
-  errno = 0;
-  char* name = if_indextoname(index, buf);
-  EXPECT_NE(name, nullptr);
-  EXPECT_STREQ(name, loopback_name);
-  EXPECT_EQ(name, buf);
-  EXPECT_EQ(errno, 0);
+  for (struct ifaddrs* ifa = ifs; ifa != nullptr; ifa = ifa->ifa_next) {
+    unsigned int index = if_nametoindex(ifa->ifa_name);
+    EXPECT_NE(index, 0u);
+    EXPECT_EQ(errno, 0);
+
+    char* name = if_indextoname(index, buf);
+    EXPECT_EQ(name, buf);
+    EXPECT_EQ(errno, 0);
+    EXPECT_STREQ(name, ifa->ifa_name);
+  }
 }
 
 }  // namespace

@@ -331,6 +331,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getpriority);
   REGISTER_WRAPPER(getrlimit);
   REGISTER_WRAPPER(if_indextoname);
+  REGISTER_WRAPPER(if_nametoindex);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);

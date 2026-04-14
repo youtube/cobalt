@@ -64,6 +64,11 @@ int getifaddrs(struct ifaddrs** ifap) {
   return __abi_wrap_getifaddrs(ifap);
 }
 
+unsigned int __abi_wrap_if_nametoindex(const char* ifname);
+unsigned int if_nametoindex(const char* ifname) {
+  return __abi_wrap_if_nametoindex(ifname);
+}
+
 char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname);
 char* if_indextoname(unsigned int ifindex, char* ifname) {
   return __abi_wrap_if_indextoname(ifindex, ifname);

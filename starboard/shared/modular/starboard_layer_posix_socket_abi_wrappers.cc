@@ -391,6 +391,17 @@ SB_EXPORT int __abi_wrap_getifaddrs(struct ifaddrs** ifap) {
   return result;
 }
 
+SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname) {
+  if (ifname == nullptr) {
+    // No errors defined by the POSIX spec.
+    return 0;
+  }
+
+  char platform_buf[IF_NAMESIZE];
+  starboard::strlcpy(platform_buf, ifname, MUSL_IF_NAMESIZE);
+  return if_nametoindex(platform_buf);
+}
+
 SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
   if (ifname == nullptr) {
     // It feels like this should also set errno, but the spec doesn't require

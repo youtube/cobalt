@@ -202,6 +202,8 @@ SB_EXPORT int __abi_wrap_getifaddrs(struct ifaddrs** ifap);
 
 SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname);
 
+SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname);
+
 SB_EXPORT int __abi_wrap_setsockopt(int socket,
                                     int level,
                                     int option_name,
