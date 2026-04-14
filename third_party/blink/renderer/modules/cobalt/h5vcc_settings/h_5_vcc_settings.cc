@@ -14,10 +14,7 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
-#include <string_view>
-
-#include "base/functional/callback.h"
-#include "base/no_destructor.h"
+#include "base/types/expected.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/stream_parser.h"
@@ -27,14 +24,12 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
-#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
-#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -44,97 +39,93 @@
 namespace blink {
 namespace {
 
-constexpr char kMediaAppendFirstSegmentSynchronously[] =
-    "Media.AppendFirstSegmentSynchronously";
-constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
-    "Media.ExperimentalMaxPendingBytesPerParse";
-constexpr char kMediaIncrementalParseLookAhead[] =
-    "Media.IncrementalParseLookAhead";
-constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
+using Result = base::expected<void, String>;
 
-constexpr char kEnableDecommitableAllocatorStrategy[] =
-    "DecoderBuffer.EnableDecommitableAllocatorStrategy";
-static_assert(
-    std::string_view(kEnableDecommitableAllocatorStrategy)
-        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
-    kDecoderBufferSettingPrefix);
-
-constexpr char kEnableInPlaceReuseAllocatorBase[] =
-    "DecoderBuffer.EnableInPlaceReuseAllocatorBase";
-static_assert(
-    std::string_view(kEnableInPlaceReuseAllocatorBase)
-        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
-    kDecoderBufferSettingPrefix);
-
-constexpr char kEnableMediaBufferPoolAllocatorStrategy[] =
-    "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy";
-static_assert(
-    std::string_view(kEnableMediaBufferPoolAllocatorStrategy)
-        .substr(0, std::string_view(kDecoderBufferSettingPrefix).size()) ==
-    kDecoderBufferSettingPrefix);
-
-using EnableFunction = void (*)();
-using SettingsMap = WTF::HashMap<WTF::String, EnableFunction>;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-const SettingsMap& GetDecoderBufferSettings() {
-  static const base::NoDestructor<SettingsMap> settings({
-      {kEnableDecommitableAllocatorStrategy,
-       &::media::DecoderBufferAllocator::EnableDecommitableAllocatorStrategy},
-      {kEnableInPlaceReuseAllocatorBase,
-       &::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase},
-      {kEnableMediaBufferPoolAllocatorStrategy,
-       &::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy},
-  });
-  return *settings;
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-// Ideally this function should be moved to decoder_buffer.h.  It's kept here as
-// H5vccSettings will soon be deprecated and it's easier to remove from here.
-ScriptPromise<IDLUndefined> ProcessDecoderBufferSettings(
-    ScriptState* script_state,
-    const WTF::String& name,
-    const V8UnionLongOrString* value,
-    ExceptionState& exception_state) {
-  DCHECK(name.StartsWith(kDecoderBufferSettingPrefix));
-
+ScriptPromise<IDLUndefined> Reject(ScriptState* script_state,
+                                   const ExceptionContext& exception_context,
+                                   const String& error) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
-      script_state, exception_state.GetContext());
-  auto promise = resolver->Promise();
-
-  if (!value->IsLong()) {
-    LOG(WARNING) << "The value for " << name << " must be a number.";
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(),
-        "The value for " + name + " must be a number."));
-    return promise;
-  }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  const auto& settings = GetDecoderBufferSettings();
-  auto it = settings.find(name);
-
-  if (it != settings.end()) {
-    if (value->GetAsLong() != 0) {
-      LOG(INFO) << "Enabling " << name << ".";
-      it->value();
-      resolver->Resolve();
-    } else {
-      LOG(WARNING) << name << " cannot be disabled.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(), name + " cannot be disabled."));
-    }
-    return promise;
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-  LOG(WARNING) << name << " isn't a supported setting.";
-  // An unknown setting leads to TypeError.
-  resolver->Reject(V8ThrowException::CreateTypeError(
-      script_state->GetIsolate(), name + " isn't a supported setting."));
-
+      script_state, exception_context);
+  ScriptPromise<IDLUndefined> promise = resolver->Promise();
+  resolver->Reject(
+      V8ThrowException::CreateTypeError(script_state->GetIsolate(), error));
   return promise;
+}
+
+ScriptPromise<IDLUndefined> Resolve(ScriptState* script_state,
+                                    const ExceptionContext& exception_context) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_context);
+  ScriptPromise<IDLUndefined> promise = resolver->Promise();
+  resolver->Resolve();
+  return promise;
+}
+
+template <typename T, typename Callback>
+ScriptPromise<IDLUndefined> ProcessSettingAs(
+    ScriptState* script_state,
+    const ExceptionContext& exception_context,
+    const String& name,
+    const V8UnionLongOrString& value,
+    Callback callback) {
+  if (!value.IsLong()) {
+    LOG(WARNING) << "The value for '" << name << "' must be a number.";
+    return Reject(script_state, exception_context,
+                  "The value for '" + name + "' must be a number.");
+  }
+  const int32_t int_value = value.GetAsLong();
+
+  Result result = callback(static_cast<T>(int_value));
+  if (!result.has_value()) {
+    LOG(WARNING) << "Failed to set " << name << " to " << int_value << ": "
+                 << result.error();
+    return Reject(script_state, exception_context, result.error());
+  }
+
+  LOG(INFO) << name << " is set to " << int_value;
+  return Resolve(script_state, exception_context);
+}
+
+template <typename ActionCallback>
+ScriptPromise<IDLUndefined> ProcessSettingAsEnableOnly(
+    ScriptState* script_state,
+    const ExceptionContext& exception_context,
+    const String& name,
+    const V8UnionLongOrString& value,
+    ActionCallback action) {
+  return ProcessSettingAs<bool>(
+      script_state, exception_context, name, value,
+      [&name, action = std::move(action)](bool enable) -> Result {
+        if (!enable) {
+          return base::unexpected(name + " cannot be disabled.");
+        }
+
+        if (!action()) {
+          return base::unexpected(name + " is not supported.");
+        }
+        return base::ok();
+      });
+}
+
+template <typename ActionCallback>
+ScriptPromise<IDLUndefined> ProcessSettingAsPositiveInt(
+    ScriptState* script_state,
+    const ExceptionContext& exception_context,
+    const String& name,
+    const V8UnionLongOrString& value,
+    ActionCallback action) {
+  return ProcessSettingAs<int>(
+      script_state, exception_context, name, value,
+      [&name, action = std::move(action)](int int_value) -> Result {
+        if (int_value <= 0) {
+          return base::unexpected(name + " must be a positive integer.");
+        }
+
+        if (!action(int_value)) {
+          return base::unexpected(name + " is not supported.");
+        }
+        return base::ok();
+      });
 }
 
 }  // namespace
@@ -152,96 +143,78 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     const WTF::String& name,
     const V8UnionLongOrString* value,
     ExceptionState& exception_state) {
-  if (name.StartsWith(kDecoderBufferSettingPrefix)) {
-    return ProcessDecoderBufferSettings(script_state, name, value,
-                                        exception_state);
-  }
+  const ExceptionContext& exception_context = exception_state.GetContext();
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
-      script_state, exception_state.GetContext());
-  auto promise = resolver->Promise();
-
-  if (name == kMediaAppendFirstSegmentSynchronously) {
-    if (value->IsLong()) {
-      append_first_segment_synchronously_ = (value->GetAsLong() != 0);
-      if (append_first_segment_synchronously_) {
-        LOG(INFO) << "Enable synchronous append of first media source segment.";
-      } else {
-        LOG(INFO) << "Disable synchronous append of first media source"
-                  << " segment.";
-      }
-      resolver->Resolve();
-    } else {
-      LOG(WARNING) << "The value for '" << kMediaAppendFirstSegmentSynchronously
-                   << "' must be a number.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(),
-          String("The value for '") + kMediaAppendFirstSegmentSynchronously +
-              "' must be a number."));
-    }
-    return promise;
-  }
-
-  if (name == kMediaExperimentalMaxPendingBytesPerParse) {
+  if (name == "DecoderBuffer.EnableDecommitableAllocatorStrategy") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [] {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (value->IsLong()) {
-      int experimental_value = value->GetAsLong();
-      if (experimental_value > 0) {
-        LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
-                  << " to " << experimental_value << " bytes.";
-        ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
-            experimental_value);
-        resolver->Resolve();
-        return promise;
-      }
-    }
-
-    LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
-                 << " must be set to a positive integer";
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(),
-        kMediaExperimentalMaxPendingBytesPerParse +
-            String(" must be a positive integer.")));
+          ::media::DecoderBufferAllocator::
+              EnableDecommitableAllocatorStrategy();
+          return true;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-    String error_msg = String(kMediaExperimentalMaxPendingBytesPerParse) +
-                       " is not supported.";
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(), error_msg));
+          return false;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-    return promise;
+        });
+  }
+  if (name == "DecoderBuffer.EnableInPlaceReuseAllocatorBase") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [] {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+          ::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase();
+          return true;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+          return false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+        });
+  }
+  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [] {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+          ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
+          return true;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+          return false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+        });
+  }
+  // "DecoderBuffer." settings must be handled before this catch-all block.
+  if (name.StartsWith("DecoderBuffer.")) {
+    return Reject(script_state, exception_context,
+                  name + " isn't a supported setting.");
   }
 
-  if (name == kMediaIncrementalParseLookAhead) {
+  if (name == "Media.AppendFirstSegmentSynchronously") {
+    return ProcessSettingAs<bool>(script_state, exception_context, name, *value,
+                                  [this](bool enable) -> Result {
+                                    append_first_segment_synchronously_ =
+                                        enable;
+                                    return base::ok();
+                                  });
+  }
+  if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
+    return ProcessSettingAsPositiveInt(
+        script_state, exception_context, name, *value, [](int int_value) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (value->IsLong()) {
-      bool enable = (value->GetAsLong() != 0);
-      if (enable) {
-        LOG(INFO) << "Enable incremental parse look ahead.";
-        ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
-        resolver->Resolve();
-      } else {
-        LOG(WARNING) << kMediaIncrementalParseLookAhead
-                     << " cannot be disabled.";
-        resolver->Reject(V8ThrowException::CreateTypeError(
-            script_state->GetIsolate(),
-            kMediaIncrementalParseLookAhead + String(" cannot be disabled.")));
-      }
-    } else {
-      LOG(WARNING) << "The value for '" << kMediaIncrementalParseLookAhead
-                   << "' must be a number.";
-      resolver->Reject(V8ThrowException::CreateTypeError(
-          script_state->GetIsolate(), String("The value for '") +
-                                          kMediaIncrementalParseLookAhead +
-                                          "' must be a number."));
-    }
+          ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
+              int_value);
+          return true;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-    String error_msg =
-        String(kMediaIncrementalParseLookAhead) + " is not supported.";
-    LOG(WARNING) << error_msg;
-    resolver->Reject(V8ThrowException::CreateTypeError(
-        script_state->GetIsolate(), error_msg));
+          return false;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-    return promise;
+        });
+  }
+  if (name == "Media.IncrementalParseLookAhead") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [] {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+          ::media::StreamParser::SetEnableIncrementalParseLookAhead(true);
+          return true;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+          return false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+        });
   }
 
   EnsureReceiverIsBound();
@@ -257,6 +230,9 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     NOTREACHED();
   }
 
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   ongoing_requests_.insert(resolver);
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
