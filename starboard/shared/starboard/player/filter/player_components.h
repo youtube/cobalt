@@ -50,6 +50,17 @@ class JobQueue;
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
+  struct ExperimentalFeatures {
+    bool flush_decoder_during_reset = false;
+    bool reset_audio_decoder = false;
+    std::optional<int> video_initial_max_frames_in_decoder;
+    std::optional<int> video_max_pending_input_frames;
+    std::optional<int> video_decoder_initial_preroll_count;
+    std::optional<int> video_decoder_poll_interval_ms;
+    std::optional<int> video_renderer_min_input_buffers;
+    std::optional<int> video_renderer_min_decoded_frames;
+  };
+
   // This class creates PlayerComponents.
   class Factory {
    public:
@@ -62,15 +73,8 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
+                         const ExperimentalFeatures& experimental_features,
                          void* surface_view,
-                         bool flush_decoder_during_reset,
-                         bool reset_audio_decoder,
-                         std::optional<int> video_initial_max_frames_in_decoder,
-                         std::optional<int> video_max_pending_input_frames,
-                         std::optional<int> video_decoder_initial_preroll_count,
-                         std::optional<int> video_decoder_poll_interval_ms,
-                         std::optional<int> video_renderer_min_input_buffers,
-                         std::optional<int> video_renderer_min_decoded_frames,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -80,15 +84,8 @@ class PlayerComponents {
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          int max_video_input_size,
+                         const ExperimentalFeatures& experimental_features,
                          void* surface_view,
-                         bool flush_decoder_during_reset,
-                         bool reset_audio_decoder,
-                         std::optional<int> video_initial_max_frames_in_decoder,
-                         std::optional<int> video_max_pending_input_frames,
-                         std::optional<int> video_decoder_initial_preroll_count,
-                         std::optional<int> video_decoder_poll_interval_ms,
-                         std::optional<int> video_renderer_min_input_buffers,
-                         std::optional<int> video_renderer_min_decoded_frames,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          JobQueue* job_queue,
@@ -135,33 +132,14 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
-      void* surface_view() const { return surface_view_; }
-      bool flush_decoder_during_reset() const {
-        return flush_decoder_during_reset_;
+      const ExperimentalFeatures& experimental_features() const {
+        return experimental_features_;
       }
-      bool reset_audio_decoder() const { return reset_audio_decoder_; }
+      void* surface_view() const { return surface_view_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
-      }
-      std::optional<int> video_initial_max_frames_in_decoder() const {
-        return video_initial_max_frames_in_decoder_;
-      }
-      std::optional<int> video_max_pending_input_frames() const {
-        return video_max_pending_input_frames_;
-      }
-      std::optional<int> video_decoder_initial_preroll_count() const {
-        return video_decoder_initial_preroll_count_;
-      }
-      std::optional<int> video_decoder_poll_interval_ms() const {
-        return video_decoder_poll_interval_ms_;
-      }
-      std::optional<int> video_renderer_min_input_buffers() const {
-        return video_renderer_min_input_buffers_;
-      }
-      std::optional<int> video_renderer_min_decoded_frames() const {
-        return video_renderer_min_decoded_frames_;
       }
 
       JobQueue* job_queue() const { return job_queue_; }
@@ -181,19 +159,11 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
+      const ExperimentalFeatures experimental_features_;
       void* surface_view_;
-      bool flush_decoder_during_reset_ = false;
-      bool reset_audio_decoder_ = false;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
       JobQueue* const job_queue_;
-
-      std::optional<int> video_initial_max_frames_in_decoder_;
-      std::optional<int> video_max_pending_input_frames_;
-      std::optional<int> video_decoder_initial_preroll_count_;
-      std::optional<int> video_decoder_poll_interval_ms_;
-      std::optional<int> video_renderer_min_input_buffers_;
-      std::optional<int> video_renderer_min_decoded_frames_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.
