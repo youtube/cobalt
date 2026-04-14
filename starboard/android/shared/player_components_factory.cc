@@ -58,8 +58,6 @@ using base::android::AttachCurrentThread;
 using features::FeatureList;
 
 namespace {
-using ::starboard::PlayerComponents;
-using ::starboard::VideoRendererImpl;
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
