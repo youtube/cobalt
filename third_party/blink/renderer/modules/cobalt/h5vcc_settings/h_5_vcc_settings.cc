@@ -14,8 +14,6 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
-#include "base/functional/callback.h"
-#include "base/no_destructor.h"
 #include "base/types/expected.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
