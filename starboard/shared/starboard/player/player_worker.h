@@ -104,30 +104,9 @@ class PlayerWorker {
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
-<<<<<<< HEAD
-
-    virtual void SetFlushDecoderDuringReset(
-        bool flush_decoder_during_reset) = 0;
-    virtual void SetResetAudioDecoder(bool reset_audio_decoder) = 0;
-    virtual void SetVideoInitialMaxFramesInDecoder(
-        int video_initial_max_frames_in_decoder) = 0;
-    virtual void SetVideoMaxPendingInputFrames(
-        int video_max_pending_input_frames) = 0;
-    virtual void SetVideoDecoderInitialPrerollCount(
-        int video_decoder_initial_preroll_count) = 0;
-    virtual void SetVideoDecoderPollIntervalMs(
-        int video_decoder_poll_interval_ms) = 0;
-    // TODO: b/491104896 - Remove this method once the experiment is done.
-    virtual void SetVideoRendererMinInputBuffers(
-        int video_renderer_min_input_buffers) = 0;
-    // TODO: b/491104896 - Remove this method once the experiment is done.
-    virtual void SetVideoRendererMinDecodedFrames(
-        int video_renderer_min_decoded_frames) = 0;
-=======
     virtual void SetExperimentalFeatures(
         const ::starboard::shared::starboard::ExperimentalFeatures&
             experimental_features) = 0;
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 
    private:
     Handler(const Handler&) = delete;

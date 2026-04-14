@@ -58,12 +58,9 @@ using base::android::AttachCurrentThread;
 using features::FeatureList;
 
 namespace {
-<<<<<<< HEAD
-=======
+using ::starboard::PlayerComponents;
+using ::starboard::VideoRendererImpl;
 using ::starboard::shared::starboard::ExperimentalFeatures;
-using ::starboard::shared::starboard::player::filter::PlayerComponents;
-using ::starboard::shared::starboard::player::filter::VideoRendererImpl;
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
@@ -98,27 +95,10 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
                                               *min_decoded_frames};
 }
 
-<<<<<<< HEAD
-MediaCodecVideoDecoder::FlowControlOptions GetFlowControlOptions(
-    const PlayerComponents::ExperimentalFeatures& features) {
-  MediaCodecVideoDecoder::FlowControlOptions options;
-  options.initial_max_frames_in_decoder =
-      features.video_initial_max_frames_in_decoder;
-  options.max_pending_input_frames = features.video_max_pending_input_frames;
-  options.video_decoder_initial_preroll_count =
-      features.video_decoder_initial_preroll_count;
-  options.video_decoder_poll_interval_ms =
-      features.video_decoder_poll_interval_ms;
-  return options;
-}
-
-=======
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1,
-                                    bool pause_using_audio_track_state = false)
+  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -140,7 +120,7 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
                   tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  pause_using_audio_track_state, context);
+                  context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
@@ -245,14 +225,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_flush_during_seek =
-<<<<<<< HEAD
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
-=======
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
         experimental_features.flush_decoder_during_reset;
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -288,9 +263,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
-      auto video_decoder = CreateVideoDecoder(
+      std::string error_message;
+      auto video_decoder = CreateMediaCodecVideoDecoder(
           creation_parameters, kTunnelModeAudioSessionId,
-          kForceSecurePipelineUnderTunnelMode, max_video_input_size);
+          kForceSecurePipelineUnderTunnelMode, max_video_input_size,
+          &error_message);
       if (video_decoder) {
         auto video_decoder_impl = std::move(video_decoder.value());
         auto video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
@@ -419,12 +396,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
-      // TODO: b/349854301 - Connect to experimental flag.
-      const bool pause_using_audio_track_state =
-          FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
-      SB_LOG_IF(INFO, pause_using_audio_track_state)
-          << "kPauseUsingAudioTrackState is set to true, force using "
-          << "AudioTrackState while pausing playback.";
       auto decoder_creator =
           [enable_flush_during_seek, enable_platform_opus_decoder, job_queue](
               const AudioStreamInfo& audio_stream_info,
@@ -460,7 +431,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkAndroid>(
-              tunnel_mode_audio_session_id, pause_using_audio_track_state);
+              tunnel_mode_audio_session_id);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -475,9 +446,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
-      auto video_decoder_result = CreateVideoDecoder(
+      std::string error_message;
+      auto video_decoder_result = CreateMediaCodecVideoDecoder(
           creation_parameters, tunnel_mode_audio_session_id,
-          force_secure_pipeline_under_tunnel_mode, max_video_input_size);
+          force_secure_pipeline_under_tunnel_mode, max_video_input_size,
+          &error_message);
       if (video_decoder_result) {
         auto video_decoder_impl = std::move(video_decoder_result.value());
         components.video.render_algorithm =
@@ -544,22 +517,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
   }
 
-  NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateVideoDecoder(
-      const CreationParameters& creation_parameters,
-      int tunnel_mode_audio_session_id,
-      bool force_secure_pipeline_under_tunnel_mode,
-<<<<<<< HEAD
-      int max_video_input_size) {
-    bool force_big_endian_hdr_metadata = false;
-    bool enable_flush_during_seek =
-        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
-    int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
-    int64_t reset_delay_usec = features::kResetDelayUsec.Get();
-
-=======
-      int max_video_input_size,
-      std::string* error_message) {
+  NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
+  CreateMediaCodecVideoDecoder(const CreationParameters& creation_parameters,
+                               int tunnel_mode_audio_session_id,
+                               bool force_secure_pipeline_under_tunnel_mode,
+                               int max_video_input_size,
+                               std::string* error_message) {
     const auto& experimental_features =
         creation_parameters.experimental_features();
     bool force_big_endian_hdr_metadata = false;
@@ -567,9 +530,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         starboard::features::FeatureList::IsEnabled(
             starboard::features::kForceFlushDecoderDuringReset) ||
         experimental_features.flush_decoder_during_reset;
-    int64_t reset_delay_usec = 0;
-    int64_t flush_delay_usec = 0;
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
+    int64_t flush_delay_usec = starboard::features::kFlushDelayUsec.Get();
+    int64_t reset_delay_usec = starboard::features::kResetDelayUsec.Get();
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
@@ -605,23 +567,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-<<<<<<< HEAD
-    MediaCodecVideoDecoder::FlowControlOptions flow_control_options =
-        GetFlowControlOptions(creation_parameters.experimental_features());
-
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
-=======
-    if (experimental_features.media_codec_reset_delay_ms) {
-      reset_delay_usec =
-          static_cast<int64_t>(
-              *experimental_features.media_codec_reset_delay_ms) *
-          1000;
-      SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
-                   << " of " << reset_delay_usec << "us during Reset().";
-    }
-    auto video_decoder = std::make_unique<VideoDecoder>(
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
@@ -630,7 +577,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        flow_control_options);
+        experimental_features, error_message);
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,

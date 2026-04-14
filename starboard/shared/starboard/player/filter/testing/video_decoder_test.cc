@@ -150,16 +150,10 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
-<<<<<<< HEAD
-                PlayerComponents::ExperimentalFeatures{},
+                ExperimentalFeatures{},
                 /*surface_view=*/nullptr,
                 fake_graphics_context_provider_.decoder_target_provider(),
                 &job_queue_);
-=======
-                ExperimentalFeatures{},
-                /*surface_view=*/nullptr,
-                fake_graphics_context_provider_.decoder_target_provider());
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
             ASSERT_EQ(creation_parameters.max_video_input_size(),
                       max_video_input_size);
 

@@ -33,8 +33,6 @@ typedef struct StarboardExtensionExperimentalFeatures {
   // If a field is NULL, it means the value is not set.
   // The fields should be in alphabetical order.
   bool flush_decoder_during_reset;
-  const int* media_codec_reset_delay_ms;
-  bool pause_using_audio_track_state;
   bool reset_audio_decoder;
   const int* video_decoder_initial_preroll_count;
   const int* video_decoder_poll_interval_ms;

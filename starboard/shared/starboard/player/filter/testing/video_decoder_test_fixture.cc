@@ -82,14 +82,8 @@ void VideoDecoderTestFixture::Initialize() {
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
-<<<<<<< HEAD
-      max_video_input_size, experimental_features, /*surface_view=*/nullptr,
+      max_video_input_size, ExperimentalFeatures{}, /*surface_view=*/nullptr,
       fake_graphics_context_provider_->decoder_target_provider(), job_queue_);
-=======
-      max_video_input_size, ExperimentalFeatures{},
-      /*surface_view=*/nullptr,
-      fake_graphics_context_provider_->decoder_target_provider());
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
 
   std::unique_ptr<PlayerComponents::Factory> factory;

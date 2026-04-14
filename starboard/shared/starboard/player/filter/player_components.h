@@ -51,85 +51,44 @@ class JobQueue;
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
-<<<<<<< HEAD
-  struct ExperimentalFeatures {
-    bool flush_decoder_during_reset = false;
-    bool reset_audio_decoder = false;
-    std::optional<int> video_initial_max_frames_in_decoder;
-    std::optional<int> video_max_pending_input_frames;
-    std::optional<int> video_decoder_initial_preroll_count;
-    std::optional<int> video_decoder_poll_interval_ms;
-    std::optional<int> video_renderer_min_input_buffers;
-    std::optional<int> video_renderer_min_decoded_frames;
-  };
-=======
-  typedef ::starboard::shared::starboard::player::filter::AudioRenderer
-      AudioRenderer;
-  typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
-      MediaTimeProvider;
-  typedef ::starboard::shared::starboard::player::filter::VideoRenderer
-      VideoRenderer;
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
+  typedef ::starboard::AudioRenderer AudioRenderer;
+  typedef ::starboard::MediaTimeProvider MediaTimeProvider;
+  typedef ::starboard::VideoRenderer VideoRenderer;
 
   // This class creates PlayerComponents.
   class Factory {
    public:
     class CreationParameters {
      public:
-<<<<<<< HEAD
       CreationParameters(const AudioStreamInfo& audio_stream_info,
                          JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const VideoStreamInfo& video_stream_info,
-                         SbPlayer player,
-                         SbPlayerOutputMode output_mode,
-                         int max_video_input_size,
-                         const ExperimentalFeatures& experimental_features,
-                         void* surface_view,
-                         SbDecodeTargetGraphicsContextProvider*
-                             decode_target_graphics_context_provider,
-                         JobQueue* job_queue,
-                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const AudioStreamInfo& audio_stream_info,
-                         const VideoStreamInfo& video_stream_info,
-                         SbPlayer player,
-                         SbPlayerOutputMode output_mode,
-                         int max_video_input_size,
-                         const ExperimentalFeatures& experimental_features,
-                         void* surface_view,
-                         SbDecodeTargetGraphicsContextProvider*
-                             decode_target_graphics_context_provider,
-                         JobQueue* job_queue,
-                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(
+          const VideoStreamInfo& video_stream_info,
+          SbPlayer player,
+          SbPlayerOutputMode output_mode,
+          int max_video_input_size,
+          const ::starboard::shared::starboard::ExperimentalFeatures&
+              experimental_features,
+          void* surface_view,
+          SbDecodeTargetGraphicsContextProvider*
+              decode_target_graphics_context_provider,
+          JobQueue* job_queue,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(
+          const AudioStreamInfo& audio_stream_info,
+          const VideoStreamInfo& video_stream_info,
+          SbPlayer player,
+          SbPlayerOutputMode output_mode,
+          int max_video_input_size,
+          const ::starboard::shared::starboard::ExperimentalFeatures&
+              experimental_features,
+          void* surface_view,
+          SbDecodeTargetGraphicsContextProvider*
+              decode_target_graphics_context_provider,
+          JobQueue* job_queue,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const CreationParameters& that) = default;
-=======
-      explicit CreationParameters(
-          const media::AudioStreamInfo& audio_stream_info,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(
-          const media::VideoStreamInfo& video_stream_info,
-          SbPlayer player,
-          SbPlayerOutputMode output_mode,
-          int max_video_input_size,
-          const ::starboard::shared::starboard::ExperimentalFeatures&
-              experimental_features,
-          void* surface_view,
-          SbDecodeTargetGraphicsContextProvider*
-              decode_target_graphics_context_provider,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(
-          const media::AudioStreamInfo& audio_stream_info,
-          const media::VideoStreamInfo& video_stream_info,
-          SbPlayer player,
-          SbPlayerOutputMode output_mode,
-          int max_video_input_size,
-          const ::starboard::shared::starboard::ExperimentalFeatures&
-              experimental_features,
-          void* surface_view,
-          SbDecodeTargetGraphicsContextProvider*
-              decode_target_graphics_context_provider,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
       void operator=(const CreationParameters& that) = delete;
 
       void reset_audio_codec() {

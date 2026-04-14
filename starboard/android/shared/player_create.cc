@@ -27,11 +27,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
-<<<<<<< HEAD
-#include "starboard/player.h"
-=======
 #include "starboard/shared/starboard/experimental_features.h"
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -207,49 +203,12 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
           creation_param, provider);
   handler->SetMaxVideoInputSize(
-<<<<<<< HEAD
       starboard::GetMaxVideoInputSizeForCurrentThread());
-  handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
-  handler->SetFlushDecoderDuringReset(
-      starboard::GetForceFlushDecoderDuringResetForCurrentThread());
-  handler->SetResetAudioDecoder(
-      starboard::GetForceResetAudioDecoderForCurrentThread());
-  if (auto initial_max_frames_in_decoder =
-          starboard::GetVideoInitialMaxFramesInDecoderForCurrentThread()) {
-    handler->SetVideoInitialMaxFramesInDecoder(*initial_max_frames_in_decoder);
-  }
-  if (auto max_pending_input_frames =
-          starboard::GetVideoMaxPendingInputFramesForCurrentThread()) {
-    handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
-  }
-  if (auto video_decoder_initial_preroll_count =
-          starboard::GetVideoDecoderInitialPrerollCountForCurrentThread()) {
-    handler->SetVideoDecoderInitialPrerollCount(
-        *video_decoder_initial_preroll_count);
-  }
-  if (auto video_decoder_poll_interval_ms =
-          starboard::GetVideoDecoderPollIntervalMsForCurrentThread()) {
-    handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
-  }
-  if (auto video_renderer_min_input_buffers =
-          starboard::GetVideoRendererMinInputBuffersForCurrentThread()) {
-    handler->SetVideoRendererMinInputBuffers(*video_renderer_min_input_buffers);
-  }
-  if (auto video_renderer_min_decoded_frames =
-          starboard::GetVideoRendererMinDecodedFramesForCurrentThread()) {
-    handler->SetVideoRendererMinDecodedFrames(
-        *video_renderer_min_decoded_frames);
-  }
-
-  auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
-=======
-      starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
   handler->SetExperimentalFeatures(
       starboard::shared::starboard::GetExperimentalFeaturesForCurrentThread());
-  handler->SetVideoSurfaceView(
-      starboard::android::shared::GetSurfaceViewForCurrentThread());
-  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
+  handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
+
+  auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
   if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {

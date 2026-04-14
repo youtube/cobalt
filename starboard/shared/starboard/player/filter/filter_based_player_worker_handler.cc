@@ -543,45 +543,6 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-<<<<<<< HEAD
-void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
-  LogAndSetExperimentalFeature("surface_view", surface_view_, surface_view);
-}
-
-#define DEFINE_SET_EXPERIMENTAL_FEATURE(method_name, field_name, type)     \
-  void FilterBasedPlayerWorkerHandler::Set##method_name(type field_name) { \
-    LogAndSetExperimentalFeature(                                          \
-        #field_name, experimental_features_.field_name, field_name);       \
-  }
-
-DEFINE_SET_EXPERIMENTAL_FEATURE(FlushDecoderDuringReset,
-                                flush_decoder_during_reset,
-                                bool)
-DEFINE_SET_EXPERIMENTAL_FEATURE(ResetAudioDecoder, reset_audio_decoder, bool)
-
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoInitialMaxFramesInDecoder,
-                                video_initial_max_frames_in_decoder,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoMaxPendingInputFrames,
-                                video_max_pending_input_frames,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoDecoderInitialPrerollCount,
-                                video_decoder_initial_preroll_count,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoDecoderPollIntervalMs,
-                                video_decoder_poll_interval_ms,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoRendererMinInputBuffers,
-                                video_renderer_min_input_buffers,
-                                int)
-DEFINE_SET_EXPERIMENTAL_FEATURE(VideoRendererMinDecodedFrames,
-                                video_renderer_min_decoded_frames,
-                                int)
-
-#undef DEFINE_SET_EXPERIMENTAL_FEATURE
-
-}  // namespace starboard
-=======
 void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
     const ::starboard::shared::starboard::ExperimentalFeatures&
         experimental_features) {
@@ -594,5 +555,5 @@ void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
                << surface_view;
   surface_view_ = surface_view;
 }
-}  // namespace starboard::shared::starboard::player::filter
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
+
+}  // namespace starboard

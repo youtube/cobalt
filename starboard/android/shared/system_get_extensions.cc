@@ -70,25 +70,15 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetPlatformInfoApi();
   }
   if (strcmp(name, kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0) {
-<<<<<<< HEAD
     return starboard::GetPlayerSetMaxVideoInputSizeApi();
-  }
-  if (strcmp(name, kStarboardExtensionVideoDecoderConfigurationName) == 0) {
-    return starboard::GetVideoDecoderConfigurationApi();
-=======
-    return starboard::android::shared::GetPlayerSetMaxVideoInputSizeApi();
   }
   if (strcmp(name, kStarboardExtensionExperimentalFeaturesConfigurationName) ==
       0) {
     return starboard::shared::starboard::
         GetExperimentalFeaturesConfigurationApi();
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
   }
   if (strcmp(name, kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0) {
     return starboard::GetPlayerSetVideoSurfaceViewApi();
-  }
-  if (strcmp(name, kStarboardExtensionPlayerConfigurateSeekName) == 0) {
-    return starboard::GetPlayerConfigurateSeekApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     // TODO(b/377052218): Re-enable

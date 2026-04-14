@@ -440,7 +440,6 @@ TEST(ExtensionTest, PlayerSetMaxVideoInputSize) {
       << "Extension struct should be a singleton";
 }
 
-<<<<<<< HEAD
 TEST(ExtensionTest, PlayerSetVideoSurfaceView) {
   typedef StarboardExtensionPlayerSetVideoSurfaceViewApi ExtensionApi;
   const char* kExtensionName = kStarboardExtensionPlayerSetVideoSurfaceViewName;
@@ -461,15 +460,10 @@ TEST(ExtensionTest, PlayerSetVideoSurfaceView) {
       << "Extension struct should be a singleton";
 }
 
-TEST(ExtensionTest, PlayerConfigurateSeek) {
-  typedef StarboardExtensionPlayerConfigurateSeekApi ExtensionApi;
-  const char* kExtensionName = kStarboardExtensionPlayerConfigurateSeekName;
-=======
 TEST(ExtensionTest, ExperimentalFeatures) {
   typedef StarboardExtensionExperimentalFeaturesConfigurationApi ExtensionApi;
   const char* kExtensionName =
       kStarboardExtensionExperimentalFeaturesConfigurationName;
->>>>>>> 3eb80e333b (starboard: Refactor h5vcc plumbing to use a dedicated struct and extension (#9477))
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
