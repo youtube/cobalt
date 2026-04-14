@@ -52,13 +52,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
   }
 
   void* Allocate(std::size_t size, std::size_t alignment) override {
-<<<<<<< HEAD
-    void* p = nullptr;
-    std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
-    return p;
-=======
     return AllocateForAlignment(&size, alignment);
->>>>>>> dee9ecddf5 (media: Implement madvise for idle buffer memory (#9286))
   }
 
   void* AllocateForAlignment(std::size_t* size,
