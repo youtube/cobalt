@@ -20,10 +20,8 @@
 #include "base/no_destructor.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/stream_parser.h"
-#include "media/starboard/decoder_buffer_allocator.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/filters/source_buffer_state.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -39,11 +37,17 @@
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 namespace {
 
 constexpr char kMediaAppendFirstSegmentSynchronously[] =
     "Media.AppendFirstSegmentSynchronously";
+constexpr char kMediaExperimentalMaxPendingBytesPerParse[] =
+    "Media.ExperimentalMaxPendingBytesPerParse";
 constexpr char kMediaIncrementalParseLookAhead[] =
     "Media.IncrementalParseLookAhead";
 constexpr char kDecoderBufferSettingPrefix[] = "DecoderBuffer.";
@@ -166,6 +170,35 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           String("The value for '") + kMediaAppendFirstSegmentSynchronously +
               "' must be a number."));
     }
+    return promise;
+  }
+
+  if (name == kMediaExperimentalMaxPendingBytesPerParse) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (value->IsLong()) {
+      int experimental_value = value->GetAsLong();
+      if (experimental_value > 0) {
+        LOG(INFO) << "Setting " << kMediaExperimentalMaxPendingBytesPerParse
+                  << " to " << experimental_value << " bytes.";
+        ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
+            experimental_value);
+        resolver->Resolve();
+        return promise;
+      }
+    }
+
+    LOG(WARNING) << kMediaExperimentalMaxPendingBytesPerParse
+                 << " must be set to a positive integer";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(),
+        kMediaExperimentalMaxPendingBytesPerParse +
+            String(" must be a positive integer.")));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+    String error_msg = String(kMediaExperimentalMaxPendingBytesPerParse) +
+                       " is not supported.";
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), error_msg));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return promise;
   }
 
