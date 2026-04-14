@@ -16,10 +16,10 @@
 
 extern "C" {
 
-ssize_t ___abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags);
+ssize_t __abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags);
 
 ssize_t getrandom(void* buf, size_t buflen, unsigned flags) {
-  return ___abi_wrap_getrandom(buf, buflen, flags);
+  return __abi_wrap_getrandom(buf, buflen, flags);
 }
 
 }  // extern "C"
