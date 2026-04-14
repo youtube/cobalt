@@ -7,6 +7,13 @@ since the version previous to it.
 
 **NOTE: Starboard versions 16 and older are no longer supported.**
 
+## Version 18
+
+### Support decode-to-texture mode
+Implementations of `DecodeTarget` for YUV planes should ensure they use
+`GL_RED_EXT` or `GL_LUMINANCE` instead of `GL_ALPHA` to avoid green-screen
+rendering issues caused by Chromium's shader expectations.
+
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
