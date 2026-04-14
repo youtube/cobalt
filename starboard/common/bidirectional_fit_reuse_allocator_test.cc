@@ -27,8 +27,6 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using starboard::common::FixedNoFreeAllocator;
-
 namespace starboard {
 
 struct AlignedMemoryDeleter {
@@ -119,8 +117,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
                       std::size_t small_allocation_threshold = 0,
                       std::size_t allocation_increment = 0) {
     void* tmp = nullptr;
-    std::ignore =
-        posix_memalign(&tmp, starboard::Allocator::kMinAlignment, kBufferSize);
+    std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
     std::unique_ptr<FixedNoFreeAllocator> fallback_allocator(
@@ -134,8 +131,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
 
   void ResetAllocatorWithDecommitSupport() {
     void* tmp = nullptr;
-    posix_memalign(&tmp, starboard::common::Allocator::kMinAlignment,
-                   kBufferSize);
+    std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
     std::unique_ptr<MockDecommitAllocator> fallback_allocator(

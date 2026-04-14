@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <unistd.h>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -48,7 +49,7 @@ TEST_P(StarboardMemoryAllocatorTest, AllocateWithAlignment) {
   const size_t alignment = 256;
   void* p = allocator_.Allocate(1024, alignment);
   EXPECT_NE(p, nullptr);
-  EXPECT_EQ(reinterpret_cast<uintptr_t>(p) % alignment, 0);
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(p) % alignment, 0U);
   allocator_.Free(p);
 }
 
@@ -56,18 +57,18 @@ TEST_P(StarboardMemoryAllocatorTest, AllocateWithZeroAlignment) {
   const size_t alignment = 0;
   void* p = allocator_.Allocate(1024, alignment);
   EXPECT_NE(p, nullptr);
-  EXPECT_EQ(reinterpret_cast<uintptr_t>(p) % sizeof(void*), 0);
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(p) % sizeof(void*), 0U);
   allocator_.Free(p);
 }
 
 TEST_P(StarboardMemoryAllocatorTest, GetCapacityAndAllocatedShouldBeZero) {
-  EXPECT_EQ(allocator_.GetCapacity(), 0);
-  EXPECT_EQ(allocator_.GetAllocated(), 0);
+  EXPECT_EQ(allocator_.GetCapacity(), 0U);
+  EXPECT_EQ(allocator_.GetAllocated(), 0U);
   void* p = allocator_.Allocate(1024);
   EXPECT_NE(p, nullptr);
   // Should still be zero as this allocator doesn't track allocations.
-  EXPECT_EQ(allocator_.GetCapacity(), 0);
-  EXPECT_EQ(allocator_.GetAllocated(), 0);
+  EXPECT_EQ(allocator_.GetCapacity(), 0U);
+  EXPECT_EQ(allocator_.GetAllocated(), 0U);
   allocator_.Free(p);
 }
 

@@ -33,8 +33,8 @@
 
 namespace media {
 
-using starboard::common::AlignDown;
-using starboard::common::AlignUp;
+using starboard::AlignDown;
+using starboard::AlignUp;
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
 // using posix_memalign() and free().
@@ -62,7 +62,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
       *size = AlignUp(*size, page_size_);
     }
     void* p = nullptr;
-    posix_memalign(&p, std::max(alignment, sizeof(void*)), *size);
+    std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), *size);
     return p;
   }
   void Free(void* memory) override { free(memory); }
