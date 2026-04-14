@@ -35,11 +35,9 @@ jobs:
           git config --global user.email "github@google.com"
           git config --global submodule.recurse false
 
-      - name: Cherry Pick merged PRs
-        id: autoroll
+      - name: Prepare Cherry Pick Branch
         env:
           TARGET_BRANCH: 27.lts
-          START_COMMIT: ${{ inputs.start_commit }}
         run: |
           set -x
 
@@ -59,6 +57,14 @@ jobs:
 
           # Ensure latest main with enough history.
           git fetch --depth=1000 --no-recurse-submodules --filter=blob:none origin main:main
+
+      - name: Cherry Pick Merged PRs
+        id: autoroll
+        env:
+          TARGET_BRANCH: 27.lts
+          START_COMMIT: ${{ inputs.start_commit }}
+        run: |
+          set -x
 
           # Run the Python script to perform cherry-picks and get all PR links.
           PR_LINKS=$(python3 "${RUNNER_TEMP}/autoroll_lts.py" \
@@ -101,7 +107,7 @@ jobs:
 
           if [[ "$PR_STATE" == "OPEN" ]]; then
             PR_NUMBER=$(gh pr view "autoroll-to-${TARGET_BRANCH}" --json number --jq .number)
-            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")"
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
             gh pr create --base "${TARGET_BRANCH}" --head "autoroll-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}"
           fi
