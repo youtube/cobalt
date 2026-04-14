@@ -69,6 +69,10 @@
 #include "media/audio/audio_system.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/audio/android/starboard_audio_input_stream.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/audio_permission_requester.h"
+#endif
 #endif
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
@@ -2634,36 +2638,26 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
   request->SetVideoType(request->stream_controls().video.stream_type);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // FAST-TRACK for Cobalt Android Audio Capture
+  // FAST-TRACK for Cobalt Audio Capture
   // This bypasses the asynchronous device enumeration and UI permission round-trips
   // to start the hardware immediately.
   if (request->audio_type() == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
       request->video_type() == MediaStreamType::NO_SERVICE) {
     LOG(INFO) << "SetUpRequest: FAST-TRACKING Cobalt Audio Request";
-    
-    // Manually construct the device list and jump to response handling.
-    blink::mojom::StreamDevicesSet stream_devices_set;
-    stream_devices_set.stream_devices.emplace_back(blink::mojom::StreamDevices::New());
-    
-    // Hardcode 16kHz Mono parameters (Starboard spec).
-    media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                                  media::ChannelLayoutConfig::Mono(),
-                                  media::StarboardAudioInputStream::kSampleRateHz,
-                                  media::StarboardAudioInputStream::kSamplesPerBuffer);
-    
-    blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
-                                    "default", "Default Microphone");
-    device.input = params;
 
-    auto session_id = audio_input_device_manager()->Open(device);
-    device.set_session_id(session_id);
-    
-    stream_devices_set.stream_devices[0]->audio_device = device;
-
-    // Resolve the JS promise immediately.
-    // This tells the UI to start "Listening" while the hardware is still warming up.
-    HandleAccessRequestResponse(label, params, stream_devices_set,
-                                 blink::mojom::MediaStreamRequestResult::OK);
+#if BUILDFLAG(IS_ANDROID)
+    // On Android, we MUST check/request OS permission on the UI thread.
+    GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
+        FROM_HERE, base::BindOnce([]() {
+          return starboard::RequestRecordAudioPermission(
+              base::android::AttachCurrentThread());
+        }),
+        base::BindOnce(&MediaStreamManager::CompleteFastTrackSetUp,
+                       base::Unretained(this), label, request->GetWeakPtr()));
+#else
+    // On other platforms, assume permission is granted or handled by OS.
+    CompleteFastTrackSetUp(label, request->GetWeakPtr(), true);
+#endif
     return;
   }
 #endif
@@ -2736,6 +2730,58 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
 
   ReadOutputParamsAndPostRequestToUI(label, request, MediaDeviceEnumeration());
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MediaStreamManager::CompleteFastTrackSetUp(
+    const std::string& label,
+    base::WeakPtr<DeviceRequest> request,
+    bool allowed) {
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
+  if (!request) {
+    return;
+  }
+
+  const DeviceRequests::const_iterator request_it = FindRequestIterator(label);
+  if (request_it == requests_.end()) {
+    return;
+  }
+
+  if (!allowed) {
+    LOG(WARNING) << "Fast-track Cobalt Audio Request: PERMISSION_DENIED";
+    FinalizeRequestFailed(request_it,
+                          MediaStreamRequestResult::PERMISSION_DENIED);
+    return;
+  }
+
+  // Manually construct the device list and jump to response handling.
+  blink::mojom::StreamDevicesSet stream_devices_set;
+  stream_devices_set.stream_devices.emplace_back(
+      blink::mojom::StreamDevices::New());
+
+  // Hardcode 16kHz Mono parameters (Starboard spec).
+  media::AudioParameters params(
+      media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+      media::ChannelLayoutConfig::Mono(),
+      media::StarboardAudioInputStream::kSampleRateHz,
+      media::StarboardAudioInputStream::kSamplesPerBuffer);
+
+  blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
+                                  "default", "Default Microphone");
+  device.input = params;
+
+  auto session_id = audio_input_device_manager()->Open(device);
+  device.set_session_id(session_id);
+
+  stream_devices_set.stream_devices[0]->audio_device = device;
+
+  // Resolve the JS promise immediately.
+  // This tells the UI to start "Listening" while the hardware is still warming
+  // up.
+  HandleAccessRequestResponse(label, params, stream_devices_set,
+                              blink::mojom::MediaStreamRequestResult::OK);
+}
+#endif
 
 bool MediaStreamManager::SetUpDisplayCaptureRequest(DeviceRequest* request) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
