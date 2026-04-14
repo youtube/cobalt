@@ -203,6 +203,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.WebContentsObserver.FailedNavigationError" enum="NetErrorCodes"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records the net error code for every primary main frame navigation failure.
+  </summary>
+</histogram>
+
 <histogram name="CPU.Total.UsageInPercentage" units="%" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
