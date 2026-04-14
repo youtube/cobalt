@@ -54,7 +54,11 @@ std::ostream& operator<<(
             << ", video_decoder_initial_preroll_count="
             << opt_to_string(features.video_decoder_initial_preroll_count)
             << ", video_decoder_poll_interval_ms="
-            << opt_to_string(features.video_decoder_poll_interval_ms) << "}";
+            << opt_to_string(features.video_decoder_poll_interval_ms)
+            << ", video_renderer_min_input_buffers="
+            << opt_to_string(features.video_renderer_min_input_buffers)
+            << ", video_renderer_min_decoded_frames="
+            << opt_to_string(features.video_renderer_min_decoded_frames) << "}";
 }
 
 }  // namespace media

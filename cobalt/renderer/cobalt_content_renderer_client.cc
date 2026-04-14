@@ -59,6 +59,10 @@ const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
     "Media.VideoDecoderInitialPrerollCount";
 const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
     "Media.VideoDecoderPollIntervalMs";
+const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
+    "Media.VideoRendererMinInputBuffers";
+const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
+    "Media.VideoRendererMinDecodedFrames";
 const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
     "Media.MaxSamplesPerWrite";
 
@@ -251,6 +255,12 @@ ExperimentalFeatures ProcessH5vccSettings(
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
       kMaxVideoDecoderPollIntervalMs, kH5vccUnsetSentinel);
+  parsed.video_renderer_min_input_buffers = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoRendererMinInputBuffers,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.video_renderer_min_decoded_frames = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
   parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
       /*max_val=*/100'000, kH5vccUnsetSentinel);
