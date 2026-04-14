@@ -110,7 +110,8 @@ class AppEventDelegate {
   mutable base::Lock lock_;
 
   std::unique_ptr<AppEventRunner> runner_;
-  raw_ptr<const CobaltExtensionCrashHandlerApi> crash_handler_extension_ = nullptr;
+  raw_ptr<const CobaltExtensionCrashHandlerApi> crash_handler_extension_ =
+      nullptr;
   ApplicationState application_state_ = ApplicationState::kInitial;
   ApplicationState target_state_ = ApplicationState::kInitial;
   bool is_transitioning_ = false;
