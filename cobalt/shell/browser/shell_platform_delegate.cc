@@ -14,6 +14,8 @@
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
+#include "base/logging.h"
+#include "base/notreached.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_frame_host.h"
@@ -28,42 +30,55 @@ bool ShellPlatformDelegate::IsVisible() const {
 }
 
 void ShellPlatformDelegate::OnBlur() {
-  CHECK(IsVisible());
+  if (!IsVisible()) {
+    return;
+  }
   for (auto* shell : Shell::windows()) {
     if (shell->web_contents()) {
-      shell->web_contents()
-          ->GetPrimaryMainFrame()
-          ->GetRenderWidgetHost()
-          ->Blur();
+      auto* rwh =
+          shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
+      if (rwh) {
+        rwh->Blur();
+      }
     }
   }
 }
 
 void ShellPlatformDelegate::OnFocus() {
-  CHECK(IsVisible());
+  if (!IsVisible()) {
+    return;
+  }
   for (auto* shell : Shell::windows()) {
     if (shell->web_contents()) {
-      shell->web_contents()->Focus();
+      auto* rwh =
+          shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
+      if (rwh) {
+        shell->web_contents()->Focus();
+      }
     }
   }
 }
 
 void ShellPlatformDelegate::OnConceal() {
-  CHECK(IsVisible());
-  set_is_visible(false);
+  if (!IsVisible()) {
+    return;
+  }
   for (auto* shell : Shell::windows()) {
     ConcealShell(shell);
     shell->web_contents()->WasHidden();
   }
+  is_visible_ = false;
 }
 
 void ShellPlatformDelegate::OnReveal() {
-  CHECK(!IsVisible());
-  set_is_visible(true);
+  if (IsVisible()) {
+    return;
+  }
   for (auto* shell : Shell::windows()) {
     RevealShell(shell);
     shell->web_contents()->WasShown();
   }
+  is_visible_ = true;
 }
 
 void ShellPlatformDelegate::OnFreeze() {

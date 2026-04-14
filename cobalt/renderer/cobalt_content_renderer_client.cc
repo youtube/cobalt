@@ -25,6 +25,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#include "media/starboard/decoder_buffer_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -54,6 +55,8 @@ const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
     "Media.VideoInitialMaxFramesInDecoder";
 const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
     "Media.VideoMaxPendingInputFrames";
+const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
+    "Media.VideoDecoderInitialPrerollCount";
 const char kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs[] =
     "Media.VideoDecoderPollIntervalMs";
 const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
@@ -223,7 +226,9 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
     bool enable_allocate_on_demand = *val != 0;
-    ::media::DecoderBuffer::EnableAllocateOnDemand(enable_allocate_on_demand);
+    auto* allocator = ::media::DecoderBufferAllocator::Get();
+    CHECK(allocator);
+    allocator->SetAllocateOnDemand(enable_allocate_on_demand);
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
@@ -240,6 +245,9 @@ ExperimentalFeatures ProcessH5vccSettings(
   parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, /*min_val=*/1,
       kMaxFramesInDecoderLimit, kH5vccUnsetSentinel);
+  parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, /*min_val=*/1,
       kMaxVideoDecoderPollIntervalMs, kH5vccUnsetSentinel);
