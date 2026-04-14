@@ -76,7 +76,7 @@ class CryptoEngineDeviceProperties {
 };
 
 SB_ONCE_INITIALIZE_FUNCTION(CryptoEngineDeviceProperties,
-                            GetCryptoEngineDeviceProperties);
+                            GetCryptoEngineDeviceProperties)
 
 }  // namespace
 
