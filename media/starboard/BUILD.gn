@@ -151,6 +151,7 @@ source_set("unit_tests") {
       "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
       "media_buffer_pool_decoder_buffer_allocator_strategy_test.cc",
+      "starboard_memory_allocator_test.cc",
       "starboard_renderer_unittest.cc",
       "starboard_utils_test.cc",
     ]
