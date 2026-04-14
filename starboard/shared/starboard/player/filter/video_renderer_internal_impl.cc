@@ -37,19 +37,25 @@ const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const VideoRendererImpl::PrerollParameters& params) {
+  return os << "{min_input_buffers=" << params.min_input_buffers
+            << ", min_decoded_frames=" << params.min_decoded_frames << "}";
+}
+
 VideoRendererImpl::VideoRendererImpl(
     JobQueue* job_queue,
     std::unique_ptr<VideoDecoder> decoder,
     MediaTimeProvider* media_time_provider,
     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-    scoped_refptr<VideoRendererSink> sink)
+    scoped_refptr<VideoRendererSink> sink,
+    const std::optional<PrerollParameters>& preroll_params)
     : JobOwner(job_queue),
       media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
       decoder_(std::move(decoder)),
-      // TODO: b/485225923 - Connect this to h5vcc settings.
-      preroll_params_(std::nullopt) {
+      preroll_params_(preroll_params) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -66,6 +72,10 @@ VideoRendererImpl::VideoRendererImpl(
            kCheckBufferingStateInterval);
   time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  SB_LOG(INFO) << "VideoRendererImpl is created: "
+               << (preroll_params_
+                       ? "preroll_params=" + ToString(*preroll_params_)
+                       : "using default preroll logic");
 }
 
 VideoRendererImpl::~VideoRendererImpl() {

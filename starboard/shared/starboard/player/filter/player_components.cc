@@ -103,6 +103,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> video_renderer_min_input_buffers,
+    std::optional<int> video_renderer_min_decoded_frames,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -121,6 +123,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
+      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
       drm_system_(drm_system) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -141,6 +145,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     std::optional<int> video_max_pending_input_frames,
     std::optional<int> video_decoder_initial_preroll_count,
     std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> video_renderer_min_input_buffers,
+    std::optional<int> video_renderer_min_decoded_frames,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -160,6 +166,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_max_pending_input_frames_(video_max_pending_input_frames),
       video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
       video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
+      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
       drm_system_(drm_system) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
@@ -246,10 +254,17 @@ PlayerComponents::Factory::CreateComponents(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
+    std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
+    if (creation_parameters.video_renderer_min_input_buffers() &&
+        creation_parameters.video_renderer_min_decoded_frames()) {
+      preroll_params = VideoRendererImpl::PrerollParameters{
+          *creation_parameters.video_renderer_min_input_buffers(),
+          *creation_parameters.video_renderer_min_decoded_frames()};
+    }
     video_renderer = std::make_unique<VideoRendererImpl>(
         creation_parameters.job_queue(), std::move(components.video.decoder),
         media_time_provider, std::move(components.video.render_algorithm),
-        std::move(components.video.renderer_sink));
+        std::move(components.video.renderer_sink), preroll_params);
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
