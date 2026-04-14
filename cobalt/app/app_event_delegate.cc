@@ -68,20 +68,20 @@ AppEventDelegate::AppEventDelegate(
     const CobaltExtensionCrashHandlerApi* crash_handler_extension)
     : runner_(std::move(runner)),
       crash_handler_extension_(crash_handler_extension) {
-  base::AutoLock lock(lock_);
-  application_state_ = ApplicationState::kInitial;
-  target_state_ = ApplicationState::kInitial;
-  if (!runner_) {
-    // If a special runner wasn't provided, use the default.
-    runner_ = AppEventRunner::Create();
-  }
   if (!crash_handler_extension_) {
     // If a special extension implementation wasn't provided, use the default.
     crash_handler_extension_ =
         static_cast<const CobaltExtensionCrashHandlerApi*>(
             SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   }
-  SetApplicationStateAnnotation(application_state_);
+
+  base::AutoLock lock(lock_);
+  SetApplicationState(ApplicationState::kInitial);
+  target_state_ = ApplicationState::kInitial;
+  if (!runner_) {
+    // If a special runner wasn't provided, use the default.
+    runner_ = AppEventRunner::Create();
+  }
 }
 
 AppEventDelegate::~AppEventDelegate() {}
@@ -155,9 +155,8 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       case kSbEventTypeStart:
       case kSbEventTypePreload:
         runner_->OnStart(event);
-        application_state_ = SbEventToTargetApplicationState(event->type);
+        SetApplicationState(SbEventToTargetApplicationState(event->type));
         target_state_ = application_state_;
-        SetApplicationStateAnnotation(application_state_);
         return;
       default:
         // Robustly handle events received before the application has started or
@@ -231,9 +230,8 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
           << "kSbEventTypeStop must be delivered on the UI thread.";
 
       runner_->OnStop();
-      application_state_ = ApplicationState::kStopped;
+      SetApplicationState(ApplicationState::kStopped);
       target_state_ = ApplicationState::kStopped;
-      SetApplicationStateAnnotation(application_state_);
       break;
     case kSbEventTypeInput:
       runner_->OnInput(event);
@@ -330,8 +328,7 @@ void AppEventDelegate::ExecuteNextStepOnUIThreadLocked(
     }
   }
 
-  application_state_ = next_state;
-  SetApplicationStateAnnotation(application_state_);
+  SetApplicationState(next_state);
 
   if (schedule_next_step) {
     content::GetUIThreadTaskRunner({})->PostTask(
@@ -435,6 +432,11 @@ const char* AppEventDelegate::GetStateString(ApplicationState state) {
     default:
       NOTREACHED();
   }
+}
+
+void AppEventDelegate::SetApplicationState(ApplicationState state) {
+  application_state_ = state;
+  SetApplicationStateAnnotation(state);
 }
 
 void AppEventDelegate::SetApplicationStateAnnotation(ApplicationState state) {

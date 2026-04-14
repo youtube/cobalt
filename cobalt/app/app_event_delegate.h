@@ -20,6 +20,7 @@
 #include <optional>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -61,6 +62,8 @@ class AppEventDelegate {
     kStopped = 5
   };
 
+  // TODO: b/486236529 - As suggested by jellefoks@, consider using factories to
+  // improve code clarity and decouple |AppEventDelegate| from its dependencies.
   explicit AppEventDelegate(
       std::unique_ptr<AppEventRunner> runner = nullptr,
       const CobaltExtensionCrashHandlerApi* crash_handler_extension = nullptr);
@@ -85,6 +88,12 @@ class AppEventDelegate {
   void HandleEventLocked(const SbEvent* event);
   void TransitionToLifeCycleState(ApplicationState state);
 
+  // Wrapper that sets |application_state_| with the side effect of recording
+  // this new state as a crash annotation.
+  // TODO: b/486236529 - Consider enforcing that |application_state_| can only
+  // be modified from within this method. This would prevent developers from
+  // inadvertently updating the member variable but not the crash annotation.
+  void SetApplicationState(ApplicationState state);
   void SetApplicationStateAnnotation(ApplicationState state);
 
   // Helper that executes a single lifecycle step on the UI thread and then
@@ -101,7 +110,7 @@ class AppEventDelegate {
   mutable base::Lock lock_;
 
   std::unique_ptr<AppEventRunner> runner_;
-  const CobaltExtensionCrashHandlerApi* crash_handler_extension_ = nullptr;
+  raw_ptr<const CobaltExtensionCrashHandlerApi> crash_handler_extension_ = nullptr;
   ApplicationState application_state_ = ApplicationState::kInitial;
   ApplicationState target_state_ = ApplicationState::kInitial;
   bool is_transitioning_ = false;
