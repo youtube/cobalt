@@ -138,6 +138,7 @@ runs:
             --verbose \
             --shallow \
             --no-history \
+            --reset \
             --nohooks \
             --force \
             --delete_unversioned_trees \
