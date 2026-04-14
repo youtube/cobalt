@@ -219,6 +219,11 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
           starboard::GetVideoMaxPendingInputFramesForCurrentThread()) {
     handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
   }
+  if (auto video_decoder_initial_preroll_count =
+          starboard::GetVideoDecoderInitialPrerollCountForCurrentThread()) {
+    handler->SetVideoDecoderInitialPrerollCount(
+        *video_decoder_initial_preroll_count);
+  }
   if (auto video_decoder_poll_interval_ms =
           starboard::GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
