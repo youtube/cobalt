@@ -5,6 +5,11 @@
 #include "base/logging.h"
 #include "base/time/time.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/audio_permission_requester.h"
+#endif
+
 #include "media/audio/android/audio_manager_android.h"
 #include "media/base/audio_bus.h"
 
@@ -21,6 +26,16 @@ namespace media {
 
 const int StarboardAudioInputStream::kSampleRateHz;
 const int StarboardAudioInputStream::kSamplesPerBuffer;
+
+// static
+bool StarboardAudioInputStream::RequestRuntimePermission() {
+#if BUILDFLAG(IS_ANDROID)
+  return starboard::RequestRecordAudioPermission(
+      base::android::AttachCurrentThread());
+#else
+  return true;
+#endif
+}
 
 StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_manager,
                                                      const AudioParameters& params)

@@ -43,7 +43,14 @@
 #endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-function"
+#endif
 #include "media/base/android/media_jni_headers/AudioManagerAndroid_jni.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#pragma clang diagnostic pop
+#endif
 
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
@@ -63,7 +70,7 @@ namespace {
 // Maximum number of output streams that can be open simultaneously.
 const int kMaxOutputStreams = 10;
 
-const int kDefaultInputBufferSize = 1024;
+[[maybe_unused]] const int kDefaultInputBufferSize = 1024;
 const int kDefaultOutputBufferSize = 2048;
 
 void AddDefaultDevice(AudioDeviceNames* device_names) {

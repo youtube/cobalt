@@ -69,10 +69,6 @@
 #include "media/audio/audio_system.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/audio/android/starboard_audio_input_stream.h"
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/audio_permission_requester.h"
-#endif
 #endif
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
@@ -2645,19 +2641,13 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
       request->video_type() == MediaStreamType::NO_SERVICE) {
     LOG(INFO) << "SetUpRequest: FAST-TRACKING Cobalt Audio Request";
 
-#if BUILDFLAG(IS_ANDROID)
     // On Android, we MUST check/request OS permission on the UI thread.
+    // On other platforms, RequestRuntimePermission() returns true immediately.
     GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
-        FROM_HERE, base::BindOnce([]() {
-          return starboard::RequestRecordAudioPermission(
-              base::android::AttachCurrentThread());
-        }),
+        FROM_HERE,
+        base::BindOnce(&media::StarboardAudioInputStream::RequestRuntimePermission),
         base::BindOnce(&MediaStreamManager::CompleteFastTrackSetUp,
                        base::Unretained(this), label, request->GetWeakPtr()));
-#else
-    // On other platforms, assume permission is granted or handled by OS.
-    CompleteFastTrackSetUp(label, request->GetWeakPtr(), true);
-#endif
     return;
   }
 #endif

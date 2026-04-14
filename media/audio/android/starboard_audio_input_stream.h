@@ -40,6 +40,10 @@ class StarboardAudioInputStream : public AudioInputStream {
 
   ~StarboardAudioInputStream() override;
 
+  // Requests the OS-level runtime permission for audio recording.
+  // Returns true if permission is granted, false if denied or pending.
+  static bool RequestRuntimePermission();
+
   // Implementation of AudioInputStream.
   OpenOutcome Open() override;
   void Start(AudioInputCallback* callback) override;
