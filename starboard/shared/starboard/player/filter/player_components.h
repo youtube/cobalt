@@ -59,7 +59,6 @@ class PlayerComponents {
     std::optional<int> video_decoder_poll_interval_ms;
     std::optional<int> video_renderer_min_input_buffers;
     std::optional<int> video_renderer_min_decoded_frames;
-    std::optional<int> media_codec_reset_delay_ms;
   };
 
   // This class creates PlayerComponents.

@@ -567,26 +567,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`kForceFlushDecoderDuringReset` is set to true, force flushing"
         << " video decoder during Reset().";
-
-    MediaCodecVideoDecoder::FlowControlOptions flow_control_options =
-        GetFlowControlOptions(creation_parameters.experimental_features());
-
-    if (creation_parameters.experimental_features()
-            .media_codec_reset_delay_ms.has_value()) {
-      reset_delay_usec =
-          static_cast<int64_t>(creation_parameters.experimental_features()
-                                   .media_codec_reset_delay_ms.value()) *
-          1000;
-      SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
-                   << " of " << reset_delay_usec << "us during Reset().";
-    }
-
     SB_LOG_IF(INFO, flush_delay_usec > 0)
         << "`kFlushDelayUsec` is set to > 0, force a delay of "
         << flush_delay_usec << "us during Flush().";
     SB_LOG_IF(INFO, reset_delay_usec > 0)
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
+
+    MediaCodecVideoDecoder::FlowControlOptions flow_control_options =
+        GetFlowControlOptions(creation_parameters.experimental_features());
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),

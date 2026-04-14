@@ -150,6 +150,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
                 PlayerComponents::ExperimentalFeatures{},
+                /*surface_view=*/nullptr,
                 fake_graphics_context_provider_.decoder_target_provider(),
                 &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
