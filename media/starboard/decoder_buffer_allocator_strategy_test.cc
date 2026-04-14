@@ -41,8 +41,9 @@ void UpdateStrategyWithCreationCounter(DecoderBufferAllocator* allocator,
       [](int* creation_count_ptr, int initial_capacity, int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         (*creation_count_ptr)++;
-        return std::make_unique<InPlaceReuseAllocatorStrategy>(initial_capacity,
-                                                               allocation_unit);
+        return std::make_unique<InPlaceReuseAllocatorStrategy>(
+            initial_capacity, allocation_unit,
+            /*enable_decommit_on_idle=*/false);
       },
       base::Unretained(creation_count)));
 }
