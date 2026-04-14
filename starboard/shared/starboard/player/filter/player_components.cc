@@ -85,11 +85,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     JobQueue* job_queue,
     SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info),
-<<<<<<< HEAD
-      job_queue_(job_queue),
-=======
       experimental_features_(ExperimentalFeatures{}),
->>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
+      job_queue_(job_queue),
       drm_system_(drm_system) {
   SB_DCHECK_NE(audio_stream_info_.codec, kSbMediaAudioCodecNone);
   SB_CHECK(job_queue_);
@@ -100,20 +97,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
-<<<<<<< HEAD
-    void* surface_view,
-    bool flush_decoder_during_reset,
-    bool reset_audio_decoder,
-    std::optional<int> video_initial_max_frames_in_decoder,
-    std::optional<int> video_max_pending_input_frames,
-    std::optional<int> video_decoder_initial_preroll_count,
-    std::optional<int> video_decoder_poll_interval_ms,
-    std::optional<int> video_renderer_min_input_buffers,
-    std::optional<int> video_renderer_min_decoded_frames,
-=======
     const ExperimentalFeatures& experimental_features,
     void* surface_view,
->>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -122,25 +107,11 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
-<<<<<<< HEAD
-      surface_view_(surface_view),
-      flush_decoder_during_reset_(flush_decoder_during_reset),
-      reset_audio_decoder_(reset_audio_decoder),
-      decode_target_graphics_context_provider_(
-          decode_target_graphics_context_provider),
-      job_queue_(job_queue),
-      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
-      video_max_pending_input_frames_(video_max_pending_input_frames),
-      video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
-      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
-      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
-=======
       experimental_features_(experimental_features),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
->>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
+      job_queue_(job_queue),
       drm_system_(drm_system) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -154,20 +125,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     int max_video_input_size,
-<<<<<<< HEAD
-    void* surface_view,
-    bool flush_decoder_during_reset,
-    bool reset_audio_decoder,
-    std::optional<int> video_initial_max_frames_in_decoder,
-    std::optional<int> video_max_pending_input_frames,
-    std::optional<int> video_decoder_initial_preroll_count,
-    std::optional<int> video_decoder_poll_interval_ms,
-    std::optional<int> video_renderer_min_input_buffers,
-    std::optional<int> video_renderer_min_decoded_frames,
-=======
     const ExperimentalFeatures& experimental_features,
     void* surface_view,
->>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -177,40 +136,20 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
-<<<<<<< HEAD
-      surface_view_(surface_view),
-      flush_decoder_during_reset_(flush_decoder_during_reset),
-      reset_audio_decoder_(reset_audio_decoder),
-      decode_target_graphics_context_provider_(
-          decode_target_graphics_context_provider),
-      job_queue_(job_queue),
-      video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
-      video_max_pending_input_frames_(video_max_pending_input_frames),
-      video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
-      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
-      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames),
-=======
       experimental_features_(experimental_features),
       surface_view_(surface_view),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
->>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
+      job_queue_(job_queue),
       drm_system_(drm_system) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
   SB_CHECK(job_queue_);
 }
 
-<<<<<<< HEAD
 NonNullResult<std::unique_ptr<PlayerComponents>>
 PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters) {
-=======
-std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
-    const CreationParameters& creation_parameters,
-    std::string* error_message) {
->>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_CHECK(creation_parameters.job_queue());
@@ -288,7 +227,9 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
           std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
-    const auto& experimental_features = creation_parameters.experimental_features();
+
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
     if (experimental_features.video_renderer_min_input_buffers &&
         experimental_features.video_renderer_min_decoded_frames) {
@@ -296,6 +237,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
           *experimental_features.video_renderer_min_input_buffers,
           *experimental_features.video_renderer_min_decoded_frames};
     }
+
     video_renderer = std::make_unique<VideoRendererImpl>(
         creation_parameters.job_queue(), std::move(components.video.decoder),
         media_time_provider, std::move(components.video.render_algorithm),

@@ -84,20 +84,8 @@ void VideoDecoderTestFixture::Initialize() {
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
-<<<<<<< HEAD
-      max_video_input_size, /*surface_view=*/nullptr,
-      flush_decoder_during_reset, reset_audio_decoder,
-      /*video_initial_max_frames_in_decoder=*/std::nullopt,
-      /*video_max_pending_input_frames=*/std::nullopt,
-      /*video_decoder_initial_preroll_count=*/std::nullopt,
-      /*video_decoder_poll_interval_ms=*/std::nullopt,
-      /*video_renderer_min_input_buffers=*/std::nullopt,
-      /*video_renderer_min_decoded_frames=*/std::nullopt,
-      fake_graphics_context_provider_->decoder_target_provider(), job_queue_);
-=======
       max_video_input_size, experimental_features, /*surface_view=*/nullptr,
-      fake_graphics_context_provider_->decoder_target_provider());
->>>>>>> faebf4c3b7 (starboard: Consolidate experimental feature into a struct (#9327))
+      fake_graphics_context_provider_->decoder_target_provider(), job_queue_);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
   ASSERT_TRUE(
       creation_parameters.experimental_features().flush_decoder_during_reset);
