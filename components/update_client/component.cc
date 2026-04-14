@@ -219,6 +219,10 @@ void Component::SetUpdateCheckResult(std::optional<ProtocolParser::App> result,
 #if defined(IN_MEMORY_UPDATES)
         &crx_str_,
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+        update_context_->update_checker->GetPersistedData(),
+        next_version_.GetString(),
+#endif
         base::BindRepeating(
             [](base::raw_ref<Component> component, ComponentState state) {
               component->state_hint_ = state;
