@@ -536,8 +536,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         creation_parameters.experimental_features().flush_decoder_during_reset;
-    int64_t reset_delay_usec = 0;
-    int64_t flush_delay_usec = 0;
+    int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
+    int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
