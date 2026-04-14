@@ -68,8 +68,8 @@ class StarboardMemoryAllocator : public starboard::Allocator {
   void Free(void* memory) override { free(memory); }
 
   void Decommit(void* memory, std::size_t size) override {
-    uintptr_t start = reinterpret_cast<uintptr_t>(memory);
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    uintptr_t start = reinterpret_cast<uintptr_t>(memory);
     CHECK(enable_decommit_);
     CHECK_EQ(start % page_size_, 0U);
     CHECK_EQ(size % page_size_, 0U);
