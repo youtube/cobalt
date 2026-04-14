@@ -203,6 +203,14 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.WebContentsObserver.FailedNavigationError" enum="NetErrorCodes"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records the net error code for every primary main frame navigation failure.
+  </summary>
+</histogram>
+
 <histogram name="CPU.Total.UsageInPercentage" units="%" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
@@ -309,6 +317,15 @@ Always run the pretty print utility on this file after editing:
   <owner>colinliang@google.com</owner>
   <summary>
     Records the result of writing the migration sentinel file to disk.
+  </summary>
+</histogram>
+
+<histogram name="Memory.Media.EstimatedDecodedBuffer" unit="MB"
+    expires_after="never">
+  <owner>tasunny@google.com</owner>
+  <summary>
+    Records total estimated memory allocation used for media output
+    buffer by Android MediaCodec.
   </summary>
 </histogram>
 

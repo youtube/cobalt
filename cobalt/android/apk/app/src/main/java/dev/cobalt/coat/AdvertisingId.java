@@ -44,6 +44,10 @@ public class AdvertisingId {
     refresh();
   }
 
+  public void shutdown() {
+    mSingleThreadExecutor.shutdown();
+  }
+
   public void refresh() {
     mSingleThreadExecutor.execute(
         () -> {

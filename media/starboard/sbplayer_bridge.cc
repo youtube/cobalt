@@ -157,7 +157,10 @@ SbPlayerBridge::SbPlayerBridge(
     bool reset_audio_decoder,
     std::optional<int> initial_max_frames_in_decoder,
     std::optional<int> max_pending_input_frames,
-    std::optional<int> video_decoder_poll_interval_ms
+    std::optional<int> video_decoder_initial_preroll_count,
+    std::optional<int> video_decoder_poll_interval_ms,
+    std::optional<int> video_renderer_min_input_buffers,
+    std::optional<int> video_renderer_min_decoded_frames
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -198,7 +201,10 @@ SbPlayerBridge::SbPlayerBridge(
       reset_audio_decoder_(reset_audio_decoder),
       initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
       max_pending_input_frames_(max_pending_input_frames),
-      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms)
+      video_decoder_initial_preroll_count_(video_decoder_initial_preroll_count),
+      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
+      video_renderer_min_input_buffers_(video_renderer_min_input_buffers),
+      video_renderer_min_decoded_frames_(video_renderer_min_decoded_frames)
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -786,10 +792,25 @@ void SbPlayerBridge::CreatePlayer() {
           ->SetVideoMaxPendingInputFramesForCurrentThread(
               *max_pending_input_frames_);
     }
+    if (video_decoder_initial_preroll_count_) {
+      video_decoder_configuration_extension
+          ->SetVideoDecoderInitialPrerollCountForCurrentThread(
+              *video_decoder_initial_preroll_count_);
+    }
     if (video_decoder_poll_interval_ms_) {
       video_decoder_configuration_extension
           ->SetVideoDecoderPollIntervalMsForCurrentThread(
               *video_decoder_poll_interval_ms_);
+    }
+    if (video_renderer_min_input_buffers_) {
+      video_decoder_configuration_extension
+          ->SetVideoRendererMinInputBuffersForCurrentThread(
+              *video_renderer_min_input_buffers_);
+    }
+    if (video_renderer_min_decoded_frames_) {
+      video_decoder_configuration_extension
+          ->SetVideoRendererMinDecodedFramesForCurrentThread(
+              *video_renderer_min_decoded_frames_);
     }
   }
   player_ = sbplayer_interface_->Create(
@@ -902,7 +923,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     }
 
     if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->data(), buffer, /*usage_count=*/1, sample_type);
+            buffer->handle(), buffer, /*usage_count=*/1, sample_type);
         !inserted) {
       ++iter->second.usage_count;
     }
@@ -935,7 +956,8 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     SbPlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
-    sample_info.buffer = buffer->data();
+    // Cast the handle to void* to reuse the existing SbPlayerWriteSamples().
+    sample_info.buffer = reinterpret_cast<void*>(buffer->handle());
     sample_info.buffer_size = buffer->size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
@@ -1171,7 +1193,8 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
+  DecodingBuffers::iterator iter = decoding_buffers_.find(
+      reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
   DCHECK(iter != decoding_buffers_.end());
   if (iter == decoding_buffers_.end()) {
     LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "

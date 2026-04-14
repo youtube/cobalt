@@ -56,12 +56,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
-                    const gfx::Size& viewport_size,
-                    bool enable_flush_during_seek,
-                    bool enable_reset_audio_decoder,
-                    std::optional<int> initial_max_frames_in_decoder,
-                    std::optional<int> max_pending_input_frames,
-                    std::optional<int> video_decoder_poll_interval_ms
+                    const StarboardRendererConfig::ExperimentalFeatures&
+                        experimental_features,
+                    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,
                     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -192,13 +189,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
+  // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;
   const gfx::Size viewport_size_;
-  const bool enable_flush_during_seek_;
-  const bool enable_reset_audio_decoder_;
-  const std::optional<int> initial_max_frames_in_decoder_;
-  const std::optional<int> max_pending_input_frames_;
-  const std::optional<int> video_decoder_poll_interval_ms_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)

@@ -27,7 +27,10 @@ namespace {
 pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
 pthread_key_t g_initial_max_frames_key = 0;
 pthread_key_t g_max_pending_frames_key = 0;
+pthread_key_t g_video_decoder_initial_preroll_count_key = 0;
 pthread_key_t g_video_decoder_poll_interval_key = 0;
+pthread_key_t g_video_renderer_min_input_buffers_key = 0;
+pthread_key_t g_video_renderer_min_decoded_frames_key = 0;
 
 void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
   uintptr_t ptr_val = static_cast<uintptr_t>(value);
@@ -57,7 +60,16 @@ void InitializeKeys() {
   res = pthread_key_create(&g_max_pending_frames_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_video_decoder_initial_preroll_count_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
   res = pthread_key_create(&g_video_decoder_poll_interval_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_video_renderer_min_input_buffers_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_video_renderer_min_decoded_frames_key,
                            /*destructor=*/nullptr);
   SB_CHECK_EQ(res, 0);
 }
@@ -100,6 +112,24 @@ void SetVideoMaxPendingInputFramesForCurrentThread(
                                max_pending_input_frames);
 }
 
+std::optional<int> GetVideoDecoderInitialPrerollCountForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(
+      g_video_decoder_initial_preroll_count_key);
+}
+
+void SetVideoDecoderInitialPrerollCountForCurrentThread(
+    int video_decoder_initial_preroll_count) {
+  if (video_decoder_initial_preroll_count < 0) {
+    SB_LOG(WARNING) << "Invalid video_decoder_initial_preroll_count: "
+                    << video_decoder_initial_preroll_count;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_video_decoder_initial_preroll_count_key,
+                               video_decoder_initial_preroll_count);
+}
+
 std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread() {
   EnsureThreadLocalKeyInitedForDecoderConfig();
   return ReadIntFromThreadLocalStorage(g_video_decoder_poll_interval_key);
@@ -115,6 +145,40 @@ void SetVideoDecoderPollIntervalMsForCurrentThread(
   EnsureThreadLocalKeyInitedForDecoderConfig();
   WriteIntToThreadLocalStorage(g_video_decoder_poll_interval_key,
                                video_decoder_poll_interval_ms);
+}
+
+std::optional<int> GetVideoRendererMinInputBuffersForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_video_renderer_min_input_buffers_key);
+}
+
+void SetVideoRendererMinInputBuffersForCurrentThread(
+    int video_renderer_min_input_buffers) {
+  if (video_renderer_min_input_buffers < 0) {
+    SB_LOG(WARNING) << "Invalid video_renderer_min_input_buffers: "
+                    << video_renderer_min_input_buffers;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_video_renderer_min_input_buffers_key,
+                               video_renderer_min_input_buffers);
+}
+
+std::optional<int> GetVideoRendererMinDecodedFramesForCurrentThread() {
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  return ReadIntFromThreadLocalStorage(g_video_renderer_min_decoded_frames_key);
+}
+
+void SetVideoRendererMinDecodedFramesForCurrentThread(
+    int video_renderer_min_decoded_frames) {
+  if (video_renderer_min_decoded_frames < 0) {
+    SB_LOG(WARNING) << "Invalid video_renderer_min_decoded_frames: "
+                    << video_renderer_min_decoded_frames;
+    return;
+  }
+  EnsureThreadLocalKeyInitedForDecoderConfig();
+  WriteIntToThreadLocalStorage(g_video_renderer_min_decoded_frames_key,
+                               video_renderer_min_decoded_frames);
 }
 
 }  // namespace starboard

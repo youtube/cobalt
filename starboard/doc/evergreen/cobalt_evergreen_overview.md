@@ -113,7 +113,7 @@ platforms that are maintained by Google and used to build Cobalt core.)
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
 "starboard" toolchain to add a "native_target" toolchain that is identical
-except that it sets `is_starboard = false` and `is_native_target_build = true`.
+except that it sets `is_starboard = false`.
 
 For example:
 
@@ -125,7 +125,6 @@ gcc_toolchain("starboard") {
 gcc_toolchain("native_target") {
   ...
   is_starboard = false
-  is_native_target_build = true
 }
 ```
 

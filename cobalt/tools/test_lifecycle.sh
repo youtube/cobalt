@@ -22,7 +22,7 @@ PLATFORM="linux-x64x11-modular"
 CONFIG="devel"
 TARGET="cobalt_loader"
 OUT_DIR="out/${PLATFORM}_${CONFIG}"
-EXECUTABLE="./${OUT_DIR}/${TARGET}"
+EXECUTABLE="${TEST_LIFECYCLE_EXECUTABLE:-./${OUT_DIR}/${TARGET}}"
 LOG_FILE="lifecycle_run.log"
 PORT=9222
 
@@ -116,13 +116,37 @@ if [ "$VISIBILITY" != "hidden" ]; then
   exit 1
 fi
 
-log "Sending SIGCONT (REVEAL)..."
+log "Sending SIGCONT (REVEAL & FOCUS)..."
 kill -SIGCONT $COBALT_PID
 sleep 2
 VISIBILITY=$(check_js "document.visibilityState")
+HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
+log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
+if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
+  echo -e "${RED}FAILURE: Should be visible and focused after SIGCONT.${NC}"
+  exit 1
+fi
+
+log "Sending SIGTSTP (FREEZE)..."
+kill -SIGTSTP $COBALT_PID
+sleep 2
+# Verifying behavior (visibility API) after SIGTSTP
+VISIBILITY=$(check_js "document.visibilityState")
 log "Visibility: $VISIBILITY"
-if [ "$VISIBILITY" != "visible" ]; then
-  echo -e "${RED}FAILURE: Should be visible after SIGCONT.${NC}"
+if [ "$VISIBILITY" != "hidden" ]; then
+  echo -e "${RED}FAILURE: Should be hidden after SIGTSTP (which implies Conceal).${NC}"
+  exit 1
+fi
+
+log "Sending SIGCONT (UNFREEZE & REVEAL & FOCUS)..."
+kill -SIGCONT $COBALT_PID
+sleep 2
+VISIBILITY=$(check_js "document.visibilityState")
+HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
+log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
+
+if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
+  echo -e "${RED}FAILURE: Should be visible and focused after SIGCONT from Frozen.${NC}"
   exit 1
 fi
 

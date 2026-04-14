@@ -219,9 +219,23 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
           starboard::GetVideoMaxPendingInputFramesForCurrentThread()) {
     handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
   }
+  if (auto video_decoder_initial_preroll_count =
+          starboard::GetVideoDecoderInitialPrerollCountForCurrentThread()) {
+    handler->SetVideoDecoderInitialPrerollCount(
+        *video_decoder_initial_preroll_count);
+  }
   if (auto video_decoder_poll_interval_ms =
           starboard::GetVideoDecoderPollIntervalMsForCurrentThread()) {
     handler->SetVideoDecoderPollIntervalMs(*video_decoder_poll_interval_ms);
+  }
+  if (auto video_renderer_min_input_buffers =
+          starboard::GetVideoRendererMinInputBuffersForCurrentThread()) {
+    handler->SetVideoRendererMinInputBuffers(*video_renderer_min_input_buffers);
+  }
+  if (auto video_renderer_min_decoded_frames =
+          starboard::GetVideoRendererMinDecodedFramesForCurrentThread()) {
+    handler->SetVideoRendererMinDecodedFrames(
+        *video_renderer_min_decoded_frames);
   }
 
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(

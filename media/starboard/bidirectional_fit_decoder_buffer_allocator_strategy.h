@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
-#define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
+#ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
+#define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 
-#include "media/starboard/bidirectional_fit_reuse_allocator.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "media/starboard/starboard_memory_allocator.h"
+#include "starboard/common/bidirectional_fit_reuse_allocator.h"
 #include "starboard/configuration.h"
-
 namespace media {
 
 template <typename ReuseAllocatorBase>
@@ -28,11 +27,14 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
  public:
   BidirectionalFitDecoderBufferAllocatorStrategy(
       std::size_t initial_capacity,
-      std::size_t allocation_increment)
-      : birectional_fit_allocator_(&fallback_allocator_,
+      std::size_t allocation_increment,
+      bool enable_decommit_on_idle)
+      : fallback_allocator_(enable_decommit_on_idle),
+        birectional_fit_allocator_(&fallback_allocator_,
                                    initial_capacity,
                                    kSmallAllocationThreshold,
-                                   allocation_increment) {}
+                                   allocation_increment,
+                                   enable_decommit_on_idle) {}
 
   void* Allocate(DemuxerStream::Type type,
                  size_t size,
@@ -41,6 +43,9 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
   }
   void Free(DemuxerStream::Type type, void* p) override {
     birectional_fit_allocator_.Free(p);
+  }
+  void Write(void* p, const void* data, size_t size) override {
+    memcpy(p, data, size);
   }
 
   size_t GetCapacity() const override {
@@ -57,9 +62,10 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
   static constexpr size_t kSmallAllocationThreshold = 512;
 
   StarboardMemoryAllocator fallback_allocator_;
-  BidirectionalFitReuseAllocator<ReuseAllocatorBase> birectional_fit_allocator_;
+  starboard::BidirectionalFitReuseAllocator<ReuseAllocatorBase>
+      birectional_fit_allocator_;
 };
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
+#endif  // MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_

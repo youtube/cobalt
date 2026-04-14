@@ -123,7 +123,8 @@ class ReuseAllocatorBase : public Allocator {
   ReuseAllocatorBase(Allocator* fallback_allocator,
                      size_t initial_capacity,
                      size_t allocation_increment,
-                     size_t max_capacity = 0);
+                     size_t max_capacity,
+                     bool enable_decommit_on_idle);
   ~ReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -139,6 +140,12 @@ class ReuseAllocatorBase : public Allocator {
                                                bool* allocate_from_front) = 0;
 
  private:
+  // Pointer and size of the block allocated from the fallback allocator.
+  struct FallbackAllocation {
+    void* address;
+    size_t size;
+  };
+
   // Map from pointers we returned to the user, back to memory blocks.
   typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
 
@@ -160,9 +167,12 @@ class ReuseAllocatorBase : public Allocator {
   // expand.
   const size_t max_capacity_;
 
+  // Whether to decommit memory when the pool becomes idle.
+  const bool enable_decommit_on_idle_ = false;
+
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.
-  std::vector<void*> fallback_allocations_;
+  std::vector<FallbackAllocation> fallback_allocations_;
 
   // How much we have allocated from the fallback allocator.
   size_t capacity_;

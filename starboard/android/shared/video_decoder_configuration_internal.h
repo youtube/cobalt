@@ -37,6 +37,15 @@ std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread();
 void SetVideoMaxPendingInputFramesForCurrentThread(
     int max_pending_input_frames);
 
+// Get video_decoder_initial_preroll_count via
+// SetVideoDecoderInitialPrerollCountForCurrentThread().
+std::optional<int> GetVideoDecoderInitialPrerollCountForCurrentThread();
+
+// Specifies the video initial preroll count.
+// |video_decoder_initial_preroll_count| should be non-negative value.
+void SetVideoDecoderInitialPrerollCountForCurrentThread(
+    int video_decoder_initial_preroll_count);
+
 // Get video_decoder_poll_interval_ms via
 // SetVideoDecoderPollIntervalMsForCurrentThread().
 std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
@@ -45,6 +54,24 @@ std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
 // |video_decoder_poll_interval_ms| should be positive value.
 void SetVideoDecoderPollIntervalMsForCurrentThread(
     int video_decoder_poll_interval_ms);
+
+// Get video_renderer_min_input_buffers via
+// SetVideoRendererMinInputBuffersForCurrentThread().
+std::optional<int> GetVideoRendererMinInputBuffersForCurrentThread();
+
+// Specifies the video renderer minimum input buffers.
+// |video_renderer_min_input_buffers| should be non-negative value.
+void SetVideoRendererMinInputBuffersForCurrentThread(
+    int video_renderer_min_input_buffers);
+
+// Get video_renderer_min_decoded_frames via
+// SetVideoRendererMinDecodedFramesForCurrentThread().
+std::optional<int> GetVideoRendererMinDecodedFramesForCurrentThread();
+
+// Specifies the video renderer minimum decoded frames.
+// |video_renderer_min_decoded_frames| should be non-negative value.
+void SetVideoRendererMinDecodedFramesForCurrentThread(
+    int video_renderer_min_decoded_frames);
 
 }  // namespace starboard
 
