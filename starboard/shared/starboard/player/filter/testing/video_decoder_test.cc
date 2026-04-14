@@ -155,6 +155,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                 /*video_max_pending_input_frames=*/std::nullopt,
                 /*video_decoder_initial_preroll_count=*/std::nullopt,
                 /*video_decoder_poll_interval_ms=*/std::nullopt,
+                /*video_renderer_min_input_buffers=*/std::nullopt,
+                /*video_renderer_min_decoded_frames=*/std::nullopt,
                 fake_graphics_context_provider_.decoder_target_provider(),
                 &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
