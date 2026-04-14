@@ -405,6 +405,7 @@ jobs:
         config: ${{ fromJson(needs.initialize.outputs.build_configs) }}
     container:
       image: ${{ needs.docker-build-image.outputs.docker_tag }}
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
       volumes:
         - /runner-cache:/runner-cache
     env:
@@ -433,7 +434,29 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      # TODO(b/501486531): This step duplicates a lot of logic from
+      # other steps like depot_tools and checkout. Because I need
+      # to verify the performance of overlay in the real world.
+      # Before that, keep a weak coupling for easier revert.
+      - name: Prepare OverlayFS Workspace
+        id: overlay_workspace
+        if: ${{ !contains(matrix.platform, 'tvos') }}
+        uses: ./.github/actions/overlay_workspace
+        with:
+          path: cobalt
+          ref: ${{ github.sha }}
+
+      - name: Runner Cache Hot
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit != 'true' }}
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
+
       - name: Checkout
+        if: ${{ contains(matrix.platform, 'tvos') }}
         uses: ./.github/actions/checkout
         with:
           path: cobalt/src
@@ -445,6 +468,7 @@ jobs:
           use_cache: true
 
       - name: Set Up Depot Tools
+        if: ${{ contains(matrix.platform, 'tvos') }}
         id: setup-depot-tools
         uses: ./.github/actions/depot_tools
 
@@ -481,6 +505,7 @@ jobs:
       - name: Run API Leak Detector
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
+
 
   on-device-test:
     needs: [initialize, build]
@@ -634,7 +659,7 @@ jobs:
         ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
         (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
       )
-    runs-on: [self-hosted, odt-runner]
+    runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
       image: ${{ needs.docker-unittest-image.outputs.docker_tag }}
@@ -746,6 +771,7 @@ jobs:
         config: [devel]
     container:
       image: ${{ needs.docker-webtest-image.outputs.docker_tag }}
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
       volumes:
         - /runner-cache:/runner-cache
     env:
@@ -762,23 +788,22 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-
-      - name: Checkout
-        uses: ./.github/actions/checkout
+      - name: Prepare OverlayFS Workspace
+        id: overlay_workspace
+        uses: ./.github/actions/overlay_workspace
         with:
-          path: cobalt/src
+          path: cobalt
           ref: ${{ github.sha }}
-          # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
-          # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
-          # to properly calculate build id.
-          fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
-          use_cache: true
+          run_sync: 'false'
 
-      - name: Set Up Depot Tools
-        id: setup-depot-tools
-        uses: ./.github/actions/depot_tools
-        with:
-          run_sync: false
+      - name: Runner Cache Hot
+        if: steps.overlay_workspace.outputs.cache_hit == 'true'
+        shell: bash
+        run: echo "Golden workspace found on SSD."
+      - name: Runner Cache Cold
+        if: steps.overlay_workspace.outputs.cache_hit != 'true'
+        shell: bash
+        run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
       - name: Run Web Tests
         uses: ./.github/actions/web_tests
