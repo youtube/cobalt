@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <ostream>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -41,13 +42,21 @@ namespace starboard {
 // pipeline to coordinate data transfer between these parties.
 class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
  public:
+  struct PrerollParameters {
+    int32_t min_input_buffers;
+    int32_t min_decoded_frames;
+  };
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const PrerollParameters& params);
+
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
   VideoRendererImpl(JobQueue* job_queue,
                     std::unique_ptr<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
                     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-                    scoped_refptr<VideoRendererSink> sink);
+                    scoped_refptr<VideoRendererSink> sink,
+                    const std::optional<PrerollParameters>& preroll_params);
   ~VideoRendererImpl() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -85,10 +94,6 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
-  struct PrerollParameters {
-    int32_t min_input_buffers;
-    int32_t min_decoded_frames;
-  };
   const std::optional<PrerollParameters> preroll_params_;
 
   PrerolledCB prerolled_cb_;
