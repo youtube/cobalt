@@ -123,13 +123,8 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
         posix_memalign(&tmp, starboard::Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
-<<<<<<< HEAD
-    std::unique_ptr<starboard::FixedNoFreeAllocator> fallback_allocator(
-        new starboard::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
-=======
     std::unique_ptr<FixedNoFreeAllocator> fallback_allocator(
         new FixedNoFreeAllocator(buffer_.get(), kBufferSize));
->>>>>>> dee9ecddf5 (media: Implement madvise for idle buffer memory (#9286))
     allocator_.reset(new BidirectionalFitReuseAllocator<ReuseAllocatorBase>(
         fallback_allocator.get(), initial_capacity, small_allocation_threshold,
         allocation_increment, false));
@@ -156,12 +151,8 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
   }
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
-<<<<<<< HEAD
-  std::unique_ptr<starboard::FixedNoFreeAllocator> fallback_allocator_;
-=======
   std::unique_ptr<FixedNoFreeAllocator> fallback_allocator_;
   MockDecommitAllocator* mock_fallback_allocator_ = nullptr;
->>>>>>> dee9ecddf5 (media: Implement madvise for idle buffer memory (#9286))
   std::unique_ptr<BidirectionalFitReuseAllocator<ReuseAllocatorBase>>
       allocator_;
 };
@@ -356,8 +347,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, AllocationsWithThreshold) {
   this->allocator_->Free(small_allocation_3);
 }
 
-<<<<<<< HEAD
-=======
 TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitExactFallbackBlocks) {
   const std::size_t kAlignment = sizeof(void*);
 
@@ -445,6 +434,4 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, DecommitOnBatchedFree) {
   EXPECT_GE(total_decommitted_size, kBlockSize * kNumBlocks);
 }
 
-}  // namespace common
->>>>>>> dee9ecddf5 (media: Implement madvise for idle buffer memory (#9286))
 }  // namespace starboard
