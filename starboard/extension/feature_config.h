@@ -154,6 +154,13 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
 
+// By default, software video codec can be selected when software codec is not
+// required. Set the following variable to true to prevent using low performance
+// software video decoder in MediaCapabilitiesCache when software codec is not
+// explicitly required.
+STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
+                  "RejectLowPerformanceSoftwareDecoder",
+                  false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
