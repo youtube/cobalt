@@ -67,10 +67,12 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
+  const auto& experimental_features =
+      creation_parameters.experimental_features();
   const auto& min_input_buffers =
-      creation_parameters.video_renderer_min_input_buffers();
+      experimental_features.video_renderer_min_input_buffers;
   const auto& min_decoded_frames =
-      creation_parameters.video_renderer_min_decoded_frames();
+      experimental_features.video_renderer_min_decoded_frames;
 
   if (!min_input_buffers && !min_decoded_frames) {
     return std::nullopt;
@@ -89,6 +91,20 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
   return VideoRendererImpl::PrerollParameters{*min_input_buffers,
                                               *min_decoded_frames};
 }
+
+MediaCodecVideoDecoder::FlowControlOptions GetFlowControlOptions(
+    const PlayerComponents::ExperimentalFeatures& features) {
+  MediaCodecVideoDecoder::FlowControlOptions options;
+  options.initial_max_frames_in_decoder =
+      features.video_initial_max_frames_in_decoder;
+  options.max_pending_input_frames = features.video_max_pending_input_frames;
+  options.video_decoder_initial_preroll_count =
+      features.video_decoder_initial_preroll_count;
+  options.video_decoder_poll_interval_ms =
+      features.video_decoder_poll_interval_ms;
+  return options;
+}
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
@@ -219,7 +235,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.flush_decoder_during_reset();
+        creation_parameters.experimental_features().flush_decoder_during_reset;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -259,13 +275,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           creation_parameters, kTunnelModeAudioSessionId,
           kForceSecurePipelineUnderTunnelMode, max_video_input_size);
       if (video_decoder) {
-        auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
-        auto video_renderer_sink = video_decoder->GetSink();
+        auto video_decoder_impl = std::move(video_decoder.value());
+        auto video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
+        auto video_renderer_sink = video_decoder_impl->GetSink();
         auto media_time_provider = audio_renderer.value().get();
 
         video_renderer = std::make_unique<VideoRendererImpl>(
-            creation_parameters.job_queue(),
-            std::unique_ptr<VideoDecoder>(std::move(video_decoder.value())),
+            creation_parameters.job_queue(), std::move(video_decoder_impl),
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink, GetPrerollParams(creation_parameters));
       } else {
@@ -351,9 +367,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << tunnel_mode_audio_session_id << '.';
     }
 
+    const PlayerComponents::ExperimentalFeatures& experimental_features =
+        creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
-        creation_parameters.reset_audio_decoder() ||
+        experimental_features.reset_audio_decoder ||
         video_mime_type.GetParamBoolValue("enableresetaudiodecoder", false);
     SB_LOG_IF(INFO, enable_reset_audio_decoder)
         << "`enable_reset_audio_decoder` is set to true, force resetting"
@@ -365,7 +383,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.flush_decoder_during_reset() ||
+        experimental_features.flush_decoder_during_reset ||
         video_mime_type.GetParamBoolValue("enableflushduringseek", false);
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
@@ -517,9 +535,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.flush_decoder_during_reset();
+        creation_parameters.experimental_features().flush_decoder_during_reset;
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
+
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
@@ -555,17 +574,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    MediaCodecVideoDecoder::FlowControlOptions flow_control_options;
-    flow_control_options.initial_max_frames_in_decoder =
-        creation_parameters.video_initial_max_frames_in_decoder();
-    flow_control_options.max_pending_input_frames =
-        creation_parameters.video_max_pending_input_frames();
-    flow_control_options.video_decoder_initial_preroll_count =
-        creation_parameters.video_decoder_initial_preroll_count();
-    flow_control_options.video_decoder_poll_interval_ms =
-        creation_parameters.video_decoder_poll_interval_ms();
+    MediaCodecVideoDecoder::FlowControlOptions flow_control_options =
+        GetFlowControlOptions(creation_parameters.experimental_features());
 
-    auto result = MediaCodecVideoDecoder::Create(
+    return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -576,11 +588,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         max_video_input_size, creation_parameters.surface_view(),
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         flow_control_options);
-    if (!result) {
-      return Failure(result.error());
-    }
-
-    return result;
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
