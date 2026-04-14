@@ -2,7 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "content/browser/renderer_host/navigation_request.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
 
 #include <memory>
 #include <optional>
@@ -2380,6 +2386,11 @@ NavigationRequest::GetCommitDeferringConditionForTesting() {
 
 void NavigationRequest::BeginNavigation() {
   begin_navigation_time_ = base::TimeTicks::Now();
+
+#if BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(38);
+#endif
+
   TRACE_EVENT_WITH_FLOW0("navigation", "NavigationRequest::BeginNavigation",
                          TRACE_ID_WITH_SCOPE(kNavigationRequestScope,
                                              TRACE_ID_LOCAL(navigation_id_)),

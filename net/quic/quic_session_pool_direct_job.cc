@@ -4,6 +4,13 @@
 
 #include "net/quic/quic_session_pool_direct_job.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
+
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/network_change_notifier.h"
@@ -62,6 +69,10 @@ QuicSessionPool::DirectJob::DirectJob(
 QuicSessionPool::DirectJob::~DirectJob() {}
 
 int QuicSessionPool::DirectJob::Run(CompletionOnceCallback callback) {
+#if BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(43);
+#endif
+
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
     callback_ = std::move(callback);

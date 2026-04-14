@@ -4,6 +4,13 @@
 
 #include "net/socket/transport_connect_job.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
+
 #include <memory>
 #include <set>
 #include <utility>
@@ -369,6 +376,10 @@ int TransportConnectJob::DoResolveHostCallbackComplete() {
 }
 
 int TransportConnectJob::DoTransportConnect() {
+#if BUILDFLAG(IS_ANDROID)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(42);
+#endif
+
   next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;
 
   const HostResolverEndpointResult& endpoint =
