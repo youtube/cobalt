@@ -74,12 +74,6 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->reset_audio_decoder;
   experiment_features.video_decoder_initial_preroll_count =
       FromIntPointer(extension_features->video_decoder_initial_preroll_count);
-  experiment_features.video_decoder_poll_interval_ms =
-      FromIntPointer(extension_features->video_decoder_poll_interval_ms);
-  experiment_features.video_initial_max_frames_in_decoder =
-      FromIntPointer(extension_features->video_initial_max_frames_in_decoder);
-  experiment_features.video_max_pending_input_frames =
-      FromIntPointer(extension_features->video_max_pending_input_frames);
   experiment_features.video_renderer_min_decoded_frames =
       FromIntPointer(extension_features->video_renderer_min_decoded_frames);
   experiment_features.video_renderer_min_input_buffers =
