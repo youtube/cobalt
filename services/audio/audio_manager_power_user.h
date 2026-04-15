@@ -43,6 +43,11 @@ class AudioManagerPowerUser {
     return audio_manager_->GetInputStreamParameters(device_id);
   }
 
+  void PreStartStream(const base::UnguessableToken& session_id,
+                      const media::AudioParameters& params) {
+    audio_manager_->PreStartStream(session_id, params);
+  }
+
  private:
   const raw_ptr<media::AudioManager> audio_manager_;
 };

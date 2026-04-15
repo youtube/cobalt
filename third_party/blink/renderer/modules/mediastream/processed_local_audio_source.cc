@@ -10,6 +10,9 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
@@ -24,6 +27,8 @@
 #include "media/webrtc/webrtc_features.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-blink.h"
+#include "third_party/blink/public/platform/modules/mediastream/web_media_stream_source.h"
+#include "third_party/blink/public/platform/modules/mediastream/web_platform_media_stream_source.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -38,6 +43,8 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/webrtc/media/base/media_channel.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 namespace blink {
 
@@ -147,9 +154,9 @@ ProcessedLocalAudioSource::ProcessedLocalAudioSource(
     int num_requested_channels,
     ConstraintsRepeatingCallback started_callback,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner)
-    : blink::MediaStreamAudioSource(std::move(task_runner),
-                                    true /* is_local_source */,
-                                    disable_local_echo),
+    : MediaStreamAudioSource(std::move(task_runner),
+                             true /* is_local_source */,
+                             disable_local_echo),
       // Remote APM is only enabled for mic input, other input sources have
       // conflicting requirements on echo cancellation:
       // https://crbug.com/1328012
@@ -220,6 +227,9 @@ bool ProcessedLocalAudioSource::EnsureSourceIsStarted() {
       "EnsureSourceIsStarted() => (audio_processing_properties=[%s])",
       GetAudioProcesingPropertiesLogString(audio_processing_properties_)
           .c_str()));
+
+  int device_effects = device().input.effects();
+  LOG(INFO) << "KJ: EnsureSourceIsStarted device_effects=" << device_effects;
 
   blink::MediaStreamDevice modified_device(device());
   bool device_is_modified = false;
@@ -493,7 +503,17 @@ void ProcessedLocalAudioSource::Capture(const media::AudioBus* audio_bus,
                                         base::TimeTicks audio_capture_time,
                                         double volume,
                                         bool key_pressed) {
-  TRACE_EVENT1("audio", "ProcessedLocalAudioSource::Capture", "capture-time",
+  if (capture_count_ == 0 && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::FirstHWBuffer", perfetto::Flow::ProcessScoped(id));
+  }
+  if (capture_count_ == 0) {
+    LOG(INFO) << "KJ: RecordLatency::FirstHWBuffer count=" << capture_count_
+              << " has_processor=" << (media_stream_audio_processor_ != nullptr)
+              << " is_zero=" << audio_bus->AreFramesZero();
+  }
+  capture_count_++;
+  TRACE_EVENT1("audio", "ProcessedLocalAudioSource::Capture", "capture_time",
                audio_capture_time);
   // Maximum number of channels used by the sinks.
   int num_preferred_channels = NumPreferredChannels();

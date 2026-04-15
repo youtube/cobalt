@@ -12,7 +12,12 @@
 #include <string>
 
 #include "base/command_line.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/containers/contains.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 #include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -842,6 +847,12 @@ void MediaDevicesManager::GotAudioInputCapabilities(
     size_t state_id,
     size_t capabilities_index,
     const absl::optional<media::AudioParameters>& parameters) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserGotAudioCapabilities", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::BrowserGotAudioCapabilities latency(msec)=" << elapsed.InMilliseconds();
+
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(base::Contains(enumeration_states_, state_id));
 
@@ -872,6 +883,12 @@ void MediaDevicesManager::GotAudioInputCapabilities(
 
 void MediaDevicesManager::FinalizeDevicesEnumerated(
     EnumerationState enumeration_state) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserAudioCapabilitiesReturned", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::BrowserAudioCapabilitiesReturned (Sending back): latency(msec)=" << elapsed.InMilliseconds();
+
   std::move(enumeration_state.completion_cb)
       .Run(std::move(enumeration_state.hashed_enumeration_results),
            enumeration_state.video_input_capabilities_requested

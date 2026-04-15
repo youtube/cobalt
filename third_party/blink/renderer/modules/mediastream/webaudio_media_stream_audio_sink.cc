@@ -8,17 +8,22 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "media/base/audio_fifo.h"
 #include "media/base/audio_parameters.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
 
+namespace content { extern base::TimeTicks g_select_keydown_time; }
+
+namespace blink {
+
 namespace {
 static const size_t kMaxNumberOfAudioFifoBuffers = 10;
 }
-
-namespace blink {
 
 // Size of the buffer that WebAudio processes each time, it is the same value
 // as AudioNode::ProcessingSizeInFrames in WebKit.
@@ -85,6 +90,13 @@ void WebAudioMediaStreamAudioSink::OnReadyStateChanged(
 void WebAudioMediaStreamAudioSink::OnData(
     const media::AudioBus& audio_bus,
     base::TimeTicks estimated_capture_time) {
+  if (!first_sink_ondata_logged_ && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::WebAudioSinkFIFO", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: RecordLatency::WebAudioSinkFIFO latency(msec)=" << latency.InMilliseconds();
+    first_sink_ondata_logged_ = true;
+  }
   NON_REENTRANT_SCOPE(capture_reentrancy_checker_);
   DCHECK(!estimated_capture_time.is_null());
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("mediastream"),
@@ -157,9 +169,13 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
     media::AudioBus* audio_bus,
     uint32_t frames_delayed,
     const media::AudioGlitchInfo& glitch_info) NO_THREAD_SAFETY_ANALYSIS {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("mediastream"),
-               "WebAudioMediaStreamAudioSink::ProvideInput 2");
-
+  if (!first_sink_provide_logged_ && !::content::g_select_keydown_time.is_null()) {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::WebAudioConsume", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta latency = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: RecordLatency::WebAudioConsume latency(msec)=" << latency.InMilliseconds();
+    first_sink_provide_logged_ = true;
+  }
   lock_.AssertAcquired();
   if (fifo_->frames() >= audio_bus->frames()) {
     fifo_->Consume(audio_bus, 0, audio_bus->frames());

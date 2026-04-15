@@ -129,6 +129,8 @@ class PLATFORM_EXPORT MediaStreamAudioTrack : public MediaStreamTrackPlatform {
   // Only used for logging purposes.
   bool received_audio_callback_ = false;
 
+  int track_data_count_ = 0;
+
   // Provides weak pointers that are valid until Stop() is called.
   base::WeakPtrFactory<MediaStreamAudioTrack> weak_factory_{this};
 };

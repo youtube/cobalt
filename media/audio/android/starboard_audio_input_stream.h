@@ -1,9 +1,7 @@
-// Copyright 2012 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 
-#ifndef MEDIA_AUDIO_ANDROID_OPENSLES_INPUT_H_
-#define MEDIA_AUDIO_ANDROID_OPENSLES_INPUT_H_
+#ifndef MEDIA_AUDIO_ANDROID_STARBOARD_AUDIO_INPUT_STREAM_H_
+#define MEDIA_AUDIO_ANDROID_STARBOARD_AUDIO_INPUT_STREAM_H_
 
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
@@ -11,7 +9,6 @@
 
 #include <memory>
 
-#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
@@ -25,21 +22,21 @@ namespace media {
 class AudioBus;
 class AudioManagerAndroid;
 
-// Implements PCM audio input support for Android using the OpenSLES API.
-// This class is created and lives on the Audio Manager thread but recorded
-// audio buffers are delivered on an internal OpenSLES audio thread. All public
-// methods should be called on the Audio Manager thread.
-class OpenSLESInputStream : public AudioInputStream {
+// StarboardAudioInputStream is a simplified version of OpenSLESInputStream
+// specifically tuned for low-latency voice recognition on Cobalt/Android.
+// It bypasses complex negotiation and is hardcoded for 16kHz Mono.
+class StarboardAudioInputStream : public AudioInputStream {
  public:
   static const int kMaxNumOfBuffersInQueue = 2;
+  static const int kSampleRateHz = 16000;
 
-  OpenSLESInputStream(AudioManagerAndroid* manager,
-                      const AudioParameters& params);
+  StarboardAudioInputStream(AudioManagerAndroid* manager,
+                            const AudioParameters& params);
 
-  OpenSLESInputStream(const OpenSLESInputStream&) = delete;
-  OpenSLESInputStream& operator=(const OpenSLESInputStream&) = delete;
+  StarboardAudioInputStream(const StarboardAudioInputStream&) = delete;
+  StarboardAudioInputStream& operator=(const StarboardAudioInputStream&) = delete;
 
-  ~OpenSLESInputStream() override;
+  ~StarboardAudioInputStream() override;
 
   // Implementation of AudioInputStream.
   OpenOutcome Open() override;
@@ -94,7 +91,7 @@ class OpenSLESInputStream : public AudioInputStream {
   // Buffer queue recorder interface.
   SLAndroidSimpleBufferQueueItf simple_buffer_queue_;
 
-  SLDataFormat_PCM format_;
+  SLAndroidDataFormat_PCM_EX format_;
 
   // Audio buffers that are allocated in the constructor based on
   // info from audio parameters.
@@ -110,11 +107,8 @@ class OpenSLESInputStream : public AudioInputStream {
   std::unique_ptr<media::AudioBus> audio_bus_;
 
   int buffer_count_ = 0;
-
-  // Set to true at construction if user wants to disable all audio effects.
-  const bool no_effects_ = false;
 };
 
 }  // namespace media
 
-#endif  // MEDIA_AUDIO_ANDROID_OPENSLES_INPUT_H_
+#endif  // MEDIA_AUDIO_ANDROID_STARBOARD_AUDIO_INPUT_STREAM_H_

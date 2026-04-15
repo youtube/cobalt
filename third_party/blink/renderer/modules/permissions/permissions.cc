@@ -7,7 +7,11 @@
 #include <memory>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -27,6 +31,8 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 namespace blink {
 
@@ -56,6 +62,12 @@ Permissions::Permissions(NavigatorBase& navigator)
 ScriptPromise Permissions::query(ScriptState* script_state,
                                  const ScriptValue& raw_permission,
                                  ExceptionState& exception_state) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::JS_PermissionsQuery", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::JS_PermissionsQuery (START): latency(msec)=" << elapsed.InMilliseconds();
+
   // https://www.w3.org/TR/permissions/#query-method
   // If this's relevant global object is a Window object, and if the current
   // settings object's associated Document is not fully active, return a promise
@@ -100,6 +112,12 @@ ScriptPromise Permissions::query(ScriptState* script_state,
 ScriptPromise Permissions::request(ScriptState* script_state,
                                    const ScriptValue& raw_permission,
                                    ExceptionState& exception_state) {
+
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::JS_PermissionsRequest", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::JS_PermissionsRequest (START): latency(msec)=" << elapsed.InMilliseconds();
+
   PermissionDescriptorPtr descriptor =
       ParsePermissionDescriptor(script_state, raw_permission, exception_state);
   if (exception_state.HadException())

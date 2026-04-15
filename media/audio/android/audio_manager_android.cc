@@ -13,12 +13,16 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/audio/android/aaudio_output.h"
 #include "media/audio/android/aaudio_stubs.h"
 #include "media/audio/android/audio_track_output_stream.h"
 #include "media/audio/android/opensles_input.h"
 #include "media/audio/android/opensles_output.h"
+#include "media/audio/android/starboard_audio_input_stream.h"
 #include "media/audio/audio_device_description.h"
 #include "media/audio/audio_features.h"
 #include "media/audio/audio_manager.h"
@@ -26,6 +30,8 @@
 #include "media/base/android/media_jni_headers/AudioManagerAndroid_jni.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
@@ -166,31 +172,25 @@ void AudioManagerAndroid::GetAudioOutputDeviceNames(
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
-  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::GetInputStreamParameters", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed =
+      base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: device_id=" << device_id 
+            << " latency(msec)=" << elapsed.InMilliseconds();
 
-  // Use mono as preferred number of input channels on Android to save
-  // resources. Using mono also avoids a driver issue seen on Samsung
-  // Galaxy S3 and S4 devices. See http://crbug.com/256851 for details.
-  JNIEnv* env = AttachCurrentThread();
+  // Starboard POC: Hardcode Mono to bypass JNI/Probing overhead.
+  // This is now thread-safe and can be called from any thread to avoid hops.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
-  int buffer_size = Java_AudioManagerAndroid_getMinInputFrameSize(
-      env, GetNativeOutputSampleRate(),
-      ChannelLayoutToChannelCount(channel_layout));
-  buffer_size = buffer_size <= 0 ? kDefaultInputBufferSize : buffer_size;
-  int effects = AudioParameters::NO_EFFECTS;
-  effects |= Java_AudioManagerAndroid_acousticEchoCancelerIsAvailable(env)
-                 ? AudioParameters::ECHO_CANCELLER
-                 : AudioParameters::NO_EFFECTS;
-
-  int user_buffer_size = GetUserBufferSize();
-  if (user_buffer_size)
-    buffer_size = user_buffer_size;
+  int sample_rate = StarboardAudioInputStream::kSampleRateHz;
+  int buffer_size = 128; // Starboard default samples per buffer
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
-                         GetNativeOutputSampleRate(), buffer_size);
-  params.set_effects(effects);
-  DVLOG(1) << params.AsHumanReadableString();
+                         sample_rate, buffer_size);
+  params.set_effects(AudioParameters::NO_EFFECTS);
+  LOG(INFO) << "KJ: " << __func__ << "params=" << params.AsHumanReadableString();
   return params;
 }
 
@@ -215,6 +215,33 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     const std::string& device_id,
     const LogCallback& log_callback) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  
+  // KJ: Check if we have a pre-started stream for this device.
+  // We use the first one available or wait for it to finish opening.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    if (!pre_started_streams_.empty()) {
+      auto it = pre_started_streams_.begin();
+      
+      // Keep a raw pointer to the entry so we can wait on it.
+      PreStartedEntry* entry = it->second.get();
+      
+      LOG(INFO) << "KJ: Re-using PRE-STARTED hardware stream. Waiting for it to finish opening...";
+      
+      {
+        base::AutoUnlock unlock(pre_started_streams_lock_);
+        entry->open_event.Wait();
+      }
+      
+      AudioInputStream* stream = entry->stream;
+      if (stream) {
+        pre_started_streams_.erase(it);
+        LOG(INFO) << "KJ: Successfully re-used PRE-STARTED stream";
+        return stream;
+      }
+    }
+  }
+
   bool has_no_input_streams = HasNoAudioInputStreams();
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
@@ -240,6 +267,18 @@ void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {
 
 void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  
+  // KJ: Remove from pre-started map if present.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    for (auto it = pre_started_streams_.begin(); it != pre_started_streams_.end(); ++it) {
+      if (it->second->stream == stream) {
+        pre_started_streams_.erase(it);
+        break;
+      }
+    }
+  }
+
   AudioManagerBase::ReleaseInputStream(stream);
 
   // Restore the audio mode which was used before the first communication-
@@ -306,6 +345,15 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::MakeLowLatencyInputStream", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed =
+      base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream: "
+                "latency(msec)="
+            << elapsed.InMilliseconds();
+
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
@@ -322,8 +370,55 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
 
   // Create a new audio input stream and enable or disable all audio effects
   // given |params.effects()|.
-  return new OpenSLESInputStream(this, params);
+  return new StarboardAudioInputStream(this, params);
 }
+
+void AudioManagerAndroid::PreStartStream(const base::UnguessableToken& session_id,
+                                         const AudioParameters& params) {
+  LOG(INFO) << "KJ: AudioManagerAndroid::PreStartStream session=" << session_id.ToString();
+  
+  // We must be on the audio thread to create the stream objects.
+  if (!GetTaskRunner()->BelongsToCurrentThread()) {
+    GetTaskRunner()->PostTask(
+        FROM_HERE, base::BindOnce(&AudioManagerAndroid::PreStartStream,
+                                  base::Unretained(this), session_id, params));
+    return;
+  }
+
+  // Create the entry and park it in the map before starting the slow Open() call.
+  // This allows MakeAudioInputStream to find it and WAIT for it.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_[session_id] = std::make_unique<PreStartedEntry>();
+  }
+
+  // KJ: Use the base class factory method so the stream is properly registered 
+  // in the AudioManagerBase::input_streams_ list. This prevents the ReleaseInputStream crash.
+  AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
+      params, "default", base::DoNothing());
+  
+  if (!stream) {
+    LOG(ERROR) << "KJ: Failed to create hardware stream for pre-start";
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_.erase(session_id);
+    return;
+  }
+
+  if (stream->Open() == AudioInputStream::OpenOutcome::kSuccess) {
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_[session_id]->stream = stream;
+    pre_started_streams_[session_id]->open_event.Signal();
+    LOG(INFO) << "KJ: Hardware stream PRE-STARTED and PARKED for session=" << session_id.ToString();
+  } else {
+    LOG(ERROR) << "KJ: Failed to pre-start hardware stream";
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_.erase(session_id);
+    ReleaseInputStream(stream);
+  }
+}
+
+AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
+AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
 
 // static
 bool AudioManagerAndroid::SupportsPerformanceModeForOutput() {
@@ -432,6 +527,14 @@ void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
 }
 
 bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::SetAudioDevice", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed =
+      base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::SetAudioDevice: " << device_id
+            << " latency(msec)=" << elapsed.InMilliseconds();
+
   DVLOG(1) << __FUNCTION__ << ": " << device_id;
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
@@ -442,8 +545,12 @@ bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
   ScopedJavaLocalRef<jstring> j_device_id = ConvertUTF8ToJavaString(
       env, device_id == AudioDeviceDescription::kDefaultDeviceId ? std::string()
                                                                  : device_id);
-  return Java_AudioManagerAndroid_setDevice(env, GetJavaAudioManager(),
+  bool success = Java_AudioManagerAndroid_setDevice(env, GetJavaAudioManager(),
                                             j_device_id);
+  if (success && !::content::g_select_keydown_time.is_null()) {
+    LOG(INFO) << "KJ: SetAudioDevice finishes";
+  }
+  return success;
 }
 
 int AudioManagerAndroid::GetNativeOutputSampleRate() {

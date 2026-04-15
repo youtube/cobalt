@@ -70,6 +70,10 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       const std::string& device_id,
       const LogCallback& log_callback) override;
 
+  // KJ: Pre-starts and parks a hardware stream so the Renderer can "skip" the wait.
+  void PreStartStream(const base::UnguessableToken& session_id,
+                      const AudioParameters& params);
+
   // Indicates if there's support for the OpenSLES performance mode keys. See
   // OpenSLESOutputStream for specific details. Essentially this allows for low
   // power audio when large buffer sizes can be used.
@@ -124,6 +128,18 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
   // Java AudioManager instance.
   base::android::ScopedJavaGlobalRef<jobject> j_audio_manager_;
+
+  // KJ: Map to hold pre-started streams indexed by session ID.
+  base::Lock pre_started_streams_lock_;
+  
+  struct PreStartedEntry {
+    PreStartedEntry();
+    ~PreStartedEntry();
+    AudioInputStream* stream = nullptr;
+    base::WaitableEvent open_event{base::WaitableEvent::ResetPolicy::MANUAL,
+                                   base::WaitableEvent::InitialState::NOT_SIGNALED};
+  };
+  std::map<base::UnguessableToken, std::unique_ptr<PreStartedEntry>> pre_started_streams_;
 
   typedef std::set<MuteableAudioOutputStream*> OutputStreams;
   OutputStreams streams_;

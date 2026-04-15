@@ -255,6 +255,8 @@ source_set("audio") {
       "android/opensles_util.cc",
       "android/opensles_util.h",
       "android/opensles_wrapper.cc",
+      "android/starboard_audio_input_stream.cc",
+      "android/starboard_audio_input_stream.h",
     ]
 
     deps += [

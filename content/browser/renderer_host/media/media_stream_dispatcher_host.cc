@@ -10,6 +10,9 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
@@ -40,6 +43,8 @@
 #endif
 
 namespace content {
+
+extern base::TimeTicks g_select_keydown_time;
 
 namespace {
 
@@ -422,6 +427,12 @@ void MediaStreamDispatcherHost::GenerateStreams(
     bool user_gesture,
     blink::mojom::StreamSelectionInfoPtr audio_stream_selection_info_ptr,
     GenerateStreamsCallback callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserGenerateStreams", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::BrowserGenerateStreams latency(msec)=" << elapsed.InMilliseconds();
+
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const absl::optional<bad_message::BadMessageReason> bad_message =

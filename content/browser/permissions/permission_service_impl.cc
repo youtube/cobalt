@@ -21,6 +21,9 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-shared.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "url/origin.h"
 
 using blink::mojom::PermissionDescriptorPtr;
@@ -28,6 +31,8 @@ using blink::mojom::PermissionName;
 using blink::mojom::PermissionStatus;
 
 namespace content {
+
+extern base::TimeTicks g_select_keydown_time;
 
 namespace {
 
@@ -75,6 +80,12 @@ void PermissionServiceImpl::RequestPermission(
     PermissionDescriptorPtr permission,
     bool user_gesture,
     PermissionStatusCallback callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserRequestPermission", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::BrowserRequestPermission latency(msec)=" << elapsed.InMilliseconds();
+
   std::vector<PermissionDescriptorPtr> permissions;
   permissions.push_back(std::move(permission));
   RequestPermissions(std::move(permissions), user_gesture,
@@ -163,6 +174,12 @@ void PermissionServiceImpl::OnRequestPermissionsResponse(
 
 void PermissionServiceImpl::HasPermission(PermissionDescriptorPtr permission,
                                           PermissionStatusCallback callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserHasPermission", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::BrowserHasPermission latency(msec)=" << elapsed.InMilliseconds();
+
   std::move(callback).Run(GetPermissionStatus(permission));
 }
 

@@ -23,6 +23,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
 #include "media/base/audio_bus.h"
@@ -304,6 +305,7 @@ std::unique_ptr<InputController> InputController::Create(
     const media::AudioParameters& params,
     const std::string& device_id,
     bool enable_agc) {
+  TRACE_EVENT("media", "RecordLatency::InputController_Create");
   DCHECK(audio_manager);
   DCHECK(audio_manager->GetTaskRunner()->BelongsToCurrentThread());
   DCHECK(sync_writer);
@@ -330,6 +332,7 @@ std::unique_ptr<InputController> InputController::Create(
 }
 
 void InputController::Record() {
+  TRACE_EVENT("media", "RecordLatency::InputController_Record");
   DCHECK(task_runner_->BelongsToCurrentThread());
   SCOPED_UMA_HISTOGRAM_TIMER("Media.AudioInputController.RecordTime");
 
@@ -522,6 +525,7 @@ void InputController::DoCreate(media::AudioManager* audio_manager,
                                const media::AudioParameters& params,
                                const std::string& device_id,
                                bool enable_agc) {
+  TRACE_EVENT("media", "RecordLatency::InputController_DoCreate");
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(!stream_);
   SCOPED_UMA_HISTOGRAM_TIMER("Media.AudioInputController.CreateTime");

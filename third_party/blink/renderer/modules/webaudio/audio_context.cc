@@ -179,6 +179,14 @@ AudioContext* AudioContext::Create(Document& document,
     sample_rate = context_options->sampleRate();
   }
 
+  // KJ: Force 16kHz default for Cobalt if no rate is specified.
+  // This aligns the JS engine with the native "Straight Pipe" 16kHz hardware capture,
+  // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
+  if (!sample_rate.has_value()) {
+    sample_rate = 16000.0f;
+    LOG(INFO) << "KJ: Force-set sample rate to 16K";
+  }
+
   // The empty string means the default audio device.
   auto frame_token = document.domWindow()->GetLocalFrameToken();
   WebAudioSinkDescriptor sink_descriptor(String(""), frame_token);

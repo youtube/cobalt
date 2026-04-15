@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -43,6 +46,8 @@
 using blink::mojom::MediaDeviceType;
 
 namespace content {
+
+extern base::TimeTicks g_select_keydown_time;
 
 namespace {
 
@@ -136,7 +141,40 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
     bool request_video_input_capabilities,
     bool request_audio_input_capabilities,
     EnumerateDevicesCallback client_callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserEnumerateDevices", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::BrowserEnumerateDevices latency(msec)=" << elapsed.InMilliseconds();
+
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
+  // KJ: FAST-TRACK EnumerateDevices for audio-only requests.
+  if (request_audio_input && !request_video_input && !request_audio_output) {
+    LOG(INFO) << "KJ: Fast-tracking EnumerateDevices for audio";
+    
+    std::vector<blink::WebMediaDeviceInfoArray> enumeration(
+        static_cast<size_t>(MediaDeviceType::NUM_MEDIA_DEVICE_TYPES));
+    
+    // Add a single hardcoded microphone.
+    enumeration[static_cast<size_t>(MediaDeviceType::MEDIA_AUDIO_INPUT)].emplace_back(
+        "default", "Default Microphone", "group_default");
+        
+    std::vector<blink::mojom::VideoInputDeviceCapabilitiesPtr> video_capabilities;
+    std::vector<blink::mojom::AudioInputDeviceCapabilitiesPtr> audio_capabilities;
+    
+    if (request_audio_input_capabilities) {
+       auto caps = blink::mojom::AudioInputDeviceCapabilities::New();
+       caps->device_id = "default";
+       caps->parameters = media::AudioParameters(
+           media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+           media::ChannelLayoutConfig::Mono(), 16000, 128);
+       audio_capabilities.push_back(std::move(caps));
+    }
+    
+    std::move(client_callback).Run(enumeration, std::move(video_capabilities), std::move(audio_capabilities));
+    return;
+  }
 
   if ((!request_audio_input && !request_video_input && !request_audio_output) ||
       (request_video_input_capabilities && !request_video_input) ||
@@ -162,6 +200,7 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
 
 void MediaDevicesDispatcherHost::GetVideoInputCapabilities(
     GetVideoInputCapabilitiesCallback client_callback) {
+  TRACE_EVENT("media", "MediaDevicesDispatcherHost::GetVideoInputCapabilities");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
@@ -208,6 +247,12 @@ void MediaDevicesDispatcherHost::GetAvailableVideoInputDeviceFormats(
 
 void MediaDevicesDispatcherHost::GetAudioInputCapabilities(
     GetAudioInputCapabilitiesCallback client_callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserGetAudioCapabilities", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: RecordLatency::BrowserGetAudioCapabilities latency(msec)=" << elapsed.InMilliseconds();
+
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(media_stream_manager_->media_devices_manager()

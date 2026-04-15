@@ -137,6 +137,11 @@ class MEDIA_EXPORT AudioManager {
       const std::string& device_id,
       const LogCallback& log_callback) = 0;
 
+  // KJ: Pre-starts physical hardware recording for the given session.
+  // Default implementation does nothing.
+  virtual void PreStartStream(const base::UnguessableToken& session_id,
+                              const AudioParameters& params) {}
+
   // Returns the task runner used for audio IO.
   base::SingleThreadTaskRunner* GetTaskRunner() const {
     return audio_thread_->GetTaskRunner();
