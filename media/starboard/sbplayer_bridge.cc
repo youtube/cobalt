@@ -734,48 +734,6 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
-<<<<<<< HEAD
-=======
-  const StarboardExtensionExperimentalFeaturesConfigurationApi*
-      experimental_features_extension = static_cast<
-          const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
-          SbSystemGetExtension(
-              kStarboardExtensionExperimentalFeaturesConfigurationName));
-  if (experimental_features_extension &&
-      strcmp(experimental_features_extension->name,
-             kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
-      experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures extension_features = {};
-
-    extension_features.enable_av1_startup_optimization =
-        experimental_features_.enable_av1_startup_optimization;
-    extension_features.disable_low_performance_sw_decoder =
-        experimental_features_.disable_low_performance_sw_decoder;
-    extension_features.flush_decoder_during_reset =
-        experimental_features_.enable_flush_during_seek;
-    extension_features.media_codec_reset_delay_ms =
-        ToIntPointer(experimental_features_.media_codec_reset_delay_ms);
-    extension_features.pause_using_audio_track_state =
-        experimental_features_.pause_using_audio_track_state;
-    extension_features.reset_audio_decoder =
-        experimental_features_.enable_reset_audio_decoder;
-    extension_features.skip_flush_on_decoder_teardown =
-        experimental_features_.skip_flush_on_decoder_teardown;
-    extension_features.video_decoder_initial_preroll_count = ToIntPointer(
-        experimental_features_.video_decoder_initial_preroll_count);
-    extension_features.video_renderer_min_decoded_frames =
-        ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
-    extension_features.video_renderer_min_input_buffers =
-        ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
-
-    // Note: `max_samples_per_write` and `report_buffering_state_during_flush`
-    // are not mapped here as they are consumed directly by the media layer.
-
-    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
-        &extension_features);
-  }
-
->>>>>>> f4a8f1913d (media: Connect teardown optimization to H5VCC (#9630))
 #if BUILDFLAG(IS_ANDROID)
   const StarboardExtensionPlayerSetVideoSurfaceViewApi*
       player_set_video_surface_view_extension =
@@ -810,6 +768,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.enable_flush_during_seek;
     extension_features.reset_audio_decoder =
         experimental_features_.enable_reset_audio_decoder;
+    extension_features.skip_flush_on_decoder_teardown =
+        experimental_features_.skip_flush_on_decoder_teardown;
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
         experimental_features_.video_decoder_initial_preroll_count);
     extension_features.video_renderer_min_decoded_frames =
