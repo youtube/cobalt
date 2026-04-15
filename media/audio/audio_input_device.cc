@@ -40,7 +40,7 @@ namespace {
 // in order to avoid data overwriting. This number can be any positive number,
 // dependent how fast the renderer process can pick up captured data from
 // shared memory.
-const int kRequestedSharedMemoryCount = 10;
+const int kRequestedSharedMemoryCount = 32;
 
 // The number of seconds with missing callbacks before we report a capture
 // error. The value is based on that the Mac audio implementation can defer

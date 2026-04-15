@@ -416,6 +416,32 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     const LogCallback& log_callback) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Check if we have a pre-started stream for this device.
+  // We use the first one available or wait for it to finish opening.
+  std::unique_ptr<PreStartedEntry> entry;
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    if (!pre_started_streams_.empty()) {
+      auto it = pre_started_streams_.begin();
+      entry = std::move(it->second);
+      pre_started_streams_.erase(it);
+    }
+  }
+
+  if (entry) {
+    LOG(INFO) << "Cobalt: Re-using PRE-STARTED hardware stream. Waiting for it "
+                 "to finish opening...";
+    entry->open_event.Wait();
+    AudioInputStream* stream = entry->stream;
+    if (stream) {
+      LOG(INFO) << "Cobalt: Successfully re-used PRE-STARTED stream";
+      return stream;
+    }
+    // Stream failed to open, fall through to regular creation.
+  }
+#endif
+
   bool has_input_streams = !HasNoAudioInputStreams();
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
@@ -456,6 +482,21 @@ void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {
 
 void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Remove from pre-started map if present.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    for (auto it = pre_started_streams_.begin();
+         it != pre_started_streams_.end(); ++it) {
+      if (it->second->stream == stream) {
+        pre_started_streams_.erase(it);
+        break;
+      }
+    }
+  }
+#endif
+
   AudioManagerBase::ReleaseInputStream(stream);
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -787,6 +828,71 @@ void AudioManagerAndroid::MaybeSetBluetoothScoState(bool state) {
   return Java_AudioManagerAndroid_maybeSetBluetoothScoState(
       base::android::AttachCurrentThread(), GetJavaAudioManager(), state);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void AudioManagerAndroid::PreStartStream(
+    const base::UnguessableToken& session_id,
+    const AudioParameters& params) {
+  LOG(INFO) << "Cobalt: AudioManagerAndroid::PreStartStream session="
+            << session_id.ToString();
+
+  // We must be on the audio thread to create the stream objects.
+  if (!GetTaskRunner()->BelongsToCurrentThread()) {
+    GetTaskRunner()->PostTask(
+        FROM_HERE, base::BindOnce(&AudioManagerAndroid::PreStartStream,
+                                  base::Unretained(this), session_id, params));
+    return;
+  }
+
+  // Create the entry and park it in the map before starting the slow Open()
+  // call. This allows MakeAudioInputStream to find it and WAIT for it.
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_[session_id] = std::make_unique<PreStartedEntry>();
+  }
+
+  // Use the base class factory method so the stream is properly registered
+  // in the AudioManagerBase::input_streams_ list. This prevents the
+  // ReleaseInputStream crash.
+  AudioInputStream* stream =
+      AudioManagerBase::MakeAudioInputStream(params, "default", base::DoNothing());
+
+  if (!stream) {
+    LOG(ERROR) << "Cobalt: Failed to create hardware stream for pre-start";
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_.erase(session_id);
+    return;
+  }
+
+  if (stream->Open() == AudioInputStream::OpenOutcome::kSuccess) {
+    base::AutoLock lock(pre_started_streams_lock_);
+    auto it = pre_started_streams_.find(session_id);
+    if (it != pre_started_streams_.end()) {
+      it->second->stream = stream;
+      it->second->open_event.Signal();
+      LOG(INFO) << "Cobalt: Hardware stream PRE-STARTED and PARKED for session="
+                << session_id.ToString();
+      return;
+    }
+    LOG(WARNING) << "Cobalt: Pre-started stream session="
+                 << session_id.ToString()
+                 << " was consumed or cancelled before it finished opening. "
+                    "Releasing stream.";
+  } else {
+    LOG(ERROR) << "Cobalt: Failed to pre-start hardware stream session="
+               << session_id.ToString();
+    base::AutoLock lock(pre_started_streams_lock_);
+    pre_started_streams_.erase(session_id);
+  }
+
+  // Release the stream outside the lock to avoid deadlock, as
+  // ReleaseInputStream also acquires pre_started_streams_lock_.
+  ReleaseInputStream(stream);
+}
+
+AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
+AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
+#endif
 
 int AudioManagerAndroid::GetNativeOutputSampleRate() {
   return Java_AudioManagerAndroid_getNativeOutputSampleRate(
