@@ -60,9 +60,9 @@ pipeline () {
 
 setup_mac () {
   # Pull signing profiles.
-  mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+  mkdir -p "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
   cp -f ${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/*.mobileprovision \
-      "$HOME/Library/MobileDevice/Provisioning Profiles"
+      "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
 
   export DEVELOPER_DIR="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
 
