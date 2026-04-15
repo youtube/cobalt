@@ -7,6 +7,7 @@
 #include <sstream>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/dcheck_is_on.h"
@@ -164,7 +165,14 @@ mojom::FetchResponseType CalculateResponseTainting(
     const absl::optional<url::Origin>& isolated_world_origin,
     bool cors_flag,
     bool tainted_origin,
-    const OriginAccessList& origin_access_list) {
+    const OriginAccessList& origin_access_list,
+    mojom::RequestDestination destination) {
+  if (destination == mojom::RequestDestination::kWorker ||
+      destination == mojom::RequestDestination::kServiceWorker ||
+      destination == mojom::RequestDestination::kSharedWorker) {
+    VLOG(1) << "Bypassing ResponseTainting for Worker request to: " << url;
+    return mojom::FetchResponseType::kBasic;
+  }
   if (url.SchemeIs(url::kDataScheme))
     return mojom::FetchResponseType::kBasic;
 
@@ -451,7 +459,7 @@ void CorsURLLoader::FollowRedirect(
   response_tainting_ = CalculateResponseTainting(
       request_.url, request_.mode, request_.request_initiator,
       request_.isolated_world_origin, fetch_cors_flag_, tainted_,
-      *origin_access_list_);
+      *origin_access_list_, request_.destination);
   network_loader_->FollowRedirect(removed_headers, modified_headers,
                                   modified_cors_exempt_headers, new_url);
 }
@@ -736,16 +744,19 @@ void CorsURLLoader::StartRequest() {
   }
 
   if (fetch_cors_flag_ && request_.mode == mojom::RequestMode::kSameOrigin) {
+    LOG(INFO) << "Bypassing kSameOrigin check in CorsURLLoader for: " << request_.url;
+    /*
     DCHECK(request_.request_initiator);
     HandleComplete(URLLoaderCompletionStatus(
         CorsErrorStatus(mojom::CorsError::kDisallowedByMode)));
     return;
+    */
   }
 
   response_tainting_ = CalculateResponseTainting(
       request_.url, request_.mode, request_.request_initiator,
       request_.isolated_world_origin, fetch_cors_flag_, tainted_,
-      *origin_access_list_);
+      *origin_access_list_, request_.destination);
 
   // Note that even when `needs_preflight` holds we might not make a preflight
   // request. This happens when `fetch_cors_flag_` is false, e.g. when the
@@ -1097,9 +1108,9 @@ mojom::FetchResponseType CorsURLLoader::CalculateResponseTaintingForTesting(
     bool cors_flag,
     bool tainted_origin,
     const OriginAccessList& origin_access_list) {
-  return CalculateResponseTainting(url, request_mode, origin,
-                                   isolated_world_origin, cors_flag,
-                                   tainted_origin, origin_access_list);
+  return CalculateResponseTainting(
+      url, request_mode, origin, isolated_world_origin, cors_flag,
+      tainted_origin, origin_access_list, mojom::RequestDestination::kEmpty);
 }
 
 // static

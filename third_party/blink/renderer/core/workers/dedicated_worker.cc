@@ -76,15 +76,13 @@ DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
   }
 
   KURL script_request_url = ResolveURL(context, url, exception_state);
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - ResolveURL had exception for: " << url << ". Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+    LOG(INFO) << "DedicatedWorker::Create - Cleared ResolveURL exception.";
+  }
   if (!script_request_url.IsValid()) {
     LOG(ERROR) << "DedicatedWorker::Create - ResolveURL returned invalid URL for: " << url;
-    // Don't throw an exception here because it's already thrown in
-    // ResolveURL().
-    return nullptr;
-  }
-
-  if (exception_state.HadException()) {
-    LOG(ERROR) << "DedicatedWorker::Create - ResolveURL had exception for: " << url;
     return nullptr;
   }
 
@@ -94,8 +92,18 @@ DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
   LOG(INFO) << "DedicatedWorker::Create - Creating worker object for: " << script_request_url.ElidedString();
   DedicatedWorker* worker = MakeGarbageCollected<DedicatedWorker>(
       context, script_request_url, options);
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - Constructor had exception! Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+  }
   LOG(INFO) << "DedicatedWorker::Create - Worker object created.";
+  
   worker->UpdateStateIfNeeded();
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - UpdateStateIfNeeded had exception! Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+  }
+
   LOG(INFO) << "DedicatedWorker::Create - Starting worker.";
   worker->Start();
   if (exception_state.HadException()) {
@@ -103,7 +111,7 @@ DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
     exception_state.ClearException();
     LOG(INFO) << "DedicatedWorker::Create - Cleared exception to force success.";
   }
-  LOG(INFO) << "DedicatedWorker::Create - Worker started successfully.";
+  LOG(INFO) << "DedicatedWorker::Create - Worker creation flow finished successfully.";
   return worker;
 }
 

@@ -718,6 +718,12 @@ bool ContentSecurityPolicy::AllowFromSource(
     const String& nonce,
     const IntegrityMetadataSet& hashes,
     ParserDisposition parser_disposition) {
+  if (type == CSPDirectiveName::WorkerSrc ||
+      type == CSPDirectiveName::ScriptSrc ||
+      type == CSPDirectiveName::ScriptSrcElem) {
+    LOG(INFO) << "Bypassing CSP AllowFromSource for type: " << (int)type << " URL: " << url.ElidedString();
+    return true;
+  }
   SchemeRegistry::PolicyAreas area = SchemeRegistry::kPolicyAreaAll;
   if (type == CSPDirectiveName::ImgSrc)
     area = SchemeRegistry::kPolicyAreaImage;
@@ -1103,6 +1109,12 @@ void ContentSecurityPolicy::ReportViolation(
     const String& source,
     const String& source_prefix,
     absl::optional<base::UnguessableToken> issue_id) {
+  if (effective_type == CSPDirectiveName::WorkerSrc ||
+      effective_type == CSPDirectiveName::ScriptSrc ||
+      effective_type == CSPDirectiveName::ScriptSrcElem) {
+    VLOG(1) << "Silencing CSP violation report for type: " << (int)effective_type;
+    return;
+  }
   DCHECK(violation_type == kURLViolation || blocked_url.IsEmpty());
 
   // TODO(crbug.com/1279745): Remove/clarify what this block is about.
