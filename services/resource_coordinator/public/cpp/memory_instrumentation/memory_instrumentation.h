@@ -15,6 +15,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/synchronization/lock.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/smaps_categorizer.h"
 #endif
 
 namespace memory_instrumentation {
@@ -63,7 +64,8 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
   // Note: Even if |allocator_dump_names| is empty, all MemoryDumpProviders will
   // still be queried.
   void RequestGlobalDump(const std::vector<std::string>& allocator_dump_names,
-                         RequestGlobalDumpCallback);
+                         RequestGlobalDumpCallback,
+                         MemoryDumpLevelOfDetail level_of_detail = MemoryDumpLevelOfDetail::kBackground);
 
   // Returns asynchronously, via the callback argument:
   //  (true, global_dump) if succeeded;
@@ -111,6 +113,9 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 
   // Get the registered delegate.
   class DetailedMetricsDelegate* GetDetailedMetricsDelegate() const;
+
+  // Requests a detailed memory dump for the current process.
+  void RequestDetailedDump(base::OnceClosure callback);
 #endif
 
   base::WeakPtr<MemoryInstrumentation> GetWeakPtr();
@@ -131,6 +136,7 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 #if BUILDFLAG(IS_COBALT)
   mutable base::Lock detailed_metrics_delegate_lock_;
   class DetailedMetricsDelegate* detailed_metrics_delegate_ = nullptr;
+  std::unique_ptr<SmapsCategorizer> smaps_categorizer_;
 #endif
 
   base::WeakPtrFactory<MemoryInstrumentation> weak_ptr_factory_{this};

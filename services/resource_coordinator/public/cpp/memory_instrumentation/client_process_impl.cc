@@ -17,6 +17,13 @@
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/tracing_observer_proto.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
+#endif
+
 namespace memory_instrumentation {
 
 struct ClientProcessImpl::OSMemoryDumpArgs {
@@ -60,8 +67,18 @@ ClientProcessImpl::ClientProcessImpl(
     // Initialize the public-facing MemoryInstrumentation helper.
     MemoryInstrumentation::CreateInstance(std::move(coordinator),
                                           is_browser_process);
+#if BUILDFLAG(IS_COBALT)
+    // Register the memory_instrumentation datasource.
+    TracingObserverProto::GetInstance();
+#endif
   } else {
+#if BUILDFLAG(IS_COBALT)
+    if (coordinator.is_valid()) {
+      coordinator_.Bind(std::move(coordinator));
+    }
+#else
     coordinator_.Bind(std::move(coordinator));
+#endif
   }
 
   task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
@@ -70,6 +87,18 @@ ClientProcessImpl::ClientProcessImpl(
   // base::MemoryDumpManager that it is special and should coordinate periodic
   // dumps for tracing. Remove this once the periodic dump scheduler is moved
   // from base to the service. MDM should not care about being the coordinator.
+#if BUILDFLAG(IS_COBALT)
+  auto* mdm = base::trace_event::MemoryDumpManager::GetInstance();
+  if (!mdm->IsInitialized()) {
+    mdm->Initialize(
+        base::BindPostTask(
+            task_runner_,
+            base::BindRepeating(
+                &ClientProcessImpl::RequestGlobalMemoryDump_NoCallback,
+                weak_ptr_factory_.GetWeakPtr())),
+        is_browser_process);
+  }
+#else
   base::trace_event::MemoryDumpManager::GetInstance()->Initialize(
       base::BindRepeating(
           &ClientProcessImpl::RequestGlobalMemoryDump_NoCallback,
@@ -78,6 +107,7 @@ ClientProcessImpl::ClientProcessImpl(
 
   // Register the memory_instrumentation datasource.
   TracingObserverProto::GetInstance();
+#endif
 }
 
 ClientProcessImpl::~ClientProcessImpl() = default;
@@ -92,7 +122,11 @@ void ClientProcessImpl::RequestChromeMemoryDump(
   DCHECK(it_and_inserted.second) << "Duplicated request id " << args.dump_guid;
   base::trace_event::MemoryDumpManager::GetInstance()->CreateProcessDump(
       args, base::BindOnce(&ClientProcessImpl::OnChromeMemoryDumpDone,
+#if BUILDFLAG(IS_COBALT)
+                           weak_ptr_factory_.GetWeakPtr()));
+#else
                            base::Unretained(this)));
+#endif
 }
 
 void ClientProcessImpl::OnChromeMemoryDumpDone(
@@ -128,6 +162,16 @@ void ClientProcessImpl::RequestGlobalMemoryDump_NoCallback(
     base::trace_event::MemoryDumpLevelOfDetail level_of_detail) {
   CHECK(is_browser_process_);
 
+#if BUILDFLAG(IS_COBALT)
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ClientProcessImpl::RequestGlobalMemoryDump_NoCallback,
+                       weak_ptr_factory_.GetWeakPtr(), dump_type,
+                       level_of_detail));
+    return;
+  }
+#else
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
@@ -135,6 +179,7 @@ void ClientProcessImpl::RequestGlobalMemoryDump_NoCallback(
                        base::Unretained(this), dump_type, level_of_detail));
     return;
   }
+#endif
 
   // NOTE: If this ClientProcessImpl was responsible for initializing the
   // global MemoryInstrumentation object, its Coordinator pipe was passed along
@@ -178,6 +223,96 @@ void ClientProcessImpl::RequestOSMemoryDump(
   PerformOSMemoryDump(std::move(args));
 }
 
+#if BUILDFLAG(IS_COBALT)
+namespace {
+
+base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr>
+PerformOSMemoryDumpOnBackgroundThread(mojom::MemoryMapOption mmap_option,
+                                      OSMetrics::MemDumpFlagSet flags,
+                                      std::vector<base::ProcessId> pids,
+                                      base::WeakPtr<MemoryInstrumentation> instrumentation) {
+  DetailedMetricsDelegate* delegate = nullptr;
+  if (instrumentation) {
+    delegate = instrumentation->GetDetailedMetricsDelegate();
+  }
+
+  base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results;
+  for (const base::ProcessId& pid : pids) {
+    auto handle = base::Process::Open(pid).Handle();
+    mojom::RawOSMemDumpPtr result = mojom::RawOSMemDump::New();
+    result->platform_private_footprint = mojom::PlatformPrivateFootprint::New();
+
+    if (!OSMetrics::FillOSMemoryDump(handle, flags, result.get(), delegate)) {
+      DLOG(ERROR) << "OS memory dump failed for pid " << pid
+                  << " (FillOSMemoryDump)";
+    } else if (mmap_option != mojom::MemoryMapOption::NONE &&
+               !OSMetrics::FillProcessMemoryMaps(handle, mmap_option,
+                                                 result.get())) {
+      DLOG(ERROR) << "OS memory dump failed for pid " << pid
+                  << " (FillProcessMemoryMaps)";
+    } else {
+      results[pid] = std::move(result);
+    }
+  }
+  return results;
+}
+
+}  // namespace
+
+void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
+  auto* instance = MemoryInstrumentation::GetInstance();
+
+#if BUILDFLAG(IS_COBALT)
+  if (instance &&
+      args.flags.Has(
+          memory_instrumentation::mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS)) {
+    instance->RequestDetailedDump(base::BindPostTaskToCurrentDefault(base::BindOnce(
+        &ClientProcessImpl::ContinuePerformOSMemoryDump,
+        base::Unretained(this), std::move(args))));
+    return;
+  }
+#endif
+
+  base::WeakPtr<MemoryInstrumentation> weak_instrumentation;
+  if (instance) {
+    weak_instrumentation = instance->GetWeakPtr();
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&PerformOSMemoryDumpOnBackgroundThread, args.mmap_option,
+                     args.flags, std::move(args.pids),
+                     std::move(weak_instrumentation)),
+      base::BindOnce(
+          [](RequestOSMemoryDumpCallback callback,
+             base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results) {
+            std::move(callback).Run(true, std::move(results));
+          },
+          std::move(args.callback)));
+}
+
+#if BUILDFLAG(IS_COBALT)
+void ClientProcessImpl::ContinuePerformOSMemoryDump(OSMemoryDumpArgs args) {
+  auto* instance = MemoryInstrumentation::GetInstance();
+  base::WeakPtr<MemoryInstrumentation> weak_instrumentation;
+  if (instance) {
+    weak_instrumentation = instance->GetWeakPtr();
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&PerformOSMemoryDumpOnBackgroundThread, args.mmap_option,
+                     args.flags, std::move(args.pids),
+                     std::move(weak_instrumentation)),
+      base::BindOnce(
+          [](RequestOSMemoryDumpCallback callback,
+             base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results) {
+            std::move(callback).Run(true, std::move(results));
+          },
+          std::move(args.callback)));
+}
+#endif
+#else
 void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
   bool global_success = true;
   base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results;
@@ -200,6 +335,7 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
   }
   std::move(args.callback).Run(global_success, std::move(results));
 }
+#endif
 
 ClientProcessImpl::OSMemoryDumpArgs::OSMemoryDumpArgs() = default;
 ClientProcessImpl::OSMemoryDumpArgs::OSMemoryDumpArgs(OSMemoryDumpArgs&&) =
