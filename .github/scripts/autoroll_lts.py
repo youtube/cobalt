@@ -81,18 +81,22 @@ def main():
   p.add_argument('--target-branch', required=True)
   p.add_argument('--start-commit')
   p.add_argument('--origin-branch', default='main')
-  p.add_argument('--max-commits', type=int)
+  p.add_argument('--max-commits', type=int, default=1000)
   args = p.parse_args()
 
   links = []
   target_prs = get_pr_set(args.target_branch, args.origin_branch)
   autoroll_prs = get_pr_set('HEAD', args.origin_branch)
 
-  current_pr_commits = len(autoroll_prs - target_prs)
-  commits_added = 0
+  # Get the number of unmerged commits on the autoroll branch.
+  commits_added = len(autoroll_prs - target_prs)
 
   for line in get_commits(args.origin_branch, args.target_branch,
                           args.start_commit):
+    if commits_added >= args.max_commits:
+      print(f"Reached commit limit ({args.max_commits}).", file=sys.stderr)
+      break
+
     match = re.match(r'^(\w+) (.*) \(#(\d+)\)$', line)
     if match:
       sha, title, pr_num = match.groups()
@@ -107,12 +111,6 @@ def main():
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
       if pr_num not in autoroll_prs:
-        if (args.max_commits is not None and
-            current_pr_commits + commits_added >= args.max_commits):
-          print(
-              f"::warning::Reached max commits limit ({args.max_commits}).",
-              file=sys.stderr)
-          break
         cherry_pick(sha, pr_num, title)
         autoroll_prs.add(pr_num)
         commits_added += 1
