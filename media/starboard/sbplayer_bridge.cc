@@ -766,12 +766,6 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.enable_reset_audio_decoder;
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
         experimental_features_.video_decoder_initial_preroll_count);
-    extension_features.video_decoder_poll_interval_ms =
-        ToIntPointer(experimental_features_.video_decoder_poll_interval_ms);
-    extension_features.video_initial_max_frames_in_decoder =
-        ToIntPointer(experimental_features_.initial_max_frames_in_decoder);
-    extension_features.video_max_pending_input_frames =
-        ToIntPointer(experimental_features_.max_pending_input_frames);
     extension_features.video_renderer_min_decoded_frames =
         ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
     extension_features.video_renderer_min_input_buffers =

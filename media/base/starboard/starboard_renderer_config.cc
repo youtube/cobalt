@@ -46,16 +46,10 @@ std::ostream& operator<<(
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
-            << ", initial_max_frames_in_decoder="
-            << ToString(features.initial_max_frames_in_decoder)
-            << ", max_pending_input_frames="
-            << ToString(features.max_pending_input_frames)
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="
             << ToString(features.video_decoder_initial_preroll_count)
-            << ", video_decoder_poll_interval_ms="
-            << ToString(features.video_decoder_poll_interval_ms)
             << ", video_renderer_min_input_buffers="
             << ToString(features.video_renderer_min_input_buffers)
             << ", video_renderer_min_decoded_frames="
