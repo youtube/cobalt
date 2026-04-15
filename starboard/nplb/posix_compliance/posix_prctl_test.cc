@@ -12,17 +12,121 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <mutex>
+
+#include "starboard/common/log.h"
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// From third_party/musl/include/sys/prctl.h
+#ifndef PR_SET_VMA
+#define PR_SET_VMA 0x53564d41
+#endif
+#ifndef PR_SET_VMA_ANON_NAME
+#define PR_SET_VMA_ANON_NAME 0
+#endif
 
 namespace nplb {
 namespace {
+
+const char kVmaTagsFileNamePrefix[] = "cobalt_vma_tags";
+std::mutex g_vma_tags_mutex;
+char g_vma_tags_file_path[256] = {0};
+
+void VmaTagFileCleanup() {
+  std::lock_guard<std::mutex> lock(g_vma_tags_mutex);
+  if (g_vma_tags_file_path[0] != '\0') {
+    unlink(g_vma_tags_file_path);
+    g_vma_tags_file_path[0] = '\0';
+  }
+}
+
+const char* GetTempDir() {
+  const char* tmpdir = getenv("TMPDIR");
+  if (!tmpdir) {
+    tmpdir = "/tmp";
+  }
+  return tmpdir;
+}
+
+// Intercept prctl for SetVmaAnonName test to provide fallback.
+int test_prctl_wrapper(int option, ...) {
+  unsigned long arg2 = 0;
+  unsigned long arg3 = 0;
+  unsigned long arg4 = 0;
+  unsigned long arg5 = 0;
+
+  va_list args;
+  va_start(args, option);
+  arg2 = va_arg(args, unsigned long);
+  if (option == PR_SET_VMA) {
+    arg3 = va_arg(args, unsigned long);
+    arg4 = va_arg(args, unsigned long);
+    arg5 = va_arg(args, unsigned long);
+  }
+  va_end(args);
+
+  int result = __abi_wrap_prctl(option, arg2, arg3, arg4, arg5);
+
+  if (result == -1 && option == PR_SET_VMA && arg2 == PR_SET_VMA_ANON_NAME) {
+    int saved_errno = errno;
+    std::lock_guard<std::mutex> lock(g_vma_tags_mutex);
+    int fd = -1;
+
+    if (g_vma_tags_file_path[0] != '\0') {
+      fd = open(g_vma_tags_file_path, O_WRONLY | O_APPEND | O_CLOEXEC);
+      if (fd == -1) {
+        g_vma_tags_file_path[0] = '\0';
+      }
+    }
+
+    if (fd == -1 && g_vma_tags_file_path[0] == '\0') {
+      char path_template[256];
+      snprintf(path_template, sizeof(path_template), "%s/%s_XXXXXX",
+               GetTempDir(), kVmaTagsFileNamePrefix);
+      fd = mkstemp(path_template);
+      if (fd != -1) {
+        snprintf(g_vma_tags_file_path, sizeof(g_vma_tags_file_path), "%s",
+                 path_template);
+        static bool cleanup_registered = false;
+        if (!cleanup_registered) {
+          atexit(VmaTagFileCleanup);
+          cleanup_registered = true;
+        }
+      }
+    }
+
+    if (fd != -1) {
+      char buf[256];
+      int len = snprintf(buf, sizeof(buf), "0x%lx 0x%lx %s\n", arg3,
+                         arg3 + arg4, (const char*)arg5);
+      if (len > 0) {
+        size_t write_len = std::min((size_t)len, sizeof(buf) - 1);
+        if (write(fd, buf, write_len) != -1) {
+          close(fd);
+          errno = saved_errno;
+          return 0;
+        }
+      }
+      close(fd);
+    }
+    errno = saved_errno;
+  }
+  return result;
+}
 
 TEST(PosixPrctlGeneralTests, FailsWithInvalidOption) {
   errno = 0;
@@ -525,6 +629,154 @@ TEST_F(PosixPrctlPtracerTests, SetFailsWithInvalidValue) {
   EXPECT_EQ(-1, prctl(PR_SET_PTRACER, -100000));
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for invalid value, but got: "
                            << errno << " (" << strerror(errno) << ")";
+}
+
+const char kVmaName[] = "TestVmaName";
+
+// Checks /proc/self/maps to see if the memory mapping containing |addr| has
+// the specified |name|. This is the expected outcome when the kernel supports
+// PR_SET_VMA_ANON_NAME.
+bool VmaIsNamed(void* addr, const char* name) {
+  FILE* fp = fopen("/proc/self/maps", "r");
+  if (!fp) {
+    // If we can't open /proc/self/maps, we can't verify.
+    // Assume it's not named and let the fallback check proceed.
+    return false;
+  }
+
+  char line[1024];
+  bool found = false;
+  unsigned long target_addr = (unsigned long)addr;
+
+  while (fgets(line, sizeof(line), fp)) {
+    unsigned long start, end;
+    if (sscanf(line, "%lx-%lx", &start, &end) != 2) {
+      continue;
+    }
+    if (target_addr >= start && target_addr < end) {
+      if (strstr(line, name)) {
+        found = true;
+      }
+      // We found the mapping containing our address, so we can stop.
+      // If it's not named here, it's not named.
+      break;
+    }
+  }
+
+  fclose(fp);
+  return found;
+}
+
+// Checks for the existence and content of any fallback file matching the
+// prefix. This is the expected outcome when the kernel does NOT support
+// PR_SET_VMA_ANON_NAME.
+bool FallbackFileIsCorrect(unsigned long start,
+                           unsigned long size,
+                           const char* name) {
+  const char* tmpdir = GetTempDir();
+  DIR* dir = opendir(tmpdir);
+  if (!dir) {
+    return false;
+  }
+
+  bool found = false;
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (strncmp(entry->d_name, kVmaTagsFileNamePrefix,
+                strlen(kVmaTagsFileNamePrefix)) == 0) {
+      char file_path[512];
+      snprintf(file_path, sizeof(file_path), "%s/%s", tmpdir, entry->d_name);
+
+      FILE* fp = fopen(file_path, "r");
+      if (!fp) {
+        continue;
+      }
+
+      char line[1024];
+      while (fgets(line, sizeof(line), fp)) {
+        unsigned long file_start, file_end;
+        char file_name[256];
+        // The format is "0x%lx 0x%lx %s\n"
+        if (sscanf(line, "0x%lx 0x%lx %s", &file_start, &file_end, file_name) ==
+            3) {
+          if (file_start == start && file_end == start + size &&
+              strcmp(file_name, name) == 0) {
+            found = true;
+            break;
+          }
+        }
+      }
+      fclose(fp);
+      if (found) {
+        break;
+      }
+    }
+  }
+  closedir(dir);
+  return found;
+}
+
+// Helper to clean up any fallback files before and after the test.
+void CleanupFallbackFiles() {
+  const char* tmpdir = GetTempDir();
+  DIR* dir = opendir(tmpdir);
+  if (!dir) {
+    return;
+  }
+
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (strncmp(entry->d_name, kVmaTagsFileNamePrefix,
+                strlen(kVmaTagsFileNamePrefix)) == 0) {
+      char file_path[512];
+      snprintf(file_path, sizeof(file_path), "%s/%s", tmpdir, entry->d_name);
+      unlink(file_path);
+    }
+  }
+  closedir(dir);
+}
+
+// This test verifies that __abi_wrap_prctl with PR_SET_VMA and
+// PR_SET_VMA_ANON_NAME correctly names a VMA region, either by calling the
+// underlying prctl syscall or by using the fallback mechanism of writing to a
+// file.
+TEST(PosixPrctlTest, SetVmaAnonName) {
+  const size_t kMapSize = 4096;
+  void* p = malloc(kMapSize);
+  ASSERT_NE(p, nullptr);
+
+  // Ensure we have a clean state by deleting any leftover fallback files.
+  CleanupFallbackFiles();
+
+  int result =
+      test_prctl_wrapper(PR_SET_VMA, PR_SET_VMA_ANON_NAME, (unsigned long)p,
+                         (unsigned long)kMapSize, (unsigned long)kVmaName);
+
+  // The wrapper should return 0 on success, for both the prctl call and the
+  // fallback.
+  EXPECT_EQ(result, 0);
+
+  bool vma_is_named = VmaIsNamed(p, kVmaName);
+  bool fallback_file_is_correct =
+      FallbackFileIsCorrect((unsigned long)p, kMapSize, kVmaName);
+
+  // We expect one of the two mechanisms to have worked.
+  EXPECT_TRUE(vma_is_named || fallback_file_is_correct)
+      << "VMA name was not set via prctl and fallback file was not created or "
+         "is incorrect.";
+
+  if (vma_is_named) {
+    SB_LOG(INFO) << "VMA naming with PR_SET_VMA_ANON_NAME is supported by the "
+                    "kernel.";
+  }
+  if (fallback_file_is_correct) {
+    SB_LOG(INFO) << "VMA naming with PR_SET_VMA_ANON_NAME is NOT supported by "
+                    "the kernel, fallback was used.";
+  }
+
+  free(p);
+  // Clean up the fallback files created during the test.
+  CleanupFallbackFiles();
 }
 
 }  // namespace

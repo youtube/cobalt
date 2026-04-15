@@ -17,6 +17,14 @@
 
 #include "starboard/export.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Musl definitions
+#define MUSL_PR_SET_VMA 0x53564d41
+#define MUSL_PR_SET_VMA_ANON_NAME 0
+
 #define MUSL_PR_SET_PDEATHSIG 1
 #define MUSL_PR_GET_PDEATHSIG 2
 #define MUSL_PR_GET_DUMPABLE 3
@@ -25,26 +33,22 @@
 #define MUSL_PR_SET_KEEPCAPS 8
 #define MUSL_PR_GET_TIMING 13
 #define MUSL_PR_SET_TIMING 14
-#define MUSL_PR_TIMING_STATISTICAL 0
-#define MUSL_PR_TIMING_TIMESTAMP 1
 #define MUSL_PR_SET_NAME 15
 #define MUSL_PR_GET_NAME 16
 #define MUSL_PR_GET_TSC 25
 #define MUSL_PR_SET_TSC 26
-#define MUSL_PR_TSC_ENABLE 1
-#define MUSL_PR_TSC_SIGSEGV 2
-#define MUSL_PR_SET_TIMERSLACK 29
-#define MUSL_PR_GET_TIMERSLACK 30
+#define MUSL_PR_GET_TIMERSLACK 29
+#define MUSL_PR_SET_TIMERSLACK 30
 #define MUSL_PR_TASK_PERF_EVENTS_DISABLE 31
 #define MUSL_PR_TASK_PERF_EVENTS_ENABLE 32
 #define MUSL_PR_SET_PTRACER 0x59616d61
-#define MUSL_PR_SET_PTRACER_ANY (-1UL)
+#define MUSL_PR_SET_PTRACER_ANY ((unsigned long)-1)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-SB_EXPORT int __abi_wrap_prctl(int op, ...);
+SB_EXPORT int __abi_wrap_prctl(int option,
+                               unsigned long arg2,
+                               unsigned long arg3,
+                               unsigned long arg4,
+                               unsigned long arg5);
 
 #ifdef __cplusplus
 }  // extern "C"

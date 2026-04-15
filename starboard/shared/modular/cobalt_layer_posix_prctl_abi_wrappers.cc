@@ -14,71 +14,52 @@
 
 #include <errno.h>
 #include <stdarg.h>
-#include <sys/prctl.h>
+
+#include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 
 extern "C" {
 
-int __abi_wrap_prctl(int op, ...);
+int prctl(int option, ...) {
+  unsigned long arg2 = 0;
+  unsigned long arg3 = 0;
+  unsigned long arg4 = 0;
+  unsigned long arg5 = 0;
 
-int prctl(int op, ...) {
-  int result;
-  va_list ap;
-  va_start(ap, op);
-  switch (op) {
-    // The following commands have a long second argument.
-    case PR_SET_PDEATHSIG:
-    case PR_SET_DUMPABLE:
-    case PR_SET_KEEPCAPS:
-    case PR_SET_TIMING:
+  va_list args;
+  va_start(args, option);
 
-// The man-pages specify that this operation only exist on x86 platforms.
-#if defined(PR_SET_TSC)
-    case PR_SET_TSC:
-#endif
-    case PR_SET_PTRACER: {
-      result = __abi_wrap_prctl(op, va_arg(ap, long));
+  switch (option) {
+    case MUSL_PR_SET_VMA:
+      arg2 = va_arg(args, unsigned long);
+      arg3 = va_arg(args, unsigned long);
+      arg4 = va_arg(args, unsigned long);
+      arg5 = va_arg(args, unsigned long);
       break;
-    }
-    // The following commands have an unsigned long second argument.
-    case PR_SET_TIMERSLACK: {
-      result = __abi_wrap_prctl(op, va_arg(ap, unsigned long));
+    case MUSL_PR_SET_PDEATHSIG:
+    case MUSL_PR_GET_PDEATHSIG:
+    case MUSL_PR_GET_DUMPABLE:
+    case MUSL_PR_SET_DUMPABLE:
+    case MUSL_PR_GET_KEEPCAPS:
+    case MUSL_PR_SET_KEEPCAPS:
+    case MUSL_PR_GET_TIMING:
+    case MUSL_PR_SET_TIMING:
+    case MUSL_PR_SET_NAME:
+    case MUSL_PR_GET_NAME:
+    case MUSL_PR_GET_TSC:
+    case MUSL_PR_SET_TSC:
+    case MUSL_PR_GET_TIMERSLACK:
+    case MUSL_PR_SET_TIMERSLACK:
+    case MUSL_PR_TASK_PERF_EVENTS_DISABLE:
+    case MUSL_PR_TASK_PERF_EVENTS_ENABLE:
+    case MUSL_PR_SET_PTRACER:
+      arg2 = va_arg(args, unsigned long);
       break;
-    }
-    // The following commands have an int* second argument.
-    case PR_GET_PDEATHSIG:
-// The man-pages specify that this operation only exist on x86 platforms.
-#if defined(PR_GET_TSC)
-    case PR_GET_TSC:
-#endif  // defined(PR_GET_TSC)
-    {
-      result = __abi_wrap_prctl(op, va_arg(ap, int*));
+    default:
       break;
-    }
-    // The following commands have a char[] second argument.
-    case PR_SET_NAME:
-    case PR_GET_NAME: {
-      result = __abi_wrap_prctl(op, va_arg(ap, char*));
-      break;
-    }
-    // The following commands have no additional arguments;
-    case PR_GET_DUMPABLE:
-    case PR_GET_KEEPCAPS:
-    case PR_GET_TIMING:
-    case PR_GET_TIMERSLACK:
-    case PR_TASK_PERF_EVENTS_DISABLE:
-    case PR_TASK_PERF_EVENTS_ENABLE: {
-      result = __abi_wrap_prctl(op);
-      break;
-    }
-    // The given operation is not supported. Set errno to EINVAL and return
-    // -1.
-    default: {
-      errno = EINVAL;
-      result = -1;
-    }
   }
+  va_end(args);
 
-  va_end(ap);
-  return result;
+  return __abi_wrap_prctl(option, arg2, arg3, arg4, arg5);
 }
+
 }  // extern "C"
