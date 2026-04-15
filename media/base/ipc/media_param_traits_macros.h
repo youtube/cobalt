@@ -199,12 +199,7 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
   IPC_STRUCT_TRAITS_MEMBER(enable_av1_startup_optimization)
   IPC_STRUCT_TRAITS_MEMBER(enable_flush_during_seek)
   IPC_STRUCT_TRAITS_MEMBER(enable_reset_audio_decoder)
-<<<<<<< HEAD
-=======
   IPC_STRUCT_TRAITS_MEMBER(disable_low_performance_sw_decoder)
-  IPC_STRUCT_TRAITS_MEMBER(pause_using_audio_track_state)
-  IPC_STRUCT_TRAITS_MEMBER(report_buffering_state_during_flush)
->>>>>>> 86eab108e5 (android: add h5vcc experiment for av1 optimization (#9581))
   IPC_STRUCT_TRAITS_MEMBER(initial_max_frames_in_decoder)
   IPC_STRUCT_TRAITS_MEMBER(max_pending_input_frames)
   IPC_STRUCT_TRAITS_MEMBER(max_samples_per_write)
