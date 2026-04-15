@@ -31,6 +31,12 @@ assert _GITHUB_TOKEN != '', (
 TARGET_REPO = 'youtube/cobalt'
 
 EXCLUDED_CHECK_PATTERNS = [
+    # Not ready yet/temporary excludes.
+    '_yts_wpt_',
+
+    # Excludes docker jobs. Build jobs depend on docker jobs and are required.
+    'docker-',
+
     # Excludes non build/test checks.
     'feedback/copybara',
     'prepare_branch_list',
@@ -40,13 +46,16 @@ EXCLUDED_CHECK_PATTERNS = [
     'upload-release-artifacts',
     'generate_commit_message',
 
-    # Excludes coverage and test reports.
+    # Excludes coverage, test logs and other report jobs.
     'linux-coverage',
     'codecov',
     'on-host-unit-test-report',
+    ':',
 
-    # Excludes blackbox, web platform, and unit tests run on-device.
+    # Excludes the actual test jobs. The requiredness
+    # is determined by the tests_passing job.
     '_on_device_',
+    '_on_host_',
 
     # Excludes slow and flaky evergreen tests.
     'evergreen-as-blackbox_test',
@@ -54,6 +63,7 @@ EXCLUDED_CHECK_PATTERNS = [
 
     # Excludes templated check names.
     '${{',
+    'matrix.test_target',
 
     # Old compiler versions have started failing due to node/glibc
     # incompatibilities.
@@ -78,21 +88,25 @@ def initialize_repo_connection():
   return g.get_repo(TARGET_REPO)
 
 
-def get_checks_for_branch(repo, branch: str) -> typing.Iterable[typing.Any]:
+def get_required_checks_for_branch(repo,
+                                   branch: str) -> typing.Iterable[typing.Any]:
   # The 'merged' sort order is not listed in public docs but still works.
   # If this functionality is removed the alternative is to loop through all
   # PRs and use the 'merged_at' property to determine which is the latest one.
-  # https://docs.github.com/en/rest/pulls/pulls#list-pull-requests
+  # https://docs.github.com/en/rest/pulls/pulls#list-pull-requests.
+  # The equivalent query in the UI is: state:merged base:{branch} sort:desc.
   prs = repo.get_pulls(
       state='closed', sort='merged', base=branch, direction='desc')
 
   for pr in prs:
     if pr.merged:
+      print(f'Checking #{pr.number}')
       latest_pr_commit = repo.get_commit(pr.head.sha)
       checks = latest_pr_commit.get_check_runs()
-      checks_complete = all(c.status == 'completed' for c in checks)
-      if checks_complete:
-        return checks
+      req_checks = [c for c in checks if should_include_run(c)]
+      # Only return if all required checks passed.
+      if all(c.conclusion == 'success' for c in req_checks):
+        return [run.name for run in req_checks]
 
   raise RuntimeError(f'Could not find any completed checks for branch {branch}')
 
@@ -102,13 +116,6 @@ def should_include_run(check_run) -> bool:
     if pattern in check_run.name:
       return False
   return True
-
-
-def get_required_checks_for_branch(repo, branch: str) -> list[str]:
-  checks = get_checks_for_branch(repo, branch)
-  filtered_check_runs = [run for run in checks if should_include_run(run)]
-  check_names = set(run.name for run in filtered_check_runs)
-  return list(check_names)
 
 
 def print_checks(repo, branch_name: str, new_checks: list[str],
