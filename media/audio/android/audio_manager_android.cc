@@ -354,7 +354,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
   // This is now thread-safe and can be called from any thread to avoid hops.
   constexpr ChannelLayout channel_layout = CHANNEL_LAYOUT_MONO;
   int sample_rate = StarboardAudioInputStream::kSampleRateHz;
-  int buffer_size = 128; // Starboard default samples per buffer
+  int buffer_size = StarboardAudioInputStream::kSamplesPerBuffer;
 
   AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                          ChannelLayoutConfig::FromLayout<channel_layout>(),

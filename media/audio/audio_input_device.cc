@@ -140,6 +140,7 @@ void AudioInputDevice::Initialize(const AudioParameters& params,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(params.IsValid());
   DCHECK(!callback_);
+  LOG(INFO) << "AudioInputDevice::Initialize: params=" << params.AsHumanReadableString();
   audio_parameters_ = params;
   callback_ = callback;
 }

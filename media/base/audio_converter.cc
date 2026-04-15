@@ -41,10 +41,11 @@ AudioConverter::AudioConverter(const AudioParameters& input_params,
   // Handle different input and output channel layouts.
   if (input_params.channel_layout() != output_params.channel_layout() ||
       input_params.channels() != output_params.channels()) {
-    DVLOG(1) << "Remixing channel layout from " << input_params.channel_layout()
-             << " to " << output_params.channel_layout() << "; from "
-             << input_params.channels() << " channels to "
-             << output_params.channels() << " channels.";
+    LOG(INFO) << "AudioConverter: Remixing channel layout from "
+              << input_params.channel_layout() << " to "
+              << output_params.channel_layout() << "; from "
+              << input_params.channels() << " channels to "
+              << output_params.channels() << " channels.";
     channel_mixer_ =
         std::make_unique<ChannelMixer>(input_params, output_params);
 
@@ -54,8 +55,8 @@ AudioConverter::AudioConverter(const AudioParameters& input_params,
 
   // Only resample if necessary since it's expensive.
   if (input_params.sample_rate() != output_params.sample_rate()) {
-    DVLOG(1) << "Resampling from " << input_params.sample_rate() << " to "
-             << output_params.sample_rate();
+    LOG(INFO) << "AudioConverter: Resampling from " << input_params.sample_rate()
+              << " to " << output_params.sample_rate();
     const int request_size = disable_fifo ? SincResampler::kDefaultRequestSize
                                           : input_params.frames_per_buffer();
     resampler_ = std::make_unique<MultiChannelResampler>(
