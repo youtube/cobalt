@@ -101,6 +101,10 @@ class StarboardBridge {
   bool HasCobaltService(JNIEnv* env, const char* service_name);
   void CloseAllCobaltService(JNIEnv* env) const;
 
+  void HideSplashScreen(JNIEnv* env) const;
+
+  void SetStartupMilestone(jint milestone) const;
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
