@@ -74,7 +74,7 @@ uint32_t CalculatePrivateFootprintKb(const mojom::RawOSMemDump& os_dump,
 }
 
 memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
-    const mojom::RawOSMemDump& internal_os_dump,
+    mojom::RawOSMemDump& internal_os_dump,
     uint32_t shared_resident_kb) {
   mojom::OSMemDumpPtr os_dump = mojom::OSMemDump::New();
 
@@ -104,6 +104,9 @@ memory_instrumentation::mojom::OSMemDumpPtr CreatePublicOSDump(
   os_dump->mappings_count = internal_os_dump.mappings_count;
   os_dump->pss_kb = internal_os_dump.pss_kb;
   os_dump->swap_pss_kb = internal_os_dump.swap_pss_kb;
+#endif
+#if BUILDFLAG(IS_COBALT)
+  os_dump->detailed_stats_kb = std::move(internal_os_dump.detailed_stats_kb);
 #endif
   return os_dump;
 }
