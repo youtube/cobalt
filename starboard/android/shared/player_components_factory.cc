@@ -57,8 +57,6 @@ namespace {
 using base::android::AttachCurrentThread;
 using features::FeatureList;
 
-namespace {
-
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -90,19 +88,6 @@ std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
 
   return VideoRendererImpl::PrerollParameters{*min_input_buffers,
                                               *min_decoded_frames};
-}
-
-MediaCodecVideoDecoder::FlowControlOptions GetFlowControlOptions(
-    const PlayerComponents::ExperimentalFeatures& features) {
-  MediaCodecVideoDecoder::FlowControlOptions options;
-  options.initial_max_frames_in_decoder =
-      features.video_initial_max_frames_in_decoder;
-  options.max_pending_input_frames = features.video_max_pending_input_frames;
-  options.video_decoder_initial_preroll_count =
-      features.video_decoder_initial_preroll_count;
-  options.video_decoder_poll_interval_ms =
-      features.video_decoder_poll_interval_ms;
-  return options;
 }
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
@@ -202,7 +187,6 @@ class PlayerComponentsPassthrough : public PlayerComponents {
   std::unique_ptr<AudioRendererPassthrough> audio_renderer_;
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
-}  // namespace
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   const int kAudioSinkFramesAlignment = 256;
@@ -367,7 +351,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    << tunnel_mode_audio_session_id << '.';
     }
 
-    const PlayerComponents::ExperimentalFeatures& experimental_features =
+    const auto& experimental_features =
         creation_parameters.experimental_features();
     bool enable_reset_audio_decoder =
         FeatureList::IsEnabled(features::kForceResetAudioDecoder) ||
@@ -532,10 +516,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size) {
+    const auto& experimental_features =
+        creation_parameters.experimental_features();
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
-        creation_parameters.experimental_features().flush_decoder_during_reset;
+        experimental_features.flush_decoder_during_reset;
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
 
@@ -574,9 +560,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    MediaCodecVideoDecoder::FlowControlOptions flow_control_options =
-        GetFlowControlOptions(creation_parameters.experimental_features());
-
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
@@ -587,7 +570,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        flow_control_options);
+        experimental_features);
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
