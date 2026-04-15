@@ -227,7 +227,11 @@ void CobaltMemoryMetricsEmitter::FetchAndEmitProcessMemoryMetrics() {
     for (const auto& metric : kAllocatorDumpNamesForMetrics) {
       mad_list.push_back(metric.dump_name);
     }
-    instrumentation->RequestGlobalDump(mad_list, std::move(callback));
+    auto level = base::trace_event::MemoryDumpLevelOfDetail::kBackground;
+    if (instrumentation->GetDetailedMetricsDelegate()) {
+      level = base::trace_event::MemoryDumpLevelOfDetail::kDetailed;
+    }
+    instrumentation->RequestGlobalDump(mad_list, std::move(callback), level);
   } else {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
@@ -389,14 +393,98 @@ void CobaltMemoryMetricsEmitter::CollateResults() {
             ".SharedMemoryFootprint",
         static_cast<int>(pmd.os_dump().shared_footprint_kb / kKiB));
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
-    base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltPss",
-        static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
-    base::UmaHistogramMemoryLargeMB(
-        std::string(kMemoryHistogramPrefix) + process_name + ".LibChrobaltRss",
-        static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
-#endif
+    if (pmd.os_dump().libchrobalt_pss_kb > 0) {
+      base::UmaHistogramMemoryLargeMB(
+          std::string(kMemoryHistogramPrefix) + process_name +
+              ".LibChrobaltPss",
+          static_cast<int>(pmd.os_dump().libchrobalt_pss_kb / kKiB));
+    }
+    if (pmd.os_dump().libchrobalt_rss_kb > 0) {
+      base::UmaHistogramMemoryLargeMB(
+          std::string(kMemoryHistogramPrefix) + process_name +
+              ".LibChrobaltRss",
+          static_cast<int>(pmd.os_dump().libchrobalt_rss_kb / kKiB));
+    }
+
+    if (pmd.os_dump().detailed_stats_kb) {
+      for (const auto& entry : *pmd.os_dump().detailed_stats_kb) {
+        // Skip lib_chrobalt as it is handled above for consistency.
+        if (entry.first == "pss:lib_chrobalt" ||
+            entry.first == "rss:lib_chrobalt") {
+          continue;
+        }
+
+        // Skip keys already covered by kAllocatorDumpNamesForMetrics to avoid
+        // duplicate data.
+        if (entry.first == "pss:v8" || entry.first == "rss:v8" ||
+            entry.first == "pss:malloc" || entry.first == "rss:malloc" ||
+            entry.first == "pss:partition_alloc" ||
+            entry.first == "rss:partition_alloc") {
+          continue;
+        }
+
+        std::string uma_name;
+        if (entry.first == "pss:fonts") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".PssFonts"});
+        } else if (entry.first == "rss:fonts") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".RssFonts"});
+        } else if (entry.first == "pss:stacks") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".PssStacks"});
+        } else if (entry.first == "rss:stacks") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".RssStacks"});
+        } else if (entry.first == "pss:android_runtime") {
+          uma_name = base::StrCat(
+              {"Cobalt.Memory.", process_name, ".PssAndroidRuntime"});
+        } else if (entry.first == "rss:android_runtime") {
+          uma_name = base::StrCat(
+              {"Cobalt.Memory.", process_name, ".RssAndroidRuntime"});
+        } else if (entry.first == "pss:ashmem_jit") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".PssAshmemJit"});
+        } else if (entry.first == "rss:ashmem_jit") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".RssAshmemJit"});
+        } else if (entry.first == "pss:other") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".PssOther"});
+        } else if (entry.first == "rss:other") {
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".RssOther"});
+        } else if (entry.first == "pss:anonymous_other") {
+          uma_name = base::StrCat(
+              {"Cobalt.Memory.", process_name, ".PssAnonymousOther"});
+        } else if (entry.first == "rss:anonymous_other") {
+          uma_name = base::StrCat(
+              {"Cobalt.Memory.", process_name, ".RssAnonymousOther"});
+        } else {
+          // Fallback for any other Cobalt-introduced metrics in
+          // detailed_stats_kb. Remove colon and capitalize to match the
+          // pattern.
+          std::string metric_name = entry.first;
+          size_t colon_pos = metric_name.find(':');
+          if (colon_pos != std::string::npos) {
+            std::string type = metric_name.substr(0, colon_pos);
+            std::string name = metric_name.substr(colon_pos + 1);
+            if (!type.empty()) {
+              type[0] = toupper(type[0]);
+            }
+            if (!name.empty()) {
+              name[0] = toupper(name[0]);
+            }
+            metric_name = type + name;
+          }
+          uma_name =
+              base::StrCat({"Cobalt.Memory.", process_name, ".", metric_name});
+        }
+
+        base::UmaHistogramMemoryLargeMB(uma_name,
+                                        static_cast<int>(entry.second / kKiB));
+      }
+    }
   }
 
   base::UmaHistogramMemoryLargeMB(
