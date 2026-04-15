@@ -57,6 +57,7 @@ class MODULES_EXPORT H5vccSystem final
                                                            ExceptionState&);
   void exit();
   uint32_t userOnExitStrategy();
+  void hideSplashScreen();
 
   void Trace(Visitor*) const override;
 
