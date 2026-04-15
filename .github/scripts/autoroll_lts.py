@@ -81,11 +81,15 @@ def main():
   p.add_argument('--target-branch', required=True)
   p.add_argument('--start-commit')
   p.add_argument('--origin-branch', default='main')
+  p.add_argument('--max-commits', type=int)
   args = p.parse_args()
 
   links = []
   target_prs = get_pr_set(args.target_branch, args.origin_branch)
   autoroll_prs = get_pr_set('HEAD', args.origin_branch)
+
+  current_pr_commits = len(autoroll_prs - target_prs)
+  commits_added = 0
 
   for line in get_commits(args.origin_branch, args.target_branch,
                           args.start_commit):
@@ -103,8 +107,15 @@ def main():
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
       if num not in autoroll_prs:
+        if (args.max_commits is not None and
+            current_pr_commits + commits_added >= args.max_commits):
+          print(
+              f"::warning::Reached max commits limit ({args.max_commits}).",
+              file=sys.stderr)
+          break
         cherry_pick(sha, num, title)
         autoroll_prs.add(num)
+        commits_added += 1
 
       links.append(f'- #{num}')
 
