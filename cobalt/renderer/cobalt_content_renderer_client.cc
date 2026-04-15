@@ -188,12 +188,6 @@ const T* GetSettingValue(
   return std::get_if<T>(&it->second);
 }
 
-<<<<<<< HEAD
-constexpr int kMaxFramesInDecoderLimit = 10'000;
-constexpr int kMaxVideoDecoderPollIntervalMs = 60'000;  // 1 minute.
-=======
-constexpr int kMaxMediaCodecResetDelayMs = 1'000;  // 1 second.
->>>>>>> 546035cdfc (starboard: Delete H5VCC plumbing for deprecated experiments (#9551))
 // Experiment framework uses 0 as the sentinel value for unset.
 // e.g.)
 // http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714

@@ -46,19 +46,12 @@ std::ostream& operator<<(
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
-<<<<<<< HEAD
-            << ", initial_max_frames_in_decoder="
-            << ToString(features.initial_max_frames_in_decoder)
-            << ", max_pending_input_frames="
-            << ToString(features.max_pending_input_frames)
-=======
             << ", disable_low_performance_sw_decoder="
             << ToString(features.disable_low_performance_sw_decoder)
             << ", pause_using_audio_track_state="
             << ToString(features.pause_using_audio_track_state)
             << ", report_buffering_state_during_flush="
             << ToString(features.report_buffering_state_during_flush)
->>>>>>> 546035cdfc (starboard: Delete H5VCC plumbing for deprecated experiments (#9551))
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="

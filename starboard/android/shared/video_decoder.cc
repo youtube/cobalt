@@ -399,7 +399,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      max_pending_inputs_size_(kDefaultMaxPendingInputsSize),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -435,7 +434,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(max_pending_inputs_size_ * 2);
+        std::make_unique<VideoFrameTracker>(kDefaultMaxPendingInputsSize * 2);
   }
 
   if (require_software_codec_) {
@@ -456,7 +455,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << GetMediaVideoCodecName(video_codec_)
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
-               << ", max pending input size=" << max_pending_inputs_size_
+               << ", max pending input size=" << kDefaultMaxPendingInputsSize
                << ", max video capabilities=\"" << max_video_capabilities_
                << "\", and tunnel mode audio session id="
                << tunnel_mode_audio_session_id_;
@@ -794,15 +793,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-<<<<<<< HEAD
-      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
-      video_decoder_poll_interval_ms_);
+      max_video_input_size_, flush_delay_usec_);
   if (result) {
     media_decoder_ = std::move(result.value());
-=======
-      max_video_input_size_, flush_delay_usec_, error_message));
-  if (media_decoder_->is_valid()) {
->>>>>>> 546035cdfc (starboard: Delete H5VCC plumbing for deprecated experiments (#9551))
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
@@ -904,7 +897,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
+  if (media_decoder_->GetNumberOfPendingInputs() <
+      kDefaultMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -942,7 +936,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
       }
 
       bool cache_full = media_decoder_->GetNumberOfPendingInputs() >=
-                        max_pending_inputs_size_;
+                        kDefaultMaxPendingInputsSize;
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
@@ -1300,7 +1294,8 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
+  if (media_decoder_->GetNumberOfPendingInputs() <
+      kDefaultMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }

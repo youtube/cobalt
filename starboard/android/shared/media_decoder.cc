@@ -127,9 +127,7 @@ MediaCodecDecoder::CreateForVideo(
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
-    int64_t flush_delay_usec,
-    std::optional<int> initial_max_frames,
-    std::optional<int> video_decoder_poll_interval_ms) {
+    int64_t flush_delay_usec) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -137,7 +135,7 @@ MediaCodecDecoder::CreateForVideo(
       color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      initial_max_frames, video_decoder_poll_interval_ms, &error_message);
+      &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -210,26 +208,9 @@ MediaCodecDecoder::MediaCodecDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       video_decoder_poll_interval_us_(
-<<<<<<< HEAD
-          video_decoder_poll_interval_ms
-              ? static_cast<int64_t>(*video_decoder_poll_interval_ms) * 1'000
-              : (tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
-                                      : kDefaultVideoDecoderPollIntervalUs)),
-      decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
-        if (!initial_max_frames || tunnel_mode_enabled_) {
-          return nullptr;
-        }
-        return std::make_unique<DecoderStateTracker>(*initial_max_frames);
-      }()) {
-  if (initial_max_frames && tunnel_mode_enabled_) {
-    SB_LOG(INFO) << "DecoderStateTracker is disabled for tunnel mode.";
-  }
-=======
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
-      condition_variable_(mutex_),
       decoder_state_tracker_(nullptr) {
->>>>>>> 546035cdfc (starboard: Delete H5VCC plumbing for deprecated experiments (#9551))
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -252,10 +233,6 @@ MediaCodecDecoder::MediaCodecDecoder(
   }
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
                << ToString(tunnel_mode_enabled_)
-<<<<<<< HEAD
-               << ", initial_max_frames=" << initial_max_frames
-=======
->>>>>>> 546035cdfc (starboard: Delete H5VCC plumbing for deprecated experiments (#9551))
                << ", video_decoder_poll_interval(msec)="
                << video_decoder_poll_interval_us_ / 1'000;
 }

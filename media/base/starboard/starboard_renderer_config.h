@@ -31,14 +31,9 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   struct ExperimentalFeatures {
     bool enable_flush_during_seek = false;
     bool enable_reset_audio_decoder = false;
-<<<<<<< HEAD
-    std::optional<int> initial_max_frames_in_decoder;
-    std::optional<int> max_pending_input_frames;
-=======
     bool disable_low_performance_sw_decoder = false;
     bool pause_using_audio_track_state = false;
     bool report_buffering_state_during_flush = false;
->>>>>>> 546035cdfc (starboard: Delete H5VCC plumbing for deprecated experiments (#9551))
     std::optional<int> max_samples_per_write;
     std::optional<int> video_decoder_initial_preroll_count;
     std::optional<int> video_renderer_min_input_buffers;
