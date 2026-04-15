@@ -126,7 +126,18 @@ class LocalStorageImpl : public base::trace_event::MemoryDumpProvider,
   void OnGotDatabaseVersion(leveldb::Status status,
                             DomStorageDatabase::Value value);
   void OnConnectionFinished();
-  void DeleteAndRecreateDatabase();
+
+  enum class DatabaseResetReason {
+    kOpenFailed,
+    kVersionMismatch,
+    kReadError,
+    kCommitError,
+    kUnknown,
+    kMaxValue = kUnknown,
+  };
+
+  void DeleteAndRecreateDatabase(DatabaseResetReason reason =
+                                     DatabaseResetReason::kUnknown);
   void OnDBDestroyed(bool recreate_in_memory, leveldb::Status status);
 
   StorageAreaHolder* GetOrCreateStorageArea(

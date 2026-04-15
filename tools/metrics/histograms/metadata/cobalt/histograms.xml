@@ -312,6 +312,7 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<<<<<<< HEAD
 <histogram name="Cobalt.StorageMigration.SentinelWriteResult"
     enum="SentinelWriteResult" expires_after="never">
   <owner>colinliang@google.com</owner>
@@ -354,6 +355,13 @@ Always run the pretty print utility on this file after editing:
     all memory the process can access, including shared libraries, stack, heap,
     and memory-mapped files. Recorded at regular intervals when memory metrics
     are emitted.
+=======
+<histogram name="Cobalt.LocalStorage.DatabaseResetReason"
+    enum="LocalStorageDatabaseResetReason" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the reason why the Local Storage database was reset.
+>>>>>>> bca1d8a8ba (adding UMA for local storage DeleteAndRecreateDatabase() (#9354))
   </summary>
 </histogram>
 
