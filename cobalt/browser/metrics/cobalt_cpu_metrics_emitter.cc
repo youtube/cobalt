@@ -27,17 +27,17 @@ CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter() = default;
 
 CobaltCpuMetricsEmitter::~CobaltCpuMetricsEmitter() = default;
 
-void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics(
-    base::ProcessMetrics* process_metrics) {
+void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!process_metrics) {
-    return;
+
+  if (!process_metrics_) {
+    process_metrics_ = base::ProcessMetrics::CreateCurrentProcessMetrics();
   }
 
   // Total CPU utilization in percentage of all cores in between every call.
   constexpr double kInvalidCPUUsageValue = 0.0;
   const double cpu_usage =
-      process_metrics->GetPlatformIndependentCPUUsage().value_or(
+      process_metrics_->GetPlatformIndependentCPUUsage().value_or(
           kInvalidCPUUsageValue);
 
   const int num_processors = base::SysInfo::NumberOfProcessors();

@@ -19,6 +19,7 @@
 #include <string_view>
 
 #include "base/memory/weak_ptr.h"
+#include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
@@ -171,8 +172,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::TimeDelta min_idle_refresh_interval_ = kMinIdleRefreshInterval;
 
   // State objects for background metrics collection.
-  scoped_refptr<MemoryPollingState> memory_state_;
-  scoped_refptr<CpuPollingState> cpu_state_;
+  base::SequenceBound<MemoryPollingState> memory_state_;
+  base::SequenceBound<CpuPollingState> cpu_state_;
 
   // Usually `log_uploader_` would be created lazily in CreateUploader() (during
   // first metrics upload), however there's a race condition of many seconds
