@@ -74,8 +74,7 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionExperimentalFeaturesConfigurationName) ==
       0) {
-    return starboard::shared::starboard::
-        GetExperimentalFeaturesConfigurationApi();
+    return starboard::GetExperimentalFeaturesConfigurationApi();
   }
   if (strcmp(name, kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0) {
     return starboard::GetPlayerSetVideoSurfaceViewApi();

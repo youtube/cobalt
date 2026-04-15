@@ -50,36 +50,13 @@
 
 namespace starboard {
 
-class MediaCodecVideoDecoder : public ::starboard::VideoDecoder,
+class MediaCodecVideoDecoder : public VideoDecoder,
                                public MediaCodecDecoder::Host,
                                public VideoSurfaceTextureBridge::Host,
                                private JobQueue::JobOwner,
                                private VideoSurfaceHolder {
  public:
   class Sink;
-
-  MediaCodecVideoDecoder(
-      JobQueue* job_queue,
-      const VideoStreamInfo& video_stream_info,
-      SbDrmSystem drm_system,
-      SbPlayerOutputMode output_mode,
-      SbDecodeTargetGraphicsContextProvider*
-          decode_target_graphics_context_provider,
-      const std::string& max_video_capabilities,
-      int tunnel_mode_audio_session_id,
-      bool force_secure_pipeline_under_tunnel_mode,
-      bool force_reset_surface,
-      bool force_big_endian_hdr_metadata,
-      int max_input_size,
-      void* surface_view,
-      bool enable_flush_during_seek,
-      int64_t reset_delay_usec,
-      int64_t flush_delay_usec,
-      const ::starboard::shared::starboard::ExperimentalFeatures&
-          experimental_features,
-      std::string* error_message);
-  ~MediaCodecVideoDecoder() override;
-
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,
       const VideoStreamInfo& video_stream_info,
@@ -97,9 +74,29 @@ class MediaCodecVideoDecoder : public ::starboard::VideoDecoder,
       bool enable_flush_during_seek,
       int64_t reset_delay_usec,
       int64_t flush_delay_usec,
-      const ::starboard::shared::starboard::ExperimentalFeatures&
-          experimental_features,
-      std::string* error_message);
+      const ExperimentalFeatures& experimental_features);
+
+  MediaCodecVideoDecoder(PassKey<MediaCodecVideoDecoder>,
+                         JobQueue* job_queue,
+                         const VideoStreamInfo& video_stream_info,
+                         SbDrmSystem drm_system,
+                         SbPlayerOutputMode output_mode,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         const std::string& max_video_capabilities,
+                         int tunnel_mode_audio_session_id,
+                         bool force_secure_pipeline_under_tunnel_mode,
+                         bool force_reset_surface,
+                         bool force_big_endian_hdr_metadata,
+                         int max_input_size,
+                         void* surface_view,
+                         bool enable_flush_during_seek,
+                         int64_t reset_delay_usec,
+                         int64_t flush_delay_usec,
+                         const ExperimentalFeatures& experimental_features,
+                         std::string* error_message);
+
+  ~MediaCodecVideoDecoder() override;
 
   scoped_refptr<VideoRendererSink> GetSink();
   std::unique_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();

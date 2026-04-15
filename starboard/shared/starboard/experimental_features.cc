@@ -22,7 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental_features.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 namespace {
 
@@ -100,4 +100,4 @@ const void* GetExperimentalFeaturesConfigurationApi() {
   return &kExperimentalFeaturesConfigurationApi;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

@@ -544,8 +544,7 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
 }
 
 void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(
-    const ::starboard::shared::starboard::ExperimentalFeatures&
-        experimental_features) {
+    const ::starboard::ExperimentalFeatures& experimental_features) {
   SB_LOG(INFO) << __func__;
   experimental_features_ = experimental_features;
 }

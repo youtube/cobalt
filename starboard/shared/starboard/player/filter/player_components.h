@@ -68,8 +68,7 @@ class PlayerComponents {
           SbPlayer player,
           SbPlayerOutputMode output_mode,
           int max_video_input_size,
-          const ::starboard::shared::starboard::ExperimentalFeatures&
-              experimental_features,
+          const ::starboard::ExperimentalFeatures& experimental_features,
           void* surface_view,
           SbDecodeTargetGraphicsContextProvider*
               decode_target_graphics_context_provider,
@@ -81,8 +80,7 @@ class PlayerComponents {
           SbPlayer player,
           SbPlayerOutputMode output_mode,
           int max_video_input_size,
-          const ::starboard::shared::starboard::ExperimentalFeatures&
-              experimental_features,
+          const ::starboard::ExperimentalFeatures& experimental_features,
           void* surface_view,
           SbDecodeTargetGraphicsContextProvider*
               decode_target_graphics_context_provider,
@@ -130,8 +128,7 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
-      const ::starboard::shared::starboard::ExperimentalFeatures&
-      experimental_features() const {
+      const ::starboard::ExperimentalFeatures& experimental_features() const {
         return experimental_features_;
       }
       void* surface_view() const { return surface_view_; }
@@ -158,8 +155,7 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
-      const ::starboard::shared::starboard::ExperimentalFeatures
-          experimental_features_;
+      const ::starboard::ExperimentalFeatures experimental_features_;
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;

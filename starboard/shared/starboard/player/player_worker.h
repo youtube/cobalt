@@ -105,8 +105,7 @@ class PlayerWorker {
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
     virtual void SetExperimentalFeatures(
-        const ::starboard::shared::starboard::ExperimentalFeatures&
-            experimental_features) = 0;
+        const ::starboard::ExperimentalFeatures& experimental_features) = 0;
 
    private:
     Handler(const Handler&) = delete;

@@ -205,7 +205,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
   handler->SetExperimentalFeatures(
-      starboard::shared::starboard::GetExperimentalFeaturesForCurrentThread());
+      starboard::GetExperimentalFeaturesForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
 
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(

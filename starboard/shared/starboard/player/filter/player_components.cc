@@ -36,7 +36,7 @@ namespace starboard {
 
 namespace {
 
-using ::starboard::shared::starboard::ExperimentalFeatures;
+using ::starboard::ExperimentalFeatures;
 
 const int kAudioSinkFramesAlignment = 256;
 const int kDefaultAudioSinkMinFramesPerAppend = 1024;

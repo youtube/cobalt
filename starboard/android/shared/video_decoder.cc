@@ -46,10 +46,6 @@ namespace starboard {
 
 namespace {
 
-using ::starboard::MimeType;
-using ::starboard::VideoFrame;
-using ::starboard::shared::starboard::ExperimentalFeatures;
-using VideoRenderAlgorithmBase = ::starboard::VideoRenderAlgorithm;
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -351,19 +347,19 @@ MediaCodecVideoDecoder::Create(
     bool enable_flush_during_seek,
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
-    const ExperimentalFeatures& experimental_features,
-    std::string* error_message) {
-  SB_CHECK(error_message);
+    const ExperimentalFeatures& experimental_features) {
+  std::string error_message;
   auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
-      job_queue, video_stream_info, drm_system, output_mode,
-      decode_target_graphics_context_provider, max_video_capabilities,
-      tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-      force_reset_surface, force_big_endian_hdr_metadata, max_input_size,
-      surface_view, enable_flush_during_seek, reset_delay_usec,
-      flush_delay_usec, experimental_features, error_message);
+      PassKey<MediaCodecVideoDecoder>(), job_queue, video_stream_info,
+      drm_system, output_mode, decode_target_graphics_context_provider,
+      max_video_capabilities, tunnel_mode_audio_session_id,
+      force_secure_pipeline_under_tunnel_mode, force_reset_surface,
+      force_big_endian_hdr_metadata, max_input_size, surface_view,
+      enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+      experimental_features, &error_message);
 
-  if (!error_message->empty()) {
-    return Failure(*error_message);
+  if (!error_message.empty()) {
+    return Failure(error_message);
   }
   // For AV1, |media_decoder_| is null after creation because its initialization
   // is deferred. For all other codecs, a null |media_decoder_| indicates a
@@ -377,6 +373,7 @@ MediaCodecVideoDecoder::Create(
 }
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
+    PassKey<MediaCodecVideoDecoder>,
     JobQueue* job_queue,
     const VideoStreamInfo& video_stream_info,
     SbDrmSystem drm_system,
@@ -461,7 +458,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     }
   }
 
-  SB_LOG(INFO) << "Created MediaCodecVideoDecoder for codec="
+  SB_LOG(INFO) << "Created VideoDecoder for codec="
                << GetMediaVideoCodecName(video_codec_)
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
@@ -880,8 +877,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
 
   tunnel_mode_prerolling_.store(false);
 
-  // TODO: Refactor the MediaCodecVideoDecoder and the VideoRendererImpl to
-  // improve the
+  // TODO: Refactor the VideoDecoder and the VideoRendererImpl to improve the
   //       handling of preroll and EOS for pure punchout decoders.
   decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   sink_->Render();
@@ -913,8 +909,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
-    // possible that the MediaCodecVideoDecoder won't get a chance to send
-    // kNeedMoreInput to the renderer again.  Schedule a task to check back.
+    // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
+    // to the renderer again.  Schedule a task to check back.
     Schedule(
         std::bind(&MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput,
                   this),

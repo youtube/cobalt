@@ -19,7 +19,7 @@
 
 #include "starboard/extension/experimental_features.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 // Internal C++ representation of temporary experimental features.
 // Once an experiment is concluded and the feature is launched, the
@@ -47,6 +47,6 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
 // Get the extension API for configuring experimental features.
 const void* GetExperimentalFeaturesConfigurationApi();
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
