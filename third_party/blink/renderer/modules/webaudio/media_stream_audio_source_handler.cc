@@ -16,9 +16,13 @@ namespace blink {
 
 namespace {
 
-// Default to stereo. This could change depending on the format of the
-// MediaStream's audio track.
+// Default to mono for Cobalt/Starboard to avoid latency-inducing upmixing.
+// Standard Chromium defaults to stereo.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+constexpr unsigned kDefaultNumberOfOutputChannels = 1;
+#else
 constexpr unsigned kDefaultNumberOfOutputChannels = 2;
+#endif
 
 }  // namespace
 
@@ -31,6 +35,12 @@ MediaStreamAudioSourceHandler::MediaStreamAudioSourceHandler(
       audio_source_provider_(std::move(audio_source_provider)) {
   SendLogMessage(__func__, "");
   AddOutput(kDefaultNumberOfOutputChannels);
+
+  // Force Mono mode end-to-end for Starboard to avoid latency-inducing upmixers.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
+  channel_count_ = 1;
+#endif
 
   Initialize();
 }
@@ -50,6 +60,9 @@ MediaStreamAudioSourceHandler::~MediaStreamAudioSourceHandler() {
 void MediaStreamAudioSourceHandler::SetFormat(uint32_t number_of_channels,
                                               float source_sample_rate) {
   DCHECK(IsMainThread());
+  LOG(INFO) << "MediaStreamAudioSourceHandler::SetFormat: "
+            << "channels=" << number_of_channels
+            << ", rate=" << source_sample_rate;
   SendLogMessage(
       __func__,
       String::Format("({number_of_channels=%u}, {source_sample_rate=%0.f})",

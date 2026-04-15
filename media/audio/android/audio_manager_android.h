@@ -202,7 +202,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   };
 
   base::Lock pre_started_streams_lock_;
-  base::flat_map<base::UnguessableToken, std::unique_ptr<PreStartedEntry>>
+  base::flat_map<std::string, std::unique_ptr<PreStartedEntry>>
       pre_started_streams_ GUARDED_BY(pre_started_streams_lock_);
 #endif
 };

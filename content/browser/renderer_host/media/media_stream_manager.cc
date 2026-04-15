@@ -2757,8 +2757,14 @@ void MediaStreamManager::CompleteFastTrackSetUp(
       media::StarboardAudioInputStream::kSampleRateHz,
       media::StarboardAudioInputStream::kSamplesPerBuffer);
 
+  // Use a special prefix for the device_id to carry the session_id to the
+  // AudioThread. This allows deterministic lookup of the pre-started stream.
+  base::UnguessableToken session_token = base::UnguessableToken::Create();
+  std::string encoded_device_id =
+      "fast-track-" + session_token.ToString();
+
   blink::MediaStreamDevice device(MediaStreamType::DEVICE_AUDIO_CAPTURE,
-                                  "default", "Default Microphone");
+                                  encoded_device_id, "Default Microphone");
   device.input = params;
 
   auto session_id = audio_input_device_manager()->Open(device);
@@ -2766,7 +2772,7 @@ void MediaStreamManager::CompleteFastTrackSetUp(
 
   media::AudioManager* audio_manager = media::AudioManager::Get();
   if (audio_manager) {
-    audio_manager->PreStartStream(session_id, params);
+    audio_manager->PreStartStream(session_token, params);
   }
 
   stream_devices_set.stream_devices[0]->audio_device = device;

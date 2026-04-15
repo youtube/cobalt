@@ -149,6 +149,23 @@ void AudioManagerAndroid::InitializeIfNeeded() {
 }
 
 void AudioManagerAndroid::ShutdownOnAudioThread() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Clean up any un-consumed pre-started streams.
+  std::vector<AudioInputStream*> streams_to_release;
+  {
+    base::AutoLock lock(pre_started_streams_lock_);
+    for (auto& it : pre_started_streams_) {
+      if (it.second->stream) {
+        streams_to_release.push_back(it.second->stream);
+      }
+    }
+    pre_started_streams_.clear();
+  }
+  for (auto* stream : streams_to_release) {
+    stream->Close();
+  }
+#endif
+
   AudioManagerBase::ShutdownOnAudioThread();
 
   // Destroy java android manager here because it can only be accessed on the
@@ -417,28 +434,37 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Check if we have a pre-started stream for this device.
-  // We use the first one available or wait for it to finish opening.
-  std::unique_ptr<PreStartedEntry> entry;
-  {
-    base::AutoLock lock(pre_started_streams_lock_);
-    if (!pre_started_streams_.empty()) {
-      auto it = pre_started_streams_.begin();
-      entry = std::move(it->second);
-      pre_started_streams_.erase(it);
+  // Check if this is a fast-track request by checking for our special prefix.
+  if (base::StartsWith(device_id, "fast-track-")) {
+    std::string session_id = device_id.substr(11); // Length of "fast-track-"
+    std::unique_ptr<PreStartedEntry> entry;
+    {
+      base::AutoLock lock(pre_started_streams_lock_);
+      auto it = pre_started_streams_.find(session_id);
+      if (it != pre_started_streams_.end()) {
+        entry = std::move(it->second);
+        pre_started_streams_.erase(it);
+      }
     }
-  }
 
-  if (entry) {
-    LOG(INFO) << "Cobalt: Re-using PRE-STARTED hardware stream. Waiting for it "
-                 "to finish opening...";
-    entry->open_event.Wait();
-    AudioInputStream* stream = entry->stream;
-    if (stream) {
-      LOG(INFO) << "Cobalt: Successfully re-used PRE-STARTED stream";
-      return stream;
+    if (entry) {
+      VLOG(1) << "Cobalt: Found PRE-STARTED hardware stream for session "
+                << session_id;
+
+      // DEADLOCK PREVENTION: Do NOT call Wait() if we are on the same thread
+      // that is supposed to signal the event. Instead, check if it's already
+      // signaled.
+      if (entry->open_event.IsSignaled()) {
+        AudioInputStream* stream = entry->stream;
+        if (stream) {
+          VLOG(1) << "Cobalt: Successfully re-used PRE-STARTED stream";
+          return stream;
+        }
+      } else {
+        LOG(WARNING) << "Cobalt: Pre-started stream not ready. Falling back "
+                        "to fresh creation to avoid deadlock.";
+      }
     }
-    // Stream failed to open, fall through to regular creation.
   }
 #endif
 
@@ -831,16 +857,16 @@ void AudioManagerAndroid::MaybeSetBluetoothScoState(bool state) {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void AudioManagerAndroid::PreStartStream(
-    const base::UnguessableToken& session_id,
+    const base::UnguessableToken& session_token,
     const AudioParameters& params) {
-  LOG(INFO) << "Cobalt: AudioManagerAndroid::PreStartStream session="
-            << session_id.ToString();
+  std::string session_id = session_token.ToString();
+  LOG(INFO) << "Cobalt: AudioManagerAndroid::PreStartStream session=" << session_id;
 
   // We must be on the audio thread to create the stream objects.
   if (!GetTaskRunner()->BelongsToCurrentThread()) {
     GetTaskRunner()->PostTask(
         FROM_HERE, base::BindOnce(&AudioManagerAndroid::PreStartStream,
-                                  base::Unretained(this), session_id, params));
+                                  base::Unretained(this), session_token, params));
     return;
   }
 
@@ -871,16 +897,15 @@ void AudioManagerAndroid::PreStartStream(
       it->second->stream = stream;
       it->second->open_event.Signal();
       LOG(INFO) << "Cobalt: Hardware stream PRE-STARTED and PARKED for session="
-                << session_id.ToString();
+                << session_id;
       return;
     }
-    LOG(WARNING) << "Cobalt: Pre-started stream session="
-                 << session_id.ToString()
+    LOG(WARNING) << "Cobalt: Pre-started stream session=" << session_id
                  << " was consumed or cancelled before it finished opening. "
                     "Releasing stream.";
   } else {
     LOG(ERROR) << "Cobalt: Failed to pre-start hardware stream session="
-               << session_id.ToString();
+               << session_id;
     base::AutoLock lock(pre_started_streams_lock_);
     pre_started_streams_.erase(session_id);
   }

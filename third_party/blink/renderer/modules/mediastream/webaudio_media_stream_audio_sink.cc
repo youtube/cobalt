@@ -31,10 +31,19 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
       component_(component),
       track_stopped_(false),
       platform_buffer_duration_(platform_buffer_duration),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                   media::ChannelLayoutConfig::Mono(),
+                   context_sample_rate,
+                   kWebAudioRenderBufferSize)
+#else
       sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                    media::ChannelLayoutConfig::Stereo(),
                    context_sample_rate,
-                   kWebAudioRenderBufferSize) {
+                   kWebAudioRenderBufferSize)
+#endif
+{
+  LOG(INFO) << "WebAudioMediaStreamAudioSink: sink_params=" << sink_params_.AsHumanReadableString();
   CHECK(sink_params_.IsValid());
   CHECK_GT(platform_buffer_duration_, base::TimeDelta());
 

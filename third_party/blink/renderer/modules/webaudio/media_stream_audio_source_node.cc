@@ -103,7 +103,11 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
           context, media_stream, audio_track, std::move(provider));
 
   // Initializes the node with the stereo output channel.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  node->SetFormat(1, context.sampleRate());
+#else
   node->SetFormat(2, context.sampleRate());
+#endif
 
   // Lets the context know this source node started.
   context.NotifySourceNodeStartedProcessing(node);
