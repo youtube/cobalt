@@ -12,43 +12,39 @@
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
 
+#include "base/memory/weak_ptr.h"
+#include "third_party/abseil-cpp/absl/strings/string_view.h"
+
 namespace memory_instrumentation {
 
-// Results returned by the delegate after parsing.
+// Optimized structure for smaps metrics.
 struct COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
-    DetailedMetrics {
-  DetailedMetrics();
-  ~DetailedMetrics();
-  DetailedMetrics(DetailedMetrics&&);
-  DetailedMetrics& operator=(DetailedMetrics&&);
-
-  // Map of category names to accumulated metrics (e.g. RSS or PSS) in KB.
-  // Mandate: Keys must be namespaced and PII-free.
-  base::flat_map<std::string, uint32_t> categories_kb;
-
-  // Reported totals for harness-level validation.
-  uint32_t total_pss_kb = 0;
-  uint32_t total_rss_kb = 0;
+    SmapsMetrics {
+  uint64_t rss_kb = 0;
+  uint64_t pss_kb = 0;
+  uint64_t private_dirty_kb = 0;
+  uint64_t private_clean_kb = 0;
+  uint64_t shared_dirty_kb = 0;
+  uint64_t shared_clean_kb = 0;
+  uint64_t swap_kb = 0;
+  uint64_t swap_pss_kb = 0;
 };
 
 // Interface for project-specific detailed memory metrics collection.
-// The harness reads /proc/self/smaps and passes each line to the registered
-// delegate for categorization.
 class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
     DetailedMetricsDelegate {
  public:
   virtual ~DetailedMetricsDelegate() = default;
 
-  // Called with a buffer containing a single line from /proc/self/smaps.
-  // The |buffer| view is only valid for the duration of this call.
-  // Returns true if parsing should continue, false if it should abort.
-  virtual bool OnSmapsBuffer(std::string_view buffer) = 0;
+  // Called for each parsed entry. |name| is transient and must be copied if
+  // needed. Implementations must be thread-safe.
+  virtual void OnSmapsEntry(absl::string_view name,
+                            const SmapsMetrics& metrics) = 0;
 
-  // Called after all lines have been processed to retrieve the aggregated
-  // metrics and reset internal counters for the next dump.
-  // TODO(cobalt): Implement project-specific library tracking (e.g. libchrobalt)
-  // here to avoid redundant scans of /proc/self/smaps.
-  virtual DetailedMetrics GetAndResetStats() = 0;
+  // Swaps the internal results map with an empty one and returns it via |stats|.
+  virtual void GetAndResetStats(base::flat_map<std::string, uint64_t>& stats) = 0;
+
+  virtual base::WeakPtr<DetailedMetricsDelegate> GetWeakPtr() = 0;
 };
 
 }  // namespace memory_instrumentation
