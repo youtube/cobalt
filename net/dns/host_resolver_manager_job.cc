@@ -603,6 +603,7 @@ void HostResolverManager::Job::UpdatePriority() {
 
 void HostResolverManager::Job::Start() {
 #if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:41 host: " << key_.host.ToString();
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(41);
 #endif
 

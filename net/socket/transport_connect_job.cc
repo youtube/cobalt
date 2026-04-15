@@ -377,6 +377,7 @@ int TransportConnectJob::DoResolveHostCallbackComplete() {
 
 int TransportConnectJob::DoTransportConnect() {
 #if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:42";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(42);
 #endif
 

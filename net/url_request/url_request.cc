@@ -594,6 +594,7 @@ void URLRequest::Start() {
   DCHECK(delegate_);
 
 #if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:39 URL: " << url();
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(39);
 #endif
 
@@ -929,6 +930,7 @@ void URLRequest::NotifyResponseStarted(int net_error) {
   DCHECK_LE(net_error, 0);
 
 #if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:40 URL: " << url();
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(40);
 #endif
 

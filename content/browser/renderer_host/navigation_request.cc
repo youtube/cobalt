@@ -2388,6 +2388,7 @@ void NavigationRequest::BeginNavigation() {
   begin_navigation_time_ = base::TimeTicks::Now();
 
 #if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:38 URL: " << GetURL();
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(38);
 #endif
 

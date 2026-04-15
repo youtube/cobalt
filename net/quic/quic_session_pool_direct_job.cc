@@ -70,6 +70,7 @@ QuicSessionPool::DirectJob::~DirectJob() {}
 
 int QuicSessionPool::DirectJob::Run(CompletionOnceCallback callback) {
 #if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:43";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(43);
 #endif
 
