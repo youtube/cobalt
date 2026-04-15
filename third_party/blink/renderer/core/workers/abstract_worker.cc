@@ -77,6 +77,8 @@ KURL AbstractWorker::ResolveURL(ExecutionContext* execution_context,
     }
   }
 
+  exception_state.ClearException();
+  LOG(INFO) << "AbstractWorker::ResolveURL: Returning URL: " << script_url.GetString();
   return script_url;
 }
 

@@ -323,7 +323,7 @@ const base::UnguessableToken* SecurityOrigin::GetNonceForSerialization() const {
 
 bool SecurityOrigin::CanAccess(const SecurityOrigin* other,
                                AccessResultDomainDetail& detail) const {
-  LOG(INFO) << "SecurityOrigin::CanAccess: Bypassing origin access check";
+  // LOG(INFO) << "SecurityOrigin::CanAccess: Bypassing origin access check";
   detail = AccessResultDomainDetail::kDomainNotRelevant;
   return true;
 }

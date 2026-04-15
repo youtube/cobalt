@@ -49,6 +49,8 @@ public final class CommandLineOverrideHelper {
 
     // Run Cobalt as a single process.
     paramOverrides.add("--single-process");
+    // Disable web security for development.
+    paramOverrides.add("--disable-web-security");
     // Enable Blink to work in overlay video mode.
     paramOverrides.add("--force-video-overlays");
     // Autoplay video with url.
