@@ -451,6 +451,13 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const gfx::Size& initial_size,
                               const bool create_splash_screen_web_contents,
                               const std::string& deep_link) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (create_splash_screen_web_contents) {
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(19);
+  } else {
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(18);
+  }
+#endif
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
   create_params.initially_hidden = !is_visible;
@@ -498,14 +505,57 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
+#if BUILDFLAG(IS_ANDROIDTV)
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(20);
+#endif
     g_platform->MainFrameCreated(this);
   }
 }
 
-void Shell::PrimaryMainDocumentElementAvailable() {}
+void Shell::PrimaryMainDocumentElementAvailable() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
+#endif
+}
+
+void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
+                          const GURL& validated_url) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(31);
+#endif
+}
+
+void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(22);
+    } else {
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(29);
+    }
+  }
+#endif
+}
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(26);
+    } else {
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(30);
+    }
+  }
+#endif
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
+}
+
+void Shell::DidStartLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(21);
+#endif
 }
 
 void Shell::DidStopLoading() {

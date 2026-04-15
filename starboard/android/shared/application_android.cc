@@ -29,6 +29,7 @@
 #include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
 #include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -59,6 +60,7 @@ ApplicationAndroid::ApplicationAndroid(
     const std::string& cache_dir,
     const std::string& native_library_dir)
     : Application(stubSbEventHandle) {
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(6);
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()

@@ -204,6 +204,15 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   algorithm_->Seek(seek_to_time);
 }
 
+void VideoRendererImpl::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK_GE(playback_rate, 0);
+
+  if (sink_) {
+    sink_->SetPlaybackRate(playback_rate);
+  }
+}
+
 bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_CHECK(BelongsToCurrentThread());
   bool can_accept_more_data =
