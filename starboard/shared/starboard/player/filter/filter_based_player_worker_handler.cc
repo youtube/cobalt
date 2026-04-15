@@ -363,6 +363,9 @@ Result<void> FilterBasedPlayerWorkerHandler::SetPlaybackRate(
   }
 
   media_time_provider_->SetPlaybackRate(playback_rate_);
+  if (video_renderer_) {
+    video_renderer_->SetPlaybackRate(playback_rate_);
+  }
   Update();
   return Success();
 }
