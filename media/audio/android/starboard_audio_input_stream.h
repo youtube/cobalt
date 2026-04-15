@@ -99,9 +99,8 @@ class StarboardAudioInputStream : public AudioInputStream {
 
   SLAndroidDataFormat_PCM_EX format_;
 
-  // Audio buffers that are allocated in the constructor based on
-  // info from audio parameters.
-  uint8_t* audio_data_[kMaxNumOfBuffersInQueue];
+  // Audio buffers that are allocated in SetupAudioBuffer().
+  std::unique_ptr<uint8_t[]> audio_data_[kMaxNumOfBuffersInQueue];
 
   int active_buffer_index_;
   int buffer_size_bytes_;

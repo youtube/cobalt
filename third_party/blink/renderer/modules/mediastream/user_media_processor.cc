@@ -725,13 +725,6 @@ void UserMediaProcessor::SetupAudioInput() {
                            "(Shortcut handshake, hardcoding capabilities)",
                            current_request_info_->request_id()));
     
-    // Bypass the Mojo call to GetAudioInputCapabilities.
-    // Construct hardcoded parameters (16kHz Mono).
-    media::AudioParameters params(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                                  media::ChannelLayoutConfig::Mono(),
-                                  media::StarboardAudioInputStream::kSampleRateHz,
-                                  media::StarboardAudioInputStream::kSamplesPerBuffer);
-    
     // Force-disable all native processing to get a "Straight Pipe" at 16kHz.
     // This prevents the WebRtcAudioProcessor from forcing a downsample.
     blink::AudioProcessingProperties properties;

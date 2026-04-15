@@ -46,7 +46,7 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
       active_buffer_index_(0),
       buffer_size_bytes_(0),
       started_(false) {
-  DVLOG(2) << __PRETTY_FUNCTION__;
+  DVLOG(2) << __func__;
 
   // Hardcode to 16kHz Mono 16-bit PCM (Starboard style)
   format_.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
@@ -72,12 +72,10 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
 
   audio_bus_ = media::AudioBus::Create(1, buffer_size_bytes_ / sizeof(int16_t));
   hardware_delay_ = base::Seconds(audio_bus_->frames() / static_cast<double>(kSampleRateHz));
-
-  memset(&audio_data_, 0, sizeof(audio_data_));
 }
 
 StarboardAudioInputStream::~StarboardAudioInputStream() {
-  DVLOG(2) << __PRETTY_FUNCTION__;
+  DVLOG(2) << __func__;
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!recorder_object_.Get());
   DCHECK(!engine_object_.Get());
@@ -105,7 +103,7 @@ AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
   SLresult err = SL_RESULT_UNKNOWN_ERROR;
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
     err = (*simple_buffer_queue_)->Enqueue(
-        simple_buffer_queue_, audio_data_[i], buffer_size_bytes_);
+        simple_buffer_queue_, audio_data_[i].get(), buffer_size_bytes_);
     if (SL_RESULT_SUCCESS != err) {
       HandleError(err);
       return AudioInputStream::OpenOutcome::kFailed;
@@ -259,7 +257,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
     // Convert from interleaved format to deinterleaved audio bus format while
     // still under the lock to protect audio_bus_ and audio_data_.
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
-        reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_]),
+        reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
         audio_bus_->frames());
   }
 
@@ -271,7 +269,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
 
   base::AutoLock lock(lock_);
   (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
-                                   audio_data_[active_buffer_index_],
+                                   audio_data_[active_buffer_index_].get(),
                                    buffer_size_bytes_);
 
   active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
@@ -280,16 +278,13 @@ void StarboardAudioInputStream::ReadBufferQueue() {
 void StarboardAudioInputStream::SetupAudioBuffer() {
   DCHECK(!audio_data_[0]);
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
-    audio_data_[i] = new uint8_t[buffer_size_bytes_];
+    audio_data_[i] = std::make_unique<uint8_t[]>(buffer_size_bytes_);
   }
 }
 
 void StarboardAudioInputStream::ReleaseAudioBuffer() {
-  if (audio_data_[0]) {
-    for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
-      delete[] audio_data_[i];
-      audio_data_[i] = nullptr;
-    }
+  for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
+    audio_data_[i].reset();
   }
 }
 
