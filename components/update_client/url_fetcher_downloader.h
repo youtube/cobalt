@@ -124,9 +124,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   int64_t total_bytes_ = -1;
 
 #if BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(IS_STARBOARD)
   CobaltSlotManagement cobalt_slot_management_;
-#endif
   scoped_refptr<Configurator> config_;
   // This variable tracks a Cancel() being called: all subsequent
   // download requests will be ignored.
