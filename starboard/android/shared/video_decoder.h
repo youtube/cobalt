@@ -40,6 +40,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
@@ -56,12 +57,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private VideoSurfaceHolder {
  public:
   class Sink;
-  struct FlowControlOptions {
-    std::optional<int> initial_max_frames_in_decoder;
-    std::optional<int> max_pending_input_frames;
-    std::optional<int> video_decoder_initial_preroll_count;
-    std::optional<int> video_decoder_poll_interval_ms;
-  };
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
       JobQueue* job_queue,
       const VideoStreamInfo& video_stream_info,
@@ -79,7 +74,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       bool enable_flush_during_seek,
       int64_t reset_delay_usec,
       int64_t flush_delay_usec,
-      const FlowControlOptions& flow_control_options);
+      const ExperimentalFeatures& experimental_features);
 
   MediaCodecVideoDecoder(PassKey<MediaCodecVideoDecoder>,
                          JobQueue* job_queue,
@@ -98,7 +93,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          bool enable_flush_during_seek,
                          int64_t reset_delay_usec,
                          int64_t flush_delay_usec,
-                         const FlowControlOptions& flow_control_options,
+                         const ExperimentalFeatures& experimental_features,
                          std::string* error_message);
 
   ~MediaCodecVideoDecoder() override;
@@ -146,7 +141,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
   void OnFirstTunnelFrameReady();
-  void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
   void OnVideoFrameRelease(int64_t pts_us, int64_t release_at_us);
@@ -164,9 +158,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
-  const std::optional<int> initial_max_frames_in_decoder_;
-  const std::optional<int> video_decoder_poll_interval_ms_;
-  const size_t max_pending_inputs_size_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
@@ -192,6 +183,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
 
+  // Codec initialization will be delayed until the decoder receives enough
+  // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
+  const bool needs_fps_to_initialize_codec_;
+
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
@@ -202,7 +197,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   std::atomic_bool tunnel_mode_prerolling_{true};
-  std::atomic_bool tunnel_mode_frame_rendered_{false};
+  std::atomic_bool tunnel_mode_first_frame_rendered_{false};
+  std::atomic_int tunnel_mode_prerolled_frames_{0};
 
   // Since GetCurrentDecodeTarget() needs to be called from an arbitrary thread
   // to obtain the current decode target (which ultimately ends up being a
