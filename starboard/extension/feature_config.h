@@ -161,6 +161,11 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
 STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
                   "RejectLowPerformanceSoftwareDecoder",
                   false)
+
+// Set the following variable to true to enable av1 startup optimization.
+STARBOARD_FEATURE(kEnableAv1StartupOptimization,
+                  "EnableAv1StartupOptimization",
+                  false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 

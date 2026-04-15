@@ -187,6 +187,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
 
+  // Codec initialization will be delayed until the decoder receives enough
+  // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
+  const bool needs_fps_to_initialize_codec_;
+
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
