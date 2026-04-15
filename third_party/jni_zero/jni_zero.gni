@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/compiler/compiler.gni")
+import("//starboard/build/config/android_toolchain.gni")
 if (is_cobalt) {
   import("//cobalt/build/configs/cobalt_for_google.gni")
 }
@@ -299,7 +300,7 @@ template("generate_jni_impl") {
   _target_name_without_java_or_junit =
       string_replace(string_replace(target_name, "_java", "_J"), "_junit", "_U")
   _jni_zero_action_target_name = _target_name_without_java_or_junit + "__action"
-  if (current_toolchain != default_toolchain && target_os == "android") {
+  if (current_toolchain != android_toolchain && target_os == "android") {
     # Rather than regenerating .h files in secondary toolchains, re-use the
     # ones from the primary toolchain by depending on it and adding the
     # root gen directory to the include paths.
@@ -308,10 +309,10 @@ template("generate_jni_impl") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
       not_needed(invoker, "*")
       public_configs +=
-          [ "//third_party/jni_zero:jni_include_dir($default_toolchain)" ]
+          [ "//third_party/jni_zero:jni_include_dir($android_toolchain)" ]
 
       # Depending on the action name to avoid cross-toolchain native deps.
-      public_deps = [ ":$_jni_zero_action_target_name($default_toolchain)" ]
+      public_deps = [ ":$_jni_zero_action_target_name($android_toolchain)" ]
       metadata = {
         shared_libraries_barrier = []
       }
@@ -585,7 +586,7 @@ template("native_with_jni") {
       (_manual_jni_registration || enable_jni_multiplexing) &&
       !(defined(invoker.collect_inputs_only) && invoker.collect_inputs_only)
   _needs_native_dep = _enable_underlying_native && _needs_cpp_codegen
-  if ((_needs_cpp_codegen && current_toolchain == default_toolchain) ||
+  if ((_needs_cpp_codegen && current_toolchain == android_toolchain) ||
       _needs_native_dep) {
     _subdir = rebase_path(target_gen_dir, root_gen_dir)
     _registration_cpp_codegen_output =
@@ -599,11 +600,11 @@ template("native_with_jni") {
       _registration_cpp_codegen_output += ".cc"
     }
   }
-  if (_needs_native_dep || current_toolchain == default_toolchain) {
+  if (_needs_native_dep || current_toolchain == android_toolchain) {
     _jni_registration_target_name = "${target_name}__jni_registration"
   }
 
-  if (current_toolchain == default_toolchain) {
+  if (current_toolchain == android_toolchain) {
     if (defined(invoker.visibility)) {
       _target_name_for_visibility = target_name
     }
@@ -667,14 +668,14 @@ template("native_with_jni") {
       configs = invoker.configs
       if (_needs_native_dep) {
         configs +=
-            [ "//third_party/jni_zero:jni_include_dir($default_toolchain)" ]
+            [ "//third_party/jni_zero:jni_include_dir($android_toolchain)" ]
         if (is_robolectric &&
             filter_include(configs, [ "//third_party/jdk" ]) == []) {
           # Adding jdk config if not already included - that's what the
           # filter_include is for.
           configs += [ "//third_party/jdk" ]
         }
-        deps += [ ":$_jni_registration_target_name($default_toolchain)" ]
+        deps += [ ":$_jni_registration_target_name($android_toolchain)" ]
         if (!defined(sources)) {
           sources = []
         }
@@ -691,7 +692,7 @@ template("native_with_jni") {
     }
   } else {
     not_needed(invoker, "*")
-    if (current_toolchain != default_toolchain) {
+    if (current_toolchain != android_toolchain) {
       not_needed([ "target_name" ])
     }
   }

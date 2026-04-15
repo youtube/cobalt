@@ -16,6 +16,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/navigation_handle.h"
@@ -81,6 +82,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.WebContentsObserver.FailedNavigation", true);
+    base::UmaHistogramSparse("Cobalt.WebContentsObserver.FailedNavigationError",
+                             -net_error_code);
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
               << net::ErrorToString(net_error_code);
     RaisePlatformError();

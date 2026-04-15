@@ -304,15 +304,15 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
-  'skia_revision': '8dae1b3c5291f42b592a85f211a4eb8b31b28729',
+  'skia_revision': '9d9ac365fe4916c31b31935a062b869d097324c4',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '5823043f8e2da00502febe9379a26ab0ac898ee1',
+  'v8_revision': 'c16a272e8745b1b825bf7d3a1ce979b4ebd48168',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
-  'angle_revision': '2d08a9518d40ae1f84a7ab670a4c2703dd7efc08',
+  'angle_revision': '4664989d810d3614c0af32933ba28e10a949b420',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling SwiftShader
   # and whatever else without interference from each other.
@@ -364,7 +364,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling HarfBuzz
   # and whatever else without interference from each other.
-  'harfbuzz_revision': '9f83bbbe64654b45ba5bb06927ff36c2e7588495',
+  'harfbuzz_revision': '15fdcf0395ff49d36069b808828fa5f06d7ec4d9',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Emoji Segmenter
   # and whatever else without interference from each other.
@@ -2952,7 +2952,7 @@ deps = {
 
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '34ba9daafd9c7e27bcd7534b4d008b4664a9f989',
+#    Var('webrtc_git') + '/src.git' + '@' + '4bbba1198503ef1c57b9a447723324f4df479b74',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
