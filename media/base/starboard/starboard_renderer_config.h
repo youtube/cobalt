@@ -29,10 +29,10 @@ namespace media {
 // Configs for StarboardRenderer.
 struct MEDIA_EXPORT StarboardRendererConfig {
   struct ExperimentalFeatures {
+    bool disable_low_performance_sw_decoder = false;
     bool enable_av1_startup_optimization = false;
     bool enable_flush_during_seek = false;
     bool enable_reset_audio_decoder = false;
-    bool disable_low_performance_sw_decoder = false;
     std::optional<int> initial_max_frames_in_decoder;
     std::optional<int> max_pending_input_frames;
     std::optional<int> max_samples_per_write;

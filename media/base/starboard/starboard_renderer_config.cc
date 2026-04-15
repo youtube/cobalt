@@ -42,14 +42,14 @@ StarboardRendererConfig::StarboardRendererConfig(
 std::ostream& operator<<(
     std::ostream& os,
     const StarboardRendererConfig::ExperimentalFeatures& features) {
-  return os << "{enable_av1_startup_optimization="
+  return os << "{disable_low_performance_sw_decoder="
+            << ToString(features.disable_low_performance_sw_decoder)
+            << ", enable_av1_startup_optimization="
             << ToString(features.enable_av1_startup_optimization)
             << ", enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
-            << ", disable_low_performance_sw_decoder="
-            << ToString(features.disable_low_performance_sw_decoder)
             << ", initial_max_frames_in_decoder="
             << ToString(features.initial_max_frames_in_decoder)
             << ", max_pending_input_frames="
