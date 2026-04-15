@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "media/base/starboard/starboard_renderer_config.h"
+
 #include "starboard/common/string.h"
 
 namespace media {
@@ -44,15 +45,7 @@ std::ostream& operator<<(
   return os << "{enable_flush_during_seek="
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
-<<<<<<< HEAD
-            << features.enable_reset_audio_decoder
-=======
             << ToString(features.enable_reset_audio_decoder)
-            << ", pause_using_audio_track_state="
-            << ToString(features.pause_using_audio_track_state)
-            << ", report_buffering_state_during_flush="
-            << ToString(features.report_buffering_state_during_flush)
->>>>>>> 27a0401dc6 (media:  Make SbPlayerBridge use ExperirmentalFeatures struct (#9514))
             << ", initial_max_frames_in_decoder="
             << ToString(features.initial_max_frames_in_decoder)
             << ", max_pending_input_frames="
@@ -66,13 +59,7 @@ std::ostream& operator<<(
             << ", video_renderer_min_input_buffers="
             << ToString(features.video_renderer_min_input_buffers)
             << ", video_renderer_min_decoded_frames="
-<<<<<<< HEAD
-            << opt_to_string(features.video_renderer_min_decoded_frames) << "}";
-=======
-            << ToString(features.video_renderer_min_decoded_frames)
-            << ", media_codec_reset_delay_ms="
-            << ToString(features.media_codec_reset_delay_ms) << "}";
->>>>>>> 27a0401dc6 (media:  Make SbPlayerBridge use ExperirmentalFeatures struct (#9514))
+            << ToString(features.video_renderer_min_decoded_frames) << "}";
 }
 
 }  // namespace media
