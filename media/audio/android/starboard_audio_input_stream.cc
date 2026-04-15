@@ -153,12 +153,17 @@ void StarboardAudioInputStream::Stop() {
 
 void StarboardAudioInputStream::Close() {
   Stop();
+
+  // Destroy OpenSLES objects outside the lock.
+  // These calls are synchronous and wait for any pending callbacks to finish.
+  // If we held the lock here, we would deadlock with ReadBufferQueue.
+  recorder_object_.Reset();
+  engine_object_.Reset();
+
   {
     base::AutoLock lock(lock_);
-    recorder_object_.Reset();
     simple_buffer_queue_ = nullptr;
     recorder_ = nullptr;
-    engine_object_.Reset();
     ReleaseAudioBuffer();
   }
   audio_manager_->ReleaseInputStream(this);
@@ -258,37 +263,30 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   AudioInputCallback* callback = nullptr;
   {
     base::AutoLock lock(lock_);
-    if (!started_ || !callback_) {
-      return;
-    }
-    callback = callback_;
+    if (started_ && callback_) {
+      callback = callback_;
 
-    // Convert from interleaved format to deinterleaved audio bus format while
-    // still under the lock to protect audio_bus_ and audio_data_.
-    audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
-        reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
-        audio_bus_->frames());
+      // Convert from interleaved format to deinterleaved audio bus format while
+      // still under the lock to protect audio_bus_ and audio_data_.
+      audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
+          reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
+          audio_bus_->frames());
+    }
   }
 
-  // At this point, even if the object is destroyed immediately after,
-  // we are operating on a local 'callback' pointer and a local 'audio_bus_'
-  // would be risky.
-  // To truly fix UAF, we should hold a lock or ensures the bus stays alive.
-  // Given OpenSLES threading, we must ensure Stop() finishes all callbacks.
-  callback->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
+  if (callback) {
+    callback->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
                      0.0, {});
+  }
 
   base::AutoLock lock(lock_);
-  if (!started_ || !simple_buffer_queue_) {
-    return;
+  if (simple_buffer_queue_) {
+    (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
+                                     audio_data_[active_buffer_index_].get(),
+                                     buffer_size_bytes_);
+    active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
   }
-  (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
-                                   audio_data_[active_buffer_index_].get(),
-                                   buffer_size_bytes_);
-
-  active_buffer_index_ = (active_buffer_index_ + 1) % kMaxNumOfBuffersInQueue;
 }
-
 void StarboardAudioInputStream::SetupAudioBuffer() {
   DCHECK(!audio_data_[0]);
   for (int i = 0; i < kMaxNumOfBuffersInQueue; ++i) {
