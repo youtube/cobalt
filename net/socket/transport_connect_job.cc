@@ -377,8 +377,8 @@ int TransportConnectJob::DoResolveHostCallbackComplete() {
 
 int TransportConnectJob::DoTransportConnect() {
 #if BUILDFLAG(IS_ANDROID)
-  LOG(INFO) << "ColinL setStartupMilestone:42";
-  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(42);
+  LOG(INFO) << "ColinL setStartupMilestone:45 - Transport connection (TCP) attempt started.";
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(45);
 #endif
 
   next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;

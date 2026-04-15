@@ -70,13 +70,18 @@ QuicSessionPool::DirectJob::~DirectJob() {}
 
 int QuicSessionPool::DirectJob::Run(CompletionOnceCallback callback) {
 #if BUILDFLAG(IS_ANDROID)
-  LOG(INFO) << "ColinL setStartupMilestone:43";
+  LOG(INFO) << "ColinL setStartupMilestone:43 - QUIC direct job started.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(43);
 #endif
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
     callback_ = std::move(callback);
+  } else {
+#if BUILDFLAG(IS_ANDROID)
+    LOG(INFO) << "ColinL setStartupMilestone:44 - QUIC direct job finished (sync).";
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(44);
+#endif
   }
 
   return rv > 0 ? OK : rv;
@@ -247,6 +252,10 @@ void QuicSessionPool::DirectJob::OnResolveHostComplete(int rv) {
 
 void QuicSessionPool::DirectJob::OnSessionAttemptComplete(int rv) {
   CHECK_NE(rv, ERR_IO_PENDING);
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:44 - QUIC direct job finished (async).";
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(44);
+#endif
   if (!callback_.is_null()) {
     std::move(callback_).Run(rv);
   }

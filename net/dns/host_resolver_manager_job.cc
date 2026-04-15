@@ -603,7 +603,7 @@ void HostResolverManager::Job::UpdatePriority() {
 
 void HostResolverManager::Job::Start() {
 #if BUILDFLAG(IS_ANDROID)
-  LOG(INFO) << "ColinL setStartupMilestone:41 host: " << key_.host.ToString();
+  LOG(INFO) << "ColinL setStartupMilestone:41 - Host resolution job started. Host: " << key_.host.ToString();
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(41);
 #endif
 
@@ -1056,6 +1056,10 @@ void HostResolverManager::Job::CompleteRequests(
     bool allow_cache,
     bool secure,
     std::optional<TaskType> task_type) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL setStartupMilestone:42 - Host resolution job finished. Host: " << key_.host.ToString();
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(42);
+#endif
   CHECK(resolver_.get());
 
   // This job must be removed from resolver's |jobs_| now to make room for a

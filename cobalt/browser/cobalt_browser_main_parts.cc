@@ -104,6 +104,7 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
 
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "ColinL setStartupMilestone:17 - Pre create threads.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
   SetupMetrics();

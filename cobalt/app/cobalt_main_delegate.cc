@@ -77,6 +77,7 @@ CobaltMainDelegate::~CobaltMainDelegate() {
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "ColinL setStartupMilestone:14 - Basic startup complete.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(14);
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
@@ -116,6 +117,7 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "ColinL setStartupMilestone:15 - Post early initialization.";
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(15);
 #endif
   content::RenderFrameHost::AllowInjectingJavaScript();
@@ -165,6 +167,9 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     content::MainFunctionParams main_function_params) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
+  LOG(INFO) << "ColinL setStartupMilestone:16 - Run process (Browser or "
+               "other). Type: "
+            << process_type;
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(16);
 #endif
   // For non-browser process, return and have the caller run the main loop.

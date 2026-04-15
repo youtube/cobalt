@@ -2388,8 +2388,11 @@ void NavigationRequest::BeginNavigation() {
   begin_navigation_time_ = base::TimeTicks::Now();
 
 #if BUILDFLAG(IS_ANDROID)
-  LOG(INFO) << "ColinL setStartupMilestone:38 URL: " << GetURL();
-  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(38);
+  if (!GetURL().SchemeIs("h5vcc-embedded")) {
+    LOG(INFO) << "ColinL setStartupMilestone:38 - Beginning navigation. URL: " << GetURL()
+              << ", IsMainFrame: " << IsInPrimaryMainFrame();
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(38);
+  }
 #endif
 
   TRACE_EVENT_WITH_FLOW0("navigation", "NavigationRequest::BeginNavigation",
