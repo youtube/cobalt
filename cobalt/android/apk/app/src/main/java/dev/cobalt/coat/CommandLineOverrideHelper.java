@@ -100,9 +100,6 @@ public final class CommandLineOverrideHelper {
     public static StringJoiner getDefaultDisableFeatureOverridesList() {
         StringJoiner paramOverrides = new StringJoiner(",");
 
-        // Use SurfaceTexture for decode-to-texture mode.
-        paramOverrides.add("AImageReader");
-
         // Disable BackupRefPtr and have shim allocator tracked by MemoryReclaimer.
         paramOverrides.add("PartitionAllocBackupRefPtr");
 
