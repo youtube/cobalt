@@ -777,6 +777,9 @@ void SbPlayerBridge::CreatePlayer() {
     extension_features.video_renderer_min_input_buffers =
         ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
 
+    // Note: Some flags (e.g., 'max_samples_per_write') are not mapped here as
+    // they are directly consumed by StarboardRenderer.
+
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &extension_features);
   }
