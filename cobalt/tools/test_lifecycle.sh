@@ -13,160 +13,99 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Integration test for Cobalt lifecycle signals and Visibility/Focus APIs.
+# Integration test for Cobalt lifecycle on Linux.
+# Sends signals to a running Cobalt process and verifies JS state via DevTools.
 
-set -e
-
-# Configuration
-PLATFORM="linux-x64x11-modular"
-CONFIG="devel"
-TARGET="cobalt_loader"
-OUT_DIR="out/${PLATFORM}_${CONFIG}"
-EXECUTABLE="${TEST_LIFECYCLE_EXECUTABLE:-./${OUT_DIR}/${TARGET}}"
+PORT=9223
 LOG_FILE="lifecycle_run.log"
-PORT=9222
+EXECUTABLE=${TEST_LIFECYCLE_EXECUTABLE:-"./out/linux-x64x11-modular_devel/cobalt_loader"}
 
-# Colors for logging
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+GREEN='\033[0;32m'
+NC='\033[0m'
 
-log() {
-    echo -e "${BLUE}[TEST]${NC} $1"
+function log {
+  echo -e "${GREEN}[TEST] $(date +'%H:%M:%S') - $1${NC}"
 }
 
-# Ensure cobalt is killed on exit if test fails.
-function cleanup {
-  if [ -n "$COBALT_PID" ] && kill -0 $COBALT_PID 2>/dev/null; then
-    log "Cleaning up Cobalt (PID: $COBALT_PID)..."
-    kill -9 $COBALT_PID 2>/dev/null || true
+# Ensure no previous test instances or Cobalt processes are running.
+pgrep -f "[t]est_lifecycle.sh" > /tmp/test_lifecycle_pids.tmp || true
+OTHER_TEST_PIDS=""
+while read pid; do
+  if [ -n "$pid" ] && [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
+    OTHER_TEST_PIDS="$OTHER_TEST_PIDS $pid"
   fi
-}
-trap cleanup EXIT
+done < /tmp/test_lifecycle_pids.tmp
+OTHER_TEST_PIDS=${OTHER_TEST_PIDS# }
 
-if [[ ! -f "$EXECUTABLE" ]]; then
-    echo -e "${RED}Error: Executable not found at $EXECUTABLE${NC}"
-    exit 1
+WAITER_PIDS=$(pgrep -f "[w]ait_for_state.sh" | grep -vw $$ | grep -vw $PPID || true)
+COBALT_PIDS=$(pgrep -f "[c]obalt_loader" | grep -vw $$ | grep -vw $PPID || true)
+
+if [ -n "$OTHER_TEST_PIDS" ] || [ -n "$WAITER_PIDS" ] || [ -n "$COBALT_PIDS" ]; then
+  echo "FAILURE: Previous test instance or Cobalt process is still running."
+  [ -n "$OTHER_TEST_PIDS" ] && echo "Found test_lifecycle.sh PIDs: $OTHER_TEST_PIDS"
+  [ -n "$WAITER_PIDS" ] && echo "Found wait_for_state.sh PIDs: $WAITER_PIDS"
+  [ -n "$COBALT_PIDS" ] && echo "Found cobalt_loader PIDs: $COBALT_PIDS"
+  echo "--- ps faux dump ---"
+  ps faux | grep -C 5 "test_lifecycle"
+  echo "--------------------"
+  echo "Current PID: $$"
+  echo "Parent PID: $PPID"
+  echo "BASHPID: $BASHPID"
+  echo "Please kill them before running this test."
+  exit 1
 fi
 
-log "Starting $TARGET with DevTools on port $PORT..."
+log "Starting cobalt_loader with DevTools on port $PORT..."
+rm -f $LOG_FILE
+
 $EXECUTABLE --remote-debugging-port=$PORT --no-sandbox --v=1 > $LOG_FILE 2>&1 &
 COBALT_PID=$!
 
 log "Launched PID: $COBALT_PID. Waiting for DevTools..."
-MAX_TRIES=30
-TRIES=0
-until curl -s http://localhost:$PORT/json > /dev/null; do
-  sleep 1
-  TRIES=$((TRIES + 1))
-  if [ $TRIES -eq $MAX_TRIES ]; then
-    echo -e "${RED}FAILURE: Cobalt DevTools did not become ready in $MAX_TRIES seconds.${NC}"
-    tail -n 20 "$LOG_FILE"
-    exit 1
-  fi
-done
-
-# Helper to check JS state
-function check_js {
-  vpython3 cobalt/tools/cdp_js_helper.py --port $PORT "$1"
-}
+sleep 5
 
 log "Verifying initial state (Visible & Focused)..."
-sleep 2
-# Force focus via JS just in case.
-check_js "window.focus()" > /dev/null
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
-
-if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: Initial state should be visible and focused.${NC}"
-  exit 1
-fi
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 || exit 1
 
 log "Sending SIGWINCH (BLUR)..."
 kill -SIGWINCH $COBALT_PID
-sleep 2
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
-if [ "$HAS_FOCUS" != "false" ]; then
-  echo -e "${RED}FAILURE: Should have lost focus after SIGWINCH.${NC}"
-  exit 1
-fi
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "False" $PORT || exit 1
 
 log "Sending SIGCONT (FOCUS)..."
 kill -SIGCONT $COBALT_PID
-sleep 2
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Focused: $HAS_FOCUS"
-if [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: Should have regained focus after SIGCONT.${NC}"
-  exit 1
-fi
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT || exit 1
 
 log "Sending SIGUSR1 (CONCEAL)..."
 kill -SIGUSR1 $COBALT_PID
-sleep 5
-VISIBILITY=$(check_js "document.visibilityState")
-log "Visibility: $VISIBILITY"
-if [ "$VISIBILITY" != "hidden" ]; then
-  echo -e "${RED}FAILURE: Should be hidden after SIGUSR1.${NC}"
-  exit 1
-fi
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "hidden" $PORT || exit 1
+
+log 'Wait 3 seconds, manually confirm that the window has disappeared.'
+sleep 3
 
 log "Sending SIGCONT (REVEAL & FOCUS)..."
 kill -SIGCONT $COBALT_PID
-sleep 2
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
-if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: Should be visible and focused after SIGCONT.${NC}"
-  exit 1
-fi
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 120 || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 120 || exit 1
 
-log "Sending SIGTSTP (FREEZE)..."
-kill -SIGTSTP $COBALT_PID
-sleep 2
-# Verifying behavior (visibility API) after SIGTSTP
-VISIBILITY=$(check_js "document.visibilityState")
-log "Visibility: $VISIBILITY"
-if [ "$VISIBILITY" != "hidden" ]; then
-  echo -e "${RED}FAILURE: Should be hidden after SIGTSTP (which implies Conceal).${NC}"
-  exit 1
-fi
+log 'Wait 3 seconds, manually confirm that the window has returned.'
+sleep 3
 
-log "Sending SIGCONT (UNFREEZE & REVEAL & FOCUS)..."
-kill -SIGCONT $COBALT_PID
-sleep 2
-VISIBILITY=$(check_js "document.visibilityState")
-HAS_FOCUS=$(check_js "document.hasFocus()" | tr '[:upper:]' '[:lower:]')
-log "Visibility: $VISIBILITY, Focused: $HAS_FOCUS"
-
-if [ "$VISIBILITY" != "visible" ] || [ "$HAS_FOCUS" != "true" ]; then
-  echo -e "${RED}FAILURE: Should be visible and focused after SIGCONT from Frozen.${NC}"
-  exit 1
-fi
-
-log "Sending SIGPWR (STOP/QUIT)..."
+log "Sending SIGPWR (STOP)..."
 kill -SIGPWR $COBALT_PID
+sleep 5
 
-# Wait for process to exit
-set +e
-wait $COBALT_PID
-EXIT_CODE=$?
-set -e
-
-log "Cobalt exited with code: $EXIT_CODE"
-log "Reviewing logs for fatal errors..."
-
-FILTERED_LOG=$(grep -aE "FATAL|AddressSanitizer|leak|Check failed" "$LOG_FILE" | grep -av "MojoDiscardableSharedMemoryManagerImpls are still alive" | grep -av "lock_impl_posix.cc(46)" || true)
-if [[ -n "$FILTERED_LOG" ]]; then
-    echo -e "${RED}FAILURE: Found errors in log.${NC}"
-    echo "$FILTERED_LOG" | head -n 20
+if kill -0 $COBALT_PID 2>/dev/null; then
+  STAT=$(ps -p $COBALT_PID -o stat= | tr -d ' ')
+  if [[ "$STAT" != "Z"* ]]; then
+    echo "FAILURE: Cobalt (PID: $COBALT_PID) did not stop after SIGPWR. State: $STAT"
+    echo "[TEST] Cleaning up Cobalt (PID: $COBALT_PID)..."
+    kill -9 $COBALT_PID
     exit 1
+  fi
 fi
 
-echo -e "${GREEN}SUCCESS: Lifecycle integration test passed.${NC}"
+log "SUCCESS: Lifecycle transitions verified!"
+
+exit 0

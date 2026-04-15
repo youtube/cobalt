@@ -49,13 +49,7 @@ void ShellPlatformDelegate::OnFocus() {
     return;
   }
   for (auto* shell : Shell::windows()) {
-    if (shell->web_contents()) {
-      auto* rwh =
-          shell->web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost();
-      if (rwh) {
-        shell->web_contents()->Focus();
-      }
-    }
+    shell->Focus();
   }
 }
 
@@ -64,8 +58,8 @@ void ShellPlatformDelegate::OnConceal() {
     return;
   }
   for (auto* shell : Shell::windows()) {
-    ConcealShell(shell);
     shell->web_contents()->WasHidden();
+    ConcealShell(shell);
   }
   is_visible_ = false;
 }
