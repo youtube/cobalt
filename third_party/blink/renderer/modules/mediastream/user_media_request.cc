@@ -368,16 +368,20 @@ UserMediaRequest* UserMediaRequest::Create(
   if (exception_state.HadException()) {
     return nullptr;
   }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "UserMediaRequest: Requested audio constraints: "
             << audio.ToString().Utf8();
+#endif
 
   MediaConstraints video =
       ParseOptions(context, options->video(), exception_state);
   if (exception_state.HadException()) {
     return nullptr;
   }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "UserMediaRequest: Requested video constraints: "
             << video.ToString().Utf8();
+#endif
 
   std::string display_surface_constraint;
   std::optional<bool> suppress_local_audio_playback;

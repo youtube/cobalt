@@ -40,7 +40,11 @@ namespace {
 // in order to avoid data overwriting. This number can be any positive number,
 // dependent how fast the renderer process can pick up captured data from
 // shared memory.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 const int kRequestedSharedMemoryCount = 32;
+#else
+const int kRequestedSharedMemoryCount = 10;
+#endif
 
 // The number of seconds with missing callbacks before we report a capture
 // error. The value is based on that the Mac audio implementation can defer
@@ -140,7 +144,9 @@ void AudioInputDevice::Initialize(const AudioParameters& params,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(params.IsValid());
   DCHECK(!callback_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "AudioInputDevice::Initialize: params=" << params.AsHumanReadableString();
+#endif
   audio_parameters_ = params;
   callback_ = callback;
 }

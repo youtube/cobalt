@@ -213,7 +213,14 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
 
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // For Cobalt, default to a "silent" sink (no hardware speakers).
+  // This avoids opening a 48kHz AudioTrack just to drive the 16kHz microphone graph.
+  // The graph will be driven by a software timer instead.
+  WebAudioSinkDescriptor sink_descriptor(frame_token);
+#else
   WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
+#endif
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.

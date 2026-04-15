@@ -43,7 +43,9 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
                    kWebAudioRenderBufferSize)
 #endif
 {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "WebAudioMediaStreamAudioSink: sink_params=" << sink_params_.AsHumanReadableString();
+#endif
   CHECK(sink_params_.IsValid());
   CHECK_GT(platform_buffer_duration_, base::TimeDelta());
 

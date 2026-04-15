@@ -70,7 +70,11 @@ namespace {
 // Maximum number of output streams that can be open simultaneously.
 const int kMaxOutputStreams = 10;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 [[maybe_unused]] const int kDefaultInputBufferSize = 1024;
+#else
+const int kDefaultInputBufferSize = 1024;
+#endif
 const int kDefaultOutputBufferSize = 2048;
 
 void AddDefaultDevice(AudioDeviceNames* device_names) {
@@ -377,7 +381,9 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
                          sample_rate, buffer_size);
   params.set_effects(AudioParameters::NO_EFFECTS);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "Starboard Input Stream:" << __func__ << "params=" << params.AsHumanReadableString();
+#endif
   return params;
 #else
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
@@ -448,7 +454,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     }
 
     if (entry) {
-      VLOG(1) << "Cobalt: Found PRE-STARTED hardware stream for session "
+      LOG(INFO) << "Cobalt: Found PRE-STARTED hardware stream for session "
                 << session_id;
 
       // DEADLOCK PREVENTION: Do NOT call Wait() if we are on the same thread
@@ -457,7 +463,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
       if (entry->open_event.IsSignaled()) {
         AudioInputStream* stream = entry->stream;
         if (stream) {
-          VLOG(1) << "Cobalt: Successfully re-used PRE-STARTED stream";
+          LOG(INFO) << "Cobalt: Successfully re-used PRE-STARTED stream";
           return stream;
         }
       } else {
@@ -468,9 +474,18 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   }
 #endif
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   bool has_input_streams = !HasNoAudioInputStreams();
+#endif
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // For Cobalt, we always bypass the automatic "Communication Mode" switch.
+  // This avoids opening a redundant hardware output sink (speakers) just for
+  // hardware AEC/NS that Starboard doesn't use.
+  return stream;
+#else
   // Avoid changing the communication mode if there are existing input streams.
   if (!stream || has_input_streams || UseAAudioPerStreamDeviceSelection()) {
     return stream;
@@ -498,6 +513,7 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     SetCommunicationAudioModeOn(true);
   }
   return stream;
+#endif
 }
 
 void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {

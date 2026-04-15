@@ -60,9 +60,11 @@ MediaStreamAudioSourceHandler::~MediaStreamAudioSourceHandler() {
 void MediaStreamAudioSourceHandler::SetFormat(uint32_t number_of_channels,
                                               float source_sample_rate) {
   DCHECK(IsMainThread());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "MediaStreamAudioSourceHandler::SetFormat: "
             << "channels=" << number_of_channels
             << ", rate=" << source_sample_rate;
+#endif
   SendLogMessage(
       __func__,
       String::Format("({number_of_channels=%u}, {source_sample_rate=%0.f})",

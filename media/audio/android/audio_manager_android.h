@@ -14,7 +14,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/unguessable_token.h"
+#endif
 #include "media/audio/android/aaudio_input.h"
 #include "media/audio/android/audio_device.h"
 #include "media/audio/android/audio_device_id.h"

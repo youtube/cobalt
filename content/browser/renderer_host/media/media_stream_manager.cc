@@ -66,9 +66,9 @@
 #include "content/public/common/content_switches.h"
 #include "crypto/hmac.h"
 #include "media/audio/audio_device_description.h"
-#include "media/audio/audio_manager.h"
 #include "media/audio/audio_system.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/audio/audio_manager.h"
 #include "media/audio/android/starboard_audio_input_stream.h"
 #endif
 #include "media/base/audio_parameters.h"
