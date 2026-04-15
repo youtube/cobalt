@@ -202,8 +202,12 @@ public class StarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
       closeAllServices();
+<<<<<<< HEAD
       mAdvertisingId.shutdown();
       System.exit(0);
+=======
+      activity.finishAndRemoveTask();
+>>>>>>> 64bf60ac07 (Implement StarboardBridge.java::requestStop() (#8527))
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
@@ -284,8 +288,10 @@ public class StarboardBridge {
     }
   }
 
-  // TODO(cobalt): remove when Kimono fully switches to Chrobalt.
-  public void requestStop(int errorLevel) {}
+  /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  public void requestStop(int errorLevel) {
+    activity.finishAndRemoveTask();
+  }
 
   public boolean onSearchRequested() {
     return false;
