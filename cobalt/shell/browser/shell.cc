@@ -1044,6 +1044,25 @@ gfx::Size Shell::GetShellDefaultSize() {
   return default_shell_size;
 }
 
+void Shell::Focus() {
+  // Aura silently ignores focus requests for hidden windows. If the shell is
+  // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
+  // the focus until the WebContents signals it has become visible.
+  if (web_contents_->GetVisibility() == Visibility::VISIBLE) {
+    web_contents_->Focus();
+    pending_focus_ = false;
+  } else {
+    pending_focus_ = true;
+  }
+}
+
+void Shell::OnVisibilityChanged(Visibility visibility) {
+  if (visibility == Visibility::VISIBLE && pending_focus_) {
+    // Retry the pending focus now that the window is visible in Aura.
+    Focus();
+  }
+}
+
 void Shell::LoadProgressChanged(double progress) {
 #if BUILDFLAG(IS_ANDROID)
   if (!skip_for_testing_) {
