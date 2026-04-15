@@ -75,7 +75,7 @@
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_change_notifier_factory.h"
 #include "net/base/network_change_notifier_passive.h"
-#include "starboard/system.h"
+#include "starboard/system.h"  // nogncheck
 #endif
 
 namespace content {
