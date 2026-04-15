@@ -10,7 +10,9 @@
     "devel"
   ],
   "targets": [
-    "nplb"
+    "nplb",
+    "cobalt_browsertests",
+    "cobalt:gn_all"
   ],
   "includes": [
     {
