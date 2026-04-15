@@ -12,19 +12,22 @@
 #include <fcntl.h>
 #include <stddef.h>
 
-#include <unordered_map>
-
+#include "base/containers/flat_map.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/memory/page_size.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #include <inttypes.h>
 #endif
+
+#include "base/posix/eintr_wrapper.h"
 
 namespace base::debug {
 
@@ -106,10 +109,9 @@ bool ParseProcMaps(const std::string& input,
   CHECK(regions_out);
   std::vector<MappedMemoryRegion> regions;
 
-  // This isn't async safe nor terribly efficient, but it doesn't need to be at
-  // this point in time.
-  std::vector<std::string> lines =
-      SplitString(input, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  // Use SplitStringPiece to avoid heap allocations for every line.
+  std::vector<std::string_view> lines = base::SplitStringPiece(
+      input, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   for (size_t i = 0; i < lines.size(); ++i) {
     // Due to splitting on '\n' the last line should be empty.
@@ -121,35 +123,36 @@ bool ParseProcMaps(const std::string& input,
       break;
     }
 
-    MappedMemoryRegion region;
-    const char* line = lines[i].c_str();
-    char permissions[5] = {};  // Ensure NUL-terminated string.
-    uint8_t dev_major = 0;
-    uint8_t dev_minor = 0;
-    long inode = 0;
-    int path_index = 0;
-
-    // Sample format from man 5 proc:
-    //
-    // address           perms offset  dev   inode   pathname
-    // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
-    //
-    // The final %n term captures the offset in the input string, which is used
-    // to determine the path name. It *does not* increment the return value.
-    // Refer to man 3 sscanf for details.
-    if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR " %4c %llx %hhx:%hhx %ld %n",
-               &region.start, &region.end, permissions, &region.offset,
-               &dev_major, &dev_minor, &inode, &path_index) < 7) {
-      DPLOG(WARNING) << "sscanf failed for line: " << line;
+    std::vector<std::string_view> tokens = base::SplitStringPiece(
+        lines[i], " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (tokens.size() < 5) {
+      DLOG(WARNING) << "Too few tokens for line: " << lines[i];
       return false;
     }
 
-    region.inode = inode;
-    region.dev_major = dev_major;
-    region.dev_minor = dev_minor;
+    MappedMemoryRegion region;
+
+    // Parse address range: "08048000-08056000"
+    std::vector<std::string_view> addresses = base::SplitStringPiece(
+        tokens[0], "-", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (addresses.size() != 2) {
+      return false;
+    }
+    uint64_t start, end;
+    if (!base::HexStringToUInt64(addresses[0], &start) ||
+        !base::HexStringToUInt64(addresses[1], &end)) {
+      return false;
+    }
+    region.start = static_cast<uintptr_t>(start);
+    region.end = static_cast<uintptr_t>(end);
+
+    // Parse permissions: "r-xp"
+    std::string_view permissions = tokens[1];
+    if (permissions.size() < 4) {
+      return false;
+    }
 
     region.permissions = 0;
-
     if (permissions[0] == 'r') {
       region.permissions |= MappedMemoryRegion::READ;
     } else if (permissions[0] != '-') {
@@ -170,14 +173,56 @@ bool ParseProcMaps(const std::string& input,
 
     if (permissions[3] == 'p') {
       region.permissions |= MappedMemoryRegion::PRIVATE;
-    } else if (permissions[3] != 's' &&
-               permissions[3] != 'S') {  // Shared memory.
+    } else if (permissions[3] != 's' && permissions[3] != 'S') {
       return false;
     }
 
-    // Pushing then assigning saves us a string copy.
-    regions.push_back(region);
-    regions.back().path.assign(line + path_index);
+    // Parse offset: "00000000"
+    uint64_t offset;
+    if (!base::HexStringToUInt64(tokens[2], &offset)) {
+      return false;
+    }
+    region.offset = offset;
+
+    // Parse dev: "03:0c"
+    std::vector<std::string_view> dev = base::SplitStringPiece(
+        tokens[3], ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (dev.size() != 2) {
+      return false;
+    }
+    uint32_t dev_major, dev_minor;
+    if (!base::HexStringToUInt(dev[0], &dev_major) ||
+        !base::HexStringToUInt(dev[1], &dev_minor)) {
+      return false;
+    }
+    region.dev_major = static_cast<uint8_t>(dev_major);
+    region.dev_minor = static_cast<uint8_t>(dev_minor);
+
+    // Parse inode: "64593"
+    int64_t inode;
+    if (!base::StringToInt64(tokens[4], &inode)) {
+      return false;
+    }
+    region.inode = static_cast<long>(inode);
+
+    // Parse path: "/usr/sbin/gpm" (optional)
+    if (tokens.size() >= 6) {
+      // The path starts after the inode. However, it might contain spaces.
+      // We find the inode token in the original line, but we must search
+      // after the device token to avoid matching the same string in earlier
+      // fields (e.g. if the offset is the same as the inode).
+      size_t dev_pos = lines[i].find(tokens[3]);
+      size_t inode_pos = lines[i].find(tokens[4], dev_pos + tokens[3].size());
+      if (inode_pos != std::string_view::npos) {
+        size_t path_pos =
+            lines[i].find_first_not_of(' ', inode_pos + tokens[4].size());
+        if (path_pos != std::string_view::npos) {
+          region.path.assign(lines[i].substr(path_pos));
+        }
+      }
+    }
+
+    regions.push_back(std::move(region));
   }
 
   regions_out->swap(regions);
@@ -185,27 +230,39 @@ bool ParseProcMaps(const std::string& input,
 }
 
 std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
-  std::vector<std::string> lines =
-      SplitString(buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  std::vector<std::string_view> lines = base::SplitStringPiece(
+      buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
-  std::unordered_map<std::string, size_t> tmp;
+  base::flat_map<std::string_view, size_t> tmp;
   for (const auto& line : lines) {
-    // This should be more than enough space for any output we get (but we also
-    // verify the size below).
-    std::string key;
-    key.resize(100);
+    std::vector<std::string_view> tokens = base::SplitStringPiece(
+        line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (tokens.size() < 3 || tokens[2] != "kB") {
+      continue;
+    }
+
+    std::string_view key = tokens[0];
+    if (key.ends_with(":")) {
+      key.remove_suffix(1);
+    }
+
+    if (key.empty()) {
+      continue;
+    }
+
     size_t val;
-    if (sscanf(line.c_str(), "%99s %" PRIuS " kB", key.data(), &val) == 2) {
-      // sscanf writes a nul-byte at the end of the result, so |strlen| is safe
-      // here. |resize| does not count the length of the nul-byte, and we want
-      // to trim off the trailing colon at the end, so we use |strlen - 1| here.
-      key.resize(strlen(key.c_str()) - 1);
-      tmp[key] = val * 1024;
+    if (base::StringToSizeT(tokens[1], &val)) {
+      base::CheckedNumeric<size_t> val_bytes = val;
+      val_bytes *= 1024;
+      tmp[key] = val_bytes.ValueOrDefault(0);
     }
   }
 
-  SmapsRollup smaps_rollup;
+  if (tmp.empty()) {
+    return std::nullopt;
+  }
 
+  SmapsRollup smaps_rollup;
   smaps_rollup.rss = tmp["Rss"];
   smaps_rollup.pss = tmp["Pss"];
   smaps_rollup.pss_anon = tmp["Pss_Anon"];
@@ -219,30 +276,10 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
 }
 
 std::optional<SmapsRollup> ReadAndParseSmapsRollup() {
-  const size_t read_size = base::GetPageSize();
-
-  base::ScopedFD fd(HANDLE_EINTR(open("/proc/self/smaps_rollup", O_RDONLY)));
-  if (!fd.is_valid()) {
-    DPLOG(ERROR) << "Couldn't open /proc/self/smaps_rollup";
-    return std::nullopt;
-  }
-
   std::string buffer;
-  buffer.resize(read_size);
-
-  ssize_t bytes_read = HANDLE_EINTR(
-      read(fd.get(), static_cast<void*>(buffer.data()), read_size));
-  if (bytes_read < 0) {
-    DPLOG(ERROR) << "Couldn't read /proc/self/smaps_rollup";
+  if (!ReadFileToString(FilePath("/proc/self/smaps_rollup"), &buffer)) {
     return std::nullopt;
   }
-
-  // We expect to read a few hundred bytes, which should be significantly less
-  // the page size.
-  DCHECK(static_cast<size_t>(bytes_read) < read_size);
-
-  buffer.resize(static_cast<size_t>(bytes_read));
-
   return ParseSmapsRollup(buffer);
 }
 
