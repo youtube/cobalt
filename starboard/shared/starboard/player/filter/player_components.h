@@ -30,6 +30,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
@@ -50,17 +51,6 @@ class JobQueue;
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
-  struct ExperimentalFeatures {
-    bool flush_decoder_during_reset = false;
-    bool reset_audio_decoder = false;
-    std::optional<int> video_initial_max_frames_in_decoder;
-    std::optional<int> video_max_pending_input_frames;
-    std::optional<int> video_decoder_initial_preroll_count;
-    std::optional<int> video_decoder_poll_interval_ms;
-    std::optional<int> video_renderer_min_input_buffers;
-    std::optional<int> video_renderer_min_decoded_frames;
-  };
-
   // This class creates PlayerComponents.
   class Factory {
    public:
