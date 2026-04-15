@@ -196,6 +196,8 @@ IPC_STRUCT_TRAITS_END()
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
+  IPC_STRUCT_TRAITS_MEMBER(disable_low_performance_sw_decoder)
+  IPC_STRUCT_TRAITS_MEMBER(enable_av1_startup_optimization)
   IPC_STRUCT_TRAITS_MEMBER(enable_flush_during_seek)
   IPC_STRUCT_TRAITS_MEMBER(enable_reset_audio_decoder)
   IPC_STRUCT_TRAITS_MEMBER(max_samples_per_write)
