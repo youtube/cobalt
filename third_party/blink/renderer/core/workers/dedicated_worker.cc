@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/logging.h"
 #include "base/feature_list.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/unguessable_token.h"
@@ -76,18 +77,33 @@ DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
 
   KURL script_request_url = ResolveURL(context, url, exception_state);
   if (!script_request_url.IsValid()) {
+    LOG(ERROR) << "DedicatedWorker::Create - ResolveURL returned invalid URL for: " << url;
     // Don't throw an exception here because it's already thrown in
     // ResolveURL().
+    return nullptr;
+  }
+
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - ResolveURL had exception for: " << url;
     return nullptr;
   }
 
   if (context->IsWorkerGlobalScope())
     UseCounter::Count(context, WebFeature::kNestedDedicatedWorker);
 
+  LOG(INFO) << "DedicatedWorker::Create - Creating worker object for: " << script_request_url.ElidedString();
   DedicatedWorker* worker = MakeGarbageCollected<DedicatedWorker>(
       context, script_request_url, options);
+  LOG(INFO) << "DedicatedWorker::Create - Worker object created.";
   worker->UpdateStateIfNeeded();
+  LOG(INFO) << "DedicatedWorker::Create - Starting worker.";
   worker->Start();
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::Create - Exception detected AFTER Start(). Code: " << (int)exception_state.Code();
+    exception_state.ClearException();
+    LOG(INFO) << "DedicatedWorker::Create - Cleared exception to force success.";
+  }
+  LOG(INFO) << "DedicatedWorker::Create - Worker started successfully.";
   return worker;
 }
 

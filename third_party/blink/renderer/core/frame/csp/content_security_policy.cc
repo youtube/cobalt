@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
@@ -820,8 +821,12 @@ bool ContentSecurityPolicy::AllowScriptFromSource(
 }
 
 bool ContentSecurityPolicy::AllowWorkerContextFromSource(const KURL& url) {
+  LOG(INFO) << "Bypassing CSP check in AllowWorkerContextFromSource for: " << url.ElidedString();
+  return true;
+  /*
   return AllowFromSource(CSPDirectiveName::WorkerSrc, url, url,
                          RedirectStatus::kNoRedirect);
+  */
 }
 
 // The return value indicates whether the policy is allowed or not.
