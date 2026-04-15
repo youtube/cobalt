@@ -23,7 +23,9 @@
 
 namespace cobalt {
 
-CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter() = default;
+CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter() {
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+}
 
 CobaltCpuMetricsEmitter::~CobaltCpuMetricsEmitter() = default;
 

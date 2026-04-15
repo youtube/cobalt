@@ -100,7 +100,6 @@ class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
   scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter_;
 };
 
-
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
     std::unique_ptr<variations::SyntheticTrialRegistry>
