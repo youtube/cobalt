@@ -32,6 +32,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
@@ -78,18 +79,12 @@ void VideoDecoderTestFixture::Initialize() {
   ASSERT_TRUE(PlayerComponents::Factory::OutputModeSupported(
       output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
   int max_video_input_size = 0;
-  PlayerComponents::ExperimentalFeatures experimental_features;
-  experimental_features.flush_decoder_during_reset = true;
-  experimental_features.reset_audio_decoder = false;
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
-      max_video_input_size, experimental_features, /*surface_view=*/nullptr,
+      max_video_input_size, ExperimentalFeatures{}, /*surface_view=*/nullptr,
       fake_graphics_context_provider_->decoder_target_provider(), job_queue_);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
-  ASSERT_TRUE(
-      creation_parameters.experimental_features().flush_decoder_during_reset);
-  ASSERT_FALSE(creation_parameters.experimental_features().reset_audio_decoder);
 
   std::unique_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder_) {
