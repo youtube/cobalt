@@ -95,29 +95,29 @@ def main():
                           args.start_commit):
     match = re.match(r'^(\w+) (.*) \(#(\d+)\)$', line)
     if match:
-      sha, title, num = match.groups()
+      sha, title, pr_num = match.groups()
       if any(
           skip_sha.startswith(sha)
           for skip_sha in _SKIP_LIST.get(args.target_branch, [])):
         continue
 
       # Skip if the PR is already in the target branch.
-      if num in target_prs:
+      if pr_num in target_prs:
         continue
 
       # If the PR is not on the current (autoroll) branch, cherry-pick it.
-      if num not in autoroll_prs:
+      if pr_num not in autoroll_prs:
         if (args.max_commits is not None and
             current_pr_commits + commits_added >= args.max_commits):
           print(
               f"::warning::Reached max commits limit ({args.max_commits}).",
               file=sys.stderr)
           break
-        cherry_pick(sha, num, title)
-        autoroll_prs.add(num)
+        cherry_pick(sha, pr_num, title)
+        autoroll_prs.add(pr_num)
         commits_added += 1
 
-      links.append(f'- #{num}')
+      links.append(f'- #{pr_num}')
 
   if links:
     print('\n'.join(links))
