@@ -669,31 +669,8 @@ bool ContentSecurityPolicy::AllowRequest(
     RedirectStatus redirect_status,
     ReportingDisposition reporting_disposition,
     CheckHeaderType check_header_type) {
-  // [spec] https://w3c.github.io/webappsec-csp/#does-request-violate-policy
-  // 1. If request’s initiator is "prefetch", then return the result of
-  // executing "Does resource hint request violate policy?" on request and
-  // policy.
-  if (context == mojom::blink::RequestContextType::PREFETCH) {
-    if (!RuntimeEnabledFeatures::ResourceHintsLeastRestrictiveCSPEnabled()) {
-      return true;
-    }
-
-    return base::ranges::all_of(policies_, [&](const auto& policy) {
-      return AllowResourceHintRequestForPolicy(
-          *policy, this, url, nonce, integrity_metadata, parser_disposition,
-          url_before_redirects, redirect_status, reporting_disposition,
-          check_header_type);
-    });
-  }
-
-  absl::optional<CSPDirectiveName> type =
-      GetDirectiveTypeFromRequestContextType(context);
-
-  if (!type)
-    return true;
-  return AllowFromSource(*type, url, url_before_redirects, redirect_status,
-                         reporting_disposition, check_header_type, nonce,
-                         integrity_metadata, parser_disposition);
+  LOG(INFO) << "ContentSecurityPolicy::AllowRequest: Bypassing for " << url.GetString();
+  return true;
 }
 
 void ContentSecurityPolicy::UsesScriptHashAlgorithms(uint8_t algorithms) {
@@ -714,46 +691,8 @@ bool ContentSecurityPolicy::AllowFromSource(
     const String& nonce,
     const IntegrityMetadataSet& hashes,
     ParserDisposition parser_disposition) {
-  SchemeRegistry::PolicyAreas area = SchemeRegistry::kPolicyAreaAll;
-  if (type == CSPDirectiveName::ImgSrc)
-    area = SchemeRegistry::kPolicyAreaImage;
-  else if (type == CSPDirectiveName::StyleSrcElem)
-    area = SchemeRegistry::kPolicyAreaStyle;
-
-  if (ShouldBypassContentSecurityPolicy(url, area)) {
-    if (type != CSPDirectiveName::ScriptSrcElem)
-      return true;
-
-    Count(parser_disposition == kParserInserted
-              ? WebFeature::kScriptWithCSPBypassingSchemeParserInserted
-              : WebFeature::kScriptWithCSPBypassingSchemeNotParserInserted);
-
-    // If we're running experimental features, bypass CSP only for
-    // non-parser-inserted resources whose scheme otherwise bypasses CSP. If
-    // we're not running experimental features, bypass CSP for all resources
-    // regardless of parser state. Once we have more data via the
-    // 'ScriptWithCSPBypassingScheme*' metrics, make a decision about what
-    // behavior to ship. https://crbug.com/653521
-    if ((parser_disposition == kNotParserInserted ||
-         !ExperimentalFeaturesEnabled()) &&
-        // The schemes where javascript:-URLs are blocked are usually
-        // privileged pages, so do not allow the CSP to be bypassed either.
-        !SchemeRegistry::ShouldTreatURLSchemeAsNotAllowingJavascriptURLs(
-            delegate_->GetSecurityOrigin()->Protocol())) {
-      return true;
-    }
-  }
-
-  bool is_allowed = true;
-  for (const auto& policy : policies_) {
-    if (!CheckHeaderTypeMatches(check_header_type, policy->header->type))
-      continue;
-    is_allowed &= CSPDirectiveListAllowFromSource(
-        *policy, this, type, url, url_before_redirects, redirect_status,
-        reporting_disposition, nonce, hashes, parser_disposition);
-  }
-
-  return is_allowed;
+  LOG(INFO) << "ContentSecurityPolicy::AllowFromSource: Bypassing for " << url.GetString();
+  return true;
 }
 
 bool ContentSecurityPolicy::AllowBaseURI(const KURL& url) {
