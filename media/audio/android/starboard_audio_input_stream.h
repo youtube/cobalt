@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
@@ -110,6 +111,8 @@ class StarboardAudioInputStream : public AudioInputStream {
   base::TimeDelta hardware_delay_;
 
   std::unique_ptr<media::AudioBus> audio_bus_;
+
+  base::WeakPtrFactory<StarboardAudioInputStream> weak_factory_{this};
 };
 
 }  // namespace media

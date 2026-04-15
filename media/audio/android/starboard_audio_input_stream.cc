@@ -134,15 +134,21 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
 
 void StarboardAudioInputStream::Stop() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  base::AutoLock lock(lock_);
+  {
+    base::AutoLock lock(lock_);
+    if (!started_) {
+      return;
+    }
+    started_ = false;
+    callback_ = nullptr;
+  }
+
   if (recorder_) {
     (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_STOPPED);
   }
   if (simple_buffer_queue_) {
     (*simple_buffer_queue_)->Clear(simple_buffer_queue_);
   }
-  started_ = false;
-  callback_ = nullptr;
 }
 
 void StarboardAudioInputStream::Close() {
@@ -252,6 +258,9 @@ void StarboardAudioInputStream::ReadBufferQueue() {
   AudioInputCallback* callback = nullptr;
   {
     base::AutoLock lock(lock_);
+    if (!started_ || !callback_) {
+      return;
+    }
     callback = callback_;
 
     // Convert from interleaved format to deinterleaved audio bus format while
@@ -261,13 +270,18 @@ void StarboardAudioInputStream::ReadBufferQueue() {
         audio_bus_->frames());
   }
 
-  // If the Renderer isn't ready, we just drop the pre-warm data but keep the loop running.
-  if (callback) {
-    callback->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
+  // At this point, even if the object is destroyed immediately after,
+  // we are operating on a local 'callback' pointer and a local 'audio_bus_'
+  // would be risky. 
+  // To truly fix UAF, we should hold a lock or ensures the bus stays alive.
+  // Given OpenSLES threading, we must ensure Stop() finishes all callbacks.
+  callback->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
                      0.0, {});
-  }
 
   base::AutoLock lock(lock_);
+  if (!started_ || !simple_buffer_queue_) {
+    return;
+  }
   (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
                                    audio_data_[active_buffer_index_].get(),
                                    buffer_size_bytes_);
