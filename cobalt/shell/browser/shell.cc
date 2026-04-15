@@ -193,9 +193,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
       skip_for_testing_(skip_for_testing),
-      is_video_splash_screen_(
-          !base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kForceImageSplashScreen)) {
+      is_video_splash_screen_(base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceVideoSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -273,25 +272,33 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 // static
 void Shell::OnBlur() {
   CHECK(g_platform);
-  g_platform->OnBlur();
+  if (g_platform->IsVisible()) {
+    g_platform->OnBlur();
+  }
 }
 
 // static
 void Shell::OnFocus() {
   CHECK(g_platform);
-  g_platform->OnFocus();
+  if (g_platform->IsVisible()) {
+    g_platform->OnFocus();
+  }
 }
 
 // static
 void Shell::OnConceal() {
   CHECK(g_platform);
-  g_platform->OnConceal();
+  if (g_platform->IsVisible()) {
+    g_platform->OnConceal();
+  }
 }
 
 // static
 void Shell::OnReveal() {
   CHECK(g_platform);
-  g_platform->OnReveal();
+  if (!g_platform->IsVisible()) {
+    g_platform->OnReveal();
+  }
 }
 
 // static
@@ -1034,6 +1041,25 @@ gfx::Size Shell::GetShellDefaultSize() {
   }
 
   return default_shell_size;
+}
+
+void Shell::Focus() {
+  // Aura silently ignores focus requests for hidden windows. If the shell is
+  // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
+  // the focus until the WebContents signals it has become visible.
+  if (web_contents_->GetVisibility() == Visibility::VISIBLE) {
+    web_contents_->Focus();
+    pending_focus_ = false;
+  } else {
+    pending_focus_ = true;
+  }
+}
+
+void Shell::OnVisibilityChanged(Visibility visibility) {
+  if (visibility == Visibility::VISIBLE && pending_focus_) {
+    // Retry the pending focus now that the window is visible in Aura.
+    Focus();
+  }
 }
 
 void Shell::LoadProgressChanged(double progress) {

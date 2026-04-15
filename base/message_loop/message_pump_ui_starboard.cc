@@ -15,8 +15,10 @@
 #include "base/message_loop/message_pump_ui_starboard.h"
 
 #include "build/build_config.h"
+#include "base/auto_reset.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -92,11 +94,44 @@ void MessagePumpUIStarboard::RunUntilIdle() {
 }
 
 void MessagePumpUIStarboard::Run(Delegate* delegate) {
-  // This should never be called because we are not like a normal message pump
-  // where we loop until told to quit. We are providing a MessagePump interface
-  // on top of an externally-owned message pump. We want to exist and be able to
-  // schedule work, but the actual for(;;) loop is owned by Starboard.
-  NOTREACHED();
+  // Cobalt's primary message pump is typically owned by the Starboard OS layer
+  // (via SbEventHandle). However, certain system events (like Blur and
+  // Conceal) require the UI thread to synchronously block the OS from returning
+  // until asynchronous Wayland/X11 teardown tasks have executed on this very
+  // thread.
+  //
+  // To support this, we implement a standard nested Chromium message
+  // loop here. This allows instantiating a nested
+  // `base::RunLoop` during downward transitions, which blocks the OS thread
+  // while simultaneously spinning up this inner `Run()` loop to process the
+  // necessary asynchronous teardown tasks.
+  SetDelegate(delegate);
+  base::AutoReset<bool> auto_reset_should_quit(&should_quit_, false);
+
+  while (!should_quit()) {
+    Delegate::NextWorkInfo next_work_info = delegate_->DoWork();
+    bool attempt_more_work = next_work_info.is_immediate();
+
+    if (should_quit())
+      break;
+
+    if (attempt_more_work)
+      continue;
+
+    delegate_->DoIdleWork();
+
+    if (should_quit())
+      break;
+
+    // We are idle. Wait for an external thread to post a task or for a delayed
+    // task to become ready.
+    base::TimeDelta delay = next_work_info.remaining_delay();
+    if (next_work_info.delayed_run_time.is_max()) {
+      wakeup_event_.Wait();
+    } else if (delay.is_positive()) {
+      wakeup_event_.TimedWait(delay);
+    }
+  }
 }
 
 void MessagePumpUIStarboard::Attach(Delegate* delegate) {
@@ -114,15 +149,13 @@ void MessagePumpUIStarboard::Attach(Delegate* delegate) {
 }
 
 void MessagePumpUIStarboard::Quit() {
-  delegate_ = nullptr;
-  CancelAll();
-  if (run_loop_) {
-    run_loop_->AfterRun();
-    run_loop_ = nullptr;
-  }
+  should_quit_ = true;
+  wakeup_event_.Signal();
 }
 
 void MessagePumpUIStarboard::ScheduleWork() {
+  wakeup_event_.Signal();
+
   // Check if outstanding event already exists.
   if (outstanding_event_)
     return;

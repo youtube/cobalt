@@ -31,11 +31,15 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
       "width=1920; height=1080; framerate=15;";
   const bool enable_flush_during_seek = true;
   const bool enable_reset_audio_decoder = false;
+
+  StarboardRendererConfig::ExperimentalFeatures experimental_features;
+  experimental_features.enable_flush_during_seek = enable_flush_during_seek;
+  experimental_features.enable_reset_audio_decoder = enable_reset_audio_decoder;
+
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
       audio_write_duration_remote, max_video_capabilities,
-      {enable_flush_during_seek, enable_reset_audio_decoder},
-      gfx::Size(1920, 1080));
+      experimental_features, gfx::Size(1920, 1080));
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
