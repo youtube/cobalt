@@ -2636,8 +2636,6 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // FAST-TRACK for Cobalt Audio Capture
-  // This bypasses the asynchronous device enumeration and UI permission round-trips
-  // to start the hardware immediately.
   if (request->audio_type() == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
       request->video_type() == MediaStreamType::NO_SERVICE) {
     LOG(INFO) << "SetUpRequest: FAST-TRACKING Cobalt Audio Request";

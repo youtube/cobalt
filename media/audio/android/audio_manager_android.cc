@@ -381,9 +381,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
                          sample_rate, buffer_size);
   params.set_effects(AudioParameters::NO_EFFECTS);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << "Starboard Input Stream:" << __func__ << "params=" << params.AsHumanReadableString();
-#endif
   return params;
 #else
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
