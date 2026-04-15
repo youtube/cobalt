@@ -68,6 +68,10 @@ void SetExperimentalFeaturesForCurrentThread(
 
   ExperimentalFeatures experiment_features;
 
+  experiment_features.disable_low_performance_sw_decoder =
+      extension_features->disable_low_performance_sw_decoder;
+  experiment_features.enable_av1_startup_optimization =
+      extension_features->enable_av1_startup_optimization;
   experiment_features.flush_decoder_during_reset =
       extension_features->flush_decoder_during_reset;
   experiment_features.reset_audio_decoder =

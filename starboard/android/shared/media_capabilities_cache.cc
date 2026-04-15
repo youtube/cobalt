@@ -45,6 +45,7 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
+using features::FeatureList;
 
 // https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
 const jint HDR_TYPE_DOLBY_VISION = 1;
@@ -402,6 +403,13 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
     // When the cache is not enabled, always checks video fps.
     return true;
   }
+
+  const bool enable_av1_startup_optimization =
+      FeatureList::IsEnabled(features::kEnableAv1StartupOptimization);
+  if (!enable_av1_startup_optimization && !is_av1_opt_enabled_) {
+    return true;
+  }
+
   return is_av1_8k_capped_at_30_;
 }
 
@@ -515,10 +523,9 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     }
     // Reject low performance software codec if software codec is not required.
     const bool reject_low_performance_software_decoder =
-        features::FeatureList::IsEnabled(
-            starboard::features::kRejectLowPerformanceSoftwareDecoder);
-    if (reject_low_performance_software_decoder && !require_software_codec &&
-        video_capability->is_software_decoder()) {
+        FeatureList::IsEnabled(features::kRejectLowPerformanceSoftwareDecoder);
+    if ((reject_low_performance_software_decoder || !is_sw_decoder_enabled_) &&
+        !require_software_codec && video_capability->is_software_decoder()) {
       const int kMinimumWidth = 1920;
       const int kMinimumHeight = 1080;
       if (!video_capability->AreResolutionAndRateSupported(kMinimumWidth,
@@ -589,13 +596,6 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
 }
 
 void MediaCapabilitiesCache::LoadIsAv18kCappedAt30_Locked() {
-  const bool enable_av1_startup_optimization =
-      starboard::features::FeatureList::IsEnabled(
-          starboard::features::kEnableAv1StartupOptimization);
-  if (!enable_av1_startup_optimization) {
-    return;
-  }
-
   is_av1_8k_capped_at_30_ = false;
   for (const auto& video_capability :
        video_codec_capabilities_map_[SupportedVideoCodecToMimeType(
