@@ -57,8 +57,6 @@ namespace {
 using base::android::AttachCurrentThread;
 using features::FeatureList;
 
-namespace {
-
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -189,7 +187,6 @@ class PlayerComponentsPassthrough : public PlayerComponents {
   std::unique_ptr<AudioRendererPassthrough> audio_renderer_;
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
-}  // namespace
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   const int kAudioSinkFramesAlignment = 256;
@@ -389,6 +386,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, enable_platform_opus_decoder)
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
+      // TODO: b/349854301 - Connect to experimental flag.
       const bool pause_using_audio_track_state =
           FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
       SB_LOG_IF(INFO, pause_using_audio_track_state)
@@ -522,8 +520,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.experimental_features();
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
-        FeatureList::IsEnabled(
-            starboard::features::kForceFlushDecoderDuringReset) ||
+        FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
         experimental_features.flush_decoder_during_reset;
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();

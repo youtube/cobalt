@@ -51,10 +51,6 @@ class JobQueue;
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
-  typedef ::starboard::AudioRenderer AudioRenderer;
-  typedef ::starboard::MediaTimeProvider MediaTimeProvider;
-  typedef ::starboard::VideoRenderer VideoRenderer;
-
   // This class creates PlayerComponents.
   class Factory {
    public:
@@ -63,29 +59,27 @@ class PlayerComponents {
       CreationParameters(const AudioStreamInfo& audio_stream_info,
                          JobQueue* job_queue,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(
-          const VideoStreamInfo& video_stream_info,
-          SbPlayer player,
-          SbPlayerOutputMode output_mode,
-          int max_video_input_size,
-          const ::starboard::ExperimentalFeatures& experimental_features,
-          void* surface_view,
-          SbDecodeTargetGraphicsContextProvider*
-              decode_target_graphics_context_provider,
-          JobQueue* job_queue,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(
-          const AudioStreamInfo& audio_stream_info,
-          const VideoStreamInfo& video_stream_info,
-          SbPlayer player,
-          SbPlayerOutputMode output_mode,
-          int max_video_input_size,
-          const ::starboard::ExperimentalFeatures& experimental_features,
-          void* surface_view,
-          SbDecodeTargetGraphicsContextProvider*
-              decode_target_graphics_context_provider,
-          JobQueue* job_queue,
-          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const VideoStreamInfo& video_stream_info,
+                         SbPlayer player,
+                         SbPlayerOutputMode output_mode,
+                         int max_video_input_size,
+                         const ExperimentalFeatures& experimental_features,
+                         void* surface_view,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         JobQueue* job_queue,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const AudioStreamInfo& audio_stream_info,
+                         const VideoStreamInfo& video_stream_info,
+                         SbPlayer player,
+                         SbPlayerOutputMode output_mode,
+                         int max_video_input_size,
+                         const ExperimentalFeatures& experimental_features,
+                         void* surface_view,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         JobQueue* job_queue,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
 
@@ -128,7 +122,7 @@ class PlayerComponents {
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
-      const ::starboard::ExperimentalFeatures& experimental_features() const {
+      const ExperimentalFeatures& experimental_features() const {
         return experimental_features_;
       }
       void* surface_view() const { return surface_view_; }
@@ -155,7 +149,7 @@ class PlayerComponents {
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       int max_video_input_size_ = 0;
-      const ::starboard::ExperimentalFeatures experimental_features_;
+      const ExperimentalFeatures experimental_features_;
       void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
