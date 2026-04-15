@@ -245,30 +245,17 @@ void PersistedDataImpl::SetLastInstalledEgAndSbVersion(const std::string& id,
                                                    const std::string& eg_version,
                                                    const std::string& sb_version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  PrefService* pref_service = pref_service_provider_.Run();
-  if (!pref_service) {
-    return;
-  }
-  {
-    ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
-    base::Value::Dict* app_key = GetOrCreateAppKey(id, update.Get());
-    app_key->Set("version", eg_version);
-    app_key->Set("sbversion", sb_version);
-  }
-  FlushPrefs(pref_service);
+  SetString(id, "version", eg_version);
+  SetString(id, "sbversion", sb_version);
+  PrefService* prefs = pref_service_provider_.Run();
+  FlushPrefs(prefs);
 }
 void PersistedDataImpl::SetUpdaterChannel(const std::string& id,
                                       const std::string& channel) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  PrefService* pref_service = pref_service_provider_.Run();
-  if (!pref_service) {
-    return;
-  }
-  {
-    ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
-    GetOrCreateAppKey(id, update.Get())->Set("updaterchannel", channel);
-  }
-  FlushPrefs(pref_service);
+  SetString(id, "updaterchannel", channel);
+  PrefService* prefs = pref_service_provider_.Run();
+  FlushPrefs(prefs);
 }
 void PersistedDataImpl::SetLatestChannel(const std::string& channel) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -278,7 +265,8 @@ void PersistedDataImpl::SetLatestChannel(const std::string& channel) {
   }
   {
     ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
-    update.Get()->Set("latestchannel", channel);
+    base::Value::Dict* app_key = GetOrCreateAppKey("latestchannel", update.Get());
+    app_key->Set("latestchannel", channel);
   }
   FlushPrefs(pref_service);
 }
