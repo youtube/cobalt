@@ -5,7 +5,7 @@
 import '../../common.gcl' as common
 
 build = common.build {
-  build_file = 'cobalt/devinfra/kokoro/bin/build_mac.sh'
+  build_file = 'src/cobalt/devinfra/kokoro/bin/build_mac.sh'
   timeout_mins = 300
   before_action = [
     {
