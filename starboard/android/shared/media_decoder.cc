@@ -554,9 +554,13 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     ScopedJavaLocalRef<jobject> byte_buffer(
         media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
     if (byte_buffer.is_null()) {
-      SB_LOG(ERROR) << "Unable to write to MediaCodec buffer, |byte_buffer| is"
+      SB_LOG(ERROR) << "Unable to get MediaCodec input buffer, |byte_buffer| is"
                     << " null.";
-      // TODO: Stop the decoding loop and call error_cb_ on fatal error.
+      // There could be dirty callbacks right after flush, thus the
+      // MediaCodec.InputBuffer could be unavailable. In that case, we should
+      // re-write the input buffer with a different MediaCodec.InputBuffer.
+      pending_inputs->emplace(pending_inputs->begin(), pending_input);
+      number_of_pending_inputs_++;
       return false;
     }
 
