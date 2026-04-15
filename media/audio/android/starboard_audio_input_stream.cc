@@ -60,11 +60,11 @@ StarboardAudioInputStream::StarboardAudioInputStream(AudioManagerAndroid* audio_
 
   // Use the params to determine the buffer size, but we'll be 16kHz
   // If the passed params are already 16kHz, this is easy.
-  // C25 used 128 samples per buffer. 
+  // C25 used 128 samples per buffer.
   // Let's use what's passed but ensure it's calculated for 16-bit Mono.
   int input_sample_rate = params.sample_rate() > 0 ? params.sample_rate() : kSampleRateHz;
   buffer_size_bytes_ = (kSampleRateHz * params.frames_per_buffer() / input_sample_rate) * sizeof(int16_t);
-  
+
   // If we couldn't scale it properly, just use a reasonable default.
   if (buffer_size_bytes_ == 0) {
       buffer_size_bytes_ = kDefaultBufferSizeInBytes; // Reasonable fallback
@@ -87,7 +87,7 @@ StarboardAudioInputStream::~StarboardAudioInputStream() {
 AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
   LOG(INFO) << "StarboardAudioInputStream::Open";
   DCHECK(thread_checker_.CalledOnValidThread());
-  
+
   if (engine_object_.Get()) {
     LOG(INFO) << "StarboardAudioInputStream already Open (Pre-started)";
     return AudioInputStream::OpenOutcome::kSuccess;
@@ -126,7 +126,7 @@ void StarboardAudioInputStream::Start(AudioInputCallback* callback) {
   DCHECK(callback);
   DCHECK(recorder_);
   DCHECK(simple_buffer_queue_);
-  
+
   base::AutoLock lock(lock_);
   callback_ = callback;
   started_ = true;
@@ -272,7 +272,7 @@ void StarboardAudioInputStream::ReadBufferQueue() {
 
   // At this point, even if the object is destroyed immediately after,
   // we are operating on a local 'callback' pointer and a local 'audio_bus_'
-  // would be risky. 
+  // would be risky.
   // To truly fix UAF, we should hold a lock or ensures the bus stays alive.
   // Given OpenSLES threading, we must ensure Stop() finishes all callbacks.
   callback->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
