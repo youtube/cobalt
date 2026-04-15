@@ -45,6 +45,7 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
+using features::FeatureList;
 
 // https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
 const jint HDR_TYPE_DOLBY_VISION = 1;
@@ -404,8 +405,7 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
   }
 
   const bool enable_av1_startup_optimization =
-      starboard::features::FeatureList::IsEnabled(
-          starboard::features::kEnableAv1StartupOptimization);
+      FeatureList::IsEnabled(features::kEnableAv1StartupOptimization);
   if (!enable_av1_startup_optimization && !is_av1_opt_enabled_) {
     return true;
   }
@@ -523,8 +523,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     }
     // Reject low performance software codec if software codec is not required.
     const bool reject_low_performance_software_decoder =
-        features::FeatureList::IsEnabled(
-            starboard::features::kRejectLowPerformanceSoftwareDecoder);
+        FeatureList::IsEnabled(features::kRejectLowPerformanceSoftwareDecoder);
     if ((reject_low_performance_software_decoder || !is_sw_decoder_enabled_) &&
         !require_software_codec && video_capability->is_software_decoder()) {
       const int kMinimumWidth = 1920;
