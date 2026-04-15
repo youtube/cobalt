@@ -41,8 +41,12 @@ namespace cobalt {
 
 namespace {
 
+const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
+    "Media.DisableLowPerformanceSoftwareDecoder";
 const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
+    "Media.EnableAv1StartupOptimization";
 // TODO: b/474454335 - Remove once seek experiment is done.
 const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
@@ -225,6 +229,15 @@ ExperimentalFeatures ProcessH5vccSettings(
     auto* allocator = ::media::DecoderBufferAllocator::Get();
     CHECK(allocator);
     allocator->SetAllocateOnDemand(enable_allocate_on_demand);
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
+    parsed.disable_low_performance_sw_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
+    parsed.enable_av1_startup_optimization = *val != 0;
   }
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {

@@ -27,6 +27,8 @@ namespace starboard {
 // dedicated function.
 struct ExperimentalFeatures {
   // The fields should be in alphabetical order.
+  bool disable_low_performance_sw_decoder = false;
+  bool enable_av1_startup_optimization = false;
   bool flush_decoder_during_reset = false;
   bool reset_audio_decoder = false;
   std::optional<int> video_decoder_initial_preroll_count;
