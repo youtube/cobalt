@@ -110,10 +110,7 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
   std::move(callback).Run(GetUserOnExitStrategyInternal());
 }
 
-void H5vccSystemImpl::HideSplashScreen() {
-  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  SbSystemHideSplashScreen();
-}
+void H5vccSystemImpl::HideSplashScreen() {}
 
 void H5vccSystemImpl::PerformExitStrategy() {
   auto strategy = GetUserOnExitStrategyInternal();
