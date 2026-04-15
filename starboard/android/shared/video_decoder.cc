@@ -705,7 +705,6 @@ void MediaCodecVideoDecoder::ResetForTeardown() {
   ResetInternal(skip_flush_on_decoder_teardown_);
 }
 
-
 Result<void> MediaCodecVideoDecoder::InitializeCodec(
     const VideoStreamInfo& video_stream_info) {
   SB_CHECK(BelongsToCurrentThread());
