@@ -14,11 +14,13 @@
 
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 
+#include <algorithm>
 #include <string>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -68,6 +70,32 @@ bool AudioRendererSinkImpl::IsAudioFrameStorageTypeSupported(
 int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(
     int sampling_frequency_hz) const {
   return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
+}
+
+void AudioRendererSinkImpl::GetAudioRendererParams(
+    const AudioStreamInfo& audio_stream_info,
+    int* max_cached_frames,
+    int* min_frames_per_append) const {
+  SB_CHECK(max_cached_frames);
+  SB_CHECK(min_frames_per_append);
+  SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
+            0);
+  *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
+  // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
+  // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
+  int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+      audio_stream_info.number_of_channels,
+      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+          ? kSbMediaAudioSampleTypeFloat32
+          : kSbMediaAudioSampleTypeInt16Deprecated,
+      audio_stream_info.samples_per_second);
+  // Audio renderer would sleep for a while if it thinks there're enough
+  // frames in the sink. The sleeping time is 1/4 of |max_cached_frames|. So, to
+  // maintain required min buffer size of audio sink, the |max_cached_frames|
+  // need to be larger than |min_frames_required| * 4/3.
+  *max_cached_frames = static_cast<int>(min_frames_required * 1.4) +
+                       kDefaultAudioSinkMinFramesPerAppend;
+  *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 }
 
 bool AudioRendererSinkImpl::HasStarted() const {
