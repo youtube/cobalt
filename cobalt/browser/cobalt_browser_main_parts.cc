@@ -18,12 +18,14 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -54,7 +56,10 @@ namespace cobalt {
 namespace {
 
 void InitializeBrowserMemoryInstrumentationClient() {
-  if (memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+  if (auto* instrumentation =
+          memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+    static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
+    instrumentation->SetDetailedMetricsDelegate(delegate.get());
     return;
   }
 
@@ -84,6 +89,10 @@ void InitializeBrowserMemoryInstrumentationClient() {
   memory_instrumentation::ClientProcessImpl::CreateInstance(
       std::move(process_receiver), std::move(coordinator),
       /*is_browser_process=*/true);
+
+  static base::NoDestructor<CobaltDetailedMetricsDelegate> delegate;
+  memory_instrumentation::MemoryInstrumentation::GetInstance()
+      ->SetDetailedMetricsDelegate(delegate.get());
 }
 
 }  // namespace
