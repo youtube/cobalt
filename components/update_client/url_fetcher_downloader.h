@@ -93,7 +93,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   void OnDownloadProgress(int64_t content_length);
   void Cancel();
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   void ReportDownloadFailure(const GURL& url, CrxDownloaderError error);
 #endif
 
@@ -124,7 +124,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   int64_t total_bytes_ = -1;
 
 #if BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_STARBOARD)
   CobaltSlotManagement cobalt_slot_management_;
 #endif
   scoped_refptr<Configurator> config_;
