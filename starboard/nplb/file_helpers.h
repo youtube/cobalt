@@ -54,6 +54,9 @@ class ScopedTempDir {
   ScopedTempDir();
   ~ScopedTempDir();
 
+  ScopedTempDir(const ScopedTempDir&) = delete;
+  ScopedTempDir& operator=(const ScopedTempDir&) = delete;
+
   // Returns the path to the created directory.
   const std::string& path() const { return path_; }
 
