@@ -656,7 +656,7 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
   media_decoder_->WriteEndOfStream();
 }
 
-void VideoDecoder::ResetInternal(bool skip_flush) {
+void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   SB_CHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
@@ -697,11 +697,11 @@ void VideoDecoder::ResetInternal(bool skip_flush) {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
-void VideoDecoder::Reset() {
+void MediaCodecVideoDecoder::Reset() {
   ResetInternal(/*skip_flush=*/false);
 }
 
-void VideoDecoder::ResetForTeardown() {
+void MediaCodecVideoDecoder::ResetForTeardown() {
   ResetInternal(skip_flush_on_decoder_teardown_);
 }
 
