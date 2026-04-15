@@ -14,8 +14,8 @@
 
 #include "starboard/android/shared/text_to_speech_helper.h"
 
-#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/shared/starboard/application.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
@@ -41,8 +41,8 @@ bool CobaltTextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
 }
 
 void CobaltTextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
-  cobalt::browser::H5vccAccessibilityManager::GetInstance()
-      ->OnTextToSpeechStateChanged(enabled);
+  Application::Get()
+      ->InjectAccessibilityTextToSpeechSettingsChangedEvent(enabled);
 }
 
 void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
