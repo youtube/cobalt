@@ -39,7 +39,6 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "components/update_client/cobalt_slot_management.h"
 #include "starboard/extension/installation_manager.h"
-#include "starboard/configuration.h"
 #endif
 
 namespace update_client {
@@ -158,9 +157,9 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
 #else  // defined(IN_MEMORY_UPDATES)
     if (base::DirectoryExists(crx_operation_result.response.DirName())) {
 #endif  // defined(IN_MEMORY_UPDATES)
-      const auto installation_api =
-        static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+      const auto* installation_api =
+          static_cast<const CobaltExtensionInstallationManagerApi*>(
+              SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
       if (installation_api) {
         CobaltSlotManagement cobalt_slot_management;
         if (cobalt_slot_management.Init(installation_api)) {
@@ -195,8 +194,9 @@ void Install(base::OnceCallback<void(const CrxInstaller::Result&)> callback,
         IM_EXT_ERROR) {
       LOG(ERROR) << "Failed to get app key.";
       install_error = InstallError::GENERIC_ERROR;
-    } else if (CobaltFinishInstallation(installation_api, crx_operation_result.installation_index,
-                                    result.unpack_path.value(), app_key)) {
+    } else if (CobaltFinishInstallation(
+                   installation_api, crx_operation_result.installation_index,
+                   result.unpack_path.value(), app_key)) {
       // Write the version of the unpacked update package to the persisted data.
       if (metadata != nullptr) {
         base::ThreadPool::PostTask(
