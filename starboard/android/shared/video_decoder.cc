@@ -330,23 +330,24 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 };
 
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
-MediaCodecVideoDecoder::Create(JobQueue* job_queue,
-                               const VideoStreamInfo& video_stream_info,
-                               SbDrmSystem drm_system,
-                               SbPlayerOutputMode output_mode,
-                               SbDecodeTargetGraphicsContextProvider*
-                                   decode_target_graphics_context_provider,
-                               const std::string& max_video_capabilities,
-                               int tunnel_mode_audio_session_id,
-                               bool force_secure_pipeline_under_tunnel_mode,
-                               bool force_reset_surface,
-                               bool force_big_endian_hdr_metadata,
-                               int max_input_size,
-                               void* surface_view,
-                               bool enable_flush_during_seek,
-                               int64_t reset_delay_usec,
-                               int64_t flush_delay_usec,
-                               const FlowControlOptions& flow_control_options) {
+MediaCodecVideoDecoder::Create(
+    JobQueue* job_queue,
+    const VideoStreamInfo& video_stream_info,
+    SbDrmSystem drm_system,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider,
+    const std::string& max_video_capabilities,
+    int tunnel_mode_audio_session_id,
+    bool force_secure_pipeline_under_tunnel_mode,
+    bool force_reset_surface,
+    bool force_big_endian_hdr_metadata,
+    int max_input_size,
+    void* surface_view,
+    bool enable_flush_during_seek,
+    int64_t reset_delay_usec,
+    int64_t flush_delay_usec,
+    const ExperimentalFeatures& experimental_features) {
   std::string error_message;
   auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
       PassKey<MediaCodecVideoDecoder>(), job_queue, video_stream_info,
@@ -355,7 +356,7 @@ MediaCodecVideoDecoder::Create(JobQueue* job_queue,
       force_secure_pipeline_under_tunnel_mode, force_reset_surface,
       force_big_endian_hdr_metadata, max_input_size, surface_view,
       enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-      flow_control_options, &error_message);
+      experimental_features, &error_message);
 
   if (!error_message.empty()) {
     return Failure(error_message);
@@ -389,7 +390,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     bool enable_flush_during_seek,
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
-    const FlowControlOptions& flow_control_options,
+    const ExperimentalFeatures& experimental_features,
     std::string* error_message)
     : JobOwner(job_queue),
       video_codec_(video_stream_info.codec),
@@ -399,11 +400,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       initial_max_frames_in_decoder_(
-          flow_control_options.initial_max_frames_in_decoder),
+          experimental_features.video_initial_max_frames_in_decoder),
       video_decoder_poll_interval_ms_(
-          flow_control_options.video_decoder_poll_interval_ms),
+          experimental_features.video_decoder_poll_interval_ms),
       max_pending_inputs_size_(
-          flow_control_options.max_pending_input_frames.value_or(
+          experimental_features.video_max_pending_input_frames.value_or(
               kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
@@ -420,7 +421,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       number_of_preroll_frames_(
-          flow_control_options.video_decoder_initial_preroll_count.value_or(
+          experimental_features.video_decoder_initial_preroll_count.value_or(
               kInitialPrerollFrameCount)),
       bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
                   ? std::make_unique<VideoSurfaceTextureBridge>(this)

@@ -38,8 +38,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/extension/player_configurate_seek.h"
-#include "starboard/extension/video_decoder_configuration.h"
+#include "starboard/extension/experimental_features.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -85,6 +84,13 @@ void SetDiscardPadding(
       discard_padding.first.InMicroseconds();
   sample_info->discarded_duration_from_back =
       discard_padding.second.InMicroseconds();
+}
+
+const int* ToIntPointer(const std::optional<int>& val) {
+  if (!val) {
+    return nullptr;
+  }
+  return &*val;
 }
 
 }  // namespace
@@ -757,62 +763,37 @@ void SbPlayerBridge::CreatePlayer() {
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  const StarboardExtensionPlayerConfigurateSeekApi*
-      player_configurate_seek_extension =
-          static_cast<const StarboardExtensionPlayerConfigurateSeekApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionPlayerConfigurateSeekName));
-  if (player_configurate_seek_extension &&
-      strcmp(player_configurate_seek_extension->name,
-             kStarboardExtensionPlayerConfigurateSeekName) == 0 &&
-      player_configurate_seek_extension->version >= 1) {
-    player_configurate_seek_extension
-        ->SetForceFlushDecoderDuringResetForCurrentThread(
-            flush_decoder_during_reset_);
-    player_configurate_seek_extension
-        ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
+  const StarboardExtensionExperimentalFeaturesConfigurationApi*
+      experimental_features_extension = static_cast<
+          const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
+          SbSystemGetExtension(
+              kStarboardExtensionExperimentalFeaturesConfigurationName));
+  if (experimental_features_extension &&
+      strcmp(experimental_features_extension->name,
+             kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
+      experimental_features_extension->version >= 1) {
+    StarboardExtensionExperimentalFeatures experimental_features = {};
+
+    experimental_features.flush_decoder_during_reset =
+        flush_decoder_during_reset_;
+    experimental_features.reset_audio_decoder = reset_audio_decoder_;
+    experimental_features.video_decoder_initial_preroll_count =
+        ToIntPointer(video_decoder_initial_preroll_count_);
+    experimental_features.video_decoder_poll_interval_ms =
+        ToIntPointer(video_decoder_poll_interval_ms_);
+    experimental_features.video_initial_max_frames_in_decoder =
+        ToIntPointer(initial_max_frames_in_decoder_);
+    experimental_features.video_max_pending_input_frames =
+        ToIntPointer(max_pending_input_frames_);
+    experimental_features.video_renderer_min_decoded_frames =
+        ToIntPointer(video_renderer_min_decoded_frames_);
+    experimental_features.video_renderer_min_input_buffers =
+        ToIntPointer(video_renderer_min_input_buffers_);
+
+    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
+        &experimental_features);
   }
 
-  const StarboardExtensionVideoDecoderConfigurationApi*
-      video_decoder_configuration_extension =
-          static_cast<const StarboardExtensionVideoDecoderConfigurationApi*>(
-              SbSystemGetExtension(
-                  kStarboardExtensionVideoDecoderConfigurationName));
-  if (video_decoder_configuration_extension &&
-      strcmp(video_decoder_configuration_extension->name,
-             kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
-      video_decoder_configuration_extension->version >= 1) {
-    if (initial_max_frames_in_decoder_) {
-      video_decoder_configuration_extension
-          ->SetVideoInitialMaxFramesInDecoderForCurrentThread(
-              *initial_max_frames_in_decoder_);
-    }
-    if (max_pending_input_frames_) {
-      video_decoder_configuration_extension
-          ->SetVideoMaxPendingInputFramesForCurrentThread(
-              *max_pending_input_frames_);
-    }
-    if (video_decoder_initial_preroll_count_) {
-      video_decoder_configuration_extension
-          ->SetVideoDecoderInitialPrerollCountForCurrentThread(
-              *video_decoder_initial_preroll_count_);
-    }
-    if (video_decoder_poll_interval_ms_) {
-      video_decoder_configuration_extension
-          ->SetVideoDecoderPollIntervalMsForCurrentThread(
-              *video_decoder_poll_interval_ms_);
-    }
-    if (video_renderer_min_input_buffers_) {
-      video_decoder_configuration_extension
-          ->SetVideoRendererMinInputBuffersForCurrentThread(
-              *video_renderer_min_input_buffers_);
-    }
-    if (video_renderer_min_decoded_frames_) {
-      video_decoder_configuration_extension
-          ->SetVideoRendererMinDecodedFramesForCurrentThread(
-              *video_renderer_min_decoded_frames_);
-    }
-  }
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
