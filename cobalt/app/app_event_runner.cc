@@ -27,6 +27,7 @@
 #include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
+#include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "cobalt/app/app_event_delegate.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -35,6 +36,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
 #include "net/base/network_change_notifier_passive.h"
 
@@ -59,6 +61,7 @@ content::ContentMainRunner* GetContentMainRunner() {
   return main_runner->get();
 }
 }  // namespace
+
 class AppEventRunnerImpl : public AppEventRunner {
  public:
   AppEventRunnerImpl() = default;
@@ -135,11 +138,9 @@ class AppEventRunnerImpl : public AppEventRunner {
 
   void DoBlur() override {
     content::Shell::OnBlur();
-    {
-      auto* client = cobalt::CobaltContentBrowserClient::Get();
-      if (client) {
-        client->FlushCookiesAndLocalStorage(base::DoNothing());
-      }
+    auto* client = cobalt::CobaltContentBrowserClient::Get();
+    if (client) {
+      client->FlushCookiesAndLocalStorage(base::DoNothing());
     }
 #if BUILDFLAG(IS_STARBOARD)
     if (platform_event_source_) {
@@ -154,7 +155,6 @@ class AppEventRunnerImpl : public AppEventRunner {
   }
 
   void DoFocus() override {
-    content::Shell::OnFocus();
 #if BUILDFLAG(IS_STARBOARD)
     if (platform_event_source_) {
       platform_event_source_->DispatchFocusEvent(true);
@@ -164,6 +164,7 @@ class AppEventRunnerImpl : public AppEventRunner {
     // callbacks (e.g. CobaltActivity.onResume) which propagate directly to
     // Chromium's WindowAndroid.
 #endif
+    content::Shell::OnFocus();
   }
 
   void DoConceal() override { content::Shell::OnConceal(); }
@@ -172,11 +173,9 @@ class AppEventRunnerImpl : public AppEventRunner {
 
   void DoFreeze() override {
     content::Shell::OnFreeze();
-    {
-      auto* client = cobalt::CobaltContentBrowserClient::Get();
-      if (client) {
-        client->FlushCookiesAndLocalStorage(base::DoNothing());
-      }
+    auto* client = cobalt::CobaltContentBrowserClient::Get();
+    if (client) {
+      client->FlushCookiesAndLocalStorage(base::DoNothing());
     }
   }
 
@@ -279,23 +278,18 @@ class AppEventRunnerImpl : public AppEventRunner {
           const char** argv,
           const char* initial_deep_link) {
     CreateMainDelegate(startup_timestamp, is_visible, initial_deep_link);
-
     content::ContentMainParams params(GetMainDelegate());
-
 #if BUILDFLAG(IS_STARBOARD)
     cobalt::CommandLinePreprocessor init_cmd_line(argc, argv);
     const auto& init_argv = init_cmd_line.argv();
-
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
     logging::SetMinLogLevel(logging::LOGGING_FATAL);
 #endif
-
     std::vector<const char*> args;
     for (const auto& arg : init_argv) {
       args.push_back(arg.c_str());
     }
 #endif
-
     if (initial_deep_link) {
       auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
       manager->set_deep_link(initial_deep_link);
@@ -319,7 +313,7 @@ class AppEventRunnerImpl : public AppEventRunner {
 #endif
 
     main_runner_ = GetContentMainRunner();
-    return content::ContentMain(std::move(params));
+    return content::RunContentProcess(std::move(params), main_runner_);
 #else
     return 0;
 #endif
@@ -339,13 +333,11 @@ void AppEventRunner::OnStart(const SbEvent* event) {
   CHECK(!is_visible());
   CHECK(!is_focused());
   CHECK(is_frozen());
-
-  DoStart(event);
-
   set_is_running(true);
   set_is_visible(event->type == kSbEventTypeStart);
   set_is_focused(event->type == kSbEventTypeStart);
   set_is_frozen(false);
+  DoStart(event);
 }
 
 void AppEventRunner::OnStop() {

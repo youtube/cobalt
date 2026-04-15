@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "cobalt/app/app_event_runner.h"
+#include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -91,8 +92,10 @@ class AppEventDelegateTest : public ::testing::Test {
   void SendEvent(SbEventType type, void* data = nullptr) {
     SbEvent event = {type, 0, data};
     delegate_->HandleEvent(&event);
+    task_environment_.RunUntilIdle();
   }
 
+  content::BrowserTaskEnvironment task_environment_;
   MockAppEventRunner* runner_;
   std::unique_ptr<AppEventDelegate> delegate_;
 
@@ -289,6 +292,66 @@ TEST_F(AppEventDelegateTest, ImplicitPreload) {
   EXPECT_TRUE(delegate_->IsRunning());
   EXPECT_TRUE(delegate_->IsVisible());
   EXPECT_FALSE(delegate_->IsFocused());
+}
+
+TEST_F(AppEventDelegateTest, RedundantRevealIgnored) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypeStart);
+
+  // App is already visible (Started).
+  EXPECT_CALL(*runner_, DoReveal()).Times(0);
+  SendEvent(kSbEventTypeReveal);
+}
+
+TEST_F(AppEventDelegateTest, RedundantConcealIgnored) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload);
+
+  // App is already concealed (Concealed).
+  EXPECT_CALL(*runner_, DoConceal()).Times(0);
+  SendEvent(kSbEventTypeConceal);
+}
+
+TEST_F(AppEventDelegateTest, RedundantBlurIgnored) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypeStart);
+
+  EXPECT_CALL(*runner_, DoBlur()).Times(1);
+  SendEvent(kSbEventTypeBlur);
+
+  // Redundant Blur should be ignored.
+  EXPECT_CALL(*runner_, DoBlur()).Times(0);
+  SendEvent(kSbEventTypeBlur);
+}
+
+TEST_F(AppEventDelegateTest, RedundantFocusIgnored) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypeStart);
+
+  // App is already focused (Started).
+  EXPECT_CALL(*runner_, DoFocus()).Times(0);
+  SendEvent(kSbEventTypeFocus);
+}
+
+TEST_F(AppEventDelegateTest, RedundantFreezeIgnored) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload);
+
+  EXPECT_CALL(*runner_, DoFreeze()).Times(1);
+  SendEvent(kSbEventTypeFreeze);
+
+  // Redundant Freeze should be ignored.
+  EXPECT_CALL(*runner_, DoFreeze()).Times(0);
+  SendEvent(kSbEventTypeFreeze);
+}
+
+TEST_F(AppEventDelegateTest, RedundantUnfreezeIgnored) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload);
+
+  // App is already unfrozen (Concealed).
+  EXPECT_CALL(*runner_, DoUnfreeze()).Times(0);
+  SendEvent(kSbEventTypeUnfreeze);
 }
 
 }  // namespace cobalt
