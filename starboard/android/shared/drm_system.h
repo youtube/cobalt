@@ -22,6 +22,7 @@
 #include <jni.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -88,6 +89,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     return IsWidevineL1(key_system_.c_str());
   }
 
+  bool WaitForMediaCryptoSessionCreated(int64_t timeout_us);
   // Return true when the drm system is ready for secure input buffers.
   bool IsReady();
 
@@ -121,6 +123,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void UpdateSessionWithAppProvisioning(int ticket,
                                         std::string_view key,
                                         std::string_view session_id);
+  void NotifyMediaCryptoSessionCreated();
 
   // From Thread.
   void Run() override;
@@ -134,6 +137,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
   std::mutex mutex_;
+  std::condition_variable created_media_crypto_session_cv_;
 
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;  // Guarded by |mutex_|.

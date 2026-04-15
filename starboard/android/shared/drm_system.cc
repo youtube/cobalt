@@ -95,7 +95,7 @@ void DrmSystem::Run() {
   SB_CHECK(!enable_app_provisioning_);
 
   if (media_drm_bridge_->CreateMediaCryptoSession()) {
-    created_media_crypto_session_.store(true);
+    NotifyMediaCryptoSessionCreated();
   } else {
     SB_LOG(INFO) << "Could not create media crypto session";
     return;
@@ -192,7 +192,7 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
       request->GenerateWithAppProvisioning(media_drm_bridge_.get());
   switch (result.status) {
     case DRM_OPERATION_STATUS_SUCCESS:
-      created_media_crypto_session_ = true;
+      NotifyMediaCryptoSessionCreated();
       return;
     case DRM_OPERATION_STATUS_NOT_PROVISIONED:
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
@@ -272,6 +272,14 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
   if (provisioning_ok) {
     HandlePendingRequests();
   }
+}
+
+void DrmSystem::NotifyMediaCryptoSessionCreated() {
+  {
+    std::lock_guard lock(mutex_);
+    created_media_crypto_session_.store(true);
+  }
+  created_media_crypto_session_cv_.notify_all();
 }
 
 void DrmSystem::HandlePendingRequests() {
@@ -431,6 +439,17 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
                                    static_cast<int>(drm_key_ids.size()),
                                    drm_key_ids.data(), drm_key_statuses.data());
   }
+}
+
+bool DrmSystem::WaitForMediaCryptoSessionCreated(int64_t timeout_us) {
+  if (created_media_crypto_session_.load()) {
+    return true;
+  }
+
+  std::unique_lock lock(mutex_);
+  return created_media_crypto_session_cv_.wait_for(
+      lock, std::chrono::microseconds(timeout_us),
+      [this] { return created_media_crypto_session_.load(); });
 }
 
 bool DrmSystem::IsReady() {

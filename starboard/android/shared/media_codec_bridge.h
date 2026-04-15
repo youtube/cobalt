@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
+#include <atomic>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -84,6 +86,8 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
+  using WaitForMediaCryptoSessionCreatedCb = std::function<bool(int64_t)>;
+
   // The methods are called on the default Looper.  They won't get called after
   // Flush() is returned.
   class Handler {
@@ -111,7 +115,8 @@ class MediaCodecBridge {
   static std::unique_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
-      jobject j_media_crypto);
+      jobject j_media_crypto,
+      WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb);
 
   static NonNullResult<std::unique_ptr<MediaCodecBridge>>
   CreateVideoMediaCodecBridge(
@@ -128,6 +133,7 @@ class MediaCodecBridge {
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
+      WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb,
       const SbMediaColorMetadata* color_metadata,
       bool require_secured_decoder,
       bool require_software_codec,

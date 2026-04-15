@@ -34,6 +34,8 @@ using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
 
+constexpr int64_t kDrmSystemReadyTimeoutUs = 500'000;
+
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
 const jint COLOR_RANGE_FULL = 1;
@@ -110,7 +112,8 @@ FrameSize::FrameSize(int width, int height, bool has_crop_values)
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
     Handler* handler,
-    jobject j_media_crypto) {
+    jobject j_media_crypto,
+    WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb) {
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
@@ -147,6 +150,15 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   ScopedJavaLocalRef<jobject> j_media_crypto_local(
       env, env->NewLocalRef(j_media_crypto));
 
+  if (j_media_crypto != nullptr) {
+    SB_CHECK(wait_for_media_crypto_session_cb);
+    if (!wait_for_media_crypto_session_cb(kDrmSystemReadyTimeoutUs)) {
+      SB_LOG(ERROR) << "Timed out waiting for MediaCrypto to be ready in "
+                       "CreateAudioMediaCodecBridge.";
+      return nullptr;
+    }
+  }
+
   ScopedJavaLocalRef<jobject> j_media_codec_bridge =
       Java_MediaCodecBridgeBuilder_createAudioDecoder(
           env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
@@ -176,6 +188,7 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
+    WaitForMediaCryptoSessionCreatedCb wait_for_media_crypto_session_cb,
     const SbMediaColorMetadata* color_metadata,
     bool require_secured_decoder,
     bool require_software_codec,
@@ -275,6 +288,15 @@ MediaCodecBridge::CreateVideoMediaCodecBridge(
   ScopedJavaLocalRef<jobject> j_surface_local(env, env->NewLocalRef(j_surface));
   ScopedJavaLocalRef<jobject> j_media_crypto_local(
       env, env->NewLocalRef(j_media_crypto));
+
+  if (j_media_crypto != nullptr) {
+    SB_CHECK(wait_for_media_crypto_session_cb);
+    if (!wait_for_media_crypto_session_cb(kDrmSystemReadyTimeoutUs)) {
+      SB_LOG(ERROR) << "Timed out waiting for MediaCrypto to be ready in "
+                       "CreateVideoMediaCodecBridge.";
+      return nullptr;
+    }
+  }
 
   Java_MediaCodecBridge_createVideoMediaCodecBridge(
       env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
