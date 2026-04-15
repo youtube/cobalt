@@ -64,6 +64,7 @@ runs:
         # If the golden workspace does not exist or is corrupted (missing .gclient), initialize it.
         # This will only happen once per node!
         if [ ! -f "$LOWER_DIR/.gclient" ]; then
+          IS_CACHE_HOT="false"
           echo "cache_hit=false" >> $GITHUB_OUTPUT
           echo "Golden workspace not found or corrupted. Creating it now. This will take time..."
 
@@ -85,8 +86,14 @@ runs:
           echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           gclient sync -D --no-history
         else
+          IS_CACHE_HOT="true"
           echo "cache_hit=true" >> $GITHUB_OUTPUT
         fi
+
+        echo "Logging workspace cache status to Cloud Logging..."
+        gcloud logging write github-actions-runners \
+          '{"workflow": "'"$GITHUB_WORKFLOW"'", "job": "'"$GITHUB_JOB"'", "runner": "'"$RUNNER_NAME"'", "run_id": "'"$GITHUB_RUN_ID"'", "url": "https://github.com/'"$GITHUB_REPOSITORY"'/actions/runs/'"$GITHUB_RUN_ID"'", "cache_hit": '"$IS_CACHE_HOT"'}' \
+          --payload-type=json || true
 
         echo "Mounting OverlayFS..."
         # Depending on your runner's privilege, use sudo mount or fuse-overlayfs
