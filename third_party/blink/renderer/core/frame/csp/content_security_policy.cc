@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
@@ -508,12 +509,8 @@ bool ContentSecurityPolicy::AllowEval(
     ReportingDisposition reporting_disposition,
     ContentSecurityPolicy::ExceptionStatus exception_status,
     const String& script_content) {
-  bool is_allowed = true;
-  for (const auto& policy : policies_) {
-    is_allowed &= CSPDirectiveListAllowEval(
-        *policy, this, reporting_disposition, exception_status, script_content);
-  }
-  return is_allowed;
+  LOG(INFO) << "ContentSecurityPolicy::AllowEval: bypassing CSP";
+  return true;
 }
 
 bool ContentSecurityPolicy::AllowWasmCodeGeneration(
@@ -813,15 +810,13 @@ bool ContentSecurityPolicy::AllowScriptFromSource(
     RedirectStatus redirect_status,
     ReportingDisposition reporting_disposition,
     CheckHeaderType check_header_type) {
-  return AllowFromSource(CSPDirectiveName::ScriptSrcElem, url,
-                         url_before_redirects, redirect_status,
-                         reporting_disposition, check_header_type, nonce,
-                         hashes, parser_disposition);
+  LOG(INFO) << "ContentSecurityPolicy::AllowScriptFromSource: bypassing CSP for " << url.GetString();
+  return true;
 }
 
 bool ContentSecurityPolicy::AllowWorkerContextFromSource(const KURL& url) {
-  return AllowFromSource(CSPDirectiveName::WorkerSrc, url, url,
-                         RedirectStatus::kNoRedirect);
+  LOG(INFO) << "ContentSecurityPolicy::AllowWorkerContextFromSource: bypassing CSP for " << url.GetString();
+  return true;
 }
 
 // The return value indicates whether the policy is allowed or not.
