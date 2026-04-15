@@ -31,9 +31,6 @@ struct MEDIA_EXPORT StarboardRendererConfig {
   struct ExperimentalFeatures {
     bool enable_flush_during_seek = false;
     bool enable_reset_audio_decoder = false;
-    bool disable_low_performance_sw_decoder = false;
-    bool pause_using_audio_track_state = false;
-    bool report_buffering_state_during_flush = false;
     std::optional<int> max_samples_per_write;
     std::optional<int> video_decoder_initial_preroll_count;
     std::optional<int> video_renderer_min_input_buffers;
