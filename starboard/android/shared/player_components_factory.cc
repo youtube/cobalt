@@ -70,33 +70,6 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
          !force_platform_opus_decoder;
 }
 
-std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
-    const PlayerComponents::Factory::CreationParameters& creation_parameters) {
-  const auto& experimental_features =
-      creation_parameters.experimental_features();
-  const auto& min_input_buffers =
-      experimental_features.video_renderer_min_input_buffers;
-  const auto& min_decoded_frames =
-      experimental_features.video_renderer_min_decoded_frames;
-
-  if (!min_input_buffers && !min_decoded_frames) {
-    return std::nullopt;
-  }
-  if (!min_input_buffers) {
-    SB_LOG(WARNING) << "Ignoring video_renderer_min_decoded_frames since "
-                       "video_renderer_min_input_buffers is missing.";
-    return std::nullopt;
-  }
-  if (!min_decoded_frames) {
-    SB_LOG(WARNING) << "Ignoring video_renderer_min_input_buffers since "
-                       "video_renderer_min_decoded_frames is missing.";
-    return std::nullopt;
-  }
-
-  return VideoRendererImpl::PrerollParameters{*min_input_buffers,
-                                              *min_decoded_frames};
-}
-
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
@@ -294,7 +267,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         video_renderer = std::make_unique<VideoRendererImpl>(
             creation_parameters.job_queue(), std::move(video_decoder_impl),
             media_time_provider, std::move(video_render_algorithm),
-            video_renderer_sink, GetPrerollParams(creation_parameters));
+            video_renderer_sink, creation_parameters.experimental_features());
       } else {
         return Failure("Failed to create video decoder: " +
                        video_decoder.error());
