@@ -722,6 +722,17 @@ void CorsURLLoader::StartRequest() {
   CHECK_EQ(pna_preflight_result_,
            mojom::PrivateNetworkAccessPreflightResult::kNone);
 
+  if (request_.request_initiator &&
+      request_.request_initiator->host() == "storage.googleapis.com" &&
+      request_.url.host_piece() == "www.youtube.com") {
+    LOG(INFO) << "Workaround: Spoofing initiator and forcing credentials for GCS worker request to YouTube: " << request_.url;
+    request_.request_initiator = url::Origin::Create(GURL("https://www.youtube.com"));
+    request_.credentials_mode = mojom::CredentialsMode::kInclude;
+    // Recalculate CORS flag with the spoofed origin.
+    fetch_cors_flag_ = false;
+    SetCorsFlagIfNeeded();
+  }
+
   if (fetch_cors_flag_ && !skip_cors_enabled_scheme_check_ &&
       !base::Contains(url::GetCorsEnabledSchemes(), request_.url.scheme())) {
     HandleComplete(URLLoaderCompletionStatus(
