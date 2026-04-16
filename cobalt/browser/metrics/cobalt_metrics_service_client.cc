@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/notreached.h"
 #include "base/posix/file_descriptor_shuffle.h"
 #include "base/strings/string_number_conversions.h"
@@ -31,6 +32,7 @@
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
@@ -43,11 +45,12 @@ namespace cobalt {
 
 // TODO(b/495528560): Fix ownership model in MetricsPollingState to separate CPU
 // and memory metrics polling
-class MetricsPollingState
-    : public base::RefCountedThreadSafe<MetricsPollingState> {
+class MetricsPollingState : public base::RefCounted<MetricsPollingState> {
  public:
   explicit MetricsPollingState(CobaltMetricsServiceClient* parent)
-      : parent_(parent) {}
+      : parent_(parent) {
+    COBALT_DETACH_FROM_THREAD(thread_checker_);
+  }
 
   // Parent pointer.
   raw_ptr<CobaltMetricsServiceClient> parent_;
@@ -59,6 +62,7 @@ class MetricsPollingState
   bool stop_logging = false;
 
   void RecordMetricsAfterDelay() {
+    CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     if (stop_logging) {
       return;
     }
@@ -87,8 +91,10 @@ class MetricsPollingState
   virtual void RequestMetrics() = 0;
 
  protected:
-  friend class base::RefCountedThreadSafe<MetricsPollingState>;
+  friend class base::RefCounted<MetricsPollingState>;
   virtual ~MetricsPollingState() = default;
+
+  COBALT_THREAD_CHECKER(thread_checker_);
 };
 
 class CobaltMetricsServiceClient::MemoryPollingState
@@ -97,6 +103,7 @@ class CobaltMetricsServiceClient::MemoryPollingState
   using MetricsPollingState::MetricsPollingState;
 
   void RequestMetrics() override {
+    CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     if (stop_logging) {
       return;
     }
@@ -113,6 +120,7 @@ class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
   std::unique_ptr<base::ProcessMetrics> process_metrics_;
 
   void RequestMetrics() override {
+    CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     if (stop_logging) {
       return;
     }
