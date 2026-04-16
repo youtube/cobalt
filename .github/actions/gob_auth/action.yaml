@@ -32,10 +32,3 @@ runs:
           "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
 
         git config --global http.cookiefile "${GITCOOKIES_PATH}"
-
-        echo "Verifying GoB authentication..."
-        if GIT_TRACE_CURL=1 git ls-remote https://chromium.googlesource.com/chromium/tools/depot_tools.git HEAD 2>&1 | grep -q -i "Cookie: o=git-"; then
-          echo "Authentication verified: Cookie header is being sent."
-        else
-          echo "::warning::Authentication verification failed: No Cookie header sent."
-        fi
