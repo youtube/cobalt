@@ -85,9 +85,8 @@ void DecodeTarget::CreateOnContextRunner() {
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  surface_ =
-      VideoSurfaceTextureBridge::CreateSurface(env, surface_texture_.obj());
-  SB_CHECK(surface_texture_);
+  surface_ = VideoSurfaceTextureBridge::CreateSurface(env, surface_texture_);
+  SB_CHECK(surface_);
 
   native_window_ = ANativeWindow_fromSurface(env, surface_.obj());
 

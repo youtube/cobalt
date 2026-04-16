@@ -44,24 +44,24 @@ class VideoSurfaceTextureBridge {
 
   void SetOnFrameAvailableListener(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& surface_texture) const;
+      const base::android::JavaRef<jobject>& surface_texture) const;
   void RemoveOnFrameAvailableListener(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& surface_texture) const;
+      const base::android::JavaRef<jobject>& surface_texture) const;
 
   static base::android::ScopedJavaGlobalRef<jobject> CreateVideoSurfaceTexture(
       JNIEnv* env,
       int gl_texture_id);
   static base::android::ScopedJavaGlobalRef<jobject> CreateSurface(
       JNIEnv* env,
-      jobject surface_texture);
+      const base::android::JavaRef<jobject>& surface_texture);
 
   static void UpdateTexImage(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& surface_texture);
+      const base::android::JavaRef<jobject>& surface_texture);
   static void GetTransformMatrix(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& surface_texture,
+      const base::android::JavaRef<jobject>& surface_texture,
       const base::android::JavaParamRef<jfloatArray>& mtx);
 
   void OnFrameAvailable(JNIEnv*) { host_->OnFrameAvailable(); }

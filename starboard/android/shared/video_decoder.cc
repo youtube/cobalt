@@ -780,13 +780,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (!SbDecodeTargetIsValid(decode_target)) {
         return Failure("Could not acquire a decode target from provider.");
       }
-      j_output_surface = decode_target->surface();
+      j_output_surface = decode_target->surface().obj();
 
       JNIEnv* env = AttachCurrentThread();
-      ScopedJavaLocalRef<jobject> surface_texture(
-          env, decode_target->surface_texture());
-      bridge_->SetOnFrameAvailableListener(
-          env, JavaParamRef<jobject>(env, surface_texture.obj()));
+      bridge_->SetOnFrameAvailableListener(env,
+                                           decode_target->surface_texture());
 
       std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -859,10 +857,8 @@ void MediaCodecVideoDecoder::TeardownCodec() {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
       JNIEnv* env = AttachCurrentThread();
-      ScopedJavaLocalRef<jobject> surface_texture(
-          env, decode_target_->surface_texture());
       bridge_->RemoveOnFrameAvailableListener(
-          env, JavaParamRef<jobject>(env, surface_texture.obj()));
+          env, decode_target_->surface_texture());
 
       decode_target_to_release = decode_target_;
       decode_target_ = nullptr;
@@ -1045,22 +1041,21 @@ bool MediaCodecVideoDecoder::IsBufferDecodeOnly(
 
 namespace {
 
-void updateTexImage(jobject surface_texture) {
+void updateTexImage(const base::android::JavaRef<jobject>& surface_texture) {
   JNIEnv* env = AttachCurrentThread();
 
-  VideoSurfaceTextureBridge::UpdateTexImage(
-      env, JavaParamRef<jobject>(env, surface_texture));
+  VideoSurfaceTextureBridge::UpdateTexImage(env, surface_texture);
 }
 
-void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
+void getTransformMatrix(const base::android::JavaRef<jobject>& surface_texture,
+                        float* matrix4x4) {
   JNIEnv* env = AttachCurrentThread();
 
   jfloatArray java_array = env->NewFloatArray(16);
   SB_CHECK(java_array);
 
   VideoSurfaceTextureBridge::GetTransformMatrix(
-      env, JavaParamRef<jobject>(env, surface_texture),
-      JavaParamRef<jfloatArray>(env, java_array));
+      env, surface_texture, JavaParamRef<jfloatArray>(env, java_array));
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
