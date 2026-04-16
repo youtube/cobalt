@@ -21,15 +21,42 @@
 namespace nplb {
 namespace {
 
-TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccess) {
+class PosixSchedSetSchedulerTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    original_policy = sched_getscheduler(0);
+    ASSERT_GE(original_policy, 0)
+        << "sched_getscheduler failed: " << strerror(errno);
+    ASSERT_GE(sched_getparam(0, &original_param), 0)
+        << "sched_getparam failed: " << strerror(errno);
+  }
+  void TearDown() override {
+    sched_setscheduler(0, original_policy, &original_param);
+  }
+
+  int original_policy;
+  struct sched_param original_param;
+};
+
+// For the purposes of this test suite, we define a success as a call that
+// either sets the scheduling policy (i.e. returns 0) or results in an EPERM
+// error, as it's possible that the current test environment doesn't have
+// sufficient permissions to set the scheduling policy. We are essentially
+// testing that the functionality is present and at least doesn't crash.
+//
+// Additionally, SCHED_FIFO, SCHED_RR, and SCHED_BATCH require a priority to be
+// set. In those tests, we try to use the maximum priority, even though
+// processes generally do not have permission to increase their own priority, so
+// a result of EPERM is expected. We would ideally want to test setting minimum
+// priority, which would theoretically always succeed, but that would then
+// prevent the test process from re-raising its priority during teardown.
+
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForOther) {
   struct sched_param param;
   param.sched_priority = 0;
   // SCHED_OTHER usually requires priority 0.
   int result = sched_setscheduler(0, SCHED_OTHER, &param);
 
-  // On some systems, even setting SCHED_OTHER might require privileges if
-  // it's considered a change, but usually setting it to what it already is
-  // or to SCHED_OTHER for a normal process is fine.
   if (result == -1 && errno == EPERM) {
     GTEST_SKIP() << "Insufficient permissions to set scheduling policy.";
   }
@@ -37,7 +64,80 @@ TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccess) {
   EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
 }
 
-TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPid) {
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForFifo) {
+  int min_priority = sched_get_priority_min(SCHED_FIFO);
+  int max_priority = sched_get_priority_max(SCHED_FIFO);
+
+  if (min_priority == -1 || max_priority == -1) {
+    GTEST_SKIP() << "Could not get priority range for SCHED_FIFO";
+  }
+
+  struct sched_param param;
+  param.sched_priority = max_priority;
+  int result = sched_setscheduler(0, SCHED_FIFO, &param);
+  if (result == -1 && errno == EPERM) {
+    GTEST_SKIP() << "Insufficient permissions to set scheduling policy.";
+  }
+
+  EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
+}
+
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForRr) {
+  int min_priority = sched_get_priority_min(SCHED_RR);
+  int max_priority = sched_get_priority_max(SCHED_RR);
+
+  if (min_priority == -1 || max_priority == -1) {
+    GTEST_SKIP() << "Could not get priority range for SCHED_RR";
+  }
+
+  struct sched_param param;
+  param.sched_priority = max_priority;
+  int result = sched_setscheduler(0, SCHED_RR, &param);
+  if (result == -1 && errno == EPERM) {
+    GTEST_SKIP() << "Insufficient permissions to set scheduling policy.";
+  }
+
+  EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
+}
+
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForBatch) {
+#if defined(SCHED_BATCH)
+  int min_priority = sched_get_priority_min(SCHED_BATCH);
+  int max_priority = sched_get_priority_max(SCHED_BATCH);
+
+  if (min_priority == -1 || max_priority == -1) {
+    GTEST_SKIP() << "Could not get priority range for SCHED_BATCH";
+  }
+
+  struct sched_param param;
+  param.sched_priority = max_priority;
+  int result = sched_setscheduler(0, SCHED_BATCH, &param);
+  if (result == -1 && errno == EPERM) {
+    GTEST_SKIP() << "Insufficient permissions to set scheduling policy.";
+  }
+
+  EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
+#else
+  GTEST_SKIP() << "SCHED_BATCH is not supported on this system.";
+#endif  // defined(SCHED_BATCH)
+}
+
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerSuccessForIdle) {
+#if defined(SCHED_IDLE)
+  struct sched_param param;
+  param.sched_priority = 0;
+  int result = sched_setscheduler(0, SCHED_IDLE, &param);
+  if (result == -1 && errno == EPERM) {
+    GTEST_SKIP() << "Insufficient permissions to set scheduling policy.";
+  }
+
+  EXPECT_GE(result, 0) << "sched_setscheduler failed: " << strerror(errno);
+#else
+  GTEST_SKIP() << "SCHED_IDLE is not supported on this system.";
+#endif  // defined(SCHED_IDLE)
+}
+
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPid) {
   struct sched_param param;
   param.sched_priority = 0;
   int result = sched_setscheduler(-1, SCHED_OTHER, &param);
@@ -46,7 +146,7 @@ TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPid) {
   EXPECT_EQ(errno, EINVAL);
 }
 
-TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPolicy) {
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPolicy) {
   struct sched_param param;
   param.sched_priority = 0;
   int result = sched_setscheduler(0, -1, &param);
@@ -55,14 +155,14 @@ TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPolicy) {
   EXPECT_EQ(errno, EINVAL);
 }
 
-TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithNullParam) {
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithNullParam) {
   int result = sched_setscheduler(0, SCHED_OTHER, nullptr);
 
   EXPECT_EQ(result, -1);
   EXPECT_EQ(errno, EINVAL);
 }
 
-TEST(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPriority) {
+TEST_F(PosixSchedSetSchedulerTest, SchedSetSchedulerFailsWithInvalidPriority) {
   int min_priority = sched_get_priority_min(SCHED_FIFO);
   int max_priority = sched_get_priority_max(SCHED_FIFO);
 
