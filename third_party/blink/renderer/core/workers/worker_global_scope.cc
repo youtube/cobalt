@@ -497,6 +497,8 @@ void WorkerGlobalScope::RunWorkerScript() {
   DCHECK(worker_script_);
   DCHECK_EQ(script_eval_state_, ScriptEvalState::kReadyToEvaluate);
 
+  LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - URL: " << Url().GetString();
+
   WorkerThreadDebugger* debugger =
       WorkerThreadDebugger::From(GetThread()->GetIsolate());
   if (debugger && stack_id_)
@@ -510,9 +512,11 @@ void WorkerGlobalScope::RunWorkerScript() {
   bool is_success = false;
   if (ScriptState* script_state = ScriptController()->GetScriptState()) {
     v8::HandleScope handle_scope(script_state->GetIsolate());
+    LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - Evaluating script...";
     ScriptEvaluationResult result =
         std::move(worker_script_)
             ->RunScriptOnScriptStateAndReturnValue(script_state);
+    LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - Evaluation finished. Result type: " << static_cast<int>(result.GetResultType());
     switch (worker_script_->GetScriptType()) {
       case mojom::blink::ScriptType::kClassic:
         is_success = result.GetResultType() ==
@@ -551,6 +555,7 @@ void WorkerGlobalScope::RunWorkerScript() {
         break;
     }
   }
+  LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - Success: " << is_success;
   ReportingProxy().DidEvaluateTopLevelScript(is_success);
 
   if (debugger && stack_id_)
@@ -561,6 +566,7 @@ void WorkerGlobalScope::RunWorkerScript() {
 
 void WorkerGlobalScope::ReceiveMessage(BlinkTransferableMessage message) {
   DCHECK(!IsContextPaused());
+  LOG(INFO) << "WorkerGlobalScope::ReceiveMessage - TID: " << base::PlatformThread::CurrentId() << " Worker: " << Url().GetString();
   MessagePortArray* ports =
       MessagePort::EntanglePorts(*this, std::move(message.ports));
   WorkerThreadDebugger* debugger =
@@ -569,6 +575,7 @@ void WorkerGlobalScope::ReceiveMessage(BlinkTransferableMessage message) {
     debugger->ExternalAsyncTaskStarted(message.sender_stack_trace_id);
 
   if (message.message->CanDeserializeIn(this)) {
+    LOG(INFO) << "WorkerGlobalScope::ReceiveMessage - Deserialization OK, dispatching MessageEvent";
     UserActivation* user_activation = nullptr;
     if (message.user_activation) {
       user_activation = MakeGarbageCollected<UserActivation>(
@@ -578,6 +585,7 @@ void WorkerGlobalScope::ReceiveMessage(BlinkTransferableMessage message) {
     DispatchEvent(*MessageEvent::Create(ports, std::move(message.message),
                                         user_activation));
   } else {
+    LOG(INFO) << "WorkerGlobalScope::ReceiveMessage - Deserialization FAILED, dispatching MessageEventError";
     DispatchEvent(*MessageEvent::CreateError());
   }
 

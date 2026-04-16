@@ -70,6 +70,7 @@ void DedicatedWorkerObjectProxy::PostMessageToWorkerObject(
 void DedicatedWorkerObjectProxy::ProcessMessageFromWorkerObject(
     BlinkTransferableMessage message,
     WorkerThread* worker_thread) {
+  LOG(INFO) << "DedicatedWorkerObjectProxy::ProcessMessageFromWorkerObject - TID: " << base::PlatformThread::CurrentId();
   To<WorkerGlobalScope>(worker_thread->GlobalScope())
       ->ReceiveMessage(std::move(message));
 }
