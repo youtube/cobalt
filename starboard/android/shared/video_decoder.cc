@@ -451,11 +451,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-<<<<<<< HEAD
-        std::make_unique<VideoFrameTracker>(kDefaultMaxPendingInputsSize * 2);
-=======
         std::make_unique<VideoFrameTracker>(kMaxPendingInputsSize * 2);
->>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
   }
 
   if (require_software_codec_) {
@@ -476,10 +472,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << GetMediaVideoCodecName(video_codec_)
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
-<<<<<<< HEAD
-               << ", max pending input size=" << kDefaultMaxPendingInputsSize
-=======
->>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
+               << ", max pending input size=" << kMaxPendingInputsSize
                << ", max video capabilities=\"" << max_video_capabilities_
                << "\", and tunnel mode audio session id="
                << tunnel_mode_audio_session_id_;
@@ -927,12 +920,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-<<<<<<< HEAD
-  if (media_decoder_->GetNumberOfPendingInputs() <
-      kDefaultMaxPendingInputsSize) {
-=======
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
->>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -983,8 +971,9 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
-                         std::bind(&VideoDecoder::OnVideoFrameRelease, this)));
+      new VideoFrameImpl(
+          dequeue_output_result, media_codec_bridge,
+          std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
 }
 
 void MediaCodecVideoDecoder::RefreshOutputFormat(
@@ -1301,12 +1290,7 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-<<<<<<< HEAD
-  if (media_decoder_->GetNumberOfPendingInputs() <
-      kDefaultMaxPendingInputsSize) {
-=======
   if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
->>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
@@ -1316,12 +1300,7 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-<<<<<<< HEAD
-void MediaCodecVideoDecoder::OnVideoFrameRelease(int64_t pts_us,
-                                                 int64_t release_at_us) {
-=======
-void VideoDecoder::OnVideoFrameRelease() {
->>>>>>> cc8c9ce906 (Revert "media: Implement flow control for MediaDecoder (#8185)" (#9663))
+void MediaCodecVideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
