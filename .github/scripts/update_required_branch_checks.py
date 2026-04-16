@@ -32,6 +32,7 @@ TARGET_REPO = 'youtube/cobalt'
 EXCLUDED_CHECK_PATTERNS = [
     # Not ready yet/temporary excludes.
     '_yts_wpt_',
+    'browser_tests_on_host',
 
     # Excludes docker jobs. Build jobs depend on docker jobs and are required.
     'docker-',
@@ -49,7 +50,7 @@ EXCLUDED_CHECK_PATTERNS = [
     'linux-coverage',
     'codecov',
     'on-host-unit-test-report',
-    ':',
+    'Test Report',
 
     # Excludes the actual test jobs. The requiredness
     # is determined by the tests_passing job.
@@ -102,9 +103,13 @@ def get_required_checks_for_branch(repo, branch: str) -> list[str]:
       latest_pr_commit = repo.get_commit(pr.head.sha)
       checks = latest_pr_commit.get_check_runs()
       req_checks = [c for c in checks if should_include_run(c)]
-      # Only return if all required checks passed.
+      # Ensure all required jobs passed as downstream jobs of
+      # failed/cancelled jobs don't appear in the list.
       if len(req_checks) and all(c.conclusion == 'success' for c in req_checks):
         return list({run.name for run in req_checks})
+      else:
+        print('\n'.join(f'  {c.name}: {c.conclusion}' for c in req_checks
+                        if c.conclusion != 'success'))
 
   raise RuntimeError(f'Could not find any completed checks for branch {branch}')
 
