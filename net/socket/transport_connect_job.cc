@@ -8,7 +8,7 @@
 #include "build/buildflag.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/android/shared/starboard_bridge.h"  // nogncheck
 #endif
 
 #include <memory>

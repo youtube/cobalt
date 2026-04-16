@@ -82,6 +82,10 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 
   timeout_timer_->Stop();
   const auto net_error_code = navigation_handle->GetNetErrorCode();
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(
+      "navigation_error", net::ErrorToString(net_error_code).c_str());
+#endif
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
                               true);

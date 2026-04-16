@@ -3,6 +3,8 @@ package dev.cobalt.shell;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -16,9 +18,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * restart the application, rather than leaving the user stuck on an unresponsive black screen.
  */
 public class StartupGuard {
+    public static final String NAVIGATION_ERROR = "navigation_error";
+
     private final Handler handler;
     private final Runnable crashRunnable;
     private final AtomicLong startupStatus = new AtomicLong(0L);
+    private final Map<String, String> diagnosisInfo = new HashMap<>();
 
     private static class LazyHolder {
         private static final StartupGuard INSTANCE = new StartupGuard();
@@ -34,8 +39,16 @@ public class StartupGuard {
         crashRunnable = new Runnable() {
             @Override
             public void run() {
-                throw new RuntimeException(
-                        "Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x" + Long.toHexString(startupStatus.get()));
+                StringBuilder message = new StringBuilder();
+                message.append("Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x");
+                message.append(Long.toHexString(startupStatus.get()));
+                synchronized (diagnosisInfo) {
+                    if (!diagnosisInfo.isEmpty()) {
+                        message.append(", Diagnosis Info: ");
+                        message.append(diagnosisInfo.toString());
+                    }
+                }
+                throw new RuntimeException(message.toString());
             }
         };
     }
@@ -60,6 +73,17 @@ public class StartupGuard {
         Log.v(TAG, "StartupGuard setStartupMilestone:" + milestone);
         long mask = 1L << milestone;
         startupStatus.updateAndGet(current -> current | mask);
+    }
+
+    /**
+     * Sets startup diagnosis info.
+     * @param key The key for the diagnosis info.
+     * @param value The value for the diagnosis info.
+     */
+    public void setDiagnosisInfo(String key, String value) {
+        synchronized (diagnosisInfo) {
+            diagnosisInfo.put(key, value);
+        }
     }
 
     /**
