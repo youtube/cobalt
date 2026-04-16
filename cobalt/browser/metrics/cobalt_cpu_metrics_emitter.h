@@ -46,6 +46,8 @@ class CobaltCpuMetricsEmitter
   // TODO(b/492251096): add tests for CPU metrics emitter class
   virtual ~CobaltCpuMetricsEmitter();
 
+  virtual double GetCpuUsage(base::ProcessMetrics* process_metrics);
+
  private:
   friend class base::RefCountedThreadSafe<CobaltCpuMetricsEmitter>;
 

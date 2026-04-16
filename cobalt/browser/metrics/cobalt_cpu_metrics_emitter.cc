@@ -42,11 +42,7 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
     return;
   }
 
-  // Total CPU utilization in percentage of all cores in between every call.
-  constexpr double kInvalidCPUUsageValue = 0.0;
-  const double cpu_usage =
-      process_metrics_->GetPlatformIndependentCPUUsage().value_or(
-          kInvalidCPUUsageValue);
+  const double cpu_usage = GetCpuUsage(process_metrics);
 
   const int num_processors = base::SysInfo::NumberOfProcessors();
   DCHECK_GT(num_processors, 0)
@@ -59,6 +55,14 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
   if (callback_for_testing_) {
     std::move(callback_for_testing_).Run();
   }
+}
+
+double CobaltCpuMetricsEmitter::GetCpuUsage(
+    base::ProcessMetrics* process_metrics) {
+  // Total CPU utilization in percentage of all cores in between every call.
+  constexpr double kInvalidCPUUsageValue = 0.0;
+  return process_metrics->GetPlatformIndependentCPUUsage().value_or(
+      kInvalidCPUUsageValue);
 }
 
 }  // namespace cobalt

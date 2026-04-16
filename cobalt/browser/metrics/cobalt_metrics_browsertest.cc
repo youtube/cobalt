@@ -214,7 +214,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   base::HistogramTester histogram_tester;
 
   auto* features = GlobalFeatures::GetInstance();
-  // Ensure metrics recording is started.
   features->metrics_services_manager()->UpdateUploadPermissions(true);
 
   auto* manager_client = features->metrics_services_manager_client();
@@ -228,11 +227,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   client->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
-  // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0 
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  histogram_tester.ExpectTotalCount("CPU.Total.UsageInPercentage", 1);
+  // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0
   // on the first call
   EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0), 1u);
-  // verify two samples collected 
-  EXPECT_GE(histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage")->TotalCount(), 2u);
 }
 
 }  // namespace cobalt

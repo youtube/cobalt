@@ -210,6 +210,23 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
   ~TestProcessMemoryMetricsEmitter() override = default;
 };
 
+class TestCpuMetricsEmitter : public CobaltCpuMetricsEmitter {
+ public:
+  TestCpuMetricsEmitter() = default;
+
+  double GetCpuUsage(base::ProcessMetrics* process_metrics) override {
+    return next_cpu_usage_;
+  }
+
+  void set_next_cpu_usage(double usage) { next_cpu_usage_ = usage; }
+
+ protected:
+  ~TestCpuMetricsEmitter() override = default;
+
+ private:
+  double next_cpu_usage_ = 0.0;
+};
+
 // Mock for MetricsService to verify construction of a specific MetricsService
 // in tests.
 class MockMetricsService : public metrics::MetricsService {
@@ -308,6 +325,10 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
   scoped_refptr<CobaltMemoryMetricsEmitter> CreateMemoryMetricsEmitter()
       override {
     return base::MakeRefCounted<TestProcessMemoryMetricsEmitter>();
+  }
+
+  scoped_refptr<CobaltCpuMetricsEmitter> CreateCpuMetricsEmitter() override {
+    return base::MakeRefCounted<TestCpuMetricsEmitter>();
   }
 
   void OnApplicationNotIdleInternal() override {
@@ -477,12 +498,21 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
 
 TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
   base::HistogramTester histogram_tester;
-  
-  // Trigger a memory dump manually for testing.
-  base::RunLoop run_loop;
-  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
-  run_loop.Run();
 
+  scoped_refptr<TestCpuMetricsEmitter> emitter =
+      base::WrapRefCounted(static_cast<TestCpuMetricsEmitter*>(
+          client_->CreateCpuMetricsEmitter().get()));
+  std::unique_ptr<base::ProcessMetrics> process_metrics =
+      base::ProcessMetrics::CreateCurrentProcessMetrics();
+
+  // verify it records average CPU usage per core.
+  const int num_processors = base::SysInfo::NumberOfProcessors();
+  double mock_usage = 50.0 * num_processors;  // 50% per core.
+  emitter->set_next_cpu_usage(mock_usage);
+  emitter->FetchAndEmitCpuMetrics(process_metrics.get());
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50), 1);
 }
 
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
