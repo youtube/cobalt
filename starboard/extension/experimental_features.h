@@ -40,6 +40,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   const int* video_decoder_initial_preroll_count;
   const int* video_renderer_min_decoded_frames;
   const int* video_renderer_min_input_buffers;
+  const bool* use_dual_threads_for_video;
 } StarboardExtensionExperimentalFeatures;
 
 typedef struct StarboardExtensionExperimentalFeaturesConfigurationApi {
