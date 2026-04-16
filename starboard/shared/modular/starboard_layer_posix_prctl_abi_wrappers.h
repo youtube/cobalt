@@ -46,11 +46,7 @@
 extern "C" {
 #endif
 
-SB_EXPORT int __abi_wrap_prctl(int option,
-                               unsigned long arg2,
-                               unsigned long arg3,
-                               unsigned long arg4,
-                               unsigned long arg5);
+SB_EXPORT int __abi_wrap_prctl(int op, ...);
 
 #ifdef __cplusplus
 }  // extern "C"

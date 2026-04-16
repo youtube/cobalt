@@ -39,6 +39,7 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #else
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #endif
@@ -102,6 +103,9 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
 int CobaltBrowserMainParts::PreCreateThreads() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
+#endif
   SetupMetrics();
 
   InitializeBrowserMemoryInstrumentationClient();
