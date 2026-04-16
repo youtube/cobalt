@@ -25,10 +25,9 @@ namespace cobalt {
 
 // This class fetches CPU metrics for the current process and its threads and
 // records the average per-core CPU usage as a percentage in a UMA histogram.
-// It relies on a persistent base::ProcessMetrics object (tracked by
-// CobaltMetricsServiceClient::CpuPollingState) to maintain stateful CPU usage
-// tracking across multiple calls. This class is not thread-safe and must be
-// called from the same Sequence it was created on.
+// It relies on a persistent base::ProcessMetrics object to maintain stateful
+// CPU usage tracking across multiple calls. This class is not thread-safe and
+// must be called from the same Sequence it was created on.
 class CobaltCpuMetricsEmitter
     : public base::RefCountedThreadSafe<CobaltCpuMetricsEmitter> {
  public:
@@ -37,7 +36,7 @@ class CobaltCpuMetricsEmitter
   CobaltCpuMetricsEmitter(const CobaltCpuMetricsEmitter&) = delete;
   CobaltCpuMetricsEmitter& operator=(const CobaltCpuMetricsEmitter&) = delete;
 
-  void FetchAndEmitCpuMetrics(base::ProcessMetrics* process_metrics);
+  void FetchAndEmitCpuMetrics();
 
  protected:
   // TODO(b/492251096): add tests for CPU metrics emitter class
@@ -45,6 +44,8 @@ class CobaltCpuMetricsEmitter
 
  private:
   friend class base::RefCountedThreadSafe<CobaltCpuMetricsEmitter>;
+
+  std::unique_ptr<base::ProcessMetrics> process_metrics_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

@@ -19,13 +19,11 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "base/memory/raw_ptr.h"
-#include "base/notreached.h"
-#include "base/posix/file_descriptor_shuffle.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "base/time/time.h"
+#include "base/threading/sequence_bound.h"
+#include "base/timer/timer.h"
 #include "base/version.h"
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
@@ -41,28 +39,12 @@
 
 namespace cobalt {
 
-// TODO(b/495528560): Fix ownership model in MetricsPollingState to separate CPU
-// and memory metrics polling
-class MetricsPollingState
-    : public base::RefCountedThreadSafe<MetricsPollingState> {
+class MetricsPollingState {
  public:
-  explicit MetricsPollingState(CobaltMetricsServiceClient* parent)
-      : parent_(parent) {}
-
-  // Parent pointer.
-  raw_ptr<CobaltMetricsServiceClient> parent_;
-
-  // Task runner for background metrics collection.
-  scoped_refptr<base::SequencedTaskRunner> task_runner;
-
-  // Flag to stop logging.
-  bool stop_logging = false;
+  MetricsPollingState() = default;
+  virtual ~MetricsPollingState() = default;
 
   void RecordMetricsAfterDelay() {
-    if (stop_logging) {
-      return;
-    }
-
     base::TimeDelta delay = memory_instrumentation::GetDelayForNextMemoryLog();
     const base::CommandLine* command_line =
         base::CommandLine::ForCurrentProcess();
@@ -77,54 +59,42 @@ class MetricsPollingState
       }
     }
 
-    task_runner->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&MetricsPollingState::RequestMetrics,
-                       base::RetainedRef(this)),
-        delay);
+    timer_.Start(FROM_HERE, delay, this, &MetricsPollingState::RequestMetrics);
   }
 
   virtual void RequestMetrics() = 0;
 
- protected:
-  friend class base::RefCountedThreadSafe<MetricsPollingState>;
-  virtual ~MetricsPollingState() = default;
+ private:
+  base::OneShotTimer timer_;
 };
 
 class CobaltMetricsServiceClient::MemoryPollingState
     : public MetricsPollingState {
  public:
-  using MetricsPollingState::MetricsPollingState;
+  explicit MemoryPollingState(
+      scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter)
+      : memory_emitter_(std::move(memory_emitter)) {}
 
   void RequestMetrics() override {
-    if (stop_logging) {
-      return;
-    }
-
-    parent_->CreateMemoryMetricsEmitter()->FetchAndEmitProcessMemoryMetrics();
+    memory_emitter_->FetchAndEmitProcessMemoryMetrics();
     RecordMetricsAfterDelay();
   }
-};
 
+ private:
+  scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter_;
+};
 class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
  public:
-  using MetricsPollingState::MetricsPollingState;
-
-  std::unique_ptr<base::ProcessMetrics> process_metrics_;
+  explicit CpuPollingState(scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter)
+      : cpu_emitter_(std::move(cpu_emitter)) {}
 
   void RequestMetrics() override {
-    if (stop_logging) {
-      return;
-    }
-
-    if (!process_metrics_) {
-      process_metrics_ = base::ProcessMetrics::CreateCurrentProcessMetrics();
-    }
-
-    parent_->CreateCpuMetricsEmitter()->FetchAndEmitCpuMetrics(
-        process_metrics_.get());
+    cpu_emitter_->FetchAndEmitCpuMetrics();
     RecordMetricsAfterDelay();
   }
+
+ private:
+  scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter_;
 };
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
@@ -153,20 +123,16 @@ void CobaltMetricsServiceClient::Initialize() {
 
 void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  memory_state_ = base::MakeRefCounted<MemoryPollingState>(this);
-  memory_state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
-  memory_state_->task_runner->PostTask(
-      FROM_HERE, base::BindOnce(&MemoryPollingState::RecordMetricsAfterDelay,
-                                base::RetainedRef(memory_state_)));
+  memory_state_.emplace(base::ThreadPool::CreateSequencedTaskRunner({}),
+                        CreateMemoryMetricsEmitter());
+  memory_state_.AsyncCall(&MemoryPollingState::RecordMetricsAfterDelay);
 }
 
 void CobaltMetricsServiceClient::StartCpuMetricsLogger() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  cpu_state_ = base::MakeRefCounted<CpuPollingState>(this);
-  cpu_state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
-  cpu_state_->task_runner->PostTask(
-      FROM_HERE, base::BindOnce(&CpuPollingState::RecordMetricsAfterDelay,
-                                base::RetainedRef(cpu_state_)));
+  cpu_state_.emplace(base::ThreadPool::CreateSequencedTaskRunner({}),
+                     CreateCpuMetricsEmitter());
+  cpu_state_.AsyncCall(&CpuPollingState::RecordMetricsAfterDelay);
 }
 
 void CobaltMetricsServiceClient::StartIdleRefreshTimer() {
@@ -366,16 +332,7 @@ void CobaltMetricsServiceClient::SetUploadInterval(base::TimeDelta interval) {
   StartIdleRefreshTimer();
 }
 
-CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
-  if (memory_state_) {
-    memory_state_->stop_logging = true;
-    memory_state_->parent_ = nullptr;
-  }
-  if (cpu_state_) {
-    cpu_state_->stop_logging = true;
-    cpu_state_->parent_ = nullptr;
-  }
-}
+CobaltMetricsServiceClient::~CobaltMetricsServiceClient() = default;
 
 void CobaltMetricsServiceClient::SetMetricsListener(
     ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {

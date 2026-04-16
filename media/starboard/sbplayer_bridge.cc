@@ -93,6 +93,13 @@ const int* ToIntPointer(const std::optional<int>& val) {
   return &*val;
 }
 
+const bool* ToBoolPointer(const std::optional<bool>& val) {
+  if (!val) {
+    return nullptr;
+  }
+  return &*val;
+}
+
 }  // namespace
 
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
@@ -770,6 +777,8 @@ void SbPlayerBridge::CreatePlayer() {
         experimental_features_.enable_reset_audio_decoder;
     extension_features.skip_flush_on_decoder_teardown =
         experimental_features_.skip_flush_on_decoder_teardown;
+    extension_features.use_dual_threads_for_video =
+        ToBoolPointer(experimental_features_.use_dual_threads_for_video);
     extension_features.video_decoder_initial_preroll_count = ToIntPointer(
         experimental_features_.video_decoder_initial_preroll_count);
     extension_features.video_renderer_min_decoded_frames =

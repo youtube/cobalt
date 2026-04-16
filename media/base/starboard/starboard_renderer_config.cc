@@ -59,7 +59,9 @@ std::ostream& operator<<(
             << ", video_renderer_min_input_buffers="
             << ToString(features.video_renderer_min_input_buffers)
             << ", video_renderer_min_decoded_frames="
-            << ToString(features.video_renderer_min_decoded_frames) << "}";
+            << ToString(features.video_renderer_min_decoded_frames)
+            << ", use_dual_threads_for_video="
+            << ToString(features.use_dual_threads_for_video) << "}";
 }
 
 }  // namespace media
