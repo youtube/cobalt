@@ -177,14 +177,17 @@ void DedicatedWorker::postMessage(ScriptState* script_state,
   if (!GetExecutionContext())
     return;
 
+  LOG(INFO) << "DedicatedWorker::postMessage - Called for worker: " << script_request_url_.ElidedString();
   BlinkTransferableMessage transferable_message;
   Transferables transferables;
   scoped_refptr<SerializedScriptValue> serialized_message =
       PostMessageHelper::SerializeMessageByMove(script_state->GetIsolate(),
                                                 message, options, transferables,
                                                 exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::postMessage - Serialization failed! Code: " << (int)exception_state.Code();
     return;
+  }
   DCHECK(serialized_message);
   transferable_message.message = serialized_message;
   transferable_message.sender_origin =
@@ -194,8 +197,10 @@ void DedicatedWorker::postMessage(ScriptState* script_state,
   transferable_message.ports = MessagePort::DisentanglePorts(
       ExecutionContext::From(script_state), transferables.message_ports,
       exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException()) {
+    LOG(ERROR) << "DedicatedWorker::postMessage - Port disentangle failed! Code: " << (int)exception_state.Code();
     return;
+  }
   transferable_message.user_activation =
       PostMessageHelper::CreateUserActivationSnapshot(GetExecutionContext(),
                                                       options);

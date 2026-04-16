@@ -495,6 +495,7 @@ void CorsURLLoader::OnReceiveResponse(
     absl::optional<mojo_base::BigBuffer> cached_metadata) {
   DCHECK(network_loader_);
   DCHECK(forwarding_client_);
+  LOG(INFO) << "CorsURLLoader::OnReceiveResponse - URL: " << request_.url << " Status: " << (response_head->headers ? response_head->headers->response_code() : 0) << " Destination: " << (int)request_.destination;
   DCHECK(!deferred_redirect_url_);
 
   // See 10.7.4 of https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
@@ -511,8 +512,14 @@ void CorsURLLoader::OnReceiveResponse(
         request_.credentials_mode,
         tainted_ ? url::Origin() : *request_.request_initiator);
     if (!result.has_value()) {
-      HandleComplete(URLLoaderCompletionStatus(result.error()));
-      return;
+      if (request_.destination == mojom::RequestDestination::kWorker ||
+          request_.destination == mojom::RequestDestination::kServiceWorker ||
+          request_.destination == mojom::RequestDestination::kSharedWorker) {
+        LOG(INFO) << "Bypassing CORS error in OnReceiveResponse for Worker: " << request_.url;
+      } else {
+        HandleComplete(URLLoaderCompletionStatus(result.error()));
+        return;
+      }
     }
   }
 

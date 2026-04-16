@@ -57,7 +57,8 @@ KURL AbstractWorker::ResolveURL(ExecutionContext* execution_context,
   // We can safely expose the URL in the following exceptions, as these checks
   // happen synchronously before redirection. JavaScript receives no new
   // information.
-  LOG(INFO) << "Bypassing Worker security checks for script: " << script_url.ElidedString();
+  LOG(INFO) << "Bypassing Worker security checks for script: " << script_url.ElidedString()
+            << " Origin: " << execution_context->GetSecurityOrigin()->ToString();
   /*
   if (!execution_context->GetSecurityOrigin()->CanReadContent(script_url)) {
     exception_state.ThrowSecurityError(

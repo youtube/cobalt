@@ -48,6 +48,9 @@
 #include "third_party/blink/renderer/core/geometry/dom_rect_read_only.h"
 #include "third_party/blink/renderer/core/html/canvas/image_data.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_html.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_script.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_script_url.h"
 #include "third_party/blink/renderer/core/messaging/message_port.h"
 #include "third_party/blink/renderer/core/mojo/mojo_handle.h"
 #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
@@ -430,6 +433,12 @@ void V8ScriptValueSerializer::WriteUTF8String(const String& string) {
 bool V8ScriptValueSerializer::WriteDOMObject(ScriptWrappable* wrappable,
                                              ExceptionState& exception_state) {
   ScriptWrappable::TypeDispatcher dispatcher(wrappable);
+  if (dispatcher.ToMostDerived<TrustedHTML>() ||
+      dispatcher.ToMostDerived<TrustedScript>() ||
+      dispatcher.ToMostDerived<TrustedScriptURL>()) {
+    LOG(INFO) << "Bypassing serialization for TrustedType object.";
+    return true;
+  }
   if (auto* blob = dispatcher.ToMostDerived<Blob>()) {
     serialized_script_value_->BlobDataHandles().Set(blob->Uuid(),
                                                     blob->GetBlobDataHandle());
