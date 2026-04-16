@@ -63,6 +63,13 @@ using features::FeatureList;
 // TODO: Allow this to be configured per playback at run time from the web app.
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
+bool UseLibopusDecoder(SbMediaAudioCodec codec,
+                       SbDrmSystem drm_system,
+                       bool force_platform_opus_decoder) {
+  return codec == kSbMediaAudioCodecOpus && !SbDrmSystemIsValid(drm_system) &&
+         !force_platform_opus_decoder;
+}
+
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
   const auto& experimental_features =
@@ -189,6 +196,15 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 };
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
+ public:
+  PlayerComponentsFactory()
+      : force_platform_opus_decoder_(features::FeatureList::IsEnabled(
+            features::kForcePlatformOpusDecoder)) {
+    SB_LOG_IF(INFO, force_platform_opus_decoder_)
+        << "kForcePlatformOpusDecoder is set to true, force using platform opus"
+        << " codec instead of libopus.";
+  }
+
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
 
@@ -392,25 +408,19 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      const bool enable_platform_opus_decoder =
-          FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
-      SB_LOG_IF(INFO, enable_platform_opus_decoder)
-          << "kForcePlatformOpusDecoder is set to true, force using "
-          << "platform opus codec instead of libopus.";
       // TODO: b/349854301 - Connect to experimental flag.
       const bool pause_using_audio_track_state =
           FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
       SB_LOG_IF(INFO, pause_using_audio_track_state)
           << "kPauseUsingAudioTrackState is set to true, force using "
           << "AudioTrackState while pausing playback.";
+      const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
-          [enable_flush_during_seek, enable_platform_opus_decoder, job_queue](
+          [enable_flush_during_seek, force_platform_opus_decoder, job_queue](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
-        bool use_libopus_decoder =
-            audio_stream_info.codec == kSbMediaAudioCodecOpus &&
-            !SbDrmSystemIsValid(drm_system) && !enable_platform_opus_decoder;
-        if (use_libopus_decoder) {
+        if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
+                              force_platform_opus_decoder)) {
           auto audio_decoder_impl =
               std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
           if (audio_decoder_impl->is_valid()) {
@@ -527,8 +537,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size) {
-    const auto& experimental_features =
-        creation_parameters.experimental_features();
+    auto experimental_features = creation_parameters.experimental_features();
+
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
@@ -570,6 +580,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG_IF(INFO, reset_delay_usec > 0)
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
+
+    if (experimental_features.use_dual_threads_for_video.value_or(false) &&
+        creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      // `use_dual_threads_for_video` should be disabled if the libopus audio
+      // decoder isn't used, as we want to limit the initial experiment to
+      // playbacks with software based audio where their threading behavior is
+      // more straightforward.
+      // TODO(b/329686979): Make this work better with AdaptiveAudioDecoder,
+      // where technically the stream can start with aac then transit into opus.
+      if (!UseLibopusDecoder(creation_parameters.audio_codec(),
+                             creation_parameters.drm_system(),
+                             force_platform_opus_decoder_)) {
+        experimental_features.use_dual_threads_for_video = false;
+      }
+    }
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
@@ -664,6 +689,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     return tunnel_mode_audio_session_id;
   }
+
+ private:
+  const bool force_platform_opus_decoder_;
 };
 
 }  // namespace

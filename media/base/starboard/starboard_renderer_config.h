@@ -38,6 +38,7 @@ struct MEDIA_EXPORT StarboardRendererConfig {
     std::optional<int> video_decoder_initial_preroll_count;
     std::optional<int> video_renderer_min_input_buffers;
     std::optional<int> video_renderer_min_decoded_frames;
+    std::optional<bool> use_dual_threads_for_video;
   };
 
   StarboardRendererConfig();

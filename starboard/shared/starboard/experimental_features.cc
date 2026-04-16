@@ -51,6 +51,13 @@ std::optional<int> FromIntPointer(const int* val) {
   return *val;
 }
 
+std::optional<bool> FromBoolPointer(const bool* val) {
+  if (!val) {
+    return std::nullopt;
+  }
+  return *val;
+}
+
 const StarboardExtensionExperimentalFeaturesConfigurationApi
     kExperimentalFeaturesConfigurationApi = {
         kStarboardExtensionExperimentalFeaturesConfigurationName,
@@ -84,6 +91,8 @@ void SetExperimentalFeaturesForCurrentThread(
       FromIntPointer(extension_features->video_renderer_min_decoded_frames);
   experiment_features.video_renderer_min_input_buffers =
       FromIntPointer(extension_features->video_renderer_min_input_buffers);
+  experiment_features.use_dual_threads_for_video =
+      FromBoolPointer(extension_features->use_dual_threads_for_video);
 
   *GetOrCreateExperimentalFeatures() = experiment_features;
 }
