@@ -84,6 +84,12 @@ jobs:
           ref: cherry-pick-main-sync
           fetch-depth: 16
           filter: blob:none
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
+      - name: Setup Git user
+        if: steps.checkout_cherry_pick_main_sync.outcome == 'success'
+        run: |
+          git config --global user.name "GitHub Release Automation"
+          git config --global user.email "github@google.com"
       - name: Cherry Pick upstream diff to main
         if: steps.checkout_cherry_pick_main_sync.outcome == 'success'
         run: |

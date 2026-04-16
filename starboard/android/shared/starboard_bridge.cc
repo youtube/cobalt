@@ -79,6 +79,8 @@ jboolean JNI_StarboardBridge_InitJNI(
 
   // Initialize the singleton instance of StarboardBridge
   StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
+
+  StarboardBridge::GetInstance()->SetStartupMilestone(5);
   return true;
 }
 
@@ -405,6 +407,16 @@ bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
 void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
   SB_DCHECK(env);
   Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::HideSplashScreen(JNIEnv* env) const {
+  SB_DCHECK(env);
+  Java_StarboardBridge_hideSplashScreen(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::SetStartupMilestone(jint milestone) const {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_StarboardBridge_setStartupMilestone(env, j_starboard_bridge_, milestone);
 }
 
 }  // namespace starboard
