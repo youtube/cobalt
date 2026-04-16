@@ -123,6 +123,10 @@ void MessagePumpUIStarboard::Quit() {
     run_loop_->AfterRun();
     run_loop_ = nullptr;
   }
+
+  if (on_quit_callback_) {
+    std::move(on_quit_callback_).Run();
+  }
 }
 
 void MessagePumpUIStarboard::ScheduleWork() {
@@ -157,6 +161,15 @@ void MessagePumpUIStarboard::CancelAll() {
   base::AutoLock auto_lock(outstanding_events_lock_);
   CancelImmediateLocked();
   CancelDelayedLocked();
+}
+
+void MessagePumpUIStarboard::QuitWhenIdle(OnceClosure callback) {
+  DCHECK(!on_quit_callback_);
+  DCHECK(run_loop_);
+  on_quit_callback_ = std::move(callback);
+  run_loop_->QuitWhenIdle();
+  // Pump the loop in case we're already idle.
+  ScheduleWork();
 }
 
 void MessagePumpUIStarboard::CancelImmediateLocked() {
