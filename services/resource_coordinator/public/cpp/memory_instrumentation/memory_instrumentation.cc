@@ -17,6 +17,7 @@ void WrapGlobalMemoryDump(
     mojom::GlobalMemoryDumpPtr dump) {
   std::move(callback).Run(success, GlobalMemoryDump::MoveFrom(std::move(dump)));
 }
+
 }  // namespace
 
 // static
@@ -45,10 +46,11 @@ MemoryInstrumentation::~MemoryInstrumentation() {
 
 void MemoryInstrumentation::RequestGlobalDump(
     const std::vector<std::string>& allocator_dump_names,
-    RequestGlobalDumpCallback callback) {
+    RequestGlobalDumpCallback callback,
+    MemoryDumpLevelOfDetail level_of_detail) {
   CHECK(is_browser_process_);
   coordinator_->RequestGlobalMemoryDump(
-      MemoryDumpType::kSummaryOnly, MemoryDumpLevelOfDetail::kBackground,
+      MemoryDumpType::kSummaryOnly, level_of_detail,
       MemoryDumpDeterminism::kNone, allocator_dump_names,
       base::BindOnce(&WrapGlobalMemoryDump, std::move(callback)));
 }
@@ -79,6 +81,38 @@ void MemoryInstrumentation::RequestGlobalDumpAndAppendToTrace(
   CHECK(is_browser_process_);
   coordinator_->RequestGlobalMemoryDumpAndAppendToTrace(
       dump_type, level_of_detail, determinism, std::move(callback));
+}
+
+#if BUILDFLAG(IS_COBALT)
+void MemoryInstrumentation::SetDetailedMetricsDelegate(
+    DetailedMetricsDelegate* delegate) {
+  base::AutoLock lock(detailed_metrics_delegate_lock_);
+  detailed_metrics_delegate_ = delegate;
+  if (detailed_metrics_delegate_) {
+    smaps_categorizer_ = std::make_unique<SmapsCategorizer>(
+        detailed_metrics_delegate_->GetWeakPtr());
+  } else {
+    smaps_categorizer_.reset();
+  }
+}
+
+DetailedMetricsDelegate* MemoryInstrumentation::GetDetailedMetricsDelegate()
+    const {
+  base::AutoLock lock(detailed_metrics_delegate_lock_);
+  return detailed_metrics_delegate_;
+}
+
+void MemoryInstrumentation::RequestDetailedDump(base::OnceClosure callback) {
+  if (smaps_categorizer_) {
+    smaps_categorizer_->RequestDump(std::move(callback));
+  } else {
+    std::move(callback).Run();
+  }
+}
+#endif
+
+base::WeakPtr<MemoryInstrumentation> MemoryInstrumentation::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace memory_instrumentation
