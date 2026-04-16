@@ -433,10 +433,22 @@ void V8ScriptValueSerializer::WriteUTF8String(const String& string) {
 bool V8ScriptValueSerializer::WriteDOMObject(ScriptWrappable* wrappable,
                                              ExceptionState& exception_state) {
   ScriptWrappable::TypeDispatcher dispatcher(wrappable);
-  if (dispatcher.ToMostDerived<TrustedHTML>() ||
-      dispatcher.ToMostDerived<TrustedScript>() ||
-      dispatcher.ToMostDerived<TrustedScriptURL>()) {
-    LOG(INFO) << "Bypassing serialization for TrustedType object.";
+  if (auto* html = dispatcher.ToMostDerived<TrustedHTML>()) {
+    LOG(INFO) << "Bypassing serialization for TrustedHTML: " << html->toString();
+    WriteAndRequireInterfaceTag(kTrustedTypeBypassTag);
+    WriteUTF8String(html->toString());
+    return true;
+  }
+  if (auto* script = dispatcher.ToMostDerived<TrustedScript>()) {
+    LOG(INFO) << "Bypassing serialization for TrustedScript: " << script->toString();
+    WriteAndRequireInterfaceTag(kTrustedTypeBypassTag);
+    WriteUTF8String(script->toString());
+    return true;
+  }
+  if (auto* url = dispatcher.ToMostDerived<TrustedScriptURL>()) {
+    LOG(INFO) << "Bypassing serialization for TrustedScriptURL: " << url->toString();
+    WriteAndRequireInterfaceTag(kTrustedTypeBypassTag);
+    WriteUTF8String(url->toString());
     return true;
   }
   if (auto* blob = dispatcher.ToMostDerived<Blob>()) {
