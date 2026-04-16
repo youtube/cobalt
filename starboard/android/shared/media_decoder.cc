@@ -338,31 +338,11 @@ void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
-<<<<<<< HEAD
-void MediaCodecDecoder::DecoderThreadFunc() {
-=======
 // TODO(b/329686979): Abstract common code of thread creation functions.
 // TODO(b/329686979): Implement thread logic using //starboard/common/thread.h.
-// static
-void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
-  SB_CHECK(context);
-  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
-  pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
-  if (decoder->media_type_ == kSbMediaTypeAudio) {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
-  } else {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
-  }
-
-  decoder->DecoderThreadFunc();
-  JNIState::GetVM()->DetachCurrentThread();
-  return nullptr;
-}
-
-void MediaDecoder::DecoderThreadFunc() {
+void MediaCodecDecoder::DecoderThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   SB_DCHECK(error_cb_);
 
   if (media_type_ == kSbMediaTypeAudio) {
