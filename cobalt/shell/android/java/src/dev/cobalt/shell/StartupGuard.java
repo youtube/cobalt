@@ -39,18 +39,24 @@ public class StartupGuard {
         crashRunnable = new Runnable() {
             @Override
             public void run() {
-                StringBuilder message = new StringBuilder();
-                message.append("Application startup may not have succeeded, crash triggered by StartupGuard. Status: 0x");
-                message.append(Long.toHexString(startupStatus.get()));
-                synchronized (diagnosisInfo) {
-                    if (!diagnosisInfo.isEmpty()) {
-                        message.append(", Diagnosis Info: ");
-                        message.append(diagnosisInfo.toString());
-                    }
-                }
-                throw new RuntimeException(message.toString());
+                throw new RuntimeException(
+                        "Application startup may not have succeeded, crash triggered by StartupGuard. "
+                                + getStartupStatusAndDiagnosisInfo());
             }
         };
+    }
+
+    private String getStartupStatusAndDiagnosisInfo() {
+        StringBuilder message = new StringBuilder();
+        message.append("Status: 0x");
+        message.append(Long.toHexString(startupStatus.get()));
+        synchronized (diagnosisInfo) {
+            if (!diagnosisInfo.isEmpty()) {
+                message.append(", Diagnosis Info: ");
+                message.append(diagnosisInfo.toString());
+            }
+        }
+        return message.toString();
     }
 
     /**
@@ -82,6 +88,7 @@ public class StartupGuard {
      */
     public void setDiagnosisInfo(String key, String value) {
         synchronized (diagnosisInfo) {
+            Log.v(TAG, "StartupGuard setDiagnosisInfo: " + key + "=" + value);
             diagnosisInfo.put(key, value);
         }
     }
@@ -105,7 +112,7 @@ public class StartupGuard {
     public void disarm() {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
-            Log.i(TAG, "StartupGuard cancelled crash. Status: 0x" + Long.toHexString(startupStatus.get()));
+            Log.i(TAG, "StartupGuard cancelled crash. " + getStartupStatusAndDiagnosisInfo());
         }
     }
 }
