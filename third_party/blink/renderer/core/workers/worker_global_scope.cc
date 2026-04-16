@@ -516,6 +516,23 @@ void WorkerGlobalScope::RunWorkerScript() {
   bool is_success = false;
   if (ScriptState* script_state = ScriptController()->GetScriptState()) {
     v8::HandleScope handle_scope(script_state->GetIsolate());
+
+    // Diagnostic: Check for MediaSourceHandle in the global object
+    {
+      v8::Local<v8::Context> context = script_state->GetContext();
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::Object> global = context->Global();
+      v8::Local<v8::String> name = V8String(script_state->GetIsolate(), "MediaSourceHandle");
+      v8::Maybe<bool> has_handle = global->Has(context, name);
+      LOG(INFO) << "  [DIAGNOSTIC] Global has MediaSourceHandle: " 
+                << (has_handle.IsJust() && has_handle.FromJust() ? "YES" : "NO");
+
+      v8::Local<v8::String> ms_name = V8String(script_state->GetIsolate(), "MediaSource");
+      v8::Maybe<bool> has_ms = global->Has(context, ms_name);
+      LOG(INFO) << "  [DIAGNOSTIC] Global has MediaSource: " 
+                << (has_ms.IsJust() && has_ms.FromJust() ? "YES" : "NO");
+    }
+
     LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - Evaluating script...";
     ScriptEvaluationResult result =
         std::move(worker_script_)
