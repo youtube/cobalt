@@ -14,6 +14,9 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include <thread>
+#include <chrono>
+
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
@@ -285,6 +288,7 @@ void StarboardRenderer::RecreatePlayerBridge(TimeDelta seek_time) {
             << seek_time;
 
   player_bridge_.reset();
+  std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
   // This logic is mostly from CreatePlayerBridge, but without the init_cb_
   // part.
@@ -301,7 +305,7 @@ void StarboardRenderer::RecreatePlayerBridge(TimeDelta seek_time) {
       audio_stream_ ? audio_stream_->mime_type() : "";
   const std::string video_mime_type =
       video_stream_ ? video_stream_->mime_type() : "";
-
+  
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
       // TODO(b/375070492): Implement decode-to-texture support
@@ -315,9 +319,14 @@ void StarboardRenderer::RecreatePlayerBridge(TimeDelta seek_time) {
       // TODO(b/326825450): Revisit 360 videos.
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
-      initial_max_frames_in_decoder_, max_pending_input_frames_,
-      video_decoder_poll_interval_ms_
+      -1, experimental_features_.enable_flush_during_seek,
+      experimental_features_.enable_reset_audio_decoder,
+      experimental_features_.initial_max_frames_in_decoder.value_or(-1),
+      experimental_features_.max_pending_input_frames.value_or(-1),
+      experimental_features_.video_decoder_initial_preroll_count.value_or(-1),
+      experimental_features_.video_decoder_poll_interval_ms.value_or(-1),
+      experimental_features_.video_renderer_min_input_buffers.value_or(-1),
+      experimental_features_.video_renderer_min_decoded_frames.value_or(-1)
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.
@@ -355,16 +364,10 @@ void StarboardRenderer::RecreatePlayerBridge(TimeDelta seek_time) {
   }
 
   player_bridge_->SetVolume(volume_);
-  player_bridge_->SetPlaybackRate(playback_rate_);
 
-  state_ = STATE_PLAYING;
-  player_bridge_->Seek(seek_time);
-  StoreMediaTime(seek_time);
-  is_video_eos_written_ = false;
-  OnNeedData(DemuxerStream::VIDEO, max_samples_per_write_);
-  if (audio_stream_) {
-    OnNeedData(DemuxerStream::AUDIO, max_samples_per_write_);
-  }
+  // Save the seek time. We will Seek and request data once the new
+  // player initializes (in OnPlayerStatus).
+  seek_time_ = seek_time;
 }
 
 void StarboardRenderer::SetCdm(CdmContext* cdm_context,
@@ -923,9 +926,10 @@ void StarboardRenderer::OnDemuxerStreamRead(
           stream->video_decoder_config().visible_rect().size());
     }
     UpdateDecoderConfig(stream);
-    if (video_codec_change_pending_) {
+    if (video_codec_change_pending_ && stream == video_stream_) {
       // Don't read from video stream until player is recreated.
       // The recreation logic in OnPlayerStatus will trigger a new read.
+      video_read_in_progress_ = false;
       return;
     }
     stream->Read(
@@ -1069,8 +1073,16 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
   switch (state) {
     case kSbPlayerStateInitialized:
-      CHECK(init_cb_);
-      std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
+      if (init_cb_) {
+        std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
+      } else {
+        LOG(INFO) << "Player initialized during recreation, resuming playback.";
+        state_ = STATE_PLAYING;
+        player_bridge_->Seek(seek_time_);
+        player_bridge_->SetPlaybackRate(playback_rate_);
+        StoreMediaTime(seek_time_);
+        is_video_eos_written_ = false;
+      }
       break;
     case kSbPlayerStatePrerolling:
       break;
