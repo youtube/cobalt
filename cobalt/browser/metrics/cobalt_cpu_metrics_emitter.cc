@@ -16,7 +16,6 @@
 
 #include <algorithm>
 
-#include "base/check_op.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/system/sys_info.h"
@@ -24,6 +23,9 @@
 namespace cobalt {
 
 CobaltCpuMetricsEmitter::CobaltCpuMetricsEmitter() {
+  // The emitter is created on the main thread but will be used
+  // on a background sequence maintained by base::SequenceBound
+  // in CobaltMetricsServiceClient.
   DETACH_FROM_SEQUENCE(sequence_checker_);
 }
 
@@ -34,6 +36,10 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
 
   if (!process_metrics_) {
     process_metrics_ = base::ProcessMetrics::CreateCurrentProcessMetrics();
+  }
+
+  if (!process_metrics_) {
+    return;
   }
 
   // Total CPU utilization in percentage of all cores in between every call.
