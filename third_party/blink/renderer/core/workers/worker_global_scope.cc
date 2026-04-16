@@ -245,6 +245,10 @@ String NetworkErrorMessageAtImportScript(const char* const property_name,
 // Implementation of the "import scripts into worker global scope" algorithm:
 // https://html.spec.whatwg.org/C/#import-scripts-into-worker-global-scope
 void WorkerGlobalScope::ImportScriptsInternal(const Vector<String>& urls) {
+  LOG(INFO) << "WorkerGlobalScope::ImportScriptsInternal - TID: " << base::PlatformThread::CurrentId();
+  for (const String& url : urls) {
+    LOG(INFO) << "  Importing: " << url.Utf8();
+  }
   DCHECK(GetContentSecurityPolicy());
   DCHECK(GetExecutionContext());
   v8::Isolate* isolate = GetThread()->GetIsolate();

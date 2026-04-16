@@ -798,7 +798,7 @@ v8::MaybeLocal<v8::Object> V8ScriptValueDeserializer::ReadHostObject(
       String value;
       if (ReadUTF8String(&value)) {
         v8::Local<v8::String> v8_string = V8String(isolate, value);
-        return v8_string.As<v8::Object>();
+        return v8::StringObject::New(isolate, v8_string).As<v8::Object>();
       }
       return v8::MaybeLocal<v8::Object>();
     }
@@ -941,6 +941,8 @@ bool V8ScriptValueDeserializer::ExecutionContextExposesInterface(
       }
       return is_exposed;
     }
+    case kTrustedTypeBypassTag:
+      return true;
     case kDOMExceptionTag:
       return V8DOMException::IsExposed(execution_context);
     default:
