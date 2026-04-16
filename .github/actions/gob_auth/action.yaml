@@ -27,6 +27,7 @@ runs:
         echo "Authenticating with ${SERVICE_ACCOUNT}"
 
         GITCOOKIES_PATH="${{ runner.temp }}/gitcookies"
+        mkdir -p "$(dirname "${GITCOOKIES_PATH}")"
         (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\ngooglesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" \
           "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
 
