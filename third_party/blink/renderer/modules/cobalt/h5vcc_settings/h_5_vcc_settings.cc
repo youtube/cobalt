@@ -157,18 +157,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         });
   }
-<<<<<<< HEAD
-  if (name == "DecoderBuffer.EnableInPlaceReuseAllocatorBase") {
-    return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-          ::media::DecoderBufferAllocator::EnableInPlaceReuseAllocatorBase();
-          return true;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-          return false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-        });
-  }
   if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {
@@ -180,8 +168,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         });
   }
-=======
->>>>>>> 0a416977bd (media: Make InPlace allocator the default (#9955))
   // "DecoderBuffer." settings must be handled before this catch-all block.
   if (name.StartsWith("DecoderBuffer.")) {
     return Reject(script_state, exception_context,
