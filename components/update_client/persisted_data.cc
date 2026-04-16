@@ -244,7 +244,6 @@ std::string PersistedDataImpl::GetLatestChannel() const {
 void PersistedDataImpl::SetLastInstalledEgAndSbVersion(const std::string& id,
                                                    const std::string& eg_version,
                                                    const std::string& sb_version) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SetString(id, "version", eg_version);
   SetString(id, "sbversion", sb_version);
   PrefService* prefs = pref_service_provider_.Run();
@@ -252,7 +251,6 @@ void PersistedDataImpl::SetLastInstalledEgAndSbVersion(const std::string& id,
 }
 void PersistedDataImpl::SetUpdaterChannel(const std::string& id,
                                       const std::string& channel) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SetString(id, "updaterchannel", channel);
   PrefService* prefs = pref_service_provider_.Run();
   FlushPrefs(prefs);
