@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/system/sys_info.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_path_override.h"
@@ -504,8 +505,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
 
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
-  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50),
-            1u);
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50), 1);
 }
 
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
