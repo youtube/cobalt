@@ -291,9 +291,9 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
     if (video_input_thread_ == 0) {
       pthread_create(&video_input_thread_, nullptr,
-                     &MediaDecoder::InputThreadEntryPoint, this);
+                     &MediaCodecDecoder::InputThreadEntryPoint, this);
       pthread_create(&video_output_thread_, nullptr,
-                     &MediaDecoder::OutputThreadEntryPoint, this);
+                     &MediaCodecDecoder::OutputThreadEntryPoint, this);
       SB_DCHECK_NE(video_input_thread_, 0);
       SB_DCHECK_NE(video_output_thread_, 0);
     }
@@ -326,7 +326,7 @@ void MediaCodecDecoder::WriteEndOfStream() {
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
     if (use_dual_threads_) {
-      video_input_condition_variable_.Signal();
+      video_input_condition_variable_.notify_one();
     } else {
       condition_variable_.notify_one();
     }
@@ -481,13 +481,10 @@ void MediaCodecDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
-<<<<<<< HEAD
-void MediaCodecDecoder::TerminateDecoderThread() {
-=======
 // static
-void* MediaDecoder::InputThreadEntryPoint(void* context) {
+void* MediaCodecDecoder::InputThreadEntryPoint(void* context) {
   SB_CHECK(context);
-  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
   pthread_setname_np(pthread_self(), "VidDecIn");
 
   decoder->InputThreadFunc();
@@ -495,7 +492,7 @@ void* MediaDecoder::InputThreadEntryPoint(void* context) {
   return nullptr;
 }
 
-void MediaDecoder::InputThreadFunc() {
+void MediaCodecDecoder::InputThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
   SB_DCHECK(error_cb_);
@@ -519,7 +516,7 @@ void MediaDecoder::InputThreadFunc() {
         usleep(1'000);
       }
     } else {
-      ScopedLock scoped_lock(mutex_);
+      std::unique_lock scoped_lock(mutex_);
       if (pending_inputs_.empty() && input_buffer_indices_.empty()) {
         // Wait for up to one second.  Technically we can wait longer, picking
         // a reasonably small duration to avoid potential deadlock.
@@ -536,9 +533,9 @@ void MediaDecoder::InputThreadFunc() {
 }
 
 // static
-void* MediaDecoder::OutputThreadEntryPoint(void* context) {
+void* MediaCodecDecoder::OutputThreadEntryPoint(void* context) {
   SB_CHECK(context);
-  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+  MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
   pthread_setname_np(pthread_self(), "VidDecOut");
   ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
 
@@ -547,7 +544,7 @@ void* MediaDecoder::OutputThreadEntryPoint(void* context) {
   return nullptr;
 }
 
-void MediaDecoder::OutputThreadFunc() {
+void MediaCodecDecoder::OutputThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
   SB_DCHECK(error_cb_);
@@ -568,14 +565,14 @@ void MediaDecoder::OutputThreadFunc() {
       }
       dequeue_output_results.erase(dequeue_output_results.begin());
     } else {
-      ScopedLock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       CollectPendingOutputData_Locked(&dequeue_output_results);
     }
 
     bool ticked = host_->Tick(media_codec_bridge_.get());
 
     if (!ticked && dequeue_output_results.empty()) {
-      ScopedLock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       CollectPendingOutputData_Locked(&dequeue_output_results);
       if (dequeue_output_results.empty()) {
         // TODO(b/329686979): Allow Tick() to return the time to next frame
@@ -586,8 +583,7 @@ void MediaDecoder::OutputThreadFunc() {
   }
 }
 
-void MediaDecoder::TerminateDecoderThread() {
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
+void MediaCodecDecoder::TerminateDecoderThread() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
@@ -628,7 +624,7 @@ void MediaCodecDecoder::CollectPendingData_Locked(
   CollectPendingOutputData_Locked(dequeue_output_results);
 }
 
-void MediaDecoder::CollectPendingInputData_Locked(
+void MediaCodecDecoder::CollectPendingInputData_Locked(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
   SB_DCHECK(pending_inputs);
@@ -644,7 +640,7 @@ void MediaDecoder::CollectPendingInputData_Locked(
   input_buffer_indices_.clear();
 }
 
-void MediaDecoder::CollectPendingOutputData_Locked(
+void MediaCodecDecoder::CollectPendingOutputData_Locked(
     std::vector<DequeueOutputResult>* dequeue_output_results) {
   SB_DCHECK(dequeue_output_results);
 
