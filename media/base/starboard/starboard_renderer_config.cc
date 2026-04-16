@@ -59,15 +59,9 @@ std::ostream& operator<<(
             << ", video_renderer_min_input_buffers="
             << ToString(features.video_renderer_min_input_buffers)
             << ", video_renderer_min_decoded_frames="
-<<<<<<< HEAD
-            << ToString(features.video_renderer_min_decoded_frames) << "}";
-=======
             << ToString(features.video_renderer_min_decoded_frames)
-            << ", media_codec_reset_delay_ms="
-            << ToString(features.media_codec_reset_delay_ms)
             << ", use_dual_threads_for_video="
             << ToString(features.use_dual_threads_for_video) << "}";
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
 }
 
 }  // namespace media

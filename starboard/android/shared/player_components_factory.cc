@@ -63,18 +63,6 @@ using features::FeatureList;
 // TODO: Allow this to be configured per playback at run time from the web app.
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
-<<<<<<< HEAD
-=======
-// Forces video surface to reset after tunnel mode playbacks. This prevents
-// video distortion on some platforms.
-constexpr bool kForceResetSurfaceUnderTunnelMode = true;
-
-// By default, Cobalt restarts MediaCodec after stops/flushes during
-// Reset()/Flush(). Set the following variable to > 0 to force it to
-// wait during Reset()/Flush().
-constexpr int64_t kResetDelayUsecOverride = 0;
-constexpr int64_t kFlushDelayUsecOverride = 0;
-
 bool UseLibopusDecoder(SbMediaAudioCodec codec,
                        SbDrmSystem drm_system,
                        bool force_platform_opus_decoder) {
@@ -82,7 +70,6 @@ bool UseLibopusDecoder(SbMediaAudioCodec codec,
          !force_platform_opus_decoder;
 }
 
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
 std::optional<VideoRendererImpl::PrerollParameters> GetPrerollParams(
     const PlayerComponents::Factory::CreationParameters& creation_parameters) {
   const auto& experimental_features =
@@ -209,8 +196,6 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 };
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
-<<<<<<< HEAD
-=======
  public:
   PlayerComponentsFactory()
       : force_platform_opus_decoder_(features::FeatureList::IsEnabled(
@@ -220,24 +205,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << " codec instead of libopus.";
   }
 
-  typedef starboard::shared::starboard::media::MimeType MimeType;
-  typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
-  typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
-      AdaptiveAudioDecoder;
-  typedef starboard::shared::starboard::player::filter::AudioDecoder
-      AudioDecoderBase;
-  typedef starboard::shared::starboard::player::filter::AudioRendererSink
-      AudioRendererSink;
-  typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
-      AudioRendererSinkImpl;
-  typedef starboard::shared::starboard::player::filter::VideoDecoder
-      VideoDecoderBase;
-  typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
-      VideoRenderAlgorithmBase;
-  typedef starboard::shared::starboard::player::filter::VideoRendererSink
-      VideoRendererSink;
-
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
 
@@ -440,17 +407,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     MediaComponents components;
     JobQueue* job_queue = creation_parameters.job_queue();
 
-<<<<<<< HEAD
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      const bool enable_platform_opus_decoder =
-          FeatureList::IsEnabled(features::kForcePlatformOpusDecoder);
-      SB_LOG_IF(INFO, enable_platform_opus_decoder)
-          << "kForcePlatformOpusDecoder is set to true, force using "
-          << "platform opus codec instead of libopus.";
-      // TODO: b/349854301 - Connect to experimental flag.
-=======
-      using starboard::shared::starboard::media::AudioStreamInfo;
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
       const bool pause_using_audio_track_state =
           FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
       SB_LOG_IF(INFO, pause_using_audio_track_state)
@@ -458,21 +415,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "AudioTrackState while pausing playback.";
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
-<<<<<<< HEAD
-          [enable_flush_during_seek, enable_platform_opus_decoder, job_queue](
+          [enable_flush_during_seek, force_platform_opus_decoder, job_queue](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
-        bool use_libopus_decoder =
-            audio_stream_info.codec == kSbMediaAudioCodecOpus &&
-            !SbDrmSystemIsValid(drm_system) && !enable_platform_opus_decoder;
-        if (use_libopus_decoder) {
-=======
-          [enable_flush_during_seek, force_platform_opus_decoder](
-              const AudioStreamInfo& audio_stream_info,
-              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoderBase> {
         if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
                               force_platform_opus_decoder)) {
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
           auto audio_decoder_impl =
               std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
           if (audio_decoder_impl->is_valid()) {
@@ -588,15 +535,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       const CreationParameters& creation_parameters,
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
-<<<<<<< HEAD
       int max_video_input_size) {
-    const auto& experimental_features =
-        creation_parameters.experimental_features();
-=======
-      int max_video_input_size,
-      std::string* error_message) {
     auto experimental_features = creation_parameters.experimental_features();
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
+
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset) ||
@@ -639,10 +580,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-<<<<<<< HEAD
-    return MediaCodecVideoDecoder::Create(
-        creation_parameters.job_queue(),
-=======
     if (experimental_features.use_dual_threads_for_video.value_or(false) &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       // `use_dual_threads_for_video` should be disabled if the libopus audio
@@ -658,16 +595,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       }
     }
 
-    if (experimental_features.media_codec_reset_delay_ms) {
-      reset_delay_usec =
-          static_cast<int64_t>(
-              *experimental_features.media_codec_reset_delay_ms) *
-          1000;
-      SB_LOG(INFO) << "`media_codec_reset_delay_ms` is set, force a delay"
-                   << " of " << reset_delay_usec << "us during Reset().";
-    }
-    auto video_decoder = std::make_unique<VideoDecoder>(
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
+    return MediaCodecVideoDecoder::Create(
+        creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
@@ -759,15 +688,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     return tunnel_mode_audio_session_id;
   }
-<<<<<<< HEAD
-=======
 
  private:
   const bool force_platform_opus_decoder_;
   bool is_tunnel_mode_used_ = false;
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
 };
-
 }  // namespace
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {

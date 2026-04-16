@@ -205,11 +205,7 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig::ExperimentalFeatures)
   IPC_STRUCT_TRAITS_MEMBER(video_decoder_initial_preroll_count)
   IPC_STRUCT_TRAITS_MEMBER(video_renderer_min_input_buffers)
   IPC_STRUCT_TRAITS_MEMBER(video_renderer_min_decoded_frames)
-<<<<<<< HEAD
-=======
-  IPC_STRUCT_TRAITS_MEMBER(media_codec_reset_delay_ms)
   IPC_STRUCT_TRAITS_MEMBER(use_dual_threads_for_video)
->>>>>>> 16194a2cd7 (android: Add experiment setup for video decoder threading (#9484))
 IPC_STRUCT_TRAITS_END()
 
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
