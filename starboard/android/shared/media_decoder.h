@@ -97,7 +97,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
-      int64_t flush_delay_usec);
+      int64_t flush_delay_usec,
+      std::optional<bool> use_dual_threads);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -125,6 +126,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
+      std::optional<bool> use_dual_threads,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -179,11 +181,24 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   void DecoderThreadFunc();
 
+  // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
+  // simplify the handling of threading, including the difference of a/v
+  // threading in the original implementation in DecoderThreadFunc() above.
+  static void* InputThreadEntryPoint(void* context);
+  void InputThreadFunc();
+
+  static void* OutputThreadEntryPoint(void* context);
+  void OutputThreadFunc();
+
   void TerminateDecoderThread();
 
   void CollectPendingData_Locked(
       std::deque<PendingInput>* pending_inputs,
       std::vector<int>* input_buffer_indices,
+      std::vector<DequeueOutputResult>* dequeue_output_results);
+  void CollectPendingInputData_Locked(std::deque<PendingInput>* pending_inputs,
+                                      std::vector<int>* input_buffer_indices);
+  void CollectPendingOutputData_Locked(
       std::vector<DequeueOutputResult>* dequeue_output_results);
   bool ProcessOneInputBuffer(std::deque<PendingInput>* pending_inputs,
                              std::vector<int>* input_buffer_indices);
@@ -216,6 +231,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
   const int64_t video_decoder_poll_interval_us_;
+  const bool use_dual_threads_ = false;
 
   ErrorCB error_cb_;
 
@@ -233,6 +249,12 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   std::mutex mutex_;
   std::condition_variable condition_variable_;
+  // TODO(b/329686979): Consider guarding input and output logic using two
+  // mutexes.
+  // Only used when |use_dual_threads_| is true.
+  std::condition_variable video_input_condition_variable_;
+  // Only used when |use_dual_threads_| is true.
+  std::condition_variable video_output_condition_variable_;
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
@@ -240,9 +262,13 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
-  // Working thread to avoid lengthy decoding work block the player thread.
+  // Working threads to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
-  // Factory method guarantees that media_codec_bridge_ is non-null.
+  // Only used when |use_dual_threads_| is true.
+  pthread_t video_input_thread_ = 0;
+  // Only used when |use_dual_threads_| is true.
+  pthread_t video_output_thread_ = 0;
+
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
