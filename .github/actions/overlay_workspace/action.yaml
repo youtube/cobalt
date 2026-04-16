@@ -20,6 +20,9 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
+
     - name: Prepare OverlayFS Workspace
       id: prepare
       shell: bash
@@ -44,22 +47,6 @@ runs:
 
         # Ensure the directories exist
         mkdir -p "$UPPER_DIR" "$WORK_DIR" "$MERGED_DIR"
-
-        # Add GoB Authentication
-        if ! curl -s -m 2 -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email" > /dev/null; then
-          echo "Metadata server not reachable. Skipping GoB authentication setup."
-        else
-          SERVICE_ACCOUNT=$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email")
-          ACCESS_TOKEN=$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
-          if [[ -n "${SERVICE_ACCOUNT}" && -n "${ACCESS_TOKEN}" ]]; then
-            echo "::add-mask::${ACCESS_TOKEN}"
-            echo "Authenticating with ${SERVICE_ACCOUNT}"
-            GITCOOKIES_PATH="/tmp/gitcookies"
-            (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\ngooglesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" \
-              "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
-            git config --global http.cookiefile "${GITCOOKIES_PATH}"
-          fi
-        fi
 
         # If the golden workspace does not exist or is corrupted (missing .gclient), initialize it.
         # This will only happen once per node!
