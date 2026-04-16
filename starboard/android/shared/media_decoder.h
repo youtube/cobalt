@@ -252,7 +252,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   // TODO(b/329686979): Consider guarding input and output logic using two
   // mutexes.
   // Only used when |use_dual_threads_| is true.
-  std::condition_varaible video_input_condition_variable_;
+  std::condition_variable video_input_condition_variable_;
   // Only used when |use_dual_threads_| is true.
   std::condition_variable video_output_condition_variable_;
   std::deque<PendingInput> pending_inputs_;
@@ -264,8 +264,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   // Working threads to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
-  // Factory method guarantees that media_codec_bridge_ is non-null.
-  pthread_t decoder_thread_ = 0;
   // Only used when |use_dual_threads_| is true.
   pthread_t video_input_thread_ = 0;
   // Only used when |use_dual_threads_| is true.

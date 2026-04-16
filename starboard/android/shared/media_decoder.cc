@@ -154,14 +154,7 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
-<<<<<<< HEAD
       video_decoder_poll_interval_us_(kDefaultVideoDecoderPollIntervalUs) {
-=======
-      video_decoder_poll_interval_us_(kDefaultVideoDecoderPollIntervalUs),
-      condition_variable_(mutex_),
-      video_input_condition_variable_(mutex_),
-      video_output_condition_variable_(mutex_) {
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   SB_CHECK(host_);
   SB_CHECK(error_message);
 
@@ -217,16 +210,9 @@ MediaCodecDecoder::MediaCodecDecoder(
       flush_delay_usec_(flush_delay_usec),
       video_decoder_poll_interval_us_(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
-<<<<<<< HEAD
-                               : kDefaultVideoDecoderPollIntervalUs) {
-=======
                                : kDefaultVideoDecoderPollIntervalUs),
       use_dual_threads_(use_dual_threads.value_or(false) &&
-                        !tunnel_mode_enabled_),
-      condition_variable_(mutex_),
-      video_input_condition_variable_(mutex_),
-      video_output_condition_variable_(mutex_) {
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
+                        !tunnel_mode_enabled_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -301,11 +287,6 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
 
-<<<<<<< HEAD
-  if (!decoder_thread_) {
-    decoder_thread_ = std::make_unique<DecoderThread>(this);
-    decoder_thread_->Start();
-=======
   if (use_dual_threads_) {
     SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
     if (video_input_thread_ == 0) {
@@ -316,13 +297,9 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
       SB_DCHECK_NE(video_input_thread_, 0);
       SB_DCHECK_NE(video_output_thread_, 0);
     }
-  } else {
-    if (decoder_thread_ == 0) {
-      pthread_create(&decoder_thread_, nullptr,
-                     &MediaDecoder::DecoderThreadEntryPoint, this);
-      SB_DCHECK_NE(decoder_thread_, 0);
-    }
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
+  } else if (!decoder_thread_) {
+    decoder_thread_ = std::make_unique<DecoderThread>(this);
+    decoder_thread_->Start();
   }
 
   std::lock_guard lock(mutex_);
@@ -332,15 +309,11 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     ++number_of_pending_inputs_;
   }
   if (need_signal) {
-<<<<<<< HEAD
-    condition_variable_.notify_one();
-=======
     if (use_dual_threads_) {
-      video_input_condition_variable_.Signal();
+      video_input_condition_variable_.notify_one();
     } else {
-      condition_variable_.Signal();
+      condition_variable_.notify_one();
     }
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 }
 
@@ -352,15 +325,11 @@ void MediaCodecDecoder::WriteEndOfStream() {
   pending_inputs_.emplace_back(PendingInput::kWriteEndOfStream);
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
-<<<<<<< HEAD
-    condition_variable_.notify_one();
-=======
     if (use_dual_threads_) {
       video_input_condition_variable_.Signal();
     } else {
-      condition_variable_.Signal();
+      condition_variable_.notify_one();
     }
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 }
 
@@ -644,21 +613,12 @@ void MediaDecoder::TerminateDecoderThread() {
   destroying_.store(true);
 
   {
-<<<<<<< HEAD
     std::lock_guard lock(mutex_);
-    condition_variable_.notify_one();
-  }
-
-  if (decoder_thread_) {
-    decoder_thread_->Join();
-    decoder_thread_.reset();
-=======
-    ScopedLock scoped_lock(mutex_);
     if (use_dual_threads_) {
-      video_input_condition_variable_.Signal();
-      video_output_condition_variable_.Signal();
+      video_input_condition_variable_.notify_one();
+      video_output_condition_variable_.notify_one();
     } else {
-      condition_variable_.Signal();
+      condition_variable_.notify_one();
     }
   }
 
@@ -674,11 +634,9 @@ void MediaDecoder::TerminateDecoderThread() {
     video_output_thread_ = 0;
   }
 
-  if (decoder_thread_ != 0) {
-    SB_DCHECK(!use_dual_threads_);
-    SB_CHECK_EQ(pthread_join(decoder_thread_, nullptr), 0);
-    decoder_thread_ = 0;
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
+  if (decoder_thread_) {
+    decoder_thread_->Join();
+    decoder_thread_.reset();
   }
 }
 
@@ -955,15 +913,11 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   std::lock_guard lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
-<<<<<<< HEAD
-    condition_variable_.notify_one();
-=======
     if (use_dual_threads_) {
-      video_input_condition_variable_.Signal();
+      video_input_condition_variable_.notify_one();
     } else {
-      condition_variable_.Signal();
+      condition_variable_.notify_one();
     }
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
   }
 }
 
@@ -996,15 +950,11 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 
   std::lock_guard lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
-<<<<<<< HEAD
-  condition_variable_.notify_one();
-=======
   if (use_dual_threads_) {
-    video_output_condition_variable_.Signal();
+    video_output_condition_variable_.notify_one();
   } else {
-    condition_variable_.Signal();
+    condition_variable_.notify_one();
   }
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
 }
 
 void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
@@ -1013,15 +963,11 @@ void MediaCodecDecoder::OnMediaCodecOutputFormatChanged() {
 
   std::lock_guard lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
-<<<<<<< HEAD
-  condition_variable_.notify_one();
-=======
   if (use_dual_threads_) {
-    video_output_condition_variable_.Signal();
+    video_output_condition_variable_.notify_one();
   } else {
-    condition_variable_.Signal();
+    condition_variable_.notify_one();
   }
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
 }
 
 void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
