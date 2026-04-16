@@ -116,6 +116,8 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);
 }
 
+void H5vccSystemImpl::HideSplashScreen() {}
+
 void H5vccSystemImpl::PerformExitStrategy() {
   SbSystemRequestConceal();
 }
