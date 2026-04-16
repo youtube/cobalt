@@ -12,29 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/player_configurate_seek.h"
+#ifndef STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
+#define STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_
 
-#include "starboard/android/shared/configurate_seek.h"
-#include "starboard/extension/player_configurate_seek.h"
+#include "starboard/extension/experimental/media_buffer_pool.h"
 
 namespace starboard {
+namespace android {
+namespace shared {
 
-namespace {
+const void* GetMediaBufferPoolApi();
 
-// Definitions of any functions included as components in the extension
-// are added here.
-
-const StarboardExtensionPlayerConfigurateSeekApi kPlayerConfigurateSeekApi = {
-    kStarboardExtensionPlayerConfigurateSeekName,
-    1,
-    &SetForceFlushDecoderDuringResetForCurrentThread,
-    &SetForceResetAudioDecoderForCurrentThread,
-};
-
-}  // namespace
-
-const void* GetPlayerConfigurateSeekApi() {
-  return &kPlayerConfigurateSeekApi;
-}
-
+}  // namespace shared
+}  // namespace android
 }  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_MEDIA_BUFFER_POOL_EXTENSION_H_

@@ -203,6 +203,7 @@ public class StarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
       closeAllServices();
+      mAdvertisingId.shutdown();
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -284,8 +285,14 @@ public class StarboardBridge {
     }
   }
 
-  // TODO(cobalt): remove when Kimono fully switches to Chrobalt.
-  public void requestStop(int errorLevel) {}
+  /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  public void requestStop(int errorLevel) {
+    applicationStopping();
+    Activity activity = mActivityHolder.get();
+    if (activity != null) {
+      activity.finishAndRemoveTask();
+    }
+  }
 
   public boolean onSearchRequested() {
     return false;
@@ -293,7 +300,7 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-    Log.w(TAG, "ColinL setStartupMilestone:37 - Raising platform error. Type: " + errorType);
+    Log.w(TAG, "ColinL setStartupMilestone:37 - Raising platform error. Type: " + errorType + ", Data: " + data);
     StartupGuard.getInstance().setStartupMilestone(37);
     mPlatformError = new PlatformError(mActivityHolder, errorType, data);
     mPlatformError.raise();
@@ -615,7 +622,10 @@ public class StarboardBridge {
 
   @CalledByNative
   public void closeCobaltService(String serviceName) {
-    mCobaltServices.remove(serviceName);
+    CobaltService service = mCobaltServices.remove(serviceName);
+    if (service != null) {
+      service.onClose();
+    }
     Log.i(TAG, String.format("Closed platform service %s.", serviceName));
   }
 
