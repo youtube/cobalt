@@ -77,10 +77,6 @@
 namespace content {
 
 namespace {
-<<<<<<< HEAD
-GURL GetStartupURL() {
-=======
-
 #if BUILDFLAG(IS_STARBOARD)
 class NetworkChangeNotifierFactoryStarboard
     : public net::NetworkChangeNotifierFactory {
@@ -98,10 +94,7 @@ class NetworkChangeNotifierFactoryStarboard
 };
 #endif
 
-}  // namespace
-
-GURL ShellBrowserMainParts::GetStartupURL() const {
->>>>>>> 15cbe3621d (Reland "evergreen: Reload web contents on network reconnect" (#10049))
+GURL GetStartupURL() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kBrowserTest)) {
     return GURL();
