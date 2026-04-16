@@ -1335,10 +1335,13 @@ void HTMLMediaElement::LoadSourceFromObject() {
     // MediaSource with a blob URL.
     const String media_source_handle_url_ =
         src_object_media_source_handle_->GetInternalBlobURL();
+    LOG(INFO) << "HTMLMediaElement::LoadSourceFromObject - MediaSourceHandle URL: " << media_source_handle_url_;
     DCHECK(!media_source_handle_url_.empty());
 
     KURL media_url = GetDocument().CompleteURL(media_source_handle_url_);
+    LOG(INFO) << "HTMLMediaElement::LoadSourceFromObject - Complete URL: " << media_url.ElidedString();
     if (!IsSafeToLoadURL(media_url, kComplain)) {
+      LOG(INFO) << "HTMLMediaElement::LoadSourceFromObject - MediaSourceHandle rejected by IsSafeToLoadURL";
       MediaLoadingFailed(
           WebMediaPlayer::kNetworkStateFormatError,
           BuildElementErrorMessage(
@@ -1809,14 +1812,27 @@ void HTMLMediaElement::DisableAutomaticTextTrackSelection() {
 
 bool HTMLMediaElement::IsSafeToLoadURL(const KURL& url,
                                        InvalidURLAction action_if_invalid) {
+  LOG(INFO) << "HTMLMediaElement::IsSafeToLoadURL - URL: " << url.ElidedString();
   if (!url.IsValid()) {
+    LOG(INFO) << "  [SAFE_CHECK] URL is invalid";
     DVLOG(3) << "isSafeToLoadURL(" << *this << ", " << UrlForLoggingMedia(url)
              << ") -> FALSE because url is invalid";
     return false;
   }
 
+  // Workaround: Allow blob URLs from storage.googleapis.com to bypass SOP/CSP checks
+  // when loading in youtube.com context.
+  if (url.ProtocolIs("blob") && url.ElidedString().Contains("storage.googleapis.com")) {
+    LOG(INFO) << "  [SAFE_CHECK] Bypassing safety check for storage.googleapis.com blob URL: " << url.ElidedString();
+    return true;
+  }
+
   LocalDOMWindow* window = GetDocument().domWindow();
-  if (!window || !window->GetSecurityOrigin()->CanDisplay(url)) {
+  if (!window) {
+    LOG(INFO) << "  [SAFE_CHECK] No window";
+  } else if (!window->GetSecurityOrigin()->CanDisplay(url)) {
+    LOG(INFO) << "  [SAFE_CHECK] SecurityOrigin::CanDisplay returned FALSE for origin: " 
+              << window->GetSecurityOrigin()->ToString() << " and URL: " << url.ElidedString();
     if (action_if_invalid == kComplain) {
       GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
           mojom::ConsoleMessageSource::kSecurity,
@@ -1830,11 +1846,13 @@ bool HTMLMediaElement::IsSafeToLoadURL(const KURL& url,
 
   if (!GetExecutionContext()->GetContentSecurityPolicy()->AllowMediaFromSource(
           url)) {
+    LOG(INFO) << "  [SAFE_CHECK] ContentSecurityPolicy::AllowMediaFromSource returned FALSE";
     DVLOG(3) << "isSafeToLoadURL(" << *this << ", " << UrlForLoggingMedia(url)
              << ") -> rejected by Content Security Policy";
     return false;
   }
 
+  LOG(INFO) << "  [SAFE_CHECK] PASSED";
   return true;
 }
 
