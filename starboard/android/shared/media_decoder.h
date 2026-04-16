@@ -74,7 +74,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     ~Host() {}
   };
 
-<<<<<<< HEAD
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
       JobQueue* job_queue,
       Host* host,
@@ -98,7 +97,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
-      int64_t flush_delay_usec);
+      int64_t flush_delay_usec,
+      std::optional<bool> use_dual_threads);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     JobQueue* job_queue,
@@ -126,36 +126,9 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec,
+      std::optional<bool> use_dual_threads,
       std::string* error_message);
   ~MediaCodecDecoder();
-=======
-  MediaDecoder(Host* host,
-               const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system);
-  MediaDecoder(Host* host,
-               SbMediaVideoCodec video_codec,
-               // `width_hint` and `height_hint` are used to create the Android
-               // video format, which don't have to be directly related to the
-               // resolution of the video.
-               int width_hint,
-               int height_hint,
-               std::optional<int> max_width,
-               std::optional<int> max_height,
-               int fps,
-               jobject j_output_surface,
-               SbDrmSystem drm_system,
-               const SbMediaColorMetadata* color_metadata,
-               bool require_software_codec,
-               const FrameRenderedCB& frame_rendered_cb,
-               const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-               int tunnel_mode_audio_session_id,
-               bool force_big_endian_hdr_metadata,
-               int max_video_input_size,
-               int64_t flush_delay_usec,
-               std::optional<bool> use_dual_threads,
-               std::string* error_message);
-  ~MediaDecoder();
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
 
   void Initialize(const ErrorCB& error_cb);
   void WriteInputBuffers(const InputBuffers& input_buffers);
@@ -274,19 +247,14 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   std::atomic<int32_t> number_of_pending_inputs_{0};
 
-<<<<<<< HEAD
   std::mutex mutex_;
   std::condition_variable condition_variable_;
-=======
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
   // TODO(b/329686979): Consider guarding input and output logic using two
   // mutexes.
   // Only used when |use_dual_threads_| is true.
-  ConditionVariable video_input_condition_variable_;
+  std::condition_varaible video_input_condition_variable_;
   // Only used when |use_dual_threads_| is true.
-  ConditionVariable video_output_condition_variable_;
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
+  std::condition_variable video_output_condition_variable_;
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
@@ -294,18 +262,15 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
-<<<<<<< HEAD
-  // Working thread to avoid lengthy decoding work block the player thread.
+  // Working threads to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
   // Factory method guarantees that media_codec_bridge_ is non-null.
-=======
-  // Working threads to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;
   // Only used when |use_dual_threads_| is true.
   pthread_t video_input_thread_ = 0;
   // Only used when |use_dual_threads_| is true.
   pthread_t video_output_thread_ = 0;
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
+
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
