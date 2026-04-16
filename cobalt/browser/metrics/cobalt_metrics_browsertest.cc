@@ -234,7 +234,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0
   // on the first call
   EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),
-            1u);
+            1);
 }
 
 }  // namespace cobalt
