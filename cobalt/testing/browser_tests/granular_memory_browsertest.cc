@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/files/file_util.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "content/public/test/browser_test.h"
-#include "content/public/test/browser_test_utils.h"
-#include "cobalt/testing/browser_tests/content_browser_test.h"
+#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
+#include "cobalt/testing/browser_tests/content_browser_test.h"
+#include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
-#include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
-#include "base/files/file_util.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "base/threading/thread_restrictions.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -61,8 +61,9 @@ class TestDetailedMetricsDelegate
   TestDetailedMetricsDelegate() = default;
   ~TestDetailedMetricsDelegate() override = default;
 
-  void OnSmapsEntry(absl::string_view name,
-                    const memory_instrumentation::SmapsMetrics& metrics) override {
+  void OnSmapsEntry(
+      absl::string_view name,
+      const memory_instrumentation::SmapsMetrics& metrics) override {
     stats_["Test"] += metrics.pss_kb;
     total_pss_kb_ += metrics.pss_kb;
   }
@@ -98,7 +99,8 @@ class GranularMemoryBrowsertest : public ContentBrowserTest {
 
     CreateTempFileWithContents(kTestSmaps, &temp_smaps_);
     CreateTempFileWithContents(kTestSmapsRollup, &temp_rollup_);
-    memory_instrumentation::OSMetrics::SetProcSmapsForTesting(temp_smaps_.get());
+    memory_instrumentation::OSMetrics::SetProcSmapsForTesting(
+        temp_smaps_.get());
     memory_instrumentation::OSMetrics::SetSmapsRollupForTesting(
         temp_rollup_.get());
   }
@@ -130,11 +132,9 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
       ->RequestGlobalMemoryDump(
           base::trace_event::MemoryDumpType::kExplicitlyTriggered,
           base::trace_event::MemoryDumpLevelOfDetail::kDetailed,
-          base::trace_event::MemoryDumpDeterminism::kNone,
-          {},
+          base::trace_event::MemoryDumpDeterminism::kNone, {},
           base::BindOnce(
-              [](base::OnceClosure quit_closure,
-                 base::ProcessId browser_pid,
+              [](base::OnceClosure quit_closure, base::ProcessId browser_pid,
                  bool success,
                  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
                 EXPECT_TRUE(success);
@@ -145,9 +145,12 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
                     ASSERT_TRUE(process_dump->os_dump->detailed_stats_kb);
                     if (!process_dump->os_dump->detailed_stats_kb->empty()) {
                       found_browser_detailed_stats = true;
-                      // Verify the content matches our TestDetailedMetricsDelegate
-                      // which should have accumulated 162 KB from kTestSmaps.
-                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at("Test"), 162u);
+                      // Verify the content matches our
+                      // TestDetailedMetricsDelegate which should have
+                      // accumulated 162 KB from kTestSmaps.
+                      EXPECT_EQ(
+                          process_dump->os_dump->detailed_stats_kb->at("Test"),
+                          162u);
                     }
                     break;
                   }
@@ -161,7 +164,8 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, DetailedDump) {
 #endif  // BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_LINUX)
-IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, BackgroundDumpSkipsDetailedStats) {
+IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest,
+                       BackgroundDumpSkipsDetailedStats) {
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), GURL("about:blank")));
 
   base::RunLoop run_loop;
@@ -172,11 +176,9 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, BackgroundDumpSkipsDetailedSta
       ->RequestGlobalMemoryDump(
           base::trace_event::MemoryDumpType::kExplicitlyTriggered,
           base::trace_event::MemoryDumpLevelOfDetail::kBackground,
-          base::trace_event::MemoryDumpDeterminism::kNone,
-          {},
+          base::trace_event::MemoryDumpDeterminism::kNone, {},
           base::BindOnce(
-              [](base::OnceClosure quit_closure,
-                 base::ProcessId browser_pid,
+              [](base::OnceClosure quit_closure, base::ProcessId browser_pid,
                  bool success,
                  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
                 EXPECT_TRUE(success);
@@ -184,7 +186,8 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, BackgroundDumpSkipsDetailedSta
                 for (const auto& process_dump : dump->process_dumps) {
                   if (process_dump->pid == browser_pid) {
                     if (process_dump->os_dump->detailed_stats_kb) {
-                      EXPECT_TRUE(process_dump->os_dump->detailed_stats_kb->empty());
+                      EXPECT_TRUE(
+                          process_dump->os_dump->detailed_stats_kb->empty());
                     }
                     break;
                   }
@@ -215,7 +218,8 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
 
   // Create mock smaps data that triggers Cobalt categorization.
   const char kCobaltSmaps[] =
-      "00400000-004be000 r-xp 00000000 fc:01 1234              /path/to/libchrobalt.so\n"
+      "00400000-004be000 r-xp 00000000 fc:01 1234              "
+      "/path/to/libchrobalt.so\n"
       "Pss:                 100 kB\n"
       "Private_Dirty:         0 kB\n"
       "Private_Clean:         0 kB\n"
@@ -223,7 +227,8 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
       "Shared_Clean:          0 kB\n"
       "Swap:                  0 kB\n"
       "Locked:                0 kB\n"
-      "00500000-005be000 r-xp 00000000 fc:01 1235              /path/to/libcobalt.so\n"
+      "00500000-005be000 r-xp 00000000 fc:01 1235              "
+      "/path/to/libcobalt.so\n"
       "Pss:                  50 kB\n"
       "Private_Dirty:         0 kB\n"
       "Private_Clean:         0 kB\n"
@@ -241,20 +246,18 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
       "SwapPss:               0 kB\n";
   base::ScopedFILE temp_rollup;
   CreateTempFileWithContents(kCobaltRollup, &temp_rollup);
-  memory_instrumentation::OSMetrics::SetSmapsRollupForTesting(temp_rollup.get());
+  memory_instrumentation::OSMetrics::SetSmapsRollupForTesting(
+      temp_rollup.get());
 
   memory_instrumentation::MemoryInstrumentation::GetInstance()
       ->GetCoordinator()
       ->RequestGlobalMemoryDump(
           base::trace_event::MemoryDumpType::kExplicitlyTriggered,
           base::trace_event::MemoryDumpLevelOfDetail::kDetailed,
-          base::trace_event::MemoryDumpDeterminism::kNone,
-          {},
+          base::trace_event::MemoryDumpDeterminism::kNone, {},
           base::BindOnce(
-              [](base::OnceClosure quit_closure,
-                 base::ProcessId renderer_pid,
-                 base::ScopedFILE file,
-                 bool success,
+              [](base::OnceClosure quit_closure, base::ProcessId renderer_pid,
+                 base::ScopedFILE file, bool success,
                  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump) {
                 EXPECT_TRUE(success);
                 ASSERT_TRUE(dump);
@@ -265,8 +268,12 @@ IN_PROC_BROWSER_TEST_F(GranularMemoryBrowsertest, CobaltSpecificMetrics) {
                     if (!process_dump->os_dump->detailed_stats_kb->empty()) {
                       found_renderer_detailed_stats = true;
                       // Verify Cobalt categories are present.
-                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at("pss:lib_chrobalt"), 100u);
-                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at("pss:cobalt_core"), 50u);
+                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at(
+                                    "pss:lib_chrobalt"),
+                                100u);
+                      EXPECT_EQ(process_dump->os_dump->detailed_stats_kb->at(
+                                    "pss:cobalt_core"),
+                                50u);
                     }
                     break;
                   }
