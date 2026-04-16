@@ -422,6 +422,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                                                             : 0),
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
                                                             : 0),
+      skip_flush_on_decoder_teardown_(
+          experimental_features.skip_flush_on_decoder_teardown),
       force_reset_surface_(force_reset_surface),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
@@ -665,14 +667,14 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
   media_decoder_->WriteEndOfStream();
 }
 
-void MediaCodecVideoDecoder::Reset() {
+void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   SB_CHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
   // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,
   // set video_fps_ to 0 will call InitializeCodec(),
   // which we do not need if flush the codec.
-  if (!enable_flush_during_seek_ || !media_decoder_ ||
+  if (!enable_flush_during_seek_ || skip_flush || !media_decoder_ ||
       !media_decoder_->Flush()) {
     TeardownCodec();
     if (reset_delay_usec_ > 0) {
@@ -705,6 +707,14 @@ void MediaCodecVideoDecoder::Reset() {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+void MediaCodecVideoDecoder::Reset() {
+  ResetInternal(/*skip_flush=*/false);
+}
+
+void MediaCodecVideoDecoder::ResetForTeardown() {
+  ResetInternal(skip_flush_on_decoder_teardown_);
 }
 
 Result<void> MediaCodecVideoDecoder::InitializeCodec(

@@ -115,6 +115,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
+  void ResetForTeardown() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
@@ -148,6 +149,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
 
+  void ResetInternal(bool skip_flush);
+
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
@@ -179,6 +182,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
+  const bool skip_flush_on_decoder_teardown_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;

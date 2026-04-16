@@ -36,6 +36,7 @@ typedef struct StarboardExtensionExperimentalFeatures {
   bool enable_av1_startup_optimization;
   bool flush_decoder_during_reset;
   bool reset_audio_decoder;
+  bool skip_flush_on_decoder_teardown;
   const int* video_decoder_initial_preroll_count;
   const int* video_renderer_min_decoded_frames;
   const int* video_renderer_min_input_buffers;

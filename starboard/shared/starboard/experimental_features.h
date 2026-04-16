@@ -31,6 +31,7 @@ struct ExperimentalFeatures {
   bool enable_av1_startup_optimization = false;
   bool flush_decoder_during_reset = false;
   bool reset_audio_decoder = false;
+  bool skip_flush_on_decoder_teardown = false;
   std::optional<int> video_decoder_initial_preroll_count;
   std::optional<int> video_renderer_min_decoded_frames;
   std::optional<int> video_renderer_min_input_buffers;

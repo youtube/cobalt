@@ -76,6 +76,8 @@ void SetExperimentalFeaturesForCurrentThread(
       extension_features->flush_decoder_during_reset;
   experiment_features.reset_audio_decoder =
       extension_features->reset_audio_decoder;
+  experiment_features.skip_flush_on_decoder_teardown =
+      extension_features->skip_flush_on_decoder_teardown;
   experiment_features.video_decoder_initial_preroll_count =
       FromIntPointer(extension_features->video_decoder_initial_preroll_count);
   experiment_features.video_renderer_min_decoded_frames =
