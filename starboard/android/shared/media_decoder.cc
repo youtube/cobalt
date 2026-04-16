@@ -127,7 +127,8 @@ MediaCodecDecoder::CreateForVideo(
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
-    int64_t flush_delay_usec) {
+    int64_t flush_delay_usec,
+    std::optional<bool> use_dual_threads) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
@@ -135,7 +136,7 @@ MediaCodecDecoder::CreateForVideo(
       color_metadata, require_software_codec, frame_rendered_cb,
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
-      &error_message);
+      use_dual_threads, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -488,7 +489,7 @@ void* MediaCodecDecoder::InputThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "VidDecIn");
 
   decoder->InputThreadFunc();
-  JNIState::GetVM()->DetachCurrentThread();
+  base::android::DetachFromVM();
   return nullptr;
 }
 
@@ -516,7 +517,7 @@ void MediaCodecDecoder::InputThreadFunc() {
         usleep(1'000);
       }
     } else {
-      std::unique_lock scoped_lock(mutex_);
+      std::unique_lock lock(mutex_);
       if (pending_inputs_.empty() && input_buffer_indices_.empty()) {
         // Wait for up to one second.  Technically we can wait longer, picking
         // a reasonably small duration to avoid potential deadlock.
@@ -525,7 +526,7 @@ void MediaCodecDecoder::InputThreadFunc() {
         // account and may wait for too long when it's enabled.  We may need to
         // revisit the implementation if we are going to launch
         // `decoder_state_tracker_`.
-        video_input_condition_variable_.WaitTimed(1'000'000);
+        video_input_condition_variable_.wait_for(lock, std::chrono::seconds(1));
       }
       CollectPendingInputData_Locked(&pending_inputs, &input_buffer_indices);
     }
@@ -537,10 +538,10 @@ void* MediaCodecDecoder::OutputThreadEntryPoint(void* context) {
   SB_CHECK(context);
   MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
   pthread_setname_np(pthread_self(), "VidDecOut");
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
 
   decoder->OutputThreadFunc();
-  JNIState::GetVM()->DetachCurrentThread();
+  base::android::DetachFromVM();
   return nullptr;
 }
 
@@ -565,19 +566,20 @@ void MediaCodecDecoder::OutputThreadFunc() {
       }
       dequeue_output_results.erase(dequeue_output_results.begin());
     } else {
-      std::lock_guard scoped_lock(mutex_);
+      std::lock_guard lock(mutex_);
       CollectPendingOutputData_Locked(&dequeue_output_results);
     }
 
     bool ticked = host_->Tick(media_codec_bridge_.get());
 
     if (!ticked && dequeue_output_results.empty()) {
-      std::lock_guard scoped_lock(mutex_);
+      std::unique_lock lock(mutex_);
       CollectPendingOutputData_Locked(&dequeue_output_results);
       if (dequeue_output_results.empty()) {
         // TODO(b/329686979): Allow Tick() to return the time to next frame
         // release to dynamically adjust the wait duration.
-        video_output_condition_variable_.WaitTimed(8'000);
+        video_output_condition_variable_.wait_for(
+            lock, std::chrono::microseconds(8'000));
       }
     }
   }

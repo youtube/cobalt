@@ -818,7 +818,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, use_dual_thread_);
+      max_video_input_size_, flush_delay_usec_, use_dual_threads_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
