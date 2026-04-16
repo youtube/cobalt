@@ -408,6 +408,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      // TODO: b/349854301 - Connect to experimental flag.
       const bool pause_using_audio_track_state =
           FeatureList::IsEnabled(features::kPauseUsingAudioTrackState);
       SB_LOG_IF(INFO, pause_using_audio_track_state)
@@ -691,8 +692,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
  private:
   const bool force_platform_opus_decoder_;
-  bool is_tunnel_mode_used_ = false;
 };
+
 }  // namespace
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {

@@ -792,6 +792,7 @@ void SbPlayerBridge::CreatePlayer() {
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &extension_features);
   }
+
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
