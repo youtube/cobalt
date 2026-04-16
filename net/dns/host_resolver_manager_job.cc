@@ -182,6 +182,11 @@ HostResolverManager::Job::Job(
   net_log_.BeginEvent(NetLogEventType::HOST_RESOLVER_MANAGER_JOB, [&] {
     return NetLogJobCreationParams(source_net_log.source());
   });
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL Job created: host=" << key_.host.ToString()
+            << " priority=" << (int)priority
+            << " num_tasks=" << tasks_.size();
+#endif
 }
 
 HostResolverManager::Job::~Job() {
@@ -433,6 +438,9 @@ void HostResolverManager::Job::RunNextTask() {
   }
 
   TaskType next_task = tasks_.front();
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL RunNextTask: " << (int)next_task;
+#endif
 
   // Schedule insecure DnsTasks and HostResolverSystemTasks with the
   // dispatcher.
@@ -463,12 +471,21 @@ void HostResolverManager::Job::RunNextTask() {
 
   switch (next_task) {
     case TaskType::SYSTEM:
+#if BUILDFLAG(IS_ANDROID)
+      LOG(INFO) << "ColinL RunNextTask: SYSTEM";
+#endif
       StartSystemTask();
       break;
     case TaskType::DNS:
+#if BUILDFLAG(IS_ANDROID)
+      LOG(INFO) << "ColinL RunNextTask: DNS";
+#endif
       StartDnsTask(false /* secure */);
       break;
     case TaskType::SECURE_DNS:
+#if BUILDFLAG(IS_ANDROID)
+      LOG(INFO) << "ColinL RunNextTask: SECURE_DNS";
+#endif
       StartDnsTask(true /* secure */);
       break;
     case TaskType::MDNS:
@@ -631,6 +648,9 @@ void HostResolverManager::Job::Start() {
 }
 
 void HostResolverManager::Job::StartSystemTask() {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL StartSystemTask";
+#endif
   DCHECK(dispatched_);
   DCHECK_EQ(1, num_occupied_job_slots_);
   DCHECK(HasAddressType(key_.query_types));
@@ -717,6 +737,9 @@ void HostResolverManager::Job::InsecureCacheLookup() {
 }
 
 void HostResolverManager::Job::StartDnsTask(bool secure) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL StartDnsTask: secure=" << secure;
+#endif
   DCHECK_EQ(secure, !dispatched_);
   DCHECK_EQ(dispatched_ ? 1 : 0, num_occupied_job_slots_);
   DCHECK(!resolver_->ShouldForceSystemResolverDueToTestOverride());

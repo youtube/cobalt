@@ -494,6 +494,12 @@ int SystemHostResolverCall(const std::string& host,
                            int* os_error_opt,
                            handles::NetworkHandle network) {
   struct addrinfo hints = {0};
+#if BUILDFLAG(IS_ANDROID)
+  if (host == "www.youtube.com") {
+    LOG(INFO) << "ColinL forcing AF_INET for " << host;
+    address_family = ADDRESS_FAMILY_IPV4;
+  }
+#endif
   hints.ai_family = AddressFamilyToAF(address_family);
 
 #if BUILDFLAG(IS_WIN)
@@ -558,9 +564,15 @@ int SystemHostResolverCall(const std::string& host,
   // current process during that time.
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::WILL_BLOCK);
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL SystemHostResolverCall: host=" << host;
+#endif
   DnsReloaderMaybeReload();
 
   auto [ai, err, os_error] = AddressInfo::Get(host, hints, nullptr, network);
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL SystemHostResolverCall: finished host=" << host << " err=" << err;
+#endif
   bool should_retry = false;
   // If the lookup was restricted (either by address family, or address
   // detection), and the results where all localhost of a single family,

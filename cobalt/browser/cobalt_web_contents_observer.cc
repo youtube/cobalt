@@ -30,7 +30,7 @@
 namespace cobalt {
 
 namespace {
-const int kNavigationTimeoutSeconds = 90;
+const int kNavigationTimeoutSeconds = 30;
 #if BUILDFLAG(IS_ANDROIDTV)
 const int kJniErrorTypeConnectionError = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
@@ -60,13 +60,13 @@ void CobaltWebContentsObserver::DidStartNavigation(
     return;
   }
 
-  // Start a navigation timer with a timeout callback to raise a
-  // network error dialog
-  timeout_timer_->Stop();
-  timeout_timer_->Start(
-      FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
-      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
-                     weak_factory_.GetWeakPtr()));
+  // // Start a navigation timer with a timeout callback to raise a
+  // // network error dialog
+  // timeout_timer_->Stop();
+  // timeout_timer_->Start(
+  //     FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
+  //     base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+  //                    weak_factory_.GetWeakPtr()));
 }
 
 // Opting for WebContentsObserver::DidFinishNavigation() over

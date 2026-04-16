@@ -164,6 +164,9 @@ int QuicSessionPool::DirectJob::DoResolveHost() {
 }
 
 int QuicSessionPool::DirectJob::DoResolveHostComplete(int rv) {
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL DirectJob::DoResolveHostComplete: rv=" << rv;
+#endif
   host_resolution_finished_ = true;
   dns_resolution_end_time_ = base::TimeTicks::Now();
   if (rv != OK) {

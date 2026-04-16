@@ -192,6 +192,13 @@ std::unique_ptr<addrinfo, FreeAddrInfoFunc> AddrInfoGetter::getaddrinfo(
 
   std::unique_ptr<addrinfo, FreeAddrInfoFunc> rv = {nullptr, deleter};
 
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL getaddrinfo: host=" << host
+            << " network=" << network
+            << " family=" << hints->ai_family
+            << " flags=" << hints->ai_flags;
+#endif
+
   if (network != handles::kInvalidNetworkHandle) {
     // Currently, only Android supports lookups for a specific network.
 #if BUILDFLAG(IS_ANDROID)
@@ -208,6 +215,10 @@ std::unique_ptr<addrinfo, FreeAddrInfoFunc> AddrInfoGetter::getaddrinfo(
   } else {
     *out_os_error = ::getaddrinfo(host.c_str(), nullptr, hints, &ai);
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  LOG(INFO) << "ColinL getaddrinfo finished: host=" << host << " os_error=" << *out_os_error;
+#endif
 
   if (*out_os_error) {
 #if BUILDFLAG(IS_WIN)
