@@ -17,6 +17,7 @@
 extern "C" {
 
 int __abi_wrap_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t* mask);
+int __abi_wrap_sched_getparam(pid_t pid, struct sched_param* param);
 int __abi_wrap_sched_getscheduler(pid_t pid);
 int __abi_wrap_sched_setscheduler(pid_t pid,
                                   int policy,
@@ -24,6 +25,10 @@ int __abi_wrap_sched_setscheduler(pid_t pid,
 
 int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t* mask) {
   return __abi_wrap_sched_getaffinity(pid, cpusetsize, mask);
+}
+
+int sched_getparam(pid_t pid, struct sched_param* param) {
+  return __abi_wrap_sched_getparam(pid, param);
 }
 
 int sched_getscheduler(pid_t pid) {

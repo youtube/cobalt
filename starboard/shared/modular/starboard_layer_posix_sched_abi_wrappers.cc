@@ -47,6 +47,19 @@ int __abi_wrap_sched_getaffinity(musl_pid_t pid,
   return 0;
 }
 
+int __abi_wrap_sched_getparam(musl_pid_t pid, musl_sched_param* param) {
+  if (!param) {
+    errno = EINVAL;
+    return -1;
+  }
+  struct sched_param native_param;
+  int result = sched_getparam(static_cast<pid_t>(pid), &native_param);
+  if (result == 0) {
+    *param = {.sched_priority = native_param.sched_priority};
+  }
+  return result;
+}
+
 int __abi_wrap_sched_setscheduler(musl_pid_t pid,
                                   int policy,
                                   const musl_sched_param* param) {
