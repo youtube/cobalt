@@ -931,12 +931,7 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 
   // TODO(b/291959069): After the output thread is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
-<<<<<<< HEAD
-  if (destroying_.load() || !decoder_thread_) {
-=======
-  if (destroying_.load() ||
-      (decoder_thread_ == 0 && video_output_thread_ == 0)) {
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
+  if (destroying_.load() || (!decoder_thread_ && video_output_thread_ == 0)) {
     return;
   }
 
