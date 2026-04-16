@@ -351,9 +351,10 @@ void CobaltMetricsServiceClient::ScheduleMemoryRecordForTesting(
 void CobaltMetricsServiceClient::ScheduleCpuRecordForTesting(
     base::OnceClosure done_callback) {
   scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter = CreateCpuMetricsEmitter();
-  cpu_emitter->set_callback_for_testing(std::move(done_callback));
   static std::unique_ptr<base::ProcessMetrics> process_metrics_for_testing =
       base::ProcessMetrics::CreateCurrentProcessMetrics();
+  cpu_emitter->FetchAndEmitCpuMetrics(process_metrics_for_testing.get());
+  cpu_emitter->set_callback_for_testing(std::move(done_callback));
   cpu_emitter->FetchAndEmitCpuMetrics(process_metrics_for_testing.get());
 }
 

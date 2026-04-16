@@ -205,4 +205,34 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
 #endif
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+#define MAYBE_RecordsCpuMetrics DISABLED_RecordsCpuMetrics
+#else
+#define MAYBE_RecordsCpuMetrics RecordsCpuMetrics
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
+  base::HistogramTester histogram_tester;
+
+  auto* features = GlobalFeatures::GetInstance();
+  // Ensure metrics recording is started.
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  auto* manager_client = features->metrics_services_manager_client();
+  ASSERT_TRUE(manager_client);
+  auto* client = static_cast<CobaltMetricsServiceClient*>(manager_client->metrics_service_client());
+  ASSERT_TRUE(client);
+
+  // Trigger CPU metrics dump manually for testing and wait for it.
+  // This replaces the fixed delay and is more robust.
+  base::RunLoop run_loop;
+  client->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+
+  // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0 
+  // on the first call
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0), 1u);
+  // verify two samples collected 
+  EXPECT_GE(histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage")->TotalCount(), 2u);
+}
+
 }  // namespace cobalt
