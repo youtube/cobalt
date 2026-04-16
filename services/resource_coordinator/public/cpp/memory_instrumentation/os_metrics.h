@@ -71,6 +71,7 @@ class COMPONENT_EXPORT(
   static void SetProcSmapsForTesting(FILE*);
 #if BUILDFLAG(IS_COBALT)
   static void SetDetailedMetricsDelegate(base::WeakPtr<DetailedMetricsDelegate> delegate);
+  static void SetSmapsRollupForTesting(FILE*);
   static base::File GetSmapsFileForScanning(base::ProcessHandle handle = base::kNullProcessHandle);
 #endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
