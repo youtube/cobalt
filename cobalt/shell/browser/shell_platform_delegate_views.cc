@@ -319,13 +319,13 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 
 }  // namespace
 
+ShellPlatformDelegate::ShellPlatformDelegate() = default;
+ShellPlatformDelegate::~ShellPlatformDelegate() = default;
+
 std::unique_ptr<views::ViewsDelegate>
 ShellPlatformDelegate::CreateViewsDelegate() {
   return std::make_unique<views::CobaltViewsDelegate>();
 }
-
-ShellPlatformDelegate::ShellPlatformDelegate() = default;
-ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
                                        bool is_visible) {
@@ -411,18 +411,14 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
     shell_data.window_widget->Show();
   }
 }
-
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
   ShellData& shell_data = shell_data_map_.at(shell);
   if (!shell_data.window_widget) {
     CreatePlatformWindowInternal(shell, shell_data.initial_size_);
   }
 
-  if (IsVisible()) {
-    SetContents(shell);
-  }
+  SetContents(shell);
 }
-
 void ShellPlatformDelegate::ConcealShell(Shell* shell) {
   ShellData& shell_data = shell_data_map_.at(shell);
   if (shell_data.window_widget) {

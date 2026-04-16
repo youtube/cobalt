@@ -34,10 +34,12 @@ import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Locale;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -76,45 +78,20 @@ class MediaCodecBridge {
     public static final String VIDEO_AV1 = "video/av01";
   }
 
-  private class FrameRateEstimator {
-    private static final int INVALID_FRAME_RATE = -1;
-    private static final long INVALID_FRAME_TIMESTAMP = -1;
-    private static final int MINIMUM_REQUIRED_FRAMES = 4;
-    private long mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
-    private long mNumberOfFrames = 0;
-    private long mTotalDurationUs = 0;
+  private FrameRateEstimator mFrameRateEstimator = null;
+  private final AtomicInteger mActiveOutputBuffers = new AtomicInteger(0);
+  private volatile MediaFormatWrapper mActiveFormat = null;
 
-    public int getEstimatedFrameRate() {
-      if (mTotalDurationUs <= 0 || mNumberOfFrames < MINIMUM_REQUIRED_FRAMES) {
-        return INVALID_FRAME_RATE;
-      }
-      return Math.round((mNumberOfFrames - 1) * 1000000.0f / mTotalDurationUs);
+  int getCurrentMediaFormatDimension() {
+    if (mActiveFormat == null) {
+      return 0;
     }
-
-    public void reset() {
-      mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
-      mNumberOfFrames = 0;
-      mTotalDurationUs = 0;
-    }
-
-    public void onNewFrame(long presentationTimeUs) {
-      mNumberOfFrames++;
-
-      if (mLastFrameTimestampUs == INVALID_FRAME_TIMESTAMP) {
-        mLastFrameTimestampUs = presentationTimeUs;
-        return;
-      }
-      if (presentationTimeUs <= mLastFrameTimestampUs) {
-        Log.v(TAG, "Invalid output presentation timestamp.");
-        return;
-      }
-
-      mTotalDurationUs += presentationTimeUs - mLastFrameTimestampUs;
-      mLastFrameTimestampUs = presentationTimeUs;
-    }
+    return mActiveFormat.width() * mActiveFormat.height();
   }
 
-  private FrameRateEstimator mFrameRateEstimator = null;
+  int sizeOfActiveOutputBuffers() {
+    return mActiveOutputBuffers.get();
+  }
 
    /** Wraps a {@link MediaFormat} object to expose its properties to native code */
    // Copied from Chromium's MediaCodecBridge.java
@@ -316,13 +293,10 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
+              mActiveOutputBuffers.incrementAndGet();
               if (mFrameRateEstimator != null) {
-                mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
-                int fps = mFrameRateEstimator.getEstimatedFrameRate();
-                if (fps != FrameRateEstimator.INVALID_FRAME_RATE && mFps != fps) {
-                  mFps = fps;
-                  updateOperatingRate();
-                }
+                mFrameRateEstimator.onNewOutput(info.presentationTimeUs);
+                updateFrameRate();
               }
             }
           }
@@ -333,6 +307,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              mActiveFormat = new MediaFormatWrapper(format);
               MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.reset();
@@ -363,6 +338,7 @@ class MediaCodecBridge {
     if (mIsTunnelingPlayback) {
       setupTunnelingPlayback();
     }
+    mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
   }
 
   @CalledByNative
@@ -448,6 +424,7 @@ class MediaCodecBridge {
 
     MediaCodecBridge bridge =
         new MediaCodecBridge(nativeMediaCodecBridge, mediaCodec, tunnelModeAudioSessionId);
+    MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
@@ -468,6 +445,10 @@ class MediaCodecBridge {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
       mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
       Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
+
+      // TODO (b/495868363): KEY_PRIORITY might be also needed for non tunnel playback.
+      // Set KEY_PRIORITY to realtime priority.
+      mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0 /* realtime priority */);
     }
 
     if (maxWidth > 0 && maxHeight > 0) {
@@ -619,6 +600,17 @@ class MediaCodecBridge {
     }
   }
 
+  private void updateFrameRate() {
+    if (mFrameRateEstimator == null) {
+      return;
+    }
+    int fps = mFrameRateEstimator.getEstimatedFrameRate();
+    if (fps != FrameRateEstimator.INVALID_FRAME_RATE && mFps != fps) {
+      mFps = fps;
+      updateOperatingRate();
+    }
+  }
+
   private void updateOperatingRate() {
     // We needn't set operation rate if playback rate is 0 or less.
     if (Double.compare(mPlaybackRate, 0.0) <= 0) {
@@ -639,6 +631,7 @@ class MediaCodecBridge {
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to set MediaCodec operating rate: ", e);
     }
+    Log.i(TAG, "Set operating rate to " + operatingRate);
   }
 
   @CalledByNative
@@ -649,6 +642,7 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
     } finally {
+      mActiveOutputBuffers.set(0);
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
@@ -658,6 +652,7 @@ class MediaCodecBridge {
 
   @CalledByNative
   public void release() {
+    MediaCodecOutputTracker.get().unregister(this);
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
@@ -745,6 +740,12 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to queue input buffer", e);
       return MediaCodecStatus.ERROR;
     }
+
+    // Avoid update frame rate for inputs when tunnel mode is not enabled for better performance.
+    if (mIsTunnelingPlayback && mFrameRateEstimator != null) {
+      mFrameRateEstimator.onNewInput(presentationTimeUs);
+      updateFrameRate();
+    }
     return MediaCodecStatus.OK;
   }
 
@@ -806,6 +807,12 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalStateException " + e);
       return MediaCodecStatus.ERROR;
     }
+
+    // Avoid update frame rate for inputs when tunnel mode is not enabled for better performance.
+    if (mIsTunnelingPlayback && mFrameRateEstimator != null) {
+      mFrameRateEstimator.onNewInput(presentationTimeUs);
+      updateFrameRate();
+    }
     return MediaCodecStatus.OK;
   }
 
@@ -813,6 +820,7 @@ class MediaCodecBridge {
   private void releaseOutputBuffer(int index, boolean render) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, render);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -823,6 +831,7 @@ class MediaCodecBridge {
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
+      mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
@@ -855,7 +864,6 @@ class MediaCodecBridge {
 
       maybeSetMaxVideoInputSize(format);
       mMediaCodec.get().configure(format, surface, crypto, flags);
-      mFrameRateEstimator = new FrameRateEstimator();
       return true;
     } catch (IllegalArgumentException e) {
       Log.e(TAG, "Cannot configure the video codec with IllegalArgumentException: ", e);
