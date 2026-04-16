@@ -62,8 +62,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
 
   // Trigger a memory dump manually for testing and wait for it.
   base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleMemoryRecordForTesting(
-      run_loop.QuitClosure());
+  static_cast<CobaltMetricsServiceClient*>(client)
+      ->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
@@ -150,8 +150,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   // Trigger a memory dump manually for testing and wait for it.
   // This replaces the fixed delay and is more robust.
   base::RunLoop run_loop;
-  static_cast<CobaltMetricsServiceClient*>(client)->ScheduleMemoryRecordForTesting(
-      run_loop.QuitClosure());
+  static_cast<CobaltMetricsServiceClient*>(client)
+      ->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
@@ -218,7 +218,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
 
   auto* manager_client = features->metrics_services_manager_client();
   ASSERT_TRUE(manager_client);
-  auto* client = static_cast<CobaltMetricsServiceClient*>(manager_client->metrics_service_client());
+  auto* client = static_cast<CobaltMetricsServiceClient*>(
+      manager_client->metrics_service_client());
   ASSERT_TRUE(client);
 
   // Trigger CPU metrics dump manually for testing and wait for it.
@@ -229,10 +230,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
 
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
-  histogram_tester.ExpectTotalCount("CPU.Total.UsageInPercentage", 1);
+  histogram_tester.ExpectTotalCount("CPU.Total.UsageInPercentage", 1u);
   // verify ProcessMetrics::GetPlatformIndependentCPUUsage() returns 0
   // on the first call
-  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0), 1u);
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),
+            1u);
 }
 
 }  // namespace cobalt

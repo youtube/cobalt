@@ -214,17 +214,15 @@ class TestCpuMetricsEmitter : public CobaltCpuMetricsEmitter {
  public:
   TestCpuMetricsEmitter() = default;
 
-  double GetCpuUsage(base::ProcessMetrics* process_metrics) override {
-    return next_cpu_usage_;
+  // Mock CPU usage to verify accurate recording of average.
+  double GetCpuUsage() override {
+    const int num_processors = base::SysInfo::NumberOfProcessors();
+    double mock_usage = 50.0 * num_processors;  // 50% per core.
+    return mock_usage;
   }
-
-  void set_next_cpu_usage(double usage) { next_cpu_usage_ = usage; }
 
  protected:
   ~TestCpuMetricsEmitter() override = default;
-
- private:
-  double next_cpu_usage_ = 0.0;
 };
 
 // Mock for MetricsService to verify construction of a specific MetricsService
@@ -499,20 +497,15 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
 TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
   base::HistogramTester histogram_tester;
 
-  scoped_refptr<TestCpuMetricsEmitter> emitter =
-      base::WrapRefCounted(static_cast<TestCpuMetricsEmitter*>(
-          client_->CreateCpuMetricsEmitter().get()));
-  std::unique_ptr<base::ProcessMetrics> process_metrics =
-      base::ProcessMetrics::CreateCurrentProcessMetrics();
+  // Trigger CPU usage dump manually for testing.
+  base::RunLoop run_loop;
+  client_->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
 
-  // verify it records average CPU usage per core.
-  const int num_processors = base::SysInfo::NumberOfProcessors();
-  double mock_usage = 50.0 * num_processors;  // 50% per core.
-  emitter->set_next_cpu_usage(mock_usage);
-  emitter->FetchAndEmitCpuMetrics(process_metrics.get());
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
-  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50), 1);
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50),
+            1u);
 }
 
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
@@ -619,7 +612,7 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMediaMemoryMetricsHistogram) {
 
   // Trigger a memory dump manually for testing.
   base::RunLoop run_loop;
-  client_->ScheduleRecordForTesting(run_loop.QuitClosure());
+  client_->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Wait for the dump to be processed.

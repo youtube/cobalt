@@ -42,8 +42,7 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
     return;
   }
 
-  const double cpu_usage = GetCpuUsage(process_metrics);
-
+  const double cpu_usage = GetCpuUsage();
   const int num_processors = base::SysInfo::NumberOfProcessors();
   DCHECK_GT(num_processors, 0)
       << "Platform returned invalid number of processors.";
@@ -57,11 +56,10 @@ void CobaltCpuMetricsEmitter::FetchAndEmitCpuMetrics() {
   }
 }
 
-double CobaltCpuMetricsEmitter::GetCpuUsage(
-    base::ProcessMetrics* process_metrics) {
+double CobaltCpuMetricsEmitter::GetCpuUsage() {
   // Total CPU utilization in percentage of all cores in between every call.
   constexpr double kInvalidCPUUsageValue = 0.0;
-  return process_metrics->GetPlatformIndependentCPUUsage().value_or(
+  return process_metrics_->GetPlatformIndependentCPUUsage().value_or(
       kInvalidCPUUsageValue);
 }
 
