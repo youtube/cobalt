@@ -87,3 +87,25 @@ int __abi_wrap_sched_setscheduler(musl_pid_t pid,
   return sched_setscheduler(static_cast<pid_t>(pid), native_policy,
                             &native_param);
 }
+
+int __abi_wrap_sched_getscheduler(musl_pid_t pid) {
+  int native_policy = sched_getscheduler(static_cast<pid_t>(pid));
+  switch (native_policy) {
+    case SCHED_FIFO:
+      return MUSL_SCHED_FIFO;
+    case SCHED_RR:
+      return MUSL_SCHED_RR;
+    case SCHED_OTHER:
+      return MUSL_SCHED_OTHER;
+#ifdef SCHED_BATCH
+    case SCHED_BATCH:
+      return MUSL_SCHED_BATCH;
+#endif
+#ifdef SCHED_IDLE
+    case SCHED_IDLE:
+      return MUSL_SCHED_IDLE;
+#endif
+    default:
+      return -1;
+  }
+}

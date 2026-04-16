@@ -398,6 +398,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
   REGISTER_WRAPPER(sched_getaffinity);
+  REGISTER_WRAPPER(sched_getscheduler);
   REGISTER_WRAPPER(sched_setscheduler);
   REGISTER_WRAPPER(readv);
   REGISTER_WRAPPER(setsockopt);

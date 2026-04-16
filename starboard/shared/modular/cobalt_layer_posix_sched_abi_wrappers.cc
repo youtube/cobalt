@@ -17,12 +17,17 @@
 extern "C" {
 
 int __abi_wrap_sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t* mask);
+int __abi_wrap_sched_getscheduler(pid_t pid);
 int __abi_wrap_sched_setscheduler(pid_t pid,
                                   int policy,
                                   const struct sched_param* param);
 
 int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t* mask) {
   return __abi_wrap_sched_getaffinity(pid, cpusetsize, mask);
+}
+
+int sched_getscheduler(pid_t pid) {
+  return __abi_wrap_sched_getscheduler(pid);
 }
 
 int sched_setscheduler(pid_t pid, int policy, const struct sched_param* param) {

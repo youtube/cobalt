@@ -235,6 +235,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'sched_getaffinity',
     'sched_get_priority_max',
     'sched_get_priority_min',
+    'sched_getscheduler',
     'sched_setscheduler',
     'sched_yield',
     'select',
