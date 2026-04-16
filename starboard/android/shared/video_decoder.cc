@@ -818,15 +818,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-<<<<<<< HEAD
-      max_video_input_size_, flush_delay_usec_);
+      max_video_input_size_, flush_delay_usec_, use_dual_thread_);
   if (result) {
     media_decoder_ = std::move(result.value());
-=======
-      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      error_message));
-  if (media_decoder_->is_valid()) {
->>>>>>> 773716f9ad (android: Refactor video decoder threading (#9711))
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
