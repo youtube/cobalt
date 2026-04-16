@@ -50,6 +50,8 @@ std::ostream& operator<<(
             << ToString(features.enable_flush_during_seek)
             << ", enable_reset_audio_decoder="
             << ToString(features.enable_reset_audio_decoder)
+            << ", skip_flush_on_decoder_teardown="
+            << ToString(features.skip_flush_on_decoder_teardown)
             << ", max_samples_per_write="
             << ToString(features.max_samples_per_write)
             << ", video_decoder_initial_preroll_count="

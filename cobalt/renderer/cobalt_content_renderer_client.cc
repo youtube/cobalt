@@ -63,6 +63,8 @@ const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
     "Media.VideoRendererMinDecodedFrames";
 const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
     "Media.MaxSamplesPerWrite";
+const char kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown[] =
+    "Media.SkipFlushOnDecoderTeardown";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -246,6 +248,10 @@ ExperimentalFeatures ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaSkipFlushOnDecoderTeardown)) {
+    parsed.skip_flush_on_decoder_teardown = *val != 0;
   }
 
   parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
