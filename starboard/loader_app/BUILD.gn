@@ -61,8 +61,8 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     sources = _common_loader_app_sources
     deps = [
       ":common_loader_app_dependencies",
-      "//starboard/content/fonts:copy_font_data",
       "//starboard:starboard_with_main",
+      "//starboard/content/fonts:copy_font_data",
       "//starboard/elf_loader",
     ]
   }
@@ -322,7 +322,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     ]
     deps = [
       "//starboard:starboard_group",
-      "//starboard/common:common",
+      "//starboard/common",
     ]
   }
 
