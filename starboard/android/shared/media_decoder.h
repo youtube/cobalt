@@ -178,7 +178,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   };
 
   class DecoderThread;
-
   void DecoderThreadFunc();
 
   // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
