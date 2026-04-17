@@ -16,9 +16,13 @@
   "targets": [
     "cobalt:gn_all",
     "loader_app",
+<<<<<<< HEAD
     "crash_sandbox_loaded_content",
     "noop_sandbox_loaded_content",
     "one_app_only_sandbox_loaded_content"
+=======
+    "loader_app_rdk_plugin"
+>>>>>>> d68528afb5 (Build RDK plugin related binaries (#9990))
   ],
   "includes": [
     {
