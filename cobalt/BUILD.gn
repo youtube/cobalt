@@ -197,8 +197,10 @@ if (is_ios && target_platform == "tvos") {
 
 source_set("common") {
   sources = [
-    "app/app_lifecycle_delegate.cc",
-    "app/app_lifecycle_delegate.h",
+    "app/app_event_delegate.cc",
+    "app/app_event_delegate.h",
+    "app/app_event_runner.cc",
+    "app/app_event_runner.h",
     "app/cobalt_crash_reporter_client.cc",
     "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
@@ -294,7 +296,8 @@ test("cobalt_unittests") {
 
   if (is_starboard) {
     sources += [
-      "//cobalt/app/app_lifecycle_delegate_unittest.cc",
+      "//cobalt/app/app_event_delegate_unittest.cc",
+      "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
@@ -313,6 +316,7 @@ test("cobalt_unittests") {
   deps = [
     ":common",
     "//base/test:test_support",
+    "//cobalt/browser",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser:command_line_logger",
     "//cobalt/browser:global_features",
@@ -320,6 +324,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
@@ -330,6 +335,7 @@ test("cobalt_unittests") {
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//content/test:test_support",
     "//media:test_support",
     "//mojo/core/embedder",
     "//mojo/core/test:run_all_unittests",

@@ -324,13 +324,10 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
-    if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
-      task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
-                         weak_factory_.GetWeakPtr(), buffering_state_));
-    }
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_));
   }
 
   // The function can be called when there are in-flight Demuxer::Read() calls
@@ -632,11 +629,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       // TODO(b/326825450): Revisit 360 videos.
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1, experimental_features_.enable_flush_during_seek,
-      experimental_features_.enable_reset_audio_decoder,
-      experimental_features_.initial_max_frames_in_decoder,
-      experimental_features_.max_pending_input_frames,
-      experimental_features_.video_decoder_poll_interval_ms
+      /*max_video_input_size=*/-1, experimental_features_
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.

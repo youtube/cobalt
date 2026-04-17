@@ -47,6 +47,26 @@ bool FileExists(const char* path);
 
 bool DirectoryExists(const char* path);
 
+// Creates a random directory, and deletes it and its contents when the instance
+// falls out of scope.
+class ScopedTempDir {
+ public:
+  ScopedTempDir();
+  ~ScopedTempDir();
+
+  ScopedTempDir(const ScopedTempDir&) = delete;
+  ScopedTempDir& operator=(const ScopedTempDir&) = delete;
+
+  // Returns the path to the created directory.
+  const std::string& path() const { return path_; }
+
+  // Returns whether the directory was successfully created.
+  bool IsValid() const { return !path_.empty(); }
+
+ private:
+  std::string path_;
+};
+
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.
 class ScopedRandomFile {
