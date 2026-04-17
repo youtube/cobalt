@@ -108,6 +108,11 @@ public final class CommandLineOverrideHelper {
         // For details, see http://b/478022126#comment6.
         paramOverrides.add("UseAAudioInput");
 
+        // Disable AAudio to make the microphone use OpenSL ES.
+        // OpenSL ES supports seamless switching to virtual microphones like AtvRemote.
+        // For details, see http://b/478022126#comment6.
+        paramOverrides.add("UseAAudioInput");
+
         return paramOverrides;
     }
 
