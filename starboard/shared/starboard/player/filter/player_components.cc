@@ -211,7 +211,7 @@ PlayerComponents::Factory::CreateComponents(
         creation_parameters.job_queue(), std::move(components.audio.decoder),
         std::move(components.audio.renderer_sink),
         creation_parameters.audio_stream_info(), max_cached_frames,
-        min_frames_per_append);
+        min_frames_per_append, creation_parameters.experimental_features());
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -228,20 +228,11 @@ PlayerComponents::Factory::CreateComponents(
       media_time_provider = media_time_provider_impl.get();
     }
 
-    const auto& experimental_features =
-        creation_parameters.experimental_features();
-    std::optional<VideoRendererImpl::PrerollParameters> preroll_params;
-    if (experimental_features.video_renderer_min_input_buffers &&
-        experimental_features.video_renderer_min_decoded_frames) {
-      preroll_params = VideoRendererImpl::PrerollParameters{
-          *experimental_features.video_renderer_min_input_buffers,
-          *experimental_features.video_renderer_min_decoded_frames};
-    }
-
     video_renderer = std::make_unique<VideoRendererImpl>(
         creation_parameters.job_queue(), std::move(components.video.decoder),
         media_time_provider, std::move(components.video.render_algorithm),
-        std::move(components.video.renderer_sink), preroll_params);
+        std::move(components.video.renderer_sink),
+        creation_parameters.experimental_features());
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
