@@ -15,11 +15,8 @@
 #include <atomic>
 #include <memory>
 #include <string>
-#include <string_view>
 #include <utility>
-#include <vector>
 
-#include "base/strings/string_number_conversions.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
