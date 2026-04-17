@@ -80,6 +80,10 @@ class CobaltMetricsServiceClient::MemoryPollingState
     RecordMetricsAfterDelay();
   }
 
+  void SetCallbackForTesting(base::OnceClosure callback) {
+    memory_emitter_->set_callback_for_testing(std::move(callback));
+  }
+
  private:
   scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter_;
 };
@@ -91,6 +95,10 @@ class CobaltMetricsServiceClient::CpuPollingState : public MetricsPollingState {
   void RequestMetrics() override {
     cpu_emitter_->FetchAndEmitCpuMetrics();
     RecordMetricsAfterDelay();
+  }
+
+  void SetCallbackForTesting(base::OnceClosure callback) {
+    cpu_emitter_->set_callback_for_testing(std::move(callback));
   }
 
  private:
@@ -342,18 +350,20 @@ void CobaltMetricsServiceClient::SetMetricsListener(
 
 void CobaltMetricsServiceClient::ScheduleMemoryRecordForTesting(
     base::OnceClosure done_callback) {
-  scoped_refptr<CobaltMemoryMetricsEmitter> memory_emitter =
-      CreateMemoryMetricsEmitter();
-  memory_emitter->set_callback_for_testing(std::move(done_callback));
-  memory_emitter->FetchAndEmitProcessMemoryMetrics();
+  if (memory_state_) {
+    memory_state_.AsyncCall(&MemoryPollingState::SetCallbackForTesting)
+        .WithArgs(std::move(done_callback));
+    memory_state_.AsyncCall(&MemoryPollingState::RequestMetrics);
+  }
 }
 
 void CobaltMetricsServiceClient::ScheduleCpuRecordForTesting(
     base::OnceClosure done_callback) {
-  scoped_refptr<CobaltCpuMetricsEmitter> cpu_emitter =
-      CreateCpuMetricsEmitter();
-  cpu_emitter->set_callback_for_testing(std::move(done_callback));
-  cpu_emitter->FetchAndEmitCpuMetrics();
+  if (cpu_state_) {
+    cpu_state_.AsyncCall(&CpuPollingState::SetCallbackForTesting)
+        .WithArgs(std::move(done_callback));
+    cpu_state_.AsyncCall(&CpuPollingState::RequestMetrics);
+  }
 }
 
 scoped_refptr<CobaltMemoryMetricsEmitter>

@@ -503,9 +503,11 @@ TEST_F(CobaltMetricsServiceClientTest, RecordCpuMetricsHistogram) {
   client_->ScheduleCpuRecordForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
+  task_environment_.FastForwardBy(base::Seconds(3));
   base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
-  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50), 1);
+  EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 50),
+            1);
 }
 
 TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
