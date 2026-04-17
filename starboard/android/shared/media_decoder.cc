@@ -90,7 +90,32 @@ class MediaCodecDecoder::DecoderThread : public Thread {
   }
 
  private:
-  MediaCodecDecoder* decoder_;
+  MediaCodecDecoder* const decoder_;
+};
+
+class MediaCodecDecoder::VideoInputThread : public Thread {
+ public:
+  explicit VideoInputThread(MediaCodecDecoder* decoder)
+      : Thread("VidDecIn"), decoder_(decoder) {}
+
+  void Run() override { decoder_->InputThreadFunc(); }
+
+ private:
+  MediaCodecDecoder* const decoder_;
+};
+
+class MediaCodecDecoder::VideoOutputThread : public Thread {
+ public:
+  explicit VideoOutputThread(MediaCodecDecoder* decoder)
+      : Thread("VidDecOut"), decoder_(decoder) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityHigh);
+    decoder_->OutputThreadFunc();
+  }
+
+ private:
+  MediaCodecDecoder* const decoder_;
 };
 
 // static
@@ -293,13 +318,11 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   if (use_dual_threads_) {
     SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
-    if (video_input_thread_ == 0) {
-      pthread_create(&video_input_thread_, nullptr,
-                     &MediaCodecDecoder::InputThreadEntryPoint, this);
-      pthread_create(&video_output_thread_, nullptr,
-                     &MediaCodecDecoder::OutputThreadEntryPoint, this);
-      SB_DCHECK_NE(video_input_thread_, 0);
-      SB_DCHECK_NE(video_output_thread_, 0);
+    if (!video_input_thread_) {
+      video_input_thread_ = std::make_unique<VideoInputThread>(this);
+      video_input_thread_->Start();
+      video_output_thread_ = std::make_unique<VideoOutputThread>(this);
+      video_output_thread_->Start();
     }
   } else if (!decoder_thread_) {
     decoder_thread_ = std::make_unique<DecoderThread>(this);
@@ -343,7 +366,6 @@ void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
 }
 
 // TODO(b/329686979): Abstract common code of thread creation functions.
-// TODO(b/329686979): Implement thread logic using //starboard/common/thread.h.
 void MediaCodecDecoder::DecoderThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
@@ -485,17 +507,6 @@ void MediaCodecDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
-// static
-void* MediaCodecDecoder::InputThreadEntryPoint(void* context) {
-  SB_CHECK(context);
-  MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
-  pthread_setname_np(pthread_self(), "VidDecIn");
-
-  decoder->InputThreadFunc();
-  base::android::DetachFromVM();
-  return nullptr;
-}
-
 void MediaCodecDecoder::InputThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
@@ -534,18 +545,6 @@ void MediaCodecDecoder::InputThreadFunc() {
       CollectPendingInputData_Locked(&pending_inputs, &input_buffer_indices);
     }
   }
-}
-
-// static
-void* MediaCodecDecoder::OutputThreadEntryPoint(void* context) {
-  SB_CHECK(context);
-  MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
-  pthread_setname_np(pthread_self(), "VidDecOut");
-  SbThreadSetPriority(kSbThreadPriorityHigh);
-
-  decoder->OutputThreadFunc();
-  base::android::DetachFromVM();
-  return nullptr;
 }
 
 void MediaCodecDecoder::OutputThreadFunc() {
@@ -603,16 +602,16 @@ void MediaCodecDecoder::TerminateDecoderThread() {
     }
   }
 
-  if (video_input_thread_ != 0) {
+  if (video_input_thread_) {
     SB_DCHECK(use_dual_threads_);
-    SB_CHECK_EQ(pthread_join(video_input_thread_, nullptr), 0);
-    video_input_thread_ = 0;
+    video_input_thread_->Join();
+    video_input_thread_.reset();
   }
 
-  if (video_output_thread_ != 0) {
+  if (video_output_thread_) {
     SB_DCHECK(use_dual_threads_);
-    SB_CHECK_EQ(pthread_join(video_output_thread_, nullptr), 0);
-    video_output_thread_ = 0;
+    video_output_thread_->Join();
+    video_output_thread_.reset();
   }
 
   if (decoder_thread_) {
@@ -912,7 +911,7 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
 
   // TODO(b/291959069): After the output thread is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
-  if (destroying_.load() || (!decoder_thread_ && video_output_thread_ == 0)) {
+  if (destroying_.load() || (!decoder_thread_ && !video_output_thread_)) {
     return;
   }
 
