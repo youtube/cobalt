@@ -171,6 +171,23 @@ bool DirectoryExists(const char* path) {
   return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
+ScopedTempDir::ScopedTempDir() {
+  std::string temp_dir = GetTempDir();
+  if (temp_dir.empty()) {
+    return;
+  }
+  path_ = temp_dir + kSbFileSepString + "scoped_dir_XXXXXX";
+  if (!mkdtemp(&path_[0])) {
+    path_.clear();
+  }
+}
+
+ScopedTempDir::~ScopedTempDir() {
+  if (IsValid()) {
+    RemoveFileOrDirectoryRecursively(path_);
+  }
+}
+
 // static
 std::string ScopedRandomFile::MakeRandomFilePath() {
   std::ostringstream filename_stream;
