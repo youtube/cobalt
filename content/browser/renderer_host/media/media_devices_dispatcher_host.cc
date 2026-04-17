@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -43,6 +46,8 @@
 using blink::mojom::MediaDeviceType;
 
 namespace content {
+
+extern base::TimeTicks g_select_keydown_time;
 
 namespace {
 
@@ -136,6 +141,12 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
     bool request_video_input_capabilities,
     bool request_audio_input_capabilities,
     EnumerateDevicesCallback client_callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserEnumerateDevices", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: MediaDevicesDispatcherHost::EnumerateDevices latency(msec)=" << elapsed.InMilliseconds();
+
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   if ((!request_audio_input && !request_video_input && !request_audio_output) ||
@@ -162,6 +173,7 @@ void MediaDevicesDispatcherHost::EnumerateDevices(
 
 void MediaDevicesDispatcherHost::GetVideoInputCapabilities(
     GetVideoInputCapabilitiesCallback client_callback) {
+  TRACE_EVENT("media", "MediaDevicesDispatcherHost::GetVideoInputCapabilities");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
@@ -208,6 +220,12 @@ void MediaDevicesDispatcherHost::GetAvailableVideoInputDeviceFormats(
 
 void MediaDevicesDispatcherHost::GetAudioInputCapabilities(
     GetAudioInputCapabilitiesCallback client_callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserGetAudioCapabilities", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: MediaDevicesDispatcherHost::GetAudioInputCapabilities latency(msec)=" << elapsed.InMilliseconds();
+
   GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(media_stream_manager_->media_devices_manager()

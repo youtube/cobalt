@@ -10,6 +10,9 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
@@ -40,6 +43,8 @@
 #endif
 
 namespace content {
+
+extern base::TimeTicks g_select_keydown_time;
 
 namespace {
 
@@ -417,11 +422,17 @@ void MediaStreamDispatcherHost::CancelAllRequests() {
 }
 
 void MediaStreamDispatcherHost::GenerateStreams(
-    int32_t page_request_id,
+    int32_t request_id,
     const blink::StreamControls& controls,
     bool user_gesture,
     blink::mojom::StreamSelectionInfoPtr audio_stream_selection_info_ptr,
     GenerateStreamsCallback callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserGenerateStreams", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: MediaStreamDispatcherHost::GenerateStreams latency(msec)=" << elapsed.InMilliseconds();
+
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const absl::optional<bad_message::BadMessageReason> bad_message =
@@ -460,7 +471,7 @@ void MediaStreamDispatcherHost::GenerateStreams(
           base::BindOnce(salt_and_origin_callback_, render_process_id_,
                          render_frame_id_)),
       base::BindOnce(&MediaStreamDispatcherHost::DoGenerateStreams,
-                     weak_factory_.GetWeakPtr(), page_request_id, controls,
+                     weak_factory_.GetWeakPtr(), request_id, controls,
                      user_gesture, std::move(audio_stream_selection_info_ptr),
                      std::move(callback)));
 }

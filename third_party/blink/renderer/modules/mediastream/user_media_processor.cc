@@ -16,6 +16,10 @@
 #include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
+#include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "media/base/audio_parameters.h"
@@ -61,6 +65,8 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/gfx/geometry/size.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 namespace blink {
 
@@ -581,6 +587,12 @@ UserMediaRequest* UserMediaProcessor::CurrentRequest() {
 
 void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
                                         base::OnceClosure callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BlinkProcessRequest", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: UserMediaProcessor::ProcessRequest: latency(msec)="
+            << elapsed.InMilliseconds();
   DCHECK(!request_completed_cb_);
   DCHECK(!current_request_info_);
   request_completed_cb_ = std::move(callback);
@@ -654,6 +666,13 @@ void UserMediaProcessor::SelectAudioDeviceSettings(
     UserMediaRequest* user_media_request,
     Vector<mojom::blink::AudioInputDeviceCapabilitiesPtr>
         audio_input_capabilities) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BlinkSelectAudioDeviceSettings", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: UserMediaProcessor::SelectAudioDeviceSettings: latency(msec)="
+            << elapsed.InMilliseconds();
+
   blink::AudioDeviceCaptureCapabilities capabilities;
   for (const auto& device : audio_input_capabilities) {
     // Find the first occurrence of blink::ProcessedLocalAudioSource that
@@ -690,6 +709,13 @@ void UserMediaProcessor::SelectAudioDeviceSettings(
 void UserMediaProcessor::SelectAudioSettings(
     UserMediaRequest* user_media_request,
     const blink::AudioDeviceCaptureCapabilities& capabilities) {
+
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BlinkSelectAudioSettings", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: UserMediaProcessor::SelectAudioSettings: latency(msec)="
+            << elapsed.InMilliseconds();
+
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // The frame might reload or |user_media_request| might be cancelled while
   // capabilities are queried. Do nothing if a different request is being
@@ -943,6 +969,13 @@ void UserMediaProcessor::SelectVideoContentSettings() {
 void UserMediaProcessor::GenerateStreamForCurrentRequestInfo(
     absl::optional<base::UnguessableToken> requested_audio_capture_session_id,
     blink::mojom::StreamSelectionStrategy strategy) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BlinkGenerateStream", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: UserMediaProcessor::GenerateStreamForCurrentRequestInfo: latency(msec)="
+            << elapsed.InMilliseconds();
+
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(current_request_info_);
   SendLogMessage(base::StringPrintf(
@@ -1686,6 +1719,13 @@ void UserMediaProcessor::OnCreateNativeTracksCompleted(
     RequestInfo* request_info,
     MediaStreamRequestResult result,
     const String& constraint_name) {
+
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BlinkOnCreateNativeTracksCompleted", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: UserMediaProcessor::OnCreateNativeTracksCompleted: latency(msec)="
+            << elapsed.InMilliseconds();
+
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SendLogMessage(base::StringPrintf(
       "UMP::OnCreateNativeTracksCompleted({request_id=%d}, {label=%s})",
@@ -1748,6 +1788,14 @@ void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
     int32_t request_id,
     MediaStreamDescriptorVector* components,
     UserMediaRequest* user_media_request) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BlinkGetUserMediaSucceeded", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: UserMediaProcessor::DelayedGetUserMediaRequestSucceeded: "
+                "latency(msec)="
+            << elapsed.InMilliseconds();
+
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SendLogMessage(base::StringPrintf(
       "DelayedGetUserMediaRequestSucceeded({request_id=%d}, {result=%s})",

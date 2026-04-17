@@ -27,7 +27,14 @@
 
 #include "third_party/blink/renderer/core/dom/events/event_dispatcher.h"
 
+#include <optional>
+
+#include "base/feature_list.h"
+#include "base/time/time.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
@@ -61,6 +68,10 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/keyboard_codes.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
+
+namespace content {
+extern base::TimeTicks g_select_keydown_time;
+}
 
 namespace blink {
 
@@ -174,6 +185,26 @@ void EventDispatcher::DispatchSimulatedEnterEvent(
 
 // https://dom.spec.whatwg.org/#dispatching-events
 DispatchEventResult EventDispatcher::Dispatch() {
+  if (event_->type() == event_type_names::kKeydown) {
+    if (auto* key_event = DynamicTo<KeyboardEvent>(event_)) {
+      if (key_event->keyCode() == VKEY_RETURN) {
+        if (!content::g_select_keydown_time.is_null()) {
+          uint64_t id = content::g_select_keydown_time.since_origin().InMicroseconds();
+          TRACE_EVENT("media", "RecordLatency::BlinkKeyEventDown", perfetto::Flow::ProcessScoped(id));
+        }
+        LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keydown keyCode="
+                  << key_event->keyCode();
+      }
+    }
+  }
+  if (event_->type() == event_type_names::kKeyup) {
+    if (auto* key_event = DynamicTo<KeyboardEvent>(event_)) {
+      if (key_event->keyCode() == VKEY_RETURN) {
+       LOG(INFO) << "KJ: EventDispatcher::Dispatch type=keyup keyCode="
+                 << key_event->keyCode();
+      }
+    }
+  }
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("blink.debug"),
                "EventDispatcher::dispatch");
 

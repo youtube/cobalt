@@ -23,7 +23,12 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/task/bind_post_task.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
@@ -2581,6 +2586,7 @@ void MediaStreamManager::PostRequestToUI(
     const std::string& label,
     const MediaDeviceEnumeration& enumeration,
     const absl::optional<media::AudioParameters>& output_parameters) {
+  TRACE_EVENT("media", "RecordLatency::MSM_PostRequestToUI");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(!output_parameters || output_parameters->IsValid());
   DeviceRequest* request = FindRequest(label);
@@ -2617,6 +2623,7 @@ void MediaStreamManager::PostRequestToUI(
 }
 
 void MediaStreamManager::SetUpRequest(const std::string& label) {
+  TRACE_EVENT("media", "RecordLatency::MSM_SetUpRequest");
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const DeviceRequests::const_iterator request_it = FindRequestIterator(label);
@@ -2984,6 +2991,12 @@ bool MediaStreamManager::FindExistingRequestedDevice(
 
 void MediaStreamManager::FinalizeGenerateStreams(const std::string& label,
                                                  DeviceRequest* request) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::BrowserGenerateStreamsReturned", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: MediaStreamManager::FinalizeGenerateStreams (Sending back): latency(msec)=" << elapsed.InMilliseconds();
+
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(request);
   DCHECK_EQ(request->request_type(), blink::MEDIA_GENERATE_STREAM);

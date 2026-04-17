@@ -13,6 +13,9 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/audio/android/aaudio_output.h"
 #include "media/audio/android/aaudio_stubs.h"
@@ -26,6 +29,8 @@
 #include "media/base/android/media_jni_headers/AudioManagerAndroid_jni.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
+
+namespace content { extern base::TimeTicks g_select_keydown_time; }
 
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
@@ -166,6 +171,14 @@ void AudioManagerAndroid::GetAudioOutputDeviceNames(
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::GetInputStreamParameters", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed =
+      base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: AudioManagerAndroid::GetInputStreamParameters: device_id=" << device_id 
+            << " latency(msec)=" << elapsed.InMilliseconds();
+
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   // Use mono as preferred number of input channels on Android to save
@@ -190,7 +203,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
                          ChannelLayoutConfig::FromLayout<channel_layout>(),
                          GetNativeOutputSampleRate(), buffer_size);
   params.set_effects(effects);
-  DVLOG(1) << params.AsHumanReadableString();
+  LOG(INFO) << "KJ: " << __func__ << "params=" << params.AsHumanReadableString();
   return params;
 }
 
@@ -306,6 +319,15 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::MakeLowLatencyInputStream", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed =
+      base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: AudioManagerAndroid::MakeLowLatencyInputStream: "
+                "latency(msec)="
+            << elapsed.InMilliseconds();
+
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
@@ -432,6 +454,14 @@ void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
 }
 
 bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::SetAudioDevice", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed =
+      base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: AudioManagerAndroid::SetAudioDevice: " << device_id
+            << " latency(msec)=" << elapsed.InMilliseconds();
+
   DVLOG(1) << __FUNCTION__ << ": " << device_id;
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
@@ -442,8 +472,12 @@ bool AudioManagerAndroid::SetAudioDevice(const std::string& device_id) {
   ScopedJavaLocalRef<jstring> j_device_id = ConvertUTF8ToJavaString(
       env, device_id == AudioDeviceDescription::kDefaultDeviceId ? std::string()
                                                                  : device_id);
-  return Java_AudioManagerAndroid_setDevice(env, GetJavaAudioManager(),
+  bool success = Java_AudioManagerAndroid_setDevice(env, GetJavaAudioManager(),
                                             j_device_id);
+  if (success && !::content::g_select_keydown_time.is_null()) {
+    LOG(INFO) << "KJ: SetAudioDevice finishes";
+  }
+  return success;
 }
 
 int AudioManagerAndroid::GetNativeOutputSampleRate() {

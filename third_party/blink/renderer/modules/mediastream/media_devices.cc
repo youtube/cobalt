@@ -8,6 +8,10 @@
 
 #include "base/guid.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
+#include "perfetto/tracing/track_event_args.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
@@ -58,6 +62,8 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
+namespace content { extern base::TimeTicks g_select_keydown_time; }
+
 namespace blink {
 
 namespace {
@@ -80,6 +86,12 @@ class PromiseResolverCallbacks final : public UserMediaRequest::Callbacks {
 
   void OnSuccess(const MediaStreamVector& streams,
                  CaptureController* capture_controller) override {
+    uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+    TRACE_EVENT("media", "RecordLatency::JS_getUserMedia_Success", perfetto::Flow::ProcessScoped(id));
+    base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+    LOG(INFO) << "KJ: PromiseResolverCallbacks::OnSuccess: latency(msec)="
+              << elapsed.InMilliseconds();
+
     if (media_type_ == UserMediaRequestType::kDisplayMediaSet) {
       OnSuccessGetDisplayMediaSet(streams);
       return;
@@ -376,6 +388,13 @@ MediaDevices::~MediaDevices() = default;
 
 ScriptPromise MediaDevices::enumerateDevices(ScriptState* script_state,
                                              ExceptionState& exception_state) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::JS_EnumerateDevices", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: MediaDevices::enumerateDevices: latency(msec)="
+            << elapsed.InMilliseconds();
+
   UpdateWebRTCMethodCount(RTCAPIName::kEnumerateDevices);
   if (!script_state->ContextIsValid()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
@@ -409,6 +428,12 @@ ScriptPromise MediaDevices::getUserMedia(
     ScriptState* script_state,
     const UserMediaStreamConstraints* options,
     ExceptionState& exception_state) {
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::JS_getUserMedia", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: MediaDevices::getUserMedia: latency(msec)="
+            << elapsed.InMilliseconds();
+
   // This timeout of base::Seconds(8) is an initial value and based on the data
   // in Media.MediaDevices.GetUserMedia.Latency, it should be iterated upon.
   auto* resolver = MakeGarbageCollected<
@@ -934,6 +959,13 @@ void MediaDevices::DevicesEnumerated(
         video_input_capabilities,
     Vector<mojom::blink::AudioInputDeviceCapabilitiesPtr>
         audio_input_capabilities) {
+  
+  uint64_t id = ::content::g_select_keydown_time.since_origin().InMicroseconds();
+  TRACE_EVENT("media", "RecordLatency::JS_DevicesEnumerated", perfetto::Flow::ProcessScoped(id));
+  base::TimeDelta elapsed = base::TimeTicks::Now() - ::content::g_select_keydown_time;
+  LOG(INFO) << "KJ: MediaDevices::DevicesEnumerated: latency(msec)="
+            << elapsed.InMilliseconds();
+
   if (!enumerate_device_requests_.Contains(result_tracker)) {
     return;
   }

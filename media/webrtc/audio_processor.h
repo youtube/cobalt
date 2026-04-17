@@ -254,6 +254,8 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   // For reporting audio delay stats.
   media::AudioDelayStatsReporter audio_delay_stats_reporter_;
 
+  bool resampling_logged_ = false;
+
   // Members accessed only on the playout thread:
 
   // FIFO to provide playout audio in chunks that can be processed by
