@@ -411,11 +411,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
-      use_dual_threads_(experimental_features.use_dual_threads_for_video),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
+      use_dual_threads_(experimental_features.use_dual_threads_for_video),
       surface_view_(surface_view),
       enable_flush_during_seek_(enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
