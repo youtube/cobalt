@@ -81,11 +81,44 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.LocalStorage.DatabaseCommitError" enum="LevelDBStatus"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb error when a commit fails in Local Storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseOpenError" enum="LevelDBStatus"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb error when opening the Local Storage database fails.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseReadError" enum="LevelDBStatus"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb error when a read fails in Local Storage.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.LocalStorage.DatabaseResetReason"
     enum="LocalStorageDatabaseResetReason" expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
     Records the reason why the Local Storage database was reset.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.DatabaseVersionMismatch" enum="LevelDBStatus"
+    expires_after="never">
+  <owner>colinliang@google.com</owner>
+  <summary>
+    Records the leveldb status when a version mismatch is detected in Local
+    Storage.
   </summary>
 </histogram>
 
