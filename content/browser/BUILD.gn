@@ -351,6 +351,10 @@ source_set("browser") {
     "//v8:v8_version",
   ]
 
+  if (is_cobalt) {
+    deps -= [ "//components/language_detection/content/common" ]
+  }
+
   public_deps = [
     "//base",
     "//components/memory_pressure",
