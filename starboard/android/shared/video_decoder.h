@@ -257,6 +257,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   int max_buffered_output_frames_ = 0;
   bool first_output_format_changed_ = false;
   std::optional<VideoOutputFormat> output_format_;
+  const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
   const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;
