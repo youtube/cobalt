@@ -26,6 +26,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -42,13 +43,6 @@ namespace starboard {
 // pipeline to coordinate data transfer between these parties.
 class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
  public:
-  struct PrerollParameters {
-    int32_t min_input_buffers;
-    int32_t min_decoded_frames;
-  };
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const PrerollParameters& params);
-
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
   VideoRendererImpl(JobQueue* job_queue,
@@ -56,7 +50,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
                     MediaTimeProvider* media_time_provider,
                     std::unique_ptr<VideoRenderAlgorithm> algorithm,
                     scoped_refptr<VideoRendererSink> sink,
-                    const std::optional<PrerollParameters>& preroll_params);
+                    const ExperimentalFeatures& experimental_features);
   ~VideoRendererImpl() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -95,7 +89,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   const std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
-  const std::optional<PrerollParameters> preroll_params_;
+  const ExperimentalFeatures experimental_features_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
