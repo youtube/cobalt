@@ -401,7 +401,7 @@ void OSMetrics::SetProcSmapsForTesting(FILE* f) {
 
 #if BUILDFLAG(IS_COBALT)
 // static
-base::File OSMetrics::GetSmapsFileForScanning() {
+base::File OSMetrics::GetSmapsFileForScanning(base::ProcessHandle handle) {
   base::AutoLock testing_lock(GetTestingGlobalsLock());
   if (g_proc_smaps_for_testing) {
     int fd = dup(fileno(g_proc_smaps_for_testing));
@@ -411,7 +411,12 @@ base::File OSMetrics::GetSmapsFileForScanning() {
       return file;
     }
   }
-  return base::File(base::FilePath("/proc/self/smaps"),
+  std::string file_name =
+      "/proc/" +
+      (handle == base::kNullProcessHandle ? "self"
+                                          : base::NumberToString(handle)) +
+      "/smaps";
+  return base::File(base::FilePath(file_name),
                     base::File::FLAG_OPEN | base::File::FLAG_READ);
 }
 #endif
@@ -573,29 +578,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   static base::NoDestructor<base::Lock> detailed_metrics_lock;
   base::AutoLock lock(*detailed_metrics_lock);
 
-  base::File file_to_scan;
-  {
-    base::AutoLock testing_lock(GetTestingGlobalsLock());
-    if (g_proc_smaps_for_testing) {
-      // Create a base::File from the mocked FILE*.
-      // Duplicate the FD to not interfere with the original stream.
-      int fd = dup(fileno(g_proc_smaps_for_testing));
-      if (fd >= 0) {
-        file_to_scan = base::File(fd);
-        file_to_scan.Seek(base::File::FROM_BEGIN, 0);
-      }
-    }
-  }
-
-  if (!file_to_scan.IsValid()) {
-    std::string file_name =
-        "/proc/" +
-        (handle == base::kNullProcessHandle ? "self"
-                                            : base::NumberToString(handle)) +
-        "/smaps";
-    file_to_scan = base::File(base::FilePath(file_name),
-                              base::File::FLAG_OPEN | base::File::FLAG_READ);
-  }
+  base::File file_to_scan = OSMetrics::GetSmapsFileForScanning(handle);
 
   base::flat_map<std::string, uint64_t> stats;
 #if BUILDFLAG(IS_COBALT)
