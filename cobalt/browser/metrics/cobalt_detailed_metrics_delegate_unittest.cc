@@ -40,7 +40,7 @@ TEST_F(CobaltDetailedMetricsDelegateTest, CategorizesCobaltCore) {
   memory_instrumentation::SmapsMetrics m3;
   m3.pss_kb = 50;
   m3.rss_kb = 60;
-  delegate_.OnSmapsEntry("CobaltCore", m3);
+  delegate_.OnSmapsEntry("libcobalt.so", m3);
 
   base::flat_map<std::string, uint64_t> stats;
   delegate_.GetAndResetStats(stats);
@@ -111,7 +111,7 @@ TEST_F(CobaltDetailedMetricsDelegateTest, HandlesOther) {
 TEST_F(CobaltDetailedMetricsDelegateTest, ResetsCorrectly) {
   memory_instrumentation::SmapsMetrics m;
   m.pss_kb = 10;
-  delegate_.OnSmapsEntry("CobaltCore", m);
+  delegate_.OnSmapsEntry("libcobalt.so", m);
 
   base::flat_map<std::string, uint64_t> stats;
   delegate_.GetAndResetStats(stats);
