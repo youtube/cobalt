@@ -169,47 +169,48 @@ void AudioInputStreamStarboard::ReadAudio() {
   const int buffer_size_bytes =
       params_.frames_per_buffer() * params_.channels() * sizeof(int16_t);
 
-  int bytes_read =
-      SbMicrophoneRead(microphone_, buffer_.data(), buffer_size_bytes);
+  int bytes_to_read = buffer_size_bytes - accumulated_bytes_;
+  int bytes_read = SbMicrophoneRead(
+      microphone_, reinterpret_cast<char*>(buffer_.data()) + accumulated_bytes_,
+      bytes_to_read);
 
   if (bytes_read > 0) {
-    int frames_read = bytes_read / (params_.channels() * sizeof(int16_t));
-    CHECK_LE(frames_read, params_.frames_per_buffer());
-
-    audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_.data(),
-                                                             frames_read);
-
-    callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
-
-    // If the read callback is behind schedule. Schedule the next one to run
-    // immediately to catch up.
-    next_read_time_ =
-        std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
-
-    // base::Unretained is safe here because the AudioInputStreamStarboard owns
-    // capture_thread_, and the thread is stopped before this object is
-    // destroyed, guaranteeing the callback will not run on a dangling pointer.
-    capture_thread_.task_runner()->PostDelayedTaskAt(
-        base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
-        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                       base::Unretained(this)),
-        next_read_time_, base::subtle::DelayPolicy::kPrecise);
-
+    LOG(INFO) << "SAMSUNG DEBUG - Starboard Read: " << bytes_read
+              << " bytes (Target: " << bytes_to_read
+              << "). Accumulated: " << accumulated_bytes_ + bytes_read;
+    accumulated_bytes_ += bytes_read;
   } else if (bytes_read == 0) {
-    // No data available yet. Check again in a little bit.
-    base::TimeTicks next_check_time =
-        base::TimeTicks::Now() + buffer_duration_ / 2;
-    capture_thread_.task_runner()->PostDelayedTaskAt(
-        base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
-        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                       base::Unretained(this)),
-        next_check_time, base::subtle::DelayPolicy::kPrecise);
-  } else {
+    LOG(INFO) << "SAMSUNG DEBUG - Starboard Read: ZERO (Starvation/Stall)";
+  } else if (bytes_read < 0) {
     DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read
                   << ". Dropping this buffer.";
     HandleError("SbMicrophoneRead");
     return;
   }
+
+  if (accumulated_bytes_ == buffer_size_bytes) {
+    audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
+        buffer_.data(), params_.frames_per_buffer());
+
+    callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
+    accumulated_bytes_ = 0;
+
+    // Schedule next read based on nominal buffer duration to maintain timing.
+    next_read_time_ =
+        std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
+  } else {
+    // Not enough data yet, or read 0. Retry sooner to catch remaining bytes.
+    next_read_time_ = base::TimeTicks::Now() + buffer_duration_ / 2;
+  }
+
+  // base::Unretained is safe here because the AudioInputStreamStarboard owns
+  // capture_thread_, and the thread is stopped before this object is
+  // destroyed, guaranteeing the callback will not run on a dangling pointer.
+  capture_thread_.task_runner()->PostDelayedTaskAt(
+      base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
+      base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
+                     base::Unretained(this)),
+      next_read_time_, base::subtle::DelayPolicy::kPrecise);
 }
 
 void AudioInputStreamStarboard::StopRunningOnCaptureThread() {

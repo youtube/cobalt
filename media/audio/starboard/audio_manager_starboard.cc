@@ -62,6 +62,9 @@ AudioParameters AudioManagerStarboard::GetInputStreamParameters(
   // Chrome works best with 10ms buffers
   int buffer_size = kDefaultSampleRate / 100;
 
+  LOG(INFO) << "SAMSUNG DEBUG - Starboard reporting InputStreamParams: "
+            << "Rate=" << kDefaultSampleRate << ", Buffer=" << buffer_size;
+
   return media::AudioParameters(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                 ChannelLayoutConfig::Mono(), kDefaultSampleRate,
                                 buffer_size);

@@ -256,6 +256,12 @@ AudioContext::AudioContext(Document& document,
   RecordAudioContextOperation(AudioContextOperation::kCreate);
   SendLogMessage(GetAudioContextLogString(latency_hint, sample_rate));
 
+  if (sample_rate.has_value()) {
+    LOG(INFO) << "SAMSUNG DEBUG - AudioContext requested SampleRate: " << sample_rate.value();
+  } else {
+    LOG(INFO) << "SAMSUNG DEBUG - AudioContext requested SampleRate: default (Hardware)";
+  }
+
   // TODO(http://crbug.com/1410553) update the echo cancellation reference
   // if the client explicitly specified the sink and there are no issuess
   // accessing it.

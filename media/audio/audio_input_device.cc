@@ -477,6 +477,9 @@ void AudioInputDevice::AudioThreadCallback::Process(uint32_t pending_data) {
   const base::TimeTicks now_time = base::TimeTicks::Now();
   DCHECK_GE(now_time, capture_time);
 
+  LOG(INFO) << "SAMSUNG DEBUG - Renderer Received: " << audio_bus->frames()
+            << " frames @ " << audio_parameters_.sample_rate() << "Hz";
+
   AudioGlitchInfo glitch_info{
       .duration = base::Microseconds(buffer->params.glitch_duration_us),
       .count = buffer->params.glitch_count};
