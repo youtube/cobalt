@@ -48,9 +48,9 @@ runs:
         # Ensure the directories exist
         mkdir -p "$UPPER_DIR" "$WORK_DIR" "$MERGED_DIR"
 
-        # If the golden workspace does not exist or is corrupted (missing .gclient), initialize it.
+        # If the golden workspace does not exist or is corrupted (missing .runner_cache_ready), initialize it.
         # This will only happen once per node!
-        if [ ! -f "$LOWER_DIR/.gclient" ]; then
+        if [ ! -f "$LOWER_DIR/.runner_cache_ready" ]; then
           IS_CACHE_HOT="false"
           echo "cache_hit=false" >> $GITHUB_OUTPUT
           echo "Golden workspace not found or corrupted. Creating it now. This will take time..."
@@ -72,6 +72,9 @@ runs:
           echo "target_os=['android', 'linux']" >> .gclient
           echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           gclient sync -D --no-history
+
+          # Create marker file to indicate the cache is fully populated and valid
+          touch "$LOWER_DIR/.runner_cache_ready"
         else
           IS_CACHE_HOT="true"
           echo "cache_hit=true" >> $GITHUB_OUTPUT
