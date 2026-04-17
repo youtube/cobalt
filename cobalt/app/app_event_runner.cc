@@ -34,11 +34,14 @@
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
-#include "content/public/app/content_main.h"
-#include "content/public/app/content_main_runner.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
 #include "net/base/network_change_notifier_passive.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "content/public/app/content_main.h"
+#include "content/public/app/content_main_runner.h"
+#endif
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -54,6 +57,7 @@
 #endif
 
 namespace cobalt {
+#if !BUILDFLAG(IS_ANDROID)
 namespace {
 content::ContentMainRunner* GetContentMainRunner() {
   static base::NoDestructor<std::unique_ptr<content::ContentMainRunner>>
@@ -61,6 +65,7 @@ content::ContentMainRunner* GetContentMainRunner() {
   return main_runner->get();
 }
 }  // namespace
+#endif
 
 class AppEventRunnerImpl : public AppEventRunner {
  public:
@@ -116,6 +121,7 @@ class AppEventRunnerImpl : public AppEventRunner {
       content_main_delegate_->Shutdown();
     }
 
+#if !BUILDFLAG(IS_ANDROID)
     // Must be called after content_main_delegate_->Shutdown() to prevent
     // unregistering the main thread from the SequenceManager which
     // happens with the destruction of the BrowserTaskExecutor. If the order
@@ -125,6 +131,7 @@ class AppEventRunnerImpl : public AppEventRunner {
     if (main_runner_) {
       main_runner_->Shutdown();
     }
+#endif
 
     // Destroy only after main_runner_/ContentMainRunnerImpl is shutdown
     // as the delegate is used internally.
@@ -323,7 +330,9 @@ class AppEventRunnerImpl : public AppEventRunner {
   }
 
   std::unique_ptr<base::AtExitManager> exit_manager_;
+#if !BUILDFLAG(IS_ANDROID)
   content::ContentMainRunner* main_runner_ = nullptr;
+#endif
   std::unique_ptr<cobalt::CobaltMainDelegate> content_main_delegate_;
 
 #if BUILDFLAG(IS_STARBOARD)
