@@ -33,7 +33,6 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/updater/util.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/cobalt_slot_management.h"
@@ -297,13 +296,13 @@ void UpdaterModule::Update() {
     return;
   }
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
   bool require_network_encryption = GetRequireNetworkEncryption();
 #else
   bool skip_verify_public_key_hash = false;
   bool require_network_encryption = true;
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
   update_client_->Update(
       app_ids,
@@ -319,12 +318,12 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
             component.requires_network_encryption = require_network_encryption;
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },

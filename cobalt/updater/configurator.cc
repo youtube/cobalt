@@ -19,8 +19,9 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/functional/bind.h"
+#include "base/time/time.h"
 #include "base/version.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/updater/network_fetcher.h"
 #include "cobalt/updater/patcher.h"
 #include "cobalt/updater/prefs.h"
@@ -48,6 +49,14 @@ const char kUpdaterJSONDefaultUrlQA[] =
 const char kUpdaterJSONDefaultUrl[] =
     "https://tools.google.com/service/update2/json";
 
+// Whether to request, download, and install uncompressed (rather than
+// compressed) Evergreen binaries.
+constexpr char kUseUncompressedUpdates[] = "use_uncompressed_updates";
+
+// Uses the QA update server to test the changes to the configuration of the
+// PROD update server.
+constexpr char kUseQAUpdateServer[] = "use_qa_update_server";
+
 std::string GetDeviceProperty(SbSystemPropertyId id) {
   char value[kSystemPropertyMaxLength];
   if (SbSystemGetProperty(id, value, kSystemPropertyMaxLength)) {
@@ -64,9 +73,9 @@ namespace updater {
 Configurator::Configurator(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : pref_service_(CreatePrefService()),
-      persisted_data_(
-          std::make_unique<update_client::PersistedData>(pref_service_.get(),
-                                                         nullptr)),
+      persisted_data_(update_client::CreatePersistedData(
+          base::BindRepeating([](PrefService* p) { return p; }, pref_service_.get()),
+          nullptr)),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(
               url_loader_factory)),
@@ -87,7 +96,7 @@ Configurator::Configurator(
     SetChannel(persisted_channel);
   }
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kUseUncompressedUpdates)) {
+          kUseUncompressedUpdates)) {
     use_compressed_updates_.store(false);
   } else {
     use_compressed_updates_.store(true);
@@ -114,13 +123,13 @@ base::TimeDelta Configurator::UpdateDelay() const {
 }
 
 std::vector<GURL> Configurator::UpdateUrl() const {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  base::AutoLock auto_lock(const_cast<base::Lock&>(update_server_url_lock_));
   if (allow_self_signed_packages_ && !update_server_url_.empty()) {
     return std::vector<GURL>{GURL(update_server_url_)};
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kUseQAUpdateServer)) {
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(kUseQAUpdateServer)) {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrlQA)};
   } else {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrl)};
@@ -300,11 +309,11 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
             << "combination is undefined with the new Omaha configs.";
 
   // All undefined channel requests go to prod configs except for static
-  // channel requestsf for C24 and older.
+  // channel requests for C24 and older.
   // TODO(b/449024263): Replace regex matchers with substring_set_matcher or re2
   if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
       sb_version >= 14 && sb_version <= 16) {
-    const auto it = kChannelAndSbVersionToOmahaIdMap.find(
+    it = kChannelAndSbVersionToOmahaIdMap.find(
         "prod" + std::to_string(sb_version));
     if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
       return it->second;
@@ -315,6 +324,7 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
 }
 
 std::string Configurator::GetAppGuid() const {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(updater_channel_lock_));
   const std::string version(COBALT_VERSION);
   return GetAppGuidHelper(updater_channel_, version, SB_API_VERSION);
 }
