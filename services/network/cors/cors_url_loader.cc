@@ -4,6 +4,7 @@
 
 #include "services/network/cors/cors_url_loader.h"
 
+#include <algorithm>
 #include <sstream>
 #include <utility>
 
@@ -17,7 +18,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
+#include "net/base/isolation_info.h"
 #include "net/base/load_flags.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/cookies/cookie_partition_key.h"
 #include "net/http/http_status_code.h"
 #include "services/network/cors/cors_url_loader_factory.h"
@@ -496,6 +499,15 @@ void CorsURLLoader::OnReceiveResponse(
   DCHECK(network_loader_);
   DCHECK(forwarding_client_);
   LOG(INFO) << "CorsURLLoader::OnReceiveResponse - URL: " << request_.url << " Status: " << (response_head->headers ? response_head->headers->response_code() : 0) << " Destination: " << (int)request_.destination;
+
+  if (response_head->headers && response_head->headers->response_code() == 401) {
+    if (request_.url.DomainIs("youtube.com")) {
+      std::string headers_str = response_head->headers->raw_headers();
+      std::replace(headers_str.begin(), headers_str.end(), '\0', '\n');
+      LOG(INFO) << "  [401 DIAGNOSTIC] Response Headers:\n" << headers_str;
+    }
+  }
+
   DCHECK(!deferred_redirect_url_);
 
   // See 10.7.4 of https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
@@ -722,15 +734,85 @@ void CorsURLLoader::StartRequest() {
   CHECK_EQ(pna_preflight_result_,
            mojom::PrivateNetworkAccessPreflightResult::kNone);
 
-  if (request_.request_initiator &&
-      request_.request_initiator->host() == "storage.googleapis.com" &&
-      request_.url.host_piece() == "www.youtube.com") {
-    LOG(INFO) << "Workaround: Spoofing initiator and forcing credentials for GCS worker request to YouTube: " << request_.url;
-    request_.request_initiator = url::Origin::Create(GURL("https://www.youtube.com"));
-    request_.credentials_mode = mojom::CredentialsMode::kInclude;
-    // Recalculate CORS flag with the spoofed origin.
-    fetch_cors_flag_ = false;
-    SetCorsFlagIfNeeded();
+  if (request_.url.host_piece() == "www.youtube.com") {
+    LOG(INFO) << "CorsURLLoader::StartRequest - YouTube URL: " << request_.url
+              << " Initiator: " << (request_.request_initiator ? request_.request_initiator->Serialize() : "NULL")
+              << " Mode: " << request_.mode
+              << " Credentials: " << request_.credentials_mode
+              << " SiteForCookies: " << request_.site_for_cookies.ToDebugString()
+              << " Referrer: " << request_.referrer;
+
+    bool is_gcs_initiator = request_.request_initiator && request_.request_initiator->host() == "storage.googleapis.com";
+    bool is_gcs_referrer = request_.referrer.host_piece() == "storage.googleapis.com";
+
+    // FORCED BYPASS for requests to YouTube that are missing proper context or coming from GCS.
+    if (!request_.site_for_cookies.IsFirstParty(request_.url) || is_gcs_initiator || is_gcs_referrer) {
+      LOG(INFO) << "Workaround: Forcing First-Party context for YouTube request: " << request_.url
+                << " (GCS detected: init=" << is_gcs_initiator << " ref=" << is_gcs_referrer << ")";
+      
+      LOG(INFO) << "  [BEFORE] Headers: " << request_.headers.ToString();
+
+      request_.site_for_cookies = net::SiteForCookies::FromUrl(request_.url);
+      request_.referrer = GURL("https://www.youtube.com/tv");
+      request_.request_initiator = url::Origin::Create(GURL("https://www.youtube.com"));
+      request_.credentials_mode = mojom::CredentialsMode::kInclude;
+
+      // Force headers to look entirely same-origin/first-party
+      request_.headers.SetHeader(net::HttpRequestHeaders::kOrigin, "https://www.youtube.com");
+      request_.headers.SetHeader(net::HttpRequestHeaders::kReferer, "https://www.youtube.com/tv");
+      request_.headers.SetHeader("Sec-Fetch-Site", "same-origin");
+      request_.headers.SetHeader("Sec-Fetch-Mode", "cors");
+      request_.headers.SetHeader("Sec-Fetch-Dest", "empty");
+      request_.headers.SetHeader("Accept", "application/json");
+      request_.headers.SetHeader("X-YouTube-Bootstrap-Logged-In", "true");
+      request_.headers.SetHeader("X-Origin", "https://www.youtube.com");
+      request_.headers.SetHeader("X-Goog-AuthUser", "0");
+
+      std::string auth_header;
+      if (request_.headers.GetHeader(net::HttpRequestHeaders::kAuthorization, &auth_header)) {
+        LOG(INFO) << "  [DIAGNOSTIC] Authorization header present (starts with: " 
+                  << auth_header.substr(0, 15) << "...)";
+        if (auth_header.find("SAPISIDHASH") != std::string::npos) {
+            LOG(INFO) << "  [DIAGNOSTIC] Found SAPISIDHASH in Authorization header.";
+        }
+      } else {
+        LOG(INFO) << "  [DIAGNOSTIC] Authorization header MISSING.";
+      }
+
+      // We used to strip Authorization here, but let's try keeping it 
+      // now that we've spoofed the Worker's SecurityOrigin.
+      
+      // Some YouTube requests use this to identify the session.
+      // If we can't find it, we'll just skip it.
+
+
+      tainted_ = false;
+
+      url::Origin youtube_origin = url::Origin::Create(GURL("https://www.youtube.com"));
+
+      if (!request_.trusted_params) {
+        request_.trusted_params = ResourceRequest::TrustedParams();
+      }
+
+      // Override IsolationInfo to be first-party YouTube.
+      request_.trusted_params->isolation_info = net::IsolationInfo::Create(
+          net::IsolationInfo::RequestType::kOther, 
+          youtube_origin, 
+          youtube_origin, 
+          net::SiteForCookies::FromOrigin(youtube_origin));
+
+      isolation_info_ = request_.trusted_params->isolation_info;
+      
+      // Force SiteForCookies.
+      request_.site_for_cookies = net::SiteForCookies::FromOrigin(youtube_origin);
+      request_.credentials_mode = mojom::CredentialsMode::kInclude;
+
+      // Recalculate CORS flag with the spoofed origin.
+      fetch_cors_flag_ = false;
+      SetCorsFlagIfNeeded();
+
+      LOG(INFO) << "  [AFTER] Headers: " << request_.headers.ToString();
+    }
   }
 
   if (fetch_cors_flag_ && !skip_cors_enabled_scheme_check_ &&

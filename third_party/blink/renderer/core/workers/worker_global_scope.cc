@@ -502,6 +502,7 @@ void WorkerGlobalScope::RunWorkerScript() {
   DCHECK_EQ(script_eval_state_, ScriptEvalState::kReadyToEvaluate);
 
   LOG(INFO) << "WorkerGlobalScope::RunWorkerScript - URL: " << Url().GetString();
+  LOG(INFO) << "  [DIAGNOSTIC] Security Origin: " << GetSecurityOrigin()->ToString();
 
   WorkerThreadDebugger* debugger =
       WorkerThreadDebugger::From(GetThread()->GetIsolate());

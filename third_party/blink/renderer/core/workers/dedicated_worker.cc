@@ -521,13 +521,20 @@ DedicatedWorker::CreateGlobalScopeCreationParams(
           ? mojom::blink::ScriptType::kClassic
           : mojom::blink::ScriptType::kModule;
 
+  scoped_refptr<const SecurityOrigin> starter_origin = execution_context->GetSecurityOrigin();
+  if (script_url.Host() == "storage.googleapis.com" &&
+      (script_url.GetPath().Contains("yth5player") || script_url.GetPath().Contains("playback-worker"))) {
+    LOG(INFO) << "[WORKAROUND] Spoofing Worker Origin to youtube.com for: " << script_url.ElidedString();
+    starter_origin = SecurityOrigin::Create(KURL("https://www.youtube.com"));
+  }
+
   return std::make_unique<GlobalScopeCreationParams>(
       script_url, script_type, options_->name(), execution_context->UserAgent(),
       execution_context->GetUserAgentMetadata(), CreateWebWorkerFetchContext(),
       mojo::Clone(
           execution_context->GetContentSecurityPolicy()->GetParsedPolicies()),
       std::move(response_content_security_policies), referrer_policy,
-      execution_context->GetSecurityOrigin(),
+      starter_origin.get(),
       execution_context->IsSecureContext(), execution_context->GetHttpsState(),
       MakeGarbageCollected<WorkerClients>(), CreateWebContentSettingsClient(),
       OriginTrialContext::GetInheritedTrialFeatures(execution_context).get(),
