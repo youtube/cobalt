@@ -74,7 +74,7 @@ runs:
           gclient sync -D --no-history
 
           # Create marker file to indicate the cache is fully populated and valid
-          touch .runner_cache_ready
+          touch "$LOWER_DIR/.runner_cache_ready"
         else
           IS_CACHE_HOT="true"
           echo "cache_hit=true" >> $GITHUB_OUTPUT
