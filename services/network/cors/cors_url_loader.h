@@ -206,6 +206,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) CorsURLLoader
       const std::string& header_name);
 
   static std::string& GetLastYoutubeAuthHeader();
+  static std::string& GetLastYoutubeCookieHeader();
 
   void OnSharedDictionaryWritten(bool success);
 

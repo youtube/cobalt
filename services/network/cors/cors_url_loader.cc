@@ -55,6 +55,11 @@ std::string& CorsURLLoader::GetLastYoutubeAuthHeader() {
   return *last_youtube_auth_header;
 }
 
+std::string& CorsURLLoader::GetLastYoutubeCookieHeader() {
+  static base::NoDestructor<std::string> last_youtube_cookie_header;
+  return *last_youtube_cookie_header;
+}
+
 namespace {
 
 enum class PreflightRequiredReason {
@@ -747,13 +752,25 @@ void CorsURLLoader::StartRequest() {
               << " Credentials: " << request_.credentials_mode
               << " SiteForCookies: " << request_.site_for_cookies.ToDebugString()
               << " Referrer: " << request_.referrer;
+    
+    LOG(INFO) << "  [FULL HEADERS] " << request_.headers.ToString();
 
     std::string auth_header;
     if (request_.headers.GetHeader(net::HttpRequestHeaders::kAuthorization, &auth_header)) {
-      if (auth_header.find("SAPISIDHASH") != std::string::npos) {
+      if (auth_header.find("SAPISIDHASH") != std::string::npos || auth_header.find("Bearer") != std::string::npos) {
         if (GetLastYoutubeAuthHeader() != auth_header) {
-          LOG(INFO) << "  [AUTH CAPTURE] Storing new SAPISIDHASH Authorization header.";
+          LOG(INFO) << "  [AUTH CAPTURE] Storing new YouTube Authorization header: " << (auth_header.substr(0, 20)) << "...";
           GetLastYoutubeAuthHeader() = auth_header;
+        }
+      }
+    }
+
+    std::string cookie_header;
+    if (request_.headers.GetHeader(net::HttpRequestHeaders::kCookie, &cookie_header)) {
+      if (cookie_header.find("SID=") != std::string::npos || cookie_header.find("SAPISID=") != std::string::npos) {
+        if (GetLastYoutubeCookieHeader() != cookie_header) {
+          LOG(INFO) << "  [COOKIE CAPTURE] Storing new YouTube Cookie header.";
+          GetLastYoutubeCookieHeader() = cookie_header;
         }
       }
     }
@@ -766,12 +783,20 @@ void CorsURLLoader::StartRequest() {
       LOG(INFO) << "Workaround: Forcing First-Party context for YouTube request: " << request_.url
                 << " (GCS detected: init=" << is_gcs_initiator << " ref=" << is_gcs_referrer << ")";
       
-      LOG(INFO) << "  [BEFORE] Headers: " << request_.headers.ToString();
-
       request_.site_for_cookies = net::SiteForCookies::FromUrl(request_.url);
       request_.referrer = GURL("https://www.youtube.com/tv");
       request_.request_initiator = url::Origin::Create(GURL("https://www.youtube.com"));
       request_.credentials_mode = mojom::CredentialsMode::kInclude;
+
+      // Force IsolationInfo to first-party YouTube context
+      if (!request_.trusted_params) {
+        request_.trusted_params = network::ResourceRequest::TrustedParams();
+      }
+      request_.trusted_params->isolation_info = net::IsolationInfo::Create(
+          net::IsolationInfo::RequestType::kOther,
+          url::Origin::Create(request_.url),
+          url::Origin::Create(request_.url),
+          net::SiteForCookies::FromUrl(request_.url));
 
       // Force headers to look entirely same-origin/first-party
       request_.headers.SetHeader(net::HttpRequestHeaders::kOrigin, "https://www.youtube.com");
@@ -784,18 +809,19 @@ void CorsURLLoader::StartRequest() {
       request_.headers.SetHeader("X-Origin", "https://www.youtube.com");
       request_.headers.SetHeader("X-Goog-AuthUser", "0");
 
-      if (request_.headers.GetHeader(net::HttpRequestHeaders::kAuthorization, &auth_header)) {
-        LOG(INFO) << "  [DIAGNOSTIC] Authorization header present (starts with: " 
-                  << auth_header.substr(0, 15) << "...)";
-        if (auth_header.find("SAPISIDHASH") != std::string::npos) {
-            LOG(INFO) << "  [DIAGNOSTIC] Found SAPISIDHASH in Authorization header.";
-        }
-      } else if (!GetLastYoutubeAuthHeader().empty()) {
-        LOG(INFO) << "  [AUTH INJECTION] Injecting borrowed SAPISIDHASH Authorization header.";
+      // Inject Authorization if missing
+      if (!request_.headers.HasHeader(net::HttpRequestHeaders::kAuthorization) && !GetLastYoutubeAuthHeader().empty()) {
+        LOG(INFO) << "  [AUTH INJECTION] Injecting borrowed YouTube Authorization header.";
         request_.headers.SetHeader(net::HttpRequestHeaders::kAuthorization, GetLastYoutubeAuthHeader());
-      } else {
-        LOG(INFO) << "  [DIAGNOSTIC] Authorization header MISSING and no borrowed header available.";
       }
+
+      // Inject Cookie if missing
+      if (!request_.headers.HasHeader(net::HttpRequestHeaders::kCookie) && !GetLastYoutubeCookieHeader().empty()) {
+        LOG(INFO) << "  [COOKIE INJECTION] Injecting borrowed YouTube Cookie header.";
+        request_.headers.SetHeader(net::HttpRequestHeaders::kCookie, GetLastYoutubeCookieHeader());
+      }
+
+      LOG(INFO) << "  [AFTER WORKAROUND] Headers: " << request_.headers.ToString();
 
       // We used to strip Authorization here, but let's try keeping it 
       // now that we've spoofed the Worker's SecurityOrigin.
