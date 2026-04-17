@@ -16,7 +16,7 @@
   "targets": [
     "cobalt:gn_all",
     "loader_app",
-    "libloader_app.so"
+    "loader_app_rdk_plugin"
   ],
   "includes": [
     {
