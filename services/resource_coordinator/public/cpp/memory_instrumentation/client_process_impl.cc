@@ -261,7 +261,6 @@ PerformOSMemoryDumpOnBackgroundThread(mojom::MemoryMapOption mmap_option,
 
 void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
   auto* instance = MemoryInstrumentation::GetInstance();
-
 #if BUILDFLAG(IS_COBALT)
   if (instance &&
       args.flags.Has(
@@ -272,7 +271,6 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
     return;
   }
 #endif
-
   base::WeakPtr<MemoryInstrumentation> weak_instrumentation;
   if (instance) {
     weak_instrumentation = instance->GetWeakPtr();
@@ -290,7 +288,6 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
           },
           std::move(args.callback)));
 }
-
 #if BUILDFLAG(IS_COBALT)
 void ClientProcessImpl::ContinuePerformOSMemoryDump(OSMemoryDumpArgs args) {
   auto* instance = MemoryInstrumentation::GetInstance();
