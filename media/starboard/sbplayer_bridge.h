@@ -171,7 +171,10 @@ class SbPlayerBridge {
     set_drm_system_ready_cb_time_ = timestamp;
   }
 
+  const AudioDecoderConfig& audio_config() const { return audio_config_; }
   const VideoDecoderConfig& video_config() const { return video_config_; }
+  const std::string& audio_mime_type() const { return audio_mime_type_; }
+  const std::string& video_mime_type() const { return video_mime_type_; }
 
  private:
   enum State {

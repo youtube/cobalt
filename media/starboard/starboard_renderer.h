@@ -192,8 +192,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // The following member variables are only accessed on |task_runner_|.
   State state_;
 
-  // Used to signal that a video codec change is in progress.
-  bool video_codec_change_pending_ = false;
+  // Used to signal that a codec or format change is in progress.
+  bool codec_or_format_change_pending_ = false;
 
   // Callbacks and objects passed in during initialization.
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
